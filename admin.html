@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks — Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Admin</h1>
+          <p>Add snacks and payments, manage the catalog, and correct entries.</p>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="index.html">Profile page</a>
+          <a class="btn" href="bins.html">Bins page</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card">
+      <h2>Device access</h2>
+      <p style="margin-bottom:10px;">
+        Writes go straight to <code>data.json</code> in the GitHub repo, so this device needs a
+        fine-grained personal access token with <strong>Contents: Read and write</strong> on the
+        <code>fresh-snacks</code> repo only. Create one at
+        GitHub → Settings → Developer settings → Fine-grained tokens.
+      </p>
+      <div class="form-grid">
+        <div class="field" style="grid-column: span 2;">
+          <label for="token-input">Access token</label>
+          <input id="token-input" type="password" placeholder="github_pat_…" autocomplete="off" />
+        </div>
+        <button class="primary" id="token-save">Save &amp; test</button>
+        <button id="token-clear">Remove from device</button>
+      </div>
+      <div class="status" id="token-status"></div>
+    </section>
+
+    <section class="card section-card">
+      <h2>Add snack entry</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="entry-date">Day</label>
+          <input id="entry-date" type="date" />
+        </div>
+        <div class="field">
+          <label for="entry-snack">Snack</label>
+          <select id="entry-snack"></select>
+        </div>
+        <div class="field hidden" id="entry-label-field">
+          <label for="entry-label">Custom label</label>
+          <input id="entry-label" type="text" placeholder="e.g. Previous Tab" />
+        </div>
+        <div class="field">
+          <label for="entry-count">Count</label>
+          <input id="entry-count" type="number" min="1" step="1" value="1" />
+        </div>
+        <div class="field">
+          <label for="entry-value">Value</label>
+          <input id="entry-value" type="number" min="0" step="1" />
+        </div>
+        <button class="primary" id="entry-add">Add entry</button>
+      </div>
+      <div class="status" id="entry-status"></div>
+    </section>
+
+    <section class="card section-card">
+      <h2>Add payment</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="pay-date">Day</label>
+          <input id="pay-date" type="date" />
+        </div>
+        <div class="field">
+          <label for="pay-amount">Amount</label>
+          <input id="pay-amount" type="number" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label for="pay-note">Note (optional)</label>
+          <input id="pay-note" type="text" />
+        </div>
+        <button class="primary" id="pay-add">Add payment</button>
+      </div>
+      <div class="status" id="pay-status"></div>
+    </section>
+
+    <section class="card section-card">
+      <h2>Snack catalog</h2>
+      <div id="catalog-list"></div>
+      <h3 style="margin-top:16px;">Add snack type</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="cat-name">Name</label>
+          <input id="cat-name" type="text" placeholder="e.g. Trail Mix" />
+        </div>
+        <div class="field">
+          <label for="cat-price">Price</label>
+          <input id="cat-price" type="number" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label for="cat-cal">Calories (optional)</label>
+          <input id="cat-cal" type="number" min="0" step="1" />
+        </div>
+        <button class="primary" id="cat-add">Add snack type</button>
+      </div>
+      <div class="status" id="cat-status"></div>
+    </section>
+
+    <section class="card section-card">
+      <h2>Entries</h2>
+      <div id="entries-list"></div>
+    </section>
+
+    <section class="card section-card">
+      <h2>Payments</h2>
+      <div id="payments-list"></div>
+    </section>
+
+    <footer>Changes are committed to the repo; the profile page picks them up immediately.</footer>
+  </main>
+
+  <script src="js/store.js"></script>
+  <script>
+    let DATA = null;
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    function cur() { return DATA ? DATA.profile.currency : "J$"; }
+
+    /* ---------- rendering ---------- */
+
+    function renderSnackSelect() {
+      $("entry-snack").innerHTML =
+        DATA.catalog.map((s) =>
+          `<option value="${esc(s.id)}">${esc(s.name)} (${FS.money(s.price, cur())})</option>`
+        ).join("") + `<option value="__custom__">Custom…</option>`;
+      syncEntryValue();
+    }
+
+    function syncEntryValue() {
+      const id = $("entry-snack").value;
+      $("entry-label-field").classList.toggle("hidden", id !== "__custom__");
+      const s = FS.snackById(DATA, id);
+      if (s) $("entry-value").value = s.price * Number($("entry-count").value || 1);
+    }
+
+    function renderCatalog() {
+      $("catalog-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th></th></tr></thead>
+        <tbody>` + DATA.catalog.map((s) => `<tr data-id="${esc(s.id)}">
+          <td><input data-f="name" value="${esc(s.name)}" /></td>
+          <td><input data-f="price" type="number" min="1" value="${esc(s.price)}" /></td>
+          <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
+          <td style="white-space:nowrap;">
+            <button data-act="cat-save">Save</button>
+            <button class="danger" data-act="cat-del">Delete</button>
+          </td>
+        </tr>`).join("") + `</tbody></table>`;
+    }
+
+    function renderEntries() {
+      const rows = [...DATA.entries].reverse().map((e) => `<tr data-id="${esc(e.id)}">
+        <td>${e.date ? esc(FS.fmtDay(e.date)) : esc(DATA.profile.openingLabel)}</td>
+        <td><span class="${FS.entryPillClass(DATA, e)}">${esc(FS.entryName(DATA, e))}</span></td>
+        <td class="num">${esc(e.count ?? "—")}</td>
+        <td class="num">${FS.money(e.value, cur())}</td>
+        <td>${esc(e.source || "admin")}</td>
+        <td style="white-space:nowrap;">
+          <button data-act="entry-edit">Edit</button>
+          <button class="danger" data-act="entry-del">Delete</button>
+        </td>
+      </tr>`).join("");
+      $("entries-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Day</th><th>Snack</th><th>Count</th><th>Value</th><th>Source</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }
+
+    function renderPayments() {
+      const rows = [...DATA.payments].reverse().map((p) => `<tr data-id="${esc(p.id)}">
+        <td>${p.date ? esc(FS.fmtDay(p.date)) : esc(DATA.profile.openingLabel)}</td>
+        <td class="num">${FS.money(p.amount, cur())}</td>
+        <td>${esc(p.note || "")}</td>
+        <td><button class="danger" data-act="pay-del">Delete</button></td>
+      </tr>`).join("");
+      $("payments-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Day</th><th>Amount</th><th>Note</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>`;
+    }
+
+    function renderAll() {
+      renderSnackSelect();
+      renderCatalog();
+      renderEntries();
+      renderPayments();
+    }
+
+    /* ---------- mutations ---------- */
+
+    async function commit(statusId, message, mutate) {
+      try {
+        DATA = await FS.saveData(mutate, message);
+        renderAll();
+        status(statusId, "Saved ✓", true);
+      } catch (e) {
+        status(statusId, e.message, false);
+      }
+    }
+
+    $("token-save").onclick = async () => {
+      FS.setToken($("token-input").value);
+      try {
+        await FS.testToken();
+        status("token-status", "Token works — this device can now write. ✓", true);
+      } catch (e) {
+        status("token-status", e.message, false);
+      }
+    };
+
+    $("token-clear").onclick = () => {
+      FS.clearToken();
+      $("token-input").value = "";
+      status("token-status", "Token removed from this device.", true);
+    };
+
+    $("entry-snack").onchange = syncEntryValue;
+    $("entry-count").oninput = syncEntryValue;
+
+    $("entry-add").onclick = () => {
+      const snackSel = $("entry-snack").value;
+      const custom = snackSel === "__custom__";
+      const count = Number($("entry-count").value);
+      const value = Number($("entry-value").value);
+      const date = $("entry-date").value || null;
+      const label = $("entry-label").value.trim();
+      if (custom && !label) return status("entry-status", "Enter a custom label.", false);
+      if (!count || count < 1) return status("entry-status", "Count must be at least 1.", false);
+      if (!(value >= 0)) return status("entry-status", "Enter a value.", false);
+      const entry = { id: FS.uid("e"), date, count, value, source: "admin" };
+      if (custom) entry.label = label; else entry.snackId = snackSel;
+      commit("entry-status", `Add entry: ${custom ? label : snackSel} x${count}`,
+        (d) => d.entries.push(entry));
+    };
+
+    $("pay-add").onclick = () => {
+      const amount = Number($("pay-amount").value);
+      if (!amount || amount <= 0) return status("pay-status", "Enter an amount.", false);
+      const payment = {
+        id: FS.uid("p"),
+        date: $("pay-date").value || null,
+        amount,
+        note: $("pay-note").value.trim(),
+      };
+      commit("pay-status", `Add payment: ${amount}`, (d) => d.payments.push(payment));
+    };
+
+    $("cat-add").onclick = () => {
+      const name = $("cat-name").value.trim();
+      const price = Number($("cat-price").value);
+      const calories = $("cat-cal").value === "" ? null : Number($("cat-cal").value);
+      if (!name || !price) return status("cat-status", "Name and price are required.", false);
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      commit("cat-status", `Add snack type: ${name}`, (d) => {
+        if (d.catalog.some((s) => s.id === id)) throw new Error("A snack with that name exists.");
+        d.catalog.push({ id, name, price, calories, style: "green" });
+      });
+    };
+
+    document.body.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = btn.closest("tr").dataset.id;
+      const act = btn.dataset.act;
+
+      if (act === "cat-save") {
+        const row = btn.closest("tr");
+        const get = (f) => row.querySelector(`input[data-f="${f}"]`).value;
+        commit("cat-status", `Update snack type: ${id}`, (d) => {
+          const s = d.catalog.find((x) => x.id === id);
+          if (!s) throw new Error("Snack not found.");
+          s.name = get("name").trim() || s.name;
+          s.price = Number(get("price")) || s.price;
+          s.calories = get("calories") === "" ? null : Number(get("calories"));
+        });
+      } else if (act === "cat-del") {
+        if (!confirm("Delete this snack type? Existing entries keep their values.")) return;
+        commit("cat-status", `Delete snack type: ${id}`, (d) => {
+          const s = d.catalog.find((x) => x.id === id);
+          d.catalog = d.catalog.filter((x) => x.id !== id);
+          // keep history readable once the catalog row is gone
+          for (const e of d.entries) {
+            if (e.snackId === id) { e.label = s ? s.name : id; delete e.snackId; }
+          }
+        });
+      } else if (act === "entry-del") {
+        if (!confirm("Delete this entry?")) return;
+        commit("entry-status", `Delete entry ${id}`,
+          (d) => { d.entries = d.entries.filter((e) => e.id !== id); });
+      } else if (act === "entry-edit") {
+        const e0 = DATA.entries.find((e) => e.id === id);
+        if (!e0) return;
+        const count = prompt("Count:", e0.count);
+        if (count === null) return;
+        const value = prompt("Value:", e0.value);
+        if (value === null) return;
+        commit("entry-status", `Edit entry ${id}`, (d) => {
+          const e = d.entries.find((x) => x.id === id);
+          if (!e) throw new Error("Entry not found.");
+          e.count = Number(count) || e.count;
+          e.value = Number(value);
+        });
+      } else if (act === "pay-del") {
+        if (!confirm("Delete this payment?")) return;
+        commit("pay-status", `Delete payment ${id}`,
+          (d) => { d.payments = d.payments.filter((p) => p.id !== id); });
+      }
+    });
+
+    /* ---------- init ---------- */
+
+    $("entry-date").value = FS.todayISO();
+    $("pay-date").value = FS.todayISO();
+    if (FS.getToken()) {
+      $("token-input").value = FS.getToken();
+      $("token-status").textContent = "A token is saved on this device.";
+      $("token-status").className = "status ok";
+    }
+
+    FS.loadData()
+      .then((d) => { DATA = d; renderAll(); })
+      .catch((e) => status("entry-status", `Could not load data: ${e.message}`, false));
+  </script>
+</body>
+</html>

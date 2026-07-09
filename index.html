@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks Tab</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Fresh Snacks</h1>
+          <p>Snack tab tracker for purchases, payments, and the running balance.</p>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="bins.html">Log my snacks</a>
+          <a class="btn" href="admin.html">Admin</a>
+          <button onclick="window.print()">Print / Save PDF</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="brand-card">
+      <div class="brand-grid">
+        <div class="avatar" aria-hidden="true">
+          <img src="profile-icon.png" alt="Profile icon" />
+        </div>
+
+        <div>
+          <div class="brand-title" id="brand-title">Fresh Snacks</div>
+          <div class="brand-subtitle" id="brand-subtitle">Private customer snack profile</div>
+        </div>
+
+        <div class="brand-stats">
+          <div class="stat-box balance-stat">
+            <div class="stat-label">Current tab</div>
+            <div class="stat-value warm" id="stat-balance">–</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Calories per bar</div>
+            <div class="stat-value green" id="stat-cal-per-bar">–</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Favorite snack calories</div>
+            <div class="stat-value blue" id="stat-fav-cal">–</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Snack types</div>
+            <div class="stat-value" id="stat-types">–</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <article class="snack-card">
+        <div class="snack-image">
+          <img src="snack-photo.png" alt="Snack photo" />
+        </div>
+        <div class="snack-body">
+          <div class="snack-label">Favorite Snack</div>
+          <div class="snack-name" id="fav-name">–</div>
+          <p id="fav-desc"></p>
+
+          <div class="mini-grid">
+            <div class="mini-card">
+              <div class="stat-label">Calories per bar</div>
+              <div class="stat-value blue" id="mini-cal-per-bar">–</div>
+            </div>
+            <div class="mini-card soft-blue">
+              <div class="stat-label">Recorded bars</div>
+              <div class="stat-value" id="mini-bars">–</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="summary-grid">
+        <div class="card">
+          <div class="stat-label">Total snack value</div>
+          <div class="stat-value" id="sum-value">–</div>
+          <div class="muted-small">Recorded purchase value.</div>
+        </div>
+
+        <div class="card soft-green">
+          <div class="stat-label">Paid so far</div>
+          <div class="stat-value green" id="sum-paid">–</div>
+          <div class="muted-small">Payments added.</div>
+        </div>
+
+        <div class="card">
+          <div class="stat-label">Favorite snack units</div>
+          <div class="stat-value" id="sum-bars">–</div>
+          <div class="muted-small" id="sum-bars-note">Bars recorded.</div>
+        </div>
+
+        <div class="card soft-blue">
+          <div class="stat-label">Favorite snack calories</div>
+          <div class="stat-value blue" id="sum-fav-cal">–</div>
+          <div class="muted-small" id="sum-fav-cal-note">Based on calories per bar.</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="card section-card">
+      <h2>Snack Log</h2>
+      <div class="note">
+        Earlier snacks are grouped because daily dates started being recorded from 15 June.
+      </div>
+
+      <div id="log">
+        <p>Loading snack log…</p>
+      </div>
+
+      <table class="bottom-summary">
+        <colgroup>
+          <col style="width: 80%;">
+          <col style="width: 20%;">
+        </colgroup>
+        <tbody>
+          <tr>
+            <td>Total snack value</td>
+            <td class="num" id="bottom-value">–</td>
+          </tr>
+          <tr>
+            <td>Payments added</td>
+            <td class="num" id="bottom-paid">–</td>
+          </tr>
+          <tr class="balance-row">
+            <td>Current tab</td>
+            <td class="num" id="bottom-balance">–</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      Thank you.
+    </footer>
+  </main>
+
+  <script src="js/store.js"></script>
+  <script>
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function trackerTable(data, group, cur) {
+      const opening = group.key === "opening";
+      const label = opening ? data.profile.openingLabel : FS.monthLabel(group.key);
+      const rows = [];
+
+      for (const e of group.entries) {
+        rows.push(`<tr>
+          <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
+          <td><span class="${FS.entryPillClass(data, e)}">${esc(FS.entryName(data, e))}</span></td>
+          <td class="num">${esc(e.count ?? "—")}</td>
+          <td class="num">${FS.money(e.value, cur)}</td>
+          <td class="num">—</td>
+        </tr>`);
+      }
+      for (const p of group.payments) {
+        rows.push(`<tr>
+          <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
+          <td><span class="snack-pill pay-pill">Payment${p.note ? " · " + esc(p.note) : ""}</span></td>
+          <td class="num">—</td>
+          <td class="num">—</td>
+          <td class="num">${FS.money(p.amount, cur)}</td>
+        </tr>`);
+      }
+      rows.push(`<tr class="month-line">
+        <td colspan="3">${esc(label)} total</td>
+        <td class="num">${FS.money(group.value, cur)}</td>
+        <td class="num">${group.paid ? FS.money(group.paid, cur) : "—"}</td>
+      </tr>`);
+
+      return `<table class="tracker-table">
+        <colgroup>
+          <col class="col-day"><col class="col-snack"><col class="col-count">
+          <col class="col-value"><col class="col-payment">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Day</th><th>Snack</th>
+            <th class="num">Count</th><th class="num">Snack value</th><th class="num">Payment</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>`;
+    }
+
+    function render(data) {
+      const cur = data.profile.currency;
+      const t = FS.totals(data);
+      const fav = FS.snackById(data, data.profile.favoriteSnackId);
+      const favCount = data.entries
+        .filter((e) => e.snackId === data.profile.favoriteSnackId)
+        .reduce((n, e) => n + Number(e.count || 0), 0);
+      const favCalEach = fav && fav.calories ? fav.calories : 0;
+      const favCal = favCount * favCalEach;
+
+      const set = (id, v) => (document.getElementById(id).textContent = v);
+      set("brand-title", data.profile.brand);
+      set("brand-subtitle", data.profile.subtitle);
+      set("stat-balance", FS.money(t.balance, cur));
+      set("stat-cal-per-bar", favCalEach.toLocaleString("en-US"));
+      set("stat-fav-cal", favCal.toLocaleString("en-US"));
+      set("stat-types", data.catalog.length);
+      set("fav-name", data.profile.favoriteName);
+      set("fav-desc", data.profile.favoriteDescription);
+      set("mini-cal-per-bar", favCalEach.toLocaleString("en-US"));
+      set("mini-bars", favCount);
+      set("sum-value", FS.money(t.value, cur));
+      set("sum-paid", FS.money(t.paid, cur));
+      set("sum-bars", favCount);
+      set("sum-bars-note", `${data.profile.favoriteName} bars recorded.`);
+      set("sum-fav-cal", favCal.toLocaleString("en-US"));
+      set("sum-fav-cal-note", `Based on ${favCalEach} calories per bar.`);
+      set("bottom-value", FS.money(t.value, cur));
+      set("bottom-paid", FS.money(t.paid, cur));
+      set("bottom-balance", FS.money(t.balance, cur));
+
+      const groups = FS.groups(data);
+      const latestKey = groups.length ? groups[groups.length - 1].key : null;
+      document.getElementById("log").innerHTML = groups.map((g) => {
+        const opening = g.key === "opening";
+        const label = opening ? data.profile.openingLabel : FS.monthLabel(g.key);
+        const note = opening
+          ? data.profile.openingNote
+          : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
+        return `<details${g.key === latestKey ? " open" : ""}>
+          <summary>
+            <span class="toggle"></span>
+            <span>
+              <span class="month-name">${esc(label)}</span>
+              <span class="month-note">${esc(note)}</span>
+            </span>
+            <span class="month-total">${FS.money(g.value, cur)}</span>
+          </summary>
+          ${trackerTable(data, g, cur)}
+        </details>`;
+      }).join("");
+    }
+
+    FS.loadData()
+      .then(render)
+      .catch((e) => {
+        document.getElementById("log").innerHTML =
+          `<p class="status err">Could not load snack data: ${esc(e.message)}</p>`;
+      });
+  </script>
+</body>
+</html>

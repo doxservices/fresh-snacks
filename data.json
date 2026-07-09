@@ -1,0 +1,48 @@
+{
+  "profile": {
+    "brand": "Fresh Snacks",
+    "subtitle": "Private customer snack profile",
+    "currency": "J$",
+    "openingLabel": "Before 15 Jun",
+    "openingNote": "Opening snack history",
+    "favoriteSnackId": "chewy",
+    "favoriteName": "Kirkland Signature",
+    "favoriteDescription": "Soft and Chewy - Granola Bars"
+  },
+  "catalog": [
+    {
+      "id": "chewy",
+      "name": "Chewy",
+      "price": 100,
+      "calories": 100,
+      "style": "green"
+    },
+    {
+      "id": "plantain-chips",
+      "name": "Plantain Chips",
+      "price": 250,
+      "calories": null,
+      "style": "other"
+    }
+  ],
+  "entries": [
+    { "id": "e-0001", "date": null, "label": "Previous Tab", "count": 1, "value": 1000, "source": "admin" },
+    { "id": "e-0002", "date": null, "snackId": "chewy", "count": 1, "value": 100, "source": "admin" },
+    { "id": "e-0003", "date": null, "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0004", "date": null, "snackId": "plantain-chips", "count": 1, "value": 250, "source": "admin" },
+    { "id": "e-0005", "date": null, "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0006", "date": "2026-06-15", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0007", "date": "2026-06-17", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0008", "date": "2026-06-19", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0009", "date": "2026-06-23", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0010", "date": "2026-06-29", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0011", "date": "2026-07-01", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0012", "date": "2026-07-03", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0013", "date": "2026-07-06", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" },
+    { "id": "e-0014", "date": "2026-07-09", "snackId": "chewy", "count": 2, "value": 200, "source": "admin" }
+  ],
+  "payments": [
+    { "id": "p-0001", "date": null, "amount": 1000, "note": "Previous tab" },
+    { "id": "p-0002", "date": null, "amount": 500, "note": "" }
+  ]
+}
