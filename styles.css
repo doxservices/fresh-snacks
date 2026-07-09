@@ -634,6 +634,55 @@ select:focus {
 
 .hidden { display: none !important; }
 
+/* ---- Nutrition facts ---- */
+
+.has-facts {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(24, 79, 42, 0.45);
+}
+
+.bin-facts {
+  margin-bottom: 12px;
+}
+
+.bin-facts a,
+#fav-facts a {
+  color: var(--blue-dark);
+  font-size: 13px;
+}
+
+.facts-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 36, 24, 0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 50;
+  cursor: zoom-out;
+}
+
+.facts-overlay figure {
+  margin: 0;
+  text-align: center;
+}
+
+.facts-overlay img {
+  max-width: min(720px, 100%);
+  max-height: 84vh;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.facts-overlay figcaption {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+  margin-top: 10px;
+}
+
 @media (max-width: 900px) {
   .header-row,
   .brand-grid,

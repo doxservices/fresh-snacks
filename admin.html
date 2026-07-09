@@ -159,16 +159,25 @@
 
     function renderCatalog() {
       $("catalog-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th></th></tr></thead>
         <tbody>` + DATA.catalog.map((s) => `<tr data-id="${esc(s.id)}">
           <td><input data-f="name" value="${esc(s.name)}" /></td>
           <td><input data-f="price" type="number" min="1" value="${esc(s.price)}" /></td>
           <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
           <td style="white-space:nowrap;">
+            <input data-f="factsId" value="${esc(s.factsId || "")}" placeholder="0001" style="width:64px; display:inline-block;" />
+            ${s.factsId ? `<a class="btn" target="_blank" href="${esc(FS.factsPath(s.factsId))}">View</a>` : ""}
+            <button data-act="facts-upload">Upload image</button>
+            <input type="file" accept="image/*" class="hidden" data-file-for="${esc(s.id)}" />
+          </td>
+          <td style="white-space:nowrap;">
             <button data-act="cat-save">Save</button>
             <button class="danger" data-act="cat-del">Delete</button>
           </td>
-        </tr>`).join("") + `</tbody></table>`;
+        </tr>`).join("") + `</tbody></table>
+        <p class="muted-small">Facts images live in <code>nutritional-facts/&lt;id&gt;.jpg</code>.
+        Upload assigns the next free ID automatically (or uses the one typed in the box);
+        photos are resized on-device before committing.</p>`;
     }
 
     function renderEntries() {
@@ -293,7 +302,11 @@
           s.name = get("name").trim() || s.name;
           s.price = Number(get("price")) || s.price;
           s.calories = get("calories") === "" ? null : Number(get("calories"));
+          const factsId = get("factsId").trim();
+          if (factsId) s.factsId = factsId; else delete s.factsId;
         });
+      } else if (act === "facts-upload") {
+        btn.closest("tr").querySelector('input[type="file"]').click();
       } else if (act === "cat-del") {
         if (!confirm("Delete this snack type? Existing entries keep their values.")) return;
         commit("cat-status", `Delete snack type: ${id}`, (d) => {
@@ -325,6 +338,43 @@
         if (!confirm("Delete this payment?")) return;
         commit("pay-status", `Delete payment ${id}`,
           (d) => { d.payments = d.payments.filter((p) => p.id !== id); });
+      }
+    });
+
+    /* Normalize any uploaded image to a reasonably sized JPEG so phone
+     * photos of labels don't bloat the repo. */
+    async function fileToJpegBase64(file, maxW = 1400) {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, maxW / bmp.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bmp.width * scale);
+      canvas.height = Math.round(bmp.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
+    }
+
+    $("catalog-list").addEventListener("change", async (ev) => {
+      const input = ev.target.closest('input[type="file"][data-file-for]');
+      if (!input || !input.files[0]) return;
+      const snackId = input.dataset.fileFor;
+      const row = input.closest("tr");
+      const typedId = row.querySelector('input[data-f="factsId"]').value.trim();
+      const snack = DATA.catalog.find((s) => s.id === snackId);
+      const factsId = typedId || (snack && snack.factsId) || FS.nextFactsId(DATA);
+      status("cat-status", `Uploading nutrition facts image ${factsId}…`, true);
+      try {
+        const b64 = await fileToJpegBase64(input.files[0]);
+        await FS.uploadFile(FS.factsPath(factsId), b64,
+          `Nutrition facts image ${factsId} (${snackId})`);
+        await commit("cat-status", `Link nutrition facts ${factsId} to ${snackId}`, (d) => {
+          const s = d.catalog.find((x) => x.id === snackId);
+          if (s) s.factsId = factsId;
+        });
+      } catch (e) {
+        status("cat-status", e.message, false);
       }
     });
 

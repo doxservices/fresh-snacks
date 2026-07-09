@@ -15,7 +15,8 @@
       "name": "Chewy",
       "price": 100,
       "calories": 100,
-      "style": "green"
+      "style": "green",
+      "factsId": "0001"
     },
     {
       "id": "plantain-chips",

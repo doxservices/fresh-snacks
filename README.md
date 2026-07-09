@@ -28,7 +28,7 @@ A snack tab tracker hosted entirely on GitHub Pages — no backend server. The
 ```jsonc
 {
   "profile":  { "brand", "currency", "openingLabel", "favoriteSnackId", ... },
-  "catalog":  [ { "id", "name", "price", "calories", "style" } ],
+  "catalog":  [ { "id", "name", "price", "calories", "style", "factsId" } ],
   "entries":  [ { "id", "date|null", "snackId|label", "count", "value", "source" } ],
   "payments": [ { "id", "date|null", "amount", "note" } ]
 }
@@ -37,6 +37,15 @@ A snack tab tracker hosted entirely on GitHub Pages — no backend server. The
 `date: null` puts a record in the "opening history" bucket; dated records are
 grouped by month automatically. Totals and the balance are always computed
 from the raw records, never stored.
+
+### Nutrition facts
+
+A snack with `"factsId": "0001"` has its nutrition facts label image at
+[`nutritional-facts/0001.jpg`](nutritional-facts/0001.jpg). Snack pills on the
+profile page and the "Nutrition facts" links on the bins page open it in a
+lightbox. Upload new labels from the admin catalog (images are resized
+on-device and committed through the same Contents API); the next free
+four-digit ID is assigned automatically.
 
 ## Setup for writing (admin + bins devices)
 

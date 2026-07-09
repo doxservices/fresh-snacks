@@ -97,6 +97,7 @@
         <div class="bin-card">
           <div class="bin-name">${esc(s.name)}</div>
           <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>
+          ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
           <div class="stepper">
             <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">−</button>
             <span class="qty" data-id="${esc(s.id)}">0</span>
@@ -104,6 +105,12 @@
           </div>
         </div>`).join("");
       $("bins").addEventListener("click", (ev) => {
+        const facts = ev.target.closest("a[data-facts]");
+        if (facts) {
+          ev.preventDefault();
+          FS.showFacts(facts.dataset.facts, facts.dataset.name);
+          return;
+        }
         const btn = ev.target.closest("button[data-id]");
         if (!btn) return;
         const id = btn.dataset.id;

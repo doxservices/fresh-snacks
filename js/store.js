@@ -90,6 +90,26 @@ FS.saveData = async (mutate, message) => {
   }
 };
 
+/* Upload/replace any file in the repo (used for nutrition facts images).
+ * base64 is the raw file content, already encoded. */
+FS.uploadFile = async (path, base64, message) => {
+  if (!FS.getToken()) throw new Error("No access token set on this device.");
+  const url = `https://api.github.com/repos/${FS.owner}/${FS.repo}/contents/${path}`;
+  let sha;
+  const head = await fetch(`${url}?ref=${FS.branch}&_=${Date.now()}`, { headers: FS.headers() });
+  if (head.ok) sha = (await head.json()).sha;
+  const body = { message, branch: FS.branch, content: base64 };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { ...FS.headers(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401 || res.status === 403)
+    throw new Error("Token rejected. Check it has Contents read/write on this repo.");
+  if (!res.ok) throw new Error(`File upload failed (${res.status})`);
+};
+
 FS.testToken = async () => {
   const res = await fetch(`https://api.github.com/repos/${FS.owner}/${FS.repo}`, {
     headers: FS.headers(),
@@ -131,6 +151,39 @@ FS.monthLabel = (key) => {
 };
 
 FS.snackById = (data, id) => data.catalog.find((s) => s.id === id) || null;
+
+/* ---------- nutrition facts ---------- */
+
+/* Convention: a snack with factsId "0001" has its nutrition facts image
+ * at nutritional-facts/0001.jpg in the repo. */
+FS.factsPath = (factsId) => `nutritional-facts/${factsId}.jpg`;
+
+FS.nextFactsId = (data) => {
+  const max = data.catalog.reduce((m, s) => Math.max(m, Number(s.factsId) || 0), 0);
+  return String(max + 1).padStart(4, "0");
+};
+
+/* Fullscreen lightbox for a nutrition facts image. */
+FS.showFacts = (url, name) => {
+  const ov = document.createElement("div");
+  ov.className = "facts-overlay";
+  const fig = document.createElement("figure");
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = `Nutrition facts for ${name}`;
+  const cap = document.createElement("figcaption");
+  cap.textContent = `${name} — nutrition facts (tap anywhere to close)`;
+  fig.append(img, cap);
+  ov.append(fig);
+  const close = () => {
+    ov.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  ov.addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(ov);
+};
 
 FS.entryName = (data, entry) => {
   if (entry.snackId) {

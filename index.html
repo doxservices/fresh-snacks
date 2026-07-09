@@ -63,6 +63,7 @@
           <div class="snack-label">Favorite Snack</div>
           <div class="snack-name" id="fav-name">–</div>
           <p id="fav-desc"></p>
+          <p class="muted-small" id="fav-facts"></p>
 
           <div class="mini-grid">
             <div class="mini-card">
@@ -152,9 +153,13 @@
       const rows = [];
 
       for (const e of group.entries) {
+        const s = e.snackId ? FS.snackById(data, e.snackId) : null;
+        const facts = s && s.factsId
+          ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
+          : "";
         rows.push(`<tr>
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
-          <td><span class="${FS.entryPillClass(data, e)}">${esc(FS.entryName(data, e))}</span></td>
+          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></td>
           <td class="num">${esc(e.count ?? "—")}</td>
           <td class="num">${FS.money(e.value, cur)}</td>
           <td class="num">—</td>
@@ -209,6 +214,16 @@
       set("stat-types", data.catalog.length);
       set("fav-name", data.profile.favoriteName);
       set("fav-desc", data.profile.favoriteDescription);
+      if (fav && fav.factsId) {
+        const a = document.createElement("a");
+        a.href = "#";
+        a.textContent = "View nutrition facts";
+        a.onclick = (ev) => {
+          ev.preventDefault();
+          FS.showFacts(FS.factsPath(fav.factsId), fav.name);
+        };
+        document.getElementById("fav-facts").replaceChildren(a);
+      }
       set("mini-cal-per-bar", favCalEach.toLocaleString("en-US"));
       set("mini-bars", favCount);
       set("sum-value", FS.money(t.value, cur));
@@ -242,6 +257,11 @@
         </details>`;
       }).join("");
     }
+
+    document.getElementById("log").addEventListener("click", (ev) => {
+      const el = ev.target.closest("[data-facts]");
+      if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
+    });
 
     FS.loadData()
       .then(render)
