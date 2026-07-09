@@ -438,6 +438,12 @@ details[open] .toggle::before { content: "\2013"; }
   font-variant-numeric: tabular-nums;
 }
 
+/* .tracker-table th (higher specificity) sets left; numeric headers must
+ * right-align with the numbers beneath them */
+.tracker-table th.num {
+  text-align: right;
+}
+
 .snack-pill {
   display: inline-block;
   background: var(--green-light);
@@ -465,7 +471,10 @@ details[open] .toggle::before { content: "\2013"; }
 }
 
 .bottom-summary {
-  margin-top: 8px;
+  /* match the horizontal inset of tables inside <details>
+     (1px border + 10px table padding) so columns line up */
+  margin: 8px 11px 0;
+  width: calc(100% - 22px);
 }
 
 .bottom-summary td:first-child {
@@ -634,6 +643,119 @@ select:focus {
 
 .hidden { display: none !important; }
 
+/* ---- Hamburger + left drawer ---- */
+
+.header-lead {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.hamburger {
+  font-size: 18px;
+  line-height: 1;
+  padding: 9px 12px;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 36, 24, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 55;
+}
+
+.drawer-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 258px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.98), rgba(244,250,243,0.98));
+  border-right: 1px solid var(--line);
+  box-shadow: 14px 0 34px rgba(24, 79, 42, 0.14);
+  padding: 18px 14px;
+  transform: translateX(-102%);
+  transition: transform 0.3s ease;
+  z-index: 60;
+}
+
+.drawer.open {
+  transform: none;
+}
+
+.drawer-brand {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--green-dark);
+  text-transform: uppercase;
+  padding: 6px 14px 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 10px;
+}
+
+.drawer-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 12px 14px;
+  margin: 2px 0;
+  border-radius: var(--radius-sm);
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.drawer-link:hover {
+  background: var(--green-light);
+}
+
+.drawer-link.active {
+  background: var(--green-light);
+}
+
+/* ---- Nutrition facts slide door (over the favorite snack photo) ---- */
+
+.snack-image {
+  position: relative;
+  overflow: hidden;
+}
+
+.facts-door {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  transform: translateX(-102%);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 10px 0 22px rgba(0, 0, 0, 0.14);
+  cursor: pointer;
+}
+
+.facts-door img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.facts-door.open {
+  transform: none;
+}
+
 /* ---- Nutrition facts ---- */
 
 .has-facts {
@@ -728,7 +850,9 @@ select:focus {
     margin: 0;
   }
 
-  button, .btn {
+  button, .btn,
+  .drawer,
+  .drawer-backdrop {
     display: none;
   }
 

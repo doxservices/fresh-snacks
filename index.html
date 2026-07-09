@@ -10,14 +10,12 @@
   <main class="page">
     <header>
       <div class="header-row">
-        <div>
-          <h1>Fresh Snacks</h1>
-          <p>Snack tab tracker for purchases, payments, and the running balance.</p>
-        </div>
-        <div class="header-actions">
-          <a class="btn" href="bins.html">Log my snacks</a>
-          <a class="btn" href="admin.html">Admin</a>
-          <button onclick="window.print()">Print / Save PDF</button>
+        <div class="header-lead">
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <div>
+            <h1>Fresh Snacks</h1>
+            <p>Snack tab tracker for purchases, payments, and the running balance.</p>
+          </div>
         </div>
       </div>
     </header>
@@ -39,16 +37,16 @@
             <div class="stat-value warm" id="stat-balance">–</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Calories per bar</div>
-            <div class="stat-value green" id="stat-cal-per-bar">–</div>
+            <div class="stat-label">Average purchase</div>
+            <div class="stat-value green" id="stat-avg">–</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Favorite snack calories</div>
-            <div class="stat-value blue" id="stat-fav-cal">–</div>
+            <div class="stat-label">Paid so far</div>
+            <div class="stat-value blue" id="stat-paid">–</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Snack types</div>
-            <div class="stat-value" id="stat-types">–</div>
+            <div class="stat-label">Snack days</div>
+            <div class="stat-value" id="stat-days">–</div>
           </div>
         </div>
       </div>
@@ -58,6 +56,7 @@
       <article class="snack-card">
         <div class="snack-image">
           <img src="snack-photo.png" alt="Snack photo" />
+          <div class="facts-door" id="facts-door" aria-hidden="true" title="Close nutrition facts"></div>
         </div>
         <div class="snack-body">
           <div class="snack-label">Favorite Snack</div>
@@ -67,12 +66,12 @@
 
           <div class="mini-grid">
             <div class="mini-card">
-              <div class="stat-label">Calories per bar</div>
-              <div class="stat-value blue" id="mini-cal-per-bar">–</div>
+              <div class="stat-label">Price per bar</div>
+              <div class="stat-value blue" id="mini-price">–</div>
             </div>
             <div class="mini-card soft-blue">
-              <div class="stat-label">Recorded bars</div>
-              <div class="stat-value" id="mini-bars">–</div>
+              <div class="stat-label">Last treat</div>
+              <div class="stat-value" id="mini-last">–</div>
             </div>
           </div>
         </div>
@@ -92,15 +91,15 @@
         </div>
 
         <div class="card">
-          <div class="stat-label">Favorite snack units</div>
-          <div class="stat-value" id="sum-bars">–</div>
-          <div class="muted-small" id="sum-bars-note">Bars recorded.</div>
+          <div class="stat-label">Average purchase</div>
+          <div class="stat-value" id="sum-avg">–</div>
+          <div class="muted-small">Amount purchased each snack day.</div>
         </div>
 
         <div class="card soft-blue">
-          <div class="stat-label">Favorite snack calories</div>
-          <div class="stat-value blue" id="sum-fav-cal">–</div>
-          <div class="muted-small" id="sum-fav-cal-note">Based on calories per bar.</div>
+          <div class="stat-label" id="sum-month-label">This month</div>
+          <div class="stat-value blue" id="sum-month">–</div>
+          <div class="muted-small">Treats enjoyed so far this month.</div>
         </div>
       </aside>
     </section>
@@ -143,6 +142,7 @@
   </main>
 
   <script src="js/store.js"></script>
+  <script src="js/nav.js"></script>
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -199,39 +199,61 @@
       const cur = data.profile.currency;
       const t = FS.totals(data);
       const fav = FS.snackById(data, data.profile.favoriteSnackId);
-      const favCount = data.entries
-        .filter((e) => e.snackId === data.profile.favoriteSnackId)
-        .reduce((n, e) => n + Number(e.count || 0), 0);
-      const favCalEach = fav && fav.calories ? fav.calories : 0;
-      const favCal = favCount * favCalEach;
+
+      const dated = data.entries.filter((e) => e.date);
+      const snackDays = new Set(dated.map((e) => e.date)).size;
+      const datedTotal = dated.reduce((n, e) => n + Number(e.value || 0), 0);
+      const avgPerDay = snackDays ? Math.round(datedTotal / snackDays) : 0;
+      const monthKey = FS.todayISO().slice(0, 7);
+      const monthTotal = dated
+        .filter((e) => e.date.startsWith(monthKey))
+        .reduce((n, e) => n + Number(e.value || 0), 0);
+      const lastDate = dated.map((e) => e.date).sort().pop();
 
       const set = (id, v) => (document.getElementById(id).textContent = v);
       set("brand-title", data.profile.brand);
       set("brand-subtitle", data.profile.subtitle);
       set("stat-balance", FS.money(t.balance, cur));
-      set("stat-cal-per-bar", favCalEach.toLocaleString("en-US"));
-      set("stat-fav-cal", favCal.toLocaleString("en-US"));
-      set("stat-types", data.catalog.length);
+      set("stat-avg", `${FS.money(avgPerDay, cur)}/day`);
+      set("stat-paid", FS.money(t.paid, cur));
+      set("stat-days", snackDays);
       set("fav-name", data.profile.favoriteName);
       set("fav-desc", data.profile.favoriteDescription);
+
+      const door = document.getElementById("facts-door");
       if (fav && fav.factsId) {
+        const img = document.createElement("img");
+        img.src = FS.factsPath(fav.factsId);
+        img.alt = `Nutrition facts for ${fav.name}`;
+        door.replaceChildren(img);
         const a = document.createElement("a");
         a.href = "#";
-        a.textContent = "View nutrition facts";
+        const syncLabel = () => {
+          a.textContent = door.classList.contains("open")
+            ? "Hide nutrition facts"
+            : "View nutrition facts";
+          door.setAttribute("aria-hidden", !door.classList.contains("open"));
+        };
         a.onclick = (ev) => {
           ev.preventDefault();
-          FS.showFacts(FS.factsPath(fav.factsId), fav.name);
+          door.classList.toggle("open");
+          syncLabel();
         };
+        door.onclick = () => {
+          door.classList.remove("open");
+          syncLabel();
+        };
+        syncLabel();
         document.getElementById("fav-facts").replaceChildren(a);
       }
-      set("mini-cal-per-bar", favCalEach.toLocaleString("en-US"));
-      set("mini-bars", favCount);
+
+      set("mini-price", fav ? FS.money(fav.price, cur) : "–");
+      set("mini-last", lastDate ? FS.fmtDay(lastDate) : "–");
       set("sum-value", FS.money(t.value, cur));
       set("sum-paid", FS.money(t.paid, cur));
-      set("sum-bars", favCount);
-      set("sum-bars-note", `${data.profile.favoriteName} bars recorded.`);
-      set("sum-fav-cal", favCal.toLocaleString("en-US"));
-      set("sum-fav-cal-note", `Based on ${favCalEach} calories per bar.`);
+      set("sum-avg", FS.money(avgPerDay, cur));
+      set("sum-month-label", FS.monthLabel(monthKey));
+      set("sum-month", FS.money(monthTotal, cur));
       set("bottom-value", FS.money(t.value, cur));
       set("bottom-paid", FS.money(t.paid, cur));
       set("bottom-balance", FS.money(t.balance, cur));

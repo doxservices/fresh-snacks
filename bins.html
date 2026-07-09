@@ -10,12 +10,12 @@
   <main class="page">
     <header>
       <div class="header-row">
-        <div>
-          <h1>Took a snack?</h1>
-          <p>Tap what you grabbed from the bins and add it straight to your tab. Honor system!</p>
-        </div>
-        <div class="header-actions">
-          <a class="btn" href="index.html">My tab</a>
+        <div class="header-lead">
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <div>
+            <h1>Took a snack?</h1>
+            <p>Tap what you grabbed from the bins and add it straight to your tab. Honor system!</p>
+          </div>
         </div>
       </div>
     </header>
@@ -59,6 +59,7 @@
   </main>
 
   <script src="js/store.js"></script>
+  <script src="js/nav.js"></script>
   <script>
     let DATA = null;
     const picked = new Map(); // snackId -> qty
