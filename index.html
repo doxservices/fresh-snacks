@@ -12,6 +12,7 @@
       <div class="header-row">
         <div class="header-lead">
           <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <img class="header-logo" src="profile-icon.png" alt="" />
           <div>
             <h1>Fresh Snacks</h1>
             <p>Snack tab tracker for purchases, payments, and the running balance.</p>
@@ -418,14 +419,14 @@
       $id("us-current").textContent = anonymous
         ? `You're currently anonymous, appearing as “${me.displayName || "guest"}”.`
         : `This tab belongs to ${me.displayName}.`;
-      if (CLAIM) {
-        $id("brand-subtitle").textContent =
-          `${CLAIM.displayName || (anonymous ? "Guest" : me.displayName)} — private snack profile`;
-      } else {
-        $id("brand-subtitle").textContent = anonymous
-          ? `${me.displayName || "Guest"} — anonymous snack profile`
-          : `${me.displayName} — private snack profile`;
-      }
+      // the person is the headline; the brand lives in the page header
+      const identity = CLAIM
+        ? (CLAIM.displayName || me.displayName || "Guest")
+        : (me.displayName || "Guest");
+      $id("brand-title").textContent = identity;
+      $id("brand-subtitle").textContent = (CLAIM || !anonymous)
+        ? "Private snack profile"
+        : "Anonymous snack profile";
     }
 
     $id("us-save").onclick = async () => {

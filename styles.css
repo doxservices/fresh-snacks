@@ -185,12 +185,20 @@ button:disabled {
 }
 
 .brand-title {
-  font-size: 30px;
-  line-height: 1;
+  font-size: 28px;
+  line-height: 1.1;
   font-weight: 600;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: var(--green-dark);
-  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.header-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(47, 122, 68, 0.2);
 }
 
 .brand-subtitle {
@@ -951,7 +959,6 @@ tr.disputed td {
 }
 
 @media (max-width: 900px) {
-  .header-row,
   .brand-grid,
   .main-grid,
   .brand-stats,
@@ -960,8 +967,64 @@ tr.disputed td {
     grid-template-columns: 1fr;
   }
 
+  /* header stays one row: menu + logo + title left, profile button right */
   .header-row {
-    display: grid;
+    align-items: center;
+    gap: 10px;
+  }
+
+  header {
+    padding: 14px 16px;
+  }
+
+  h1 {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    font-size: 12.5px;
+  }
+
+  .header-logo {
+    width: 30px;
+    height: 30px;
+  }
+
+  .hamburger {
+    padding: 8px 10px;
+  }
+
+  .brand-card {
+    padding: 14px;
+  }
+
+  .brand-title {
+    font-size: 23px;
+  }
+
+  .brand-subtitle {
+    font-size: 13px;
+  }
+
+  .avatar {
+    width: 76px;
+    height: 76px;
+    border-width: 3px;
+  }
+
+  .brand-grid {
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+  }
+
+  .brand-stats {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-value {
+    font-size: 19px;
   }
 
   .page {
