@@ -27,11 +27,15 @@ Firestore holds the private records:
 /snacks/{snackId}
 /devices/{deviceId}
 /users/{uid}
+/codes/{shareCode}
 /transactions/{transactionId}
 /payments/{paymentId}
 /adjustments/{adjustmentId}
 /admins/{uid}
 ```
+
+Browse and edit the live data in the Firebase console:
+https://console.firebase.google.com/project/fresh-snacks-ee79f/firestore/databases/-default-/data
 
 `data.json` remains in the repo as legacy migration context only. It is no
 longer the writable database.
