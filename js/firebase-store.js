@@ -197,11 +197,21 @@ FS.ensureLocalId = (key, prefix) => {
 FS.getOrCreateDevice = async () => {
   const user = await FS.signInAnonymous();
   const keys = FS.appConfig.storageKeys;
-  const deviceId = FS.ensureLocalId(keys.deviceId, FS.appConfig.devicePrefix || "fs_dev");
+  let deviceId = FS.ensureLocalId(keys.deviceId, FS.appConfig.devicePrefix || "fs_dev");
   const visitorId = FS.ensureLocalId(keys.visitorId, FS.appConfig.visitorPrefix || "fs_guest");
   const now = firebase.firestore.FieldValue.serverTimestamp();
-  const deviceRef = FS._db.collection("devices").doc(deviceId);
-  const deviceSnap = await deviceRef.get();
+  let deviceRef = FS._db.collection("devices").doc(deviceId);
+  let deviceSnap;
+  try {
+    deviceSnap = await deviceRef.get();
+  } catch (e) {
+    // the stored device id belongs to a previous identity (e.g. the account
+    // was recreated) so its doc is unreadable — rotate to a fresh device id
+    deviceId = FS.uid(FS.appConfig.devicePrefix || "fs_dev");
+    localStorage.setItem(keys.deviceId, deviceId);
+    deviceRef = FS._db.collection("devices").doc(deviceId);
+    deviceSnap = await deviceRef.get();
+  }
   const base = {
     deviceId,
     uid: user.uid,
