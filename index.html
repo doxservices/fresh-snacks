@@ -301,7 +301,14 @@
 
       const groups = FS.groups(data);
       const latestKey = groups.length ? groups[groups.length - 1].key : null;
-      document.getElementById("log").innerHTML = groups.map((g) => {
+      const head = `<div class="log-head" aria-hidden="true">
+        <span></span>
+        <span>Period</span>
+        <span class="num head-tab">Tab</span>
+        <span class="num head-paid">Paid</span>
+        <span class="num">Remaining</span>
+      </div>`;
+      document.getElementById("log").innerHTML = head + groups.map((g) => {
         const opening = g.key === "opening";
         const label = opening ? data.profile.openingLabel : FS.monthLabel(g.key);
         const note = opening
@@ -314,7 +321,9 @@
               <span class="month-name">${esc(label)}</span>
               <span class="month-note">${esc(note)}</span>
             </span>
-            <span class="month-total">${FS.money(g.value, cur)}</span>
+            <span class="month-total num sum-tab">${FS.money(g.value, cur)}</span>
+            <span class="month-total num sum-paid">${g.paid ? FS.money(g.paid, cur) : "—"}</span>
+            <span class="month-total num">${FS.money(g.value - g.paid, cur)}</span>
           </summary>
           ${trackerTable(data, g, cur)}
         </details>`;

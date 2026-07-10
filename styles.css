@@ -343,9 +343,21 @@ summary {
   font-size: 15px;
   background: linear-gradient(90deg, rgba(244,250,243,0.94), rgba(255,255,255,0.82));
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 24px 1fr 84px 84px 92px;
   gap: 9px;
   align-items: center;
+}
+
+/* column headings above the collapsible periods; mirrors the summary grid
+   (details border 1px + summary padding 14px = 15px inset) */
+.log-head {
+  display: grid;
+  grid-template-columns: 24px 1fr 84px 84px 92px;
+  gap: 9px;
+  align-items: center;
+  padding: 4px 15px 6px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 summary::-webkit-details-marker { display: none; }
@@ -871,11 +883,19 @@ select:focus {
   }
 
   summary {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: 24px 1fr 84px;
   }
 
-  .month-total {
-    grid-column: 2;
+  .log-head {
+    grid-template-columns: 24px 1fr 84px;
+  }
+
+  /* small screens keep only the Remaining column */
+  .sum-tab,
+  .sum-paid,
+  .head-tab,
+  .head-paid {
+    display: none;
   }
 
   .tracker-table {
