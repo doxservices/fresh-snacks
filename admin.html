@@ -220,21 +220,33 @@
     function renderTransactions() {
       const byUser = new Map(SNAPSHOT.accounting.map((r) => [r.userId, r.displayName]));
       const cur = SNAPSHOT.settings.currency;
+      const badge = (t) => t.userStatus
+        ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
+        : "";
       const rows = [...SNAPSHOT.transactions]
-        .sort((a, b) => String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+        .sort((a, b) =>
+          (b.userStatus === "disputed") - (a.userStatus === "disputed")
+          || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
         .slice(0, 30)
-        .map((t) => `<tr>
+        .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${esc(t.createdDate || "-")}</td>
           <td>${esc(byUser.get(t.userId || t.uid) || t.userId || t.deviceId || "-")}</td>
           <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
           <td class="num">${esc(t.quantity || 1)}</td>
-          <td class="num">${FS.money(t.total || 0, cur)}</td>
-          <td>${esc(t.source || "self")}</td>
+          <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+          <td>${esc(t.source || "self")} ${badge(t)}</td>
+          <td style="white-space:nowrap;">
+            ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
+            <button data-act="txn-edit" title="Change quantity/value">Change</button>
+            <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
+          </td>
         </tr>`).join("");
       $("transaction-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Day</th><th>User</th><th>Snack</th><th class="num">Qty</th><th class="num">Value</th><th>Source</th></tr></thead>
+        <thead><tr><th>Day</th><th>User</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
+      </table>
+      <p class="muted-small">Disputed listings (flagged with &#10005; by the customer) sort to the top —
+      Approve keeps them and clears the flag, Change edits them, Void removes them from the tab.</p>`;
     }
 
     async function refresh() {
@@ -363,6 +375,21 @@
             row.querySelector('[data-f="displayName"]').value.trim(),
             row.querySelector('[data-f="vipStatus"]').value
           );
+          await refresh();
+        } else if (act === "txn-approve") {
+          await FS.admin.resolveTransaction(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-edit") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
+          if (qty === null) return;
+          const total = prompt("Total value:", t ? t.total || 0 : 0);
+          if (total === null) return;
+          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
+          await refresh();
+        } else if (act === "txn-void") {
+          if (!confirm("Void this listing? It disappears from the customer's tab and totals.")) return;
+          await FS.admin.voidTransaction(row.dataset.id);
           await refresh();
         }
       } catch (e) {

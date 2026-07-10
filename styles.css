@@ -452,6 +452,12 @@ details[open] .toggle::before { content: "\2013"; }
   font-variant-numeric: tabular-nums;
 }
 
+/* money columns align on the currency sign (left edge of the column) */
+.num-money {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
 /* .tracker-table th (higher specificity) sets left; numeric headers must
  * right-align with the numbers beneath them */
 .tracker-table th.num {
@@ -811,6 +817,88 @@ select:focus {
 
 .facts-door.open {
   transform: none;
+}
+
+/* ---- listing verdict (thin check / cross) ---- */
+
+.row-verdict {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.verdict-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.verdict-btn.agree.on {
+  border-color: var(--green);
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.verdict-btn.dispute.on {
+  border-color: rgba(138, 47, 47, 0.5);
+  background: #faf0ef;
+  color: #8a2f2f;
+}
+
+tr.disputed td {
+  background: rgba(250, 240, 239, 0.9);
+}
+
+.verdict-badge {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: 12px;
+}
+
+.verdict-badge.agreed {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.verdict-badge.disputed {
+  background: #faf0ef;
+  color: #8a2f2f;
+}
+
+/* ---- QR join card ---- */
+
+.qr-wrap {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.qr-wrap #qr svg {
+  display: block;
+  width: 150px;
+  height: 150px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.qr-wrap > div:last-child {
+  flex: 1;
+  min-width: 220px;
 }
 
 /* ---- Nutrition facts ---- */

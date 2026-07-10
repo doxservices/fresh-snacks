@@ -181,6 +181,39 @@ FS.admin.addAdjustment = async ({ userId, amount, reason }) => {
   });
 };
 
+/* Dispute handling: approve keeps the listing and clears the customer's
+ * flag; change edits it; void removes it from the tab and totals. */
+FS.admin.resolveTransaction = async (id) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("transactions").doc(id).update({
+    userStatus: firebase.firestore.FieldValue.delete(),
+    userStatusAt: firebase.firestore.FieldValue.delete(),
+    resolvedBy: FS.admin.user.uid,
+    resolvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+FS.admin.updateTransaction = async (id, { quantity, total }) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("transactions").doc(id).update({
+    quantity: Number(quantity),
+    total: Number(total),
+    userStatus: firebase.firestore.FieldValue.delete(),
+    userStatusAt: firebase.firestore.FieldValue.delete(),
+    editedBy: FS.admin.user.uid,
+    editedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+FS.admin.voidTransaction = async (id) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("transactions").doc(id).update({
+    status: "void",
+    voidedBy: FS.admin.user.uid,
+    voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
 FS.admin.saveSnack = async (snack) => {
   await FS.admin.requireAdmin();
   const id = snack.id || String(snack.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");

@@ -413,7 +413,18 @@ FS.toEntry = (t) => ({
   count: Number(t.quantity || t.count || 1),
   value: Number(t.total || t.value || 0),
   source: t.source || "self",
+  userStatus: t.userStatus || null,
 });
+
+/* Owner/claim-holder verdict on a listing: "agreed" or "disputed".
+ * Rules restrict the write to exactly these fields. */
+FS.setEntryStatus = async (transactionId, verdict) => {
+  await FS.signInAnonymous();
+  await FS._db.collection("transactions").doc(transactionId).update({
+    userStatus: verdict,
+    userStatusAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
 
 FS.toPayment = (p) => ({
   id: p.paymentId || p.id,

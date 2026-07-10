@@ -127,18 +127,33 @@
         <tbody>
           <tr>
             <td>Total snack value</td>
-            <td class="num" id="bottom-value">–</td>
+            <td class="num-money" id="bottom-value">–</td>
           </tr>
           <tr>
             <td>Payments added</td>
-            <td class="num" id="bottom-paid">–</td>
+            <td class="num-money" id="bottom-paid">–</td>
           </tr>
           <tr class="balance-row">
             <td>Current tab</td>
-            <td class="num" id="bottom-balance">–</td>
+            <td class="num-money" id="bottom-balance">–</td>
           </tr>
         </tbody>
       </table>
+    </section>
+
+    <section class="card section-card">
+      <h2>Start Your Own Tab</h2>
+      <div class="qr-wrap">
+        <div id="qr" aria-hidden="true"></div>
+        <div>
+          <p style="color: var(--text);"><strong>Scan with your phone camera</strong> to open Fresh Snacks —
+          a private guest profile is created for you automatically. No sign-up, no app.</p>
+          <p class="muted-small" style="margin-top: 8px;">
+            Then tap what you take from the bins and it goes on your own tab.
+            Add your name under User Settings whenever you like.
+          </p>
+        </div>
+      </div>
     </section>
 
     <footer>
@@ -181,6 +196,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/nav.js"></script>
@@ -198,12 +214,16 @@
         const facts = s && s.factsId
           ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
           : "";
-        rows.push(`<tr>
+        const verdict = e.id ? `<span class="row-verdict">
+            <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Agree with this listing" aria-label="Agree">&#10003;</button>
+            <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Disagree — flag for review" aria-label="Disagree">&#10005;</button>
+          </span>` : "";
+        rows.push(`<tr${e.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
-          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></td>
+          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span>${verdict}</td>
           <td class="num">${esc(e.count ?? "—")}</td>
-          <td class="num">${FS.money(e.value, cur)}</td>
-          <td class="num">—</td>
+          <td class="num-money">${FS.money(e.value, cur)}</td>
+          <td class="num-money">—</td>
         </tr>`);
       }
       for (const p of group.payments) {
@@ -211,14 +231,14 @@
           <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
           <td><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></td>
           <td class="num">—</td>
-          <td class="num">—</td>
-          <td class="num">${FS.money(p.amount, cur)}</td>
+          <td class="num-money">—</td>
+          <td class="num-money">${FS.money(p.amount, cur)}</td>
         </tr>`);
       }
       rows.push(`<tr class="month-line">
         <td colspan="3">${esc(label)} total</td>
-        <td class="num">${FS.money(group.value, cur)}</td>
-        <td class="num">${group.paid ? FS.money(group.paid, cur) : "—"}</td>
+        <td class="num-money">${FS.money(group.value, cur)}</td>
+        <td class="num-money">${group.paid ? FS.money(group.paid, cur) : "—"}</td>
       </tr>`);
 
       return `<table class="tracker-table">
@@ -229,7 +249,7 @@
         <thead>
           <tr>
             <th>Day</th><th>Snack</th>
-            <th class="num">Count</th><th class="num">Snack value</th><th class="num">Payment</th>
+            <th class="num">Count</th><th class="num-money">Snack value</th><th class="num-money">Payment</th>
           </tr>
         </thead>
         <tbody>${rows.join("")}</tbody>
@@ -304,9 +324,9 @@
       const head = `<div class="log-head" aria-hidden="true">
         <span></span>
         <span>Period</span>
-        <span class="num head-tab">Tab</span>
-        <span class="num head-paid">Paid</span>
-        <span class="num">Remaining</span>
+        <span class="num-money head-tab">Tab</span>
+        <span class="num-money head-paid">Paid</span>
+        <span class="num-money">Remaining</span>
       </div>`;
       document.getElementById("log").innerHTML = head + groups.map((g) => {
         const opening = g.key === "opening";
@@ -314,26 +334,56 @@
         const note = opening
           ? data.profile.openingNote
           : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
-        return `<details${g.key === latestKey ? " open" : ""}>
+        return `<details data-key="${esc(g.key)}"${g.key === latestKey ? " open" : ""}>
           <summary>
             <span class="toggle"></span>
             <span>
               <span class="month-name">${esc(label)}</span>
               <span class="month-note">${esc(note)}</span>
             </span>
-            <span class="month-total num sum-tab">${FS.money(g.value, cur)}</span>
-            <span class="month-total num sum-paid">${g.paid ? FS.money(g.paid, cur) : "—"}</span>
-            <span class="month-total num">${FS.money(g.value - g.paid, cur)}</span>
+            <span class="month-total num-money sum-tab">${FS.money(g.value, cur)}</span>
+            <span class="month-total num-money sum-paid">${g.paid ? FS.money(g.paid, cur) : "—"}</span>
+            <span class="month-total num-money">${FS.money(g.value - g.paid, cur)}</span>
           </summary>
           ${trackerTable(data, g, cur)}
         </details>`;
       }).join("");
     }
 
+    let LAST_DATA = null;
+
     document.getElementById("log").addEventListener("click", (ev) => {
+      const vb = ev.target.closest(".verdict-btn");
+      if (vb) {
+        ev.preventDefault();
+        vb.disabled = true;
+        FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict)
+          .then(() => {
+            const entry = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
+            if (entry) entry.userStatus = vb.dataset.verdict;
+            const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
+            render(LAST_DATA);
+            document.querySelectorAll("#log details").forEach((d) =>
+              d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
+          })
+          .catch((e) => {
+            vb.disabled = false;
+            alert("Could not save: " + e.message);
+          });
+        return;
+      }
       const el = ev.target.closest("[data-facts]");
       if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
     });
+
+    // QR to start a fresh tab (plain site URL — never includes a tab code)
+    (function () {
+      const joinUrl = location.origin + location.pathname.replace(/[^/]*$/, "");
+      const qr = qrcode(0, "M");
+      qr.addData(joinUrl);
+      qr.make();
+      document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    })();
 
     /* ---------- user settings right well (anonymous by default, identity opt-in) ---------- */
 
@@ -401,6 +451,7 @@
     FS.loadData()
       .then((data) => {
         CLAIM = data.claim || null;
+        LAST_DATA = data;
         render(data);
         return FS.getMyProfile();
       })
