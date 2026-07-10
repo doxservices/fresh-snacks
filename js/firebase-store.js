@@ -94,7 +94,27 @@ FS.escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
 
 FS.signInAnonymous = async () => {
   await FS.initFirebase();
-  if (!FS._auth.currentUser) await FS._auth.signInAnonymously();
+  if (!FS._sessionReady) {
+    FS._sessionReady = (async () => {
+      // wait for the persisted session (if any) to finish restoring
+      await new Promise((resolve) => {
+        const unsub = FS._auth.onAuthStateChanged(() => { unsub(); resolve(); });
+      });
+      const existing = FS._auth.currentUser;
+      if (existing) {
+        try {
+          // force a token refresh: detects sessions whose account was
+          // deleted/disabled server-side, which would otherwise poison
+          // every Firestore call with permission errors
+          await existing.getIdToken(true);
+        } catch (e) {
+          await FS._auth.signOut().catch(() => {});
+        }
+      }
+      if (!FS._auth.currentUser) await FS._auth.signInAnonymously();
+    })();
+  }
+  await FS._sessionReady;
   FS.currentUser = FS._auth.currentUser;
   localStorage.setItem(FS.appConfig.storageKeys.uid, FS.currentUser.uid);
   return FS.currentUser;
