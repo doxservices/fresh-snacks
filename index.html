@@ -122,21 +122,25 @@
 
       <table class="bottom-summary">
         <colgroup>
-          <col style="width: 80%;">
-          <col style="width: 20%;">
+          <col class="bs-label">
+          <col class="bs-money">
+          <col class="bs-fill">
         </colgroup>
         <tbody>
           <tr>
             <td>Total snack value</td>
             <td class="num-money" id="bottom-value">–</td>
+            <td></td>
           </tr>
           <tr>
             <td>Payments added</td>
             <td class="num-money" id="bottom-paid">–</td>
+            <td></td>
           </tr>
           <tr class="balance-row">
             <td>Current tab</td>
             <td class="num-money" id="bottom-balance">–</td>
+            <td></td>
           </tr>
         </tbody>
       </table>
@@ -225,6 +229,7 @@
           <td class="num">${esc(e.count ?? "—")}</td>
           <td class="num-money">${FS.money(e.value, cur)}</td>
           <td class="num-money">—</td>
+          <td></td>
         </tr>`);
       }
       for (const p of group.payments) {
@@ -234,23 +239,25 @@
           <td class="num">—</td>
           <td class="num-money">—</td>
           <td class="num-money">${FS.money(p.amount, cur)}</td>
+          <td></td>
         </tr>`);
       }
       rows.push(`<tr class="month-line">
         <td colspan="3">${esc(label)} total</td>
         <td class="num-money">${FS.money(group.value, cur)}</td>
         <td class="num-money">${group.paid ? FS.money(group.paid, cur) : "—"}</td>
+        <td></td>
       </tr>`);
 
       return `<table class="tracker-table">
         <colgroup>
           <col class="col-day"><col class="col-snack"><col class="col-count">
-          <col class="col-value"><col class="col-payment">
+          <col class="col-value"><col class="col-payment"><col class="col-fill">
         </colgroup>
         <thead>
           <tr>
             <th>Day</th><th>Snack</th>
-            <th class="num">Count</th><th class="num-money">Snack value</th><th class="num-money">Payment</th>
+            <th class="num">Count</th><th class="num-money">Snack value</th><th class="num-money">Payment</th><th></th>
           </tr>
         </thead>
         <tbody>${rows.join("")}</tbody>

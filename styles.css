@@ -412,11 +412,17 @@ details[open] .toggle::before { content: "\2013"; }
   table-layout: fixed;
 }
 
-.col-day { width: 15%; }
-.col-snack { width: 33%; }
-.col-count { width: 12%; }
-.col-value { width: 20%; }
-.col-payment { width: 20%; }
+.col-day { width: 10%; }
+.col-snack { width: 26%; }
+.col-count { width: 9%; }
+.col-value { width: 14%; }
+.col-payment { width: 14%; }
+.col-fill { width: 27%; } /* trailing slack keeps the data columns close together */
+
+/* bottom summary mirrors the tables: money starts where the Payment column does */
+.bs-label { width: 59%; }
+.bs-money { width: 14%; }
+.bs-fill { width: 27%; }
 
 .tracker-table th,
 .tracker-table td {
@@ -1058,6 +1064,18 @@ tr.disputed td {
   .tracker-table {
     font-size: 13px;
   }
+
+  /* phones have no room for trailing slack — give it back to the data */
+  .col-day { width: 14%; }
+  .col-snack { width: 32%; }
+  .col-count { width: 10%; }
+  .col-value { width: 20%; }
+  .col-payment { width: 20%; }
+  .col-fill { width: 4%; }
+
+  .bs-label { width: 76%; }
+  .bs-money { width: 20%; }
+  .bs-fill { width: 4%; }
 }
 
 @media print {
