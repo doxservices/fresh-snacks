@@ -226,6 +226,36 @@ FS.getOrCreateDevice = async () => {
   return FS.currentDevice;
 };
 
+/* ---------- user identity (optional, anonymous by default) ---------- */
+
+FS.getMyProfile = async () => {
+  const user = await FS.signInAnonymous();
+  const snap = await FS._db.collection("users").doc(user.uid).get();
+  return { userId: user.uid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) };
+};
+
+/* Users start as an anonymous guest profile. Adding a name (and optionally
+ * email/phone) is opt-in; leaving the name blank keeps the guest identity. */
+FS.updateMyProfile = async (fields) => {
+  const user = await FS.signInAnonymous();
+  const clean = (v) => {
+    const s = (v ?? "").toString().trim();
+    return s || null;
+  };
+  const displayName = clean(fields.displayName);
+  const payload = {
+    email: clean(fields.email),
+    phone: clean(fields.phone),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  if (displayName) {
+    payload.displayName = displayName;
+    payload.vipStatus = "named";
+  }
+  await FS._db.collection("users").doc(user.uid).set(payload, { merge: true });
+  return FS.getMyProfile();
+};
+
 FS.getSettings = async () => {
   await FS.initFirebase();
   const snap = await FS._db.collection("settings").doc("app").get();

@@ -138,6 +138,31 @@
       </table>
     </section>
 
+    <section class="card section-card" id="user-settings">
+      <h2>User Settings</h2>
+      <div class="note">
+        You start out as an anonymous guest — your tab works without a name.
+        Add your identity only if you want the snack keeper to know who this tab belongs to.
+      </div>
+      <p class="muted-small" id="us-current" style="margin-bottom:12px;"></p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="us-name">Name</label>
+          <input id="us-name" type="text" placeholder="e.g. Xavier" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="us-email">Email (optional)</label>
+          <input id="us-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="us-phone">Phone (optional)</label>
+          <input id="us-phone" type="tel" autocomplete="tel" />
+        </div>
+        <button class="primary" id="us-save">Save my profile</button>
+      </div>
+      <div class="status" id="us-status"></div>
+    </section>
+
     <footer>
       Thank you.
     </footer>
@@ -291,8 +316,47 @@
       if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
     });
 
+    /* ---------- user settings (anonymous by default, identity opt-in) ---------- */
+
+    const $id = (id) => document.getElementById(id);
+
+    function renderUserSettings(me) {
+      const anonymous = me.vipStatus === "anonymous" || !me.displayName;
+      $id("us-name").value = anonymous ? "" : me.displayName;
+      $id("us-email").value = me.email || "";
+      $id("us-phone").value = me.phone || "";
+      $id("us-current").textContent = anonymous
+        ? `You're currently anonymous, appearing as “${me.displayName || "guest"}”.`
+        : `This tab belongs to ${me.displayName}.`;
+      $id("brand-subtitle").textContent = anonymous
+        ? `${me.displayName || "Guest"} — anonymous snack profile`
+        : `${me.displayName} — private snack profile`;
+    }
+
+    $id("us-save").onclick = async () => {
+      const st = $id("us-status");
+      st.textContent = "Saving…";
+      st.className = "status ok";
+      try {
+        const me = await FS.updateMyProfile({
+          displayName: $id("us-name").value,
+          email: $id("us-email").value,
+          phone: $id("us-phone").value,
+        });
+        renderUserSettings(me);
+        st.textContent = "Profile saved ✓";
+      } catch (e) {
+        st.textContent = e.message;
+        st.className = "status err";
+      }
+    };
+
     FS.loadData()
-      .then(render)
+      .then((data) => {
+        render(data);
+        return FS.getMyProfile();
+      })
+      .then(renderUserSettings)
       .catch((e) => {
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
