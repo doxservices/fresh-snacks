@@ -1,0 +1,77 @@
+{
+  "settings": {
+    "app": {
+      "brand": "Fresh Snacks",
+      "subtitle": "Private customer snack profile",
+      "currency": "J$",
+      "openingLabel": "Before 15 Jun",
+      "openingNote": "Opening snack history",
+      "favoriteSnackId": "chewy",
+      "favoriteName": "Kirkland Signature",
+      "favoriteDescription": "Soft and Chewy - Granola Bars",
+      "vipEnabled": true,
+      "anonymousLoggingEnabled": true
+    }
+  },
+  "snacks": {
+    "chewy": {
+      "id": "chewy",
+      "name": "Chewy",
+      "price": 100,
+      "calories": 100,
+      "style": "green",
+      "factsId": "0001",
+      "active": true
+    },
+    "plantain-chips": {
+      "id": "plantain-chips",
+      "name": "Plantain Chips",
+      "price": 250,
+      "calories": null,
+      "style": "other",
+      "factsId": null,
+      "active": true
+    }
+  },
+  "users": {
+    "legacy-profile": {
+      "userId": "legacy-profile",
+      "uid": "legacy-profile",
+      "displayName": "Fresh Snacks Legacy Profile",
+      "vipStatus": "legacy",
+      "email": null,
+      "phone": null,
+      "favoriteSnackId": "chewy",
+      "linkedDevices": []
+    }
+  },
+  "transactions": {
+    "e-0001": { "transactionId": "e-0001", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": null, "snackName": "Previous Tab", "quantity": 1, "unitPrice": 1000, "total": 1000, "calories": null, "source": "migration", "createdDate": null, "status": "active" },
+    "e-0002": { "transactionId": "e-0002", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 1, "unitPrice": 100, "total": 100, "calories": 100, "source": "migration", "createdDate": null, "status": "active" },
+    "e-0003": { "transactionId": "e-0003", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": null, "status": "active" },
+    "e-0004": { "transactionId": "e-0004", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "plantain-chips", "snackName": "Plantain Chips", "quantity": 1, "unitPrice": 250, "total": 250, "calories": null, "source": "migration", "createdDate": null, "status": "active" },
+    "e-0005": { "transactionId": "e-0005", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": null, "status": "active" },
+    "e-0006": { "transactionId": "e-0006", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-06-15", "status": "active" },
+    "e-0007": { "transactionId": "e-0007", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-06-17", "status": "active" },
+    "e-0008": { "transactionId": "e-0008", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-06-19", "status": "active" },
+    "e-0009": { "transactionId": "e-0009", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-06-23", "status": "active" },
+    "e-0010": { "transactionId": "e-0010", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-06-29", "status": "active" },
+    "e-0011": { "transactionId": "e-0011", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-07-01", "status": "active" },
+    "e-0012": { "transactionId": "e-0012", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-07-03", "status": "active" },
+    "e-0013": { "transactionId": "e-0013", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-07-06", "status": "active" },
+    "e-0014": { "transactionId": "e-0014", "uid": "legacy-profile", "userId": "legacy-profile", "deviceId": "legacy", "snackId": "chewy", "snackName": "Chewy", "quantity": 2, "unitPrice": 100, "total": 200, "calories": 100, "source": "migration", "createdDate": "2026-07-09", "status": "active" }
+  },
+  "payments": {
+    "p-0001": { "paymentId": "p-0001", "userId": "legacy-profile", "deviceId": "legacy", "amount": 1000, "note": "Previous tab", "source": "migration", "createdBy": "migration", "createdDate": null, "status": "active" },
+    "p-0002": { "paymentId": "p-0002", "userId": "legacy-profile", "deviceId": "legacy", "amount": 500, "note": "", "source": "migration", "createdBy": "migration", "createdDate": null, "status": "active" }
+  },
+  "admins": {
+    "REPLACE_WITH_ADMIN_FIREBASE_UID": {
+      "uid": "REPLACE_WITH_ADMIN_FIREBASE_UID",
+      "email": "you@example.com",
+      "displayName": "Owner",
+      "role": "owner",
+      "active": true
+    }
+  }
+}

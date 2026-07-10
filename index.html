@@ -20,6 +20,8 @@
       </div>
     </header>
 
+    <div id="firebase-auth-prompt"></div>
+
     <section class="brand-card">
       <div class="brand-grid">
         <div class="avatar" aria-hidden="true">
@@ -28,7 +30,7 @@
 
         <div>
           <div class="brand-title" id="brand-title">Fresh Snacks</div>
-          <div class="brand-subtitle" id="brand-subtitle">Private customer snack profile</div>
+          <div class="brand-subtitle" id="brand-subtitle">Private snack profile</div>
         </div>
 
         <div class="brand-stats">
@@ -45,7 +47,7 @@
             <div class="stat-value blue" id="stat-paid">–</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Snack days</div>
+            <div class="stat-label">Activity days</div>
             <div class="stat-value" id="stat-days">–</div>
           </div>
         </div>
@@ -70,7 +72,7 @@
               <div class="stat-value blue" id="mini-price">–</div>
             </div>
             <div class="mini-card soft-blue">
-              <div class="stat-label">Last treat</div>
+              <div class="stat-label">Last snack</div>
               <div class="stat-value" id="mini-last">–</div>
             </div>
           </div>
@@ -99,7 +101,7 @@
         <div class="card soft-blue">
           <div class="stat-label" id="sum-month-label">This month</div>
           <div class="stat-value blue" id="sum-month">–</div>
-          <div class="muted-small">Treats enjoyed so far this month.</div>
+          <div class="muted-small">Snack activity recorded this month.</div>
         </div>
       </aside>
     </section>
@@ -107,7 +109,7 @@
     <section class="card section-card">
       <h2>Snack Log</h2>
       <div class="note">
-        Earlier snacks are grouped because daily dates started being recorded from 15 June.
+        Snack activity is grouped by month. Payments and purchases stay separate for accounting.
       </div>
 
       <div id="log">
@@ -136,12 +138,41 @@
       </table>
     </section>
 
+    <section class="card section-card" id="user-settings">
+      <h2>User Settings</h2>
+      <div class="note">
+        You start out as an anonymous guest — your tab works without a name.
+        Add your identity only if you want the snack keeper to know who this tab belongs to.
+      </div>
+      <p class="muted-small" id="us-current" style="margin-bottom:12px;"></p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="us-name">Name</label>
+          <input id="us-name" type="text" placeholder="e.g. Xavier" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="us-email">Email (optional)</label>
+          <input id="us-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="us-phone">Phone (optional)</label>
+          <input id="us-phone" type="tel" autocomplete="tel" />
+        </div>
+        <button class="primary" id="us-save">Save my profile</button>
+      </div>
+      <div class="status" id="us-status"></div>
+    </section>
+
     <footer>
       Thank you.
     </footer>
   </main>
 
-  <script src="js/store.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
   <script src="js/nav.js"></script>
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -168,7 +199,7 @@
       for (const p of group.payments) {
         rows.push(`<tr>
           <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
-          <td><span class="snack-pill pay-pill">Payment${p.note ? " · " + esc(p.note) : ""}</span></td>
+          <td><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></td>
           <td class="num">—</td>
           <td class="num">—</td>
           <td class="num">${FS.money(p.amount, cur)}</td>
@@ -285,11 +316,55 @@
       if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
     });
 
+    /* ---------- user settings (anonymous by default, identity opt-in) ---------- */
+
+    const $id = (id) => document.getElementById(id);
+
+    function renderUserSettings(me) {
+      const anonymous = me.vipStatus === "anonymous" || !me.displayName;
+      $id("us-name").value = anonymous ? "" : me.displayName;
+      $id("us-email").value = me.email || "";
+      $id("us-phone").value = me.phone || "";
+      $id("us-current").textContent = anonymous
+        ? `You're currently anonymous, appearing as “${me.displayName || "guest"}”.`
+        : `This tab belongs to ${me.displayName}.`;
+      $id("brand-subtitle").textContent = anonymous
+        ? `${me.displayName || "Guest"} — anonymous snack profile`
+        : `${me.displayName} — private snack profile`;
+    }
+
+    $id("us-save").onclick = async () => {
+      const st = $id("us-status");
+      st.textContent = "Saving…";
+      st.className = "status ok";
+      try {
+        const me = await FS.updateMyProfile({
+          displayName: $id("us-name").value,
+          email: $id("us-email").value,
+          phone: $id("us-phone").value,
+        });
+        renderUserSettings(me);
+        st.textContent = "Profile saved ✓";
+      } catch (e) {
+        st.textContent = e.message;
+        st.className = "status err";
+      }
+    };
+
     FS.loadData()
-      .then(render)
+      .then((data) => {
+        render(data);
+        return FS.getMyProfile();
+      })
+      .then(renderUserSettings)
       .catch((e) => {
-        document.getElementById("log").innerHTML =
-          `<p class="status err">Could not load snack data: ${esc(e.message)}</p>`;
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
+          document.getElementById("log").innerHTML = "";
+        } else {
+          document.getElementById("log").innerHTML =
+            `<p class="status err">Could not load snack data: ${esc(e.message)}</p>`;
+        }
       });
   </script>
 </body>

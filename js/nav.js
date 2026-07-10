@@ -7,8 +7,10 @@
   const items = [
     { label: "My tab", href: "index.html" },
     { label: "Log my snacks", href: "bins.html" },
-    { label: "Print / Save PDF", print: true },
+    { label: "Invoice", href: "invoice.html" },
+    { label: "User settings", href: "index.html#user-settings" },
   ];
+  if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
 
   const backdrop = document.createElement("div");
   backdrop.className = "drawer-backdrop";
@@ -41,6 +43,7 @@
       el = document.createElement("a");
       el.href = it.href;
       if (it.href === here) el.classList.add("active");
+      el.addEventListener("click", close); // same-page anchors don't reload
     }
     el.classList.add("drawer-link");
     el.textContent = it.label;
