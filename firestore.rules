@@ -24,7 +24,14 @@ service cloud.firestore {
 
     match /devices/{deviceId} {
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow read, update: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      // resource == null lets a first-time visitor check whether their
+      // device doc exists yet (the browser get()s before creating it)
+      allow read: if isAdmin()
+        || (signedIn() && (resource == null || resource.data.uid == request.auth.uid));
+      allow update: if isAdmin()
+        || (signedIn()
+            && resource.data.uid == request.auth.uid
+            && request.resource.data.uid == request.auth.uid);
       allow delete: if isAdmin();
     }
 

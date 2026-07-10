@@ -44,6 +44,27 @@ async function main() {
   check("read snacks/chewy", snack.ok && snackBody.fields?.price?.integerValue === "100",
     snack.ok ? `price=${snackBody.fields?.price?.integerValue}` : snackBody.error?.message);
 
+  // 2b. first-visit device flow (what bins.html/index.html actually do):
+  // read a device doc that does not exist yet, then create it
+  const devId = `e2e-dev-${Date.now().toString(36)}`;
+  const devProbe = await fetch(`${fsBase}/devices/${devId}`, { headers: authz });
+  check("probe missing device doc allowed", devProbe.status === 404, `status=${devProbe.status}`);
+  const devCreate = await fetch(`${fsBase}/devices?documentId=${devId}`, {
+    method: "POST",
+    headers: authz,
+    body: JSON.stringify({ fields: {
+      deviceId: { stringValue: devId },
+      uid: { stringValue: uid },
+      userId: { stringValue: uid },
+      status: { stringValue: "active" },
+      source: { stringValue: "e2e" },
+    } }),
+  });
+  check("create own device doc", devCreate.ok,
+    devCreate.ok ? devId : (await devCreate.json()).error?.message);
+  const devRead = await fetch(`${fsBase}/devices/${devId}`, { headers: authz });
+  check("read own device doc", devRead.ok, `status=${devRead.status}`);
+
   // 3. create own transaction — allowed by rules
   const txnId = `fs_txn-e2e-${Date.now().toString(36)}`;
   const today = new Date().toISOString().slice(0, 10);
@@ -129,9 +150,10 @@ async function main() {
   // cleanup with Admin SDK
   initializeApp({ credential: applicationDefault(), projectId });
   await getFirestore().collection("transactions").doc(txnId).delete();
+  await getFirestore().collection("devices").doc(devId).delete().catch(() => {});
   await getFirestore().collection("users").doc(uid).delete().catch(() => {});
   await getAuth().deleteUser(uid);
-  console.log("cleanup: test transaction, profile, and anonymous user removed");
+  console.log("cleanup: test transaction, device, profile, and anonymous user removed");
 
   if (results.some((r) => !r.ok)) process.exit(1);
 }
