@@ -50,7 +50,35 @@ async function main() {
     throw error;
   });
 
+  // A fresh Firebase project has no Identity Platform config until Auth is
+  // initialized once (console does this implicitly; do it explicitly here).
   const configUrl = `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
+  const configExists = await authedFetch(configUrl).then(() => true).catch((e) => {
+    if (String(e.message).includes("CONFIGURATION_NOT_FOUND")) return false;
+    throw e;
+  });
+  if (!configExists) {
+    // initializeAuth provisions paid Identity Platform; on the free (Spark)
+    // plan it fails with BILLING_NOT_ENABLED. Free Firebase Auth can only be
+    // provisioned by the console's one-time "Get started" click.
+    try {
+      await authedFetch(
+        `https://identitytoolkit.googleapis.com/v2/projects/${projectId}/identityPlatform:initializeAuth`,
+        { method: "POST", body: "{}" },
+      );
+      console.log("initialized Identity Platform for the project");
+    } catch (e) {
+      if (String(e.message).includes("BILLING_NOT_ENABLED")) {
+        throw new Error(
+          "Firebase Auth is not provisioned yet and cannot be provisioned via API on the free plan.\n" +
+          `Open https://console.firebase.google.com/project/${projectId}/authentication ` +
+          'and click "Get started" once, then rerun this script.',
+        );
+      }
+      throw e;
+    }
+  }
+
   const updated = await authedFetch(
     `${configUrl}?updateMask=signIn.email.enabled,signIn.email.passwordRequired,signIn.anonymous.enabled`,
     {
