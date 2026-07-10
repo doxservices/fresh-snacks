@@ -13,6 +13,16 @@ FS.admin.signInWithGoogle = async () => {
   return FS.admin.requireAdmin();
 };
 
+FS.admin.signInWithMicrosoft = async () => {
+  await FS.initFirebase();
+  const provider = new firebase.auth.OAuthProvider("microsoft.com");
+  // "common" allows both personal Microsoft accounts and org (Entra) accounts
+  provider.setCustomParameters({ tenant: "common" });
+  const result = await FS._auth.signInWithPopup(provider);
+  FS.admin.user = result.user;
+  return FS.admin.requireAdmin();
+};
+
 FS.admin.signInWithEmail = async (email, password) => {
   await FS.initFirebase();
   const result = await FS._auth.signInWithEmailAndPassword(email, password);

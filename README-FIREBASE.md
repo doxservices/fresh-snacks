@@ -66,6 +66,29 @@ npm run deploy:hosting
 - Anonymous sign-in for snack users
 - Email/password sign-in for admin fallback
 
+## Microsoft sign-in (optional, for admins)
+
+The admin page has a "Continue with Microsoft" button. Firebase needs an app
+registration in Microsoft Entra ID to power it (free, ~3 minutes):
+
+1. https://portal.azure.com → Microsoft Entra ID → **App registrations** →
+   **New registration**.
+2. Name: `fresh-snacks`. Supported account types: **Accounts in any
+   organizational directory and personal Microsoft accounts** (so personal
+   outlook/hotmail logins work too).
+3. Redirect URI: platform **Web**, value
+   `https://fresh-snacks-ee79f.firebaseapp.com/__/auth/handler`.
+4. After creating: copy the **Application (client) ID**.
+5. **Certificates & secrets** → New client secret → copy the secret **Value**
+   (not the ID) immediately — it's shown once.
+6. Firebase Console → Authentication → Sign-in method → **Microsoft** →
+   Enable, paste the Application ID and secret → Save.
+
+The admin still has to exist in `/admins/{uid}` — provider sign-in alone does
+not grant access. When an admin signs in with a second provider using the same
+email, Firebase may ask to link accounts; keep "One account per email address"
+enabled (default) so Google/Microsoft/email logins share one uid.
+
 ## One-shot backend setup
 
 With `GOOGLE_APPLICATION_CREDENTIALS` set (see above), this completes the

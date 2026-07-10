@@ -52,6 +52,21 @@ async function main() {
     throw e;
   });
 
+  // Add the Pages domain to Auth authorized domains first (keeps existing
+  // ones) so it isn't blocked if the database step below still needs the
+  // Firestore API switched on.
+  const cfgUrl = `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
+  const cfg = await authedFetch(cfgUrl);
+  const domains = new Set(cfg.authorizedDomains || []);
+  if (!domains.has(pagesDomain)) {
+    domains.add(pagesDomain);
+    await authedFetch(`${cfgUrl}?updateMask=authorizedDomains`, {
+      method: "PATCH",
+      body: JSON.stringify({ authorizedDomains: [...domains] }),
+    });
+  }
+  console.log("authorizedDomains:", [...domains].join(", "));
+
   let dbCreated = false;
   try {
     await authedFetch(
@@ -66,23 +81,9 @@ async function main() {
     if (e.status !== 409) throw e; // 409 = already exists
   }
 
-  // Add the Pages domain to Auth authorized domains (keeps existing ones)
-  const cfgUrl = `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
-  const cfg = await authedFetch(cfgUrl);
-  const domains = new Set(cfg.authorizedDomains || []);
-  const hadDomain = domains.has(pagesDomain);
-  if (!hadDomain) {
-    domains.add(pagesDomain);
-    await authedFetch(`${cfgUrl}?updateMask=authorizedDomains`, {
-      method: "PATCH",
-      body: JSON.stringify({ authorizedDomains: [...domains] }),
-    });
-  }
-
   console.log(JSON.stringify({
     projectId,
     database: dbCreated ? `created (${location})` : "already exists",
-    authorizedDomains: [...domains],
   }, null, 2));
 }
 
