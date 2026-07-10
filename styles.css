@@ -339,23 +339,25 @@ details {
 summary {
   cursor: pointer;
   list-style: none;
-  padding: 14px;
+  padding: 16px 22px 16px 14px;
   font-size: 15px;
   background: linear-gradient(90deg, rgba(244,250,243,0.94), rgba(255,255,255,0.82));
   display: grid;
-  grid-template-columns: 24px 1fr 84px 84px 92px;
+  grid-template-columns: 24px minmax(0, 1fr) 110px 110px 120px;
   gap: 9px;
+  column-gap: 28px;
   align-items: center;
 }
 
 /* column headings above the collapsible periods; mirrors the summary grid
-   (details border 1px + summary padding 14px = 15px inset) */
+   (details border 1px + summary horizontal padding = inset) */
 .log-head {
   display: grid;
-  grid-template-columns: 24px 1fr 84px 84px 92px;
+  grid-template-columns: 24px minmax(0, 1fr) 110px 110px 120px;
   gap: 9px;
+  column-gap: 28px;
   align-items: center;
-  padding: 4px 15px 6px;
+  padding: 4px 23px 8px 15px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -883,11 +885,15 @@ select:focus {
   }
 
   summary {
-    grid-template-columns: 24px 1fr 84px;
+    grid-template-columns: 24px minmax(0, 1fr) 96px;
+    column-gap: 12px;
+    padding: 14px;
   }
 
   .log-head {
-    grid-template-columns: 24px 1fr 84px;
+    grid-template-columns: 24px minmax(0, 1fr) 96px;
+    column-gap: 12px;
+    padding-right: 15px;
   }
 
   /* small screens keep only the Remaining column */
