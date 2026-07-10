@@ -66,6 +66,30 @@ npm run deploy:hosting
 - Anonymous sign-in for snack users
 - Email/password sign-in for admin fallback
 
+## One-shot backend setup
+
+With `GOOGLE_APPLICATION_CREDENTIALS` set (see above), this completes the
+whole backend from a fresh project:
+
+```powershell
+npm run firebase:setup-auth        # enable anonymous + email/password sign-in
+npm run firebase:setup-firestore   # create the (default) Firestore DB (nam5) + authorize the Pages domain
+npm run deploy:rules               # publish firestore.rules + indexes
+$env:ADMIN_EMAIL="you@example.com" # the admin account to create/link
+npm run firebase:seed              # import firebase-seed.json + create /admins/{uid}
+npm run firebase:e2e               # smoke test: anon sign-in, own write allowed, admin write denied
+```
+
+`firebase:seed` prints a generated password when it creates a brand-new admin
+user; change it after first login. Rerunning any of these is safe — they are
+idempotent (seeding merges, setup steps skip what already exists).
+
+Note: the Admin SDK service account usually cannot enable Google APIs
+(`serviceusage` permission). The scripts warn and continue, since Identity
+Toolkit and Firestore APIs are typically already enabled on Firebase projects.
+If a script fails with an API-disabled error, enable the API once in the
+Google Cloud console and rerun.
+
 ## Seed data
 
 `firebase-seed.json` maps the old `data.json` into Firestore collections:

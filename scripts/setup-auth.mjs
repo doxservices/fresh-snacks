@@ -35,11 +35,19 @@ async function main() {
     throw new Error("Set GOOGLE_APPLICATION_CREDENTIALS to the Firebase Admin SDK JSON path.");
   }
 
+  // The default Admin SDK service account often lacks serviceusage.enable;
+  // the API is usually already on for Firebase projects, so warn and continue.
   await authedFetch(
     `https://serviceusage.googleapis.com/v1/projects/${projectNumber}/services/identitytoolkit.googleapis.com:enable`,
     { method: "POST", body: "{}" },
   ).catch((error) => {
-    if (!String(error.message).includes("has already been enabled")) throw error;
+    const msg = String(error.message);
+    if (msg.includes("has already been enabled")) return;
+    if (msg.includes("Permission denied")) {
+      console.warn("warn: could not enable identitytoolkit API (no serviceusage permission); continuing — it is usually already enabled.");
+      return;
+    }
+    throw error;
   });
 
   const configUrl = `https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config`;
