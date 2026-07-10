@@ -23,6 +23,22 @@ try {
   page.on("console", (m) => { if (m.type() === "error") console.log("console.error:", m.text()); });
   page.on("pageerror", (e) => console.log("pageerror:", e.message));
 
+  // --- optional: share-code link shows the claimed tab's history merged in
+  if (process.env.TAB_CODE) {
+    await page.goto(`${base}/?code=${process.env.TAB_CODE}`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.waitForFunction(
+      () => {
+        const t = document.getElementById("stat-balance")?.textContent.trim();
+        return t && t !== "–";
+      },
+      { timeout: 30000 },
+    );
+    const claimed = await page.$eval("#stat-balance", (e) => e.textContent);
+    const sub = await page.$eval("#brand-subtitle", (e) => e.textContent);
+    console.log(`PASS code link loaded — balance: ${claimed} | ${sub}`);
+    await page.screenshot({ path: `${scratch}\\drive-code.png`, fullPage: true });
+  }
+
   // --- bins.html: catalog should load from Firestore
   await page.goto(`${base}/bins.html`, { waitUntil: "networkidle2", timeout: 60000 });
   await page.waitForSelector(".bin-card", { timeout: 30000 });
@@ -53,8 +69,12 @@ try {
   const subtitle = await page.$eval("#brand-subtitle", (e) => e.textContent);
   console.log("PASS index loaded — balance:", balance, "| profile:", subtitle);
 
-  // --- user settings: save a name, check it reflects
-  await page.type("#us-name", "Browser E2E");
+  // --- user settings right well: save an identity, check it reflects
+  await page.click("#profile-toggle");
+  await page.waitForSelector("#settings-drawer.open", { timeout: 10000 });
+  await page.type("#us-username", "Browser E2E");
+  await page.type("#us-first", "Browser");
+  await page.type("#us-last", "Tester");
   await page.click("#us-save");
   await page.waitForFunction(
     () => (document.getElementById("us-status")?.textContent || "").includes("saved"),

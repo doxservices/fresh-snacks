@@ -726,6 +726,37 @@ select:focus {
   background: var(--green-light);
 }
 
+/* right-side well (user settings) */
+.drawer.right {
+  left: auto;
+  right: 0;
+  width: 300px;
+  border-right: none;
+  border-left: 1px solid var(--line);
+  box-shadow: -14px 0 34px rgba(24, 79, 42, 0.14);
+  transform: translateX(102%);
+  overflow-y: auto;
+}
+
+.drawer.right.open {
+  transform: none;
+}
+
+.drawer .field {
+  margin: 10px 2px;
+}
+
+.drawer .drawer-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 10px 2px;
+}
+
+.drawer button.primary {
+  width: 100%;
+  margin-top: 6px;
+}
+
 /* ---- Nutrition facts slide door (over the favorite snack photo) ---- */
 
 .snack-image {

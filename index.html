@@ -17,6 +17,7 @@
             <p>Snack tab tracker for purchases, payments, and the running balance.</p>
           </div>
         </div>
+        <button class="hamburger" id="profile-toggle" aria-label="Open user settings" title="User settings">&#128100;</button>
       </div>
     </header>
 
@@ -138,35 +139,42 @@
       </table>
     </section>
 
-    <section class="card section-card" id="user-settings">
-      <h2>User Settings</h2>
-      <div class="note">
-        You start out as an anonymous guest — your tab works without a name.
-        Add your identity only if you want the snack keeper to know who this tab belongs to.
-      </div>
-      <p class="muted-small" id="us-current" style="margin-bottom:12px;"></p>
-      <div class="form-grid">
-        <div class="field">
-          <label for="us-name">Name</label>
-          <input id="us-name" type="text" placeholder="e.g. Xavier" autocomplete="name" />
-        </div>
-        <div class="field">
-          <label for="us-email">Email (optional)</label>
-          <input id="us-email" type="email" autocomplete="email" />
-        </div>
-        <div class="field">
-          <label for="us-phone">Phone (optional)</label>
-          <input id="us-phone" type="tel" autocomplete="tel" />
-        </div>
-        <button class="primary" id="us-save">Save my profile</button>
-      </div>
-      <div class="status" id="us-status"></div>
-    </section>
-
     <footer>
       Thank you.
     </footer>
   </main>
+
+  <div class="drawer-backdrop" id="settings-backdrop"></div>
+  <aside class="drawer right" id="settings-drawer" aria-label="User settings">
+    <div class="drawer-brand">User Settings</div>
+    <p class="drawer-note" id="us-current"></p>
+    <div class="field">
+      <label for="us-username">Username / display name</label>
+      <input id="us-username" type="text" placeholder="e.g. SnackFan" />
+    </div>
+    <div class="field">
+      <label for="us-first">First name</label>
+      <input id="us-first" type="text" autocomplete="given-name" />
+    </div>
+    <div class="field">
+      <label for="us-last">Last name</label>
+      <input id="us-last" type="text" autocomplete="family-name" />
+    </div>
+    <div class="field">
+      <label for="us-email">Email (optional)</label>
+      <input id="us-email" type="email" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label for="us-phone">Phone (optional)</label>
+      <input id="us-phone" type="tel" autocomplete="tel" />
+    </div>
+    <button class="primary" id="us-save">Save my profile</button>
+    <div class="status" id="us-status"></div>
+    <p class="drawer-note">
+      You start out as an anonymous guest — your tab works without a name.
+      Add your identity only if you want the snack keeper to know who this tab belongs to.
+    </p>
+  </aside>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -316,21 +324,47 @@
       if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
     });
 
-    /* ---------- user settings (anonymous by default, identity opt-in) ---------- */
+    /* ---------- user settings right well (anonymous by default, identity opt-in) ---------- */
 
     const $id = (id) => document.getElementById(id);
+    let CLAIM = null;
+
+    const settingsDrawer = $id("settings-drawer");
+    const settingsBackdrop = $id("settings-backdrop");
+    const openSettings = () => {
+      settingsDrawer.classList.add("open");
+      settingsBackdrop.classList.add("show");
+    };
+    const closeSettings = () => {
+      settingsDrawer.classList.remove("open");
+      settingsBackdrop.classList.remove("show");
+    };
+    $id("profile-toggle").onclick = () =>
+      settingsDrawer.classList.contains("open") ? closeSettings() : openSettings();
+    settingsBackdrop.addEventListener("click", closeSettings);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSettings(); });
+    const maybeOpenFromHash = () => { if (location.hash === "#user-settings") openSettings(); };
+    window.addEventListener("hashchange", maybeOpenFromHash);
+    maybeOpenFromHash();
 
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
-      $id("us-name").value = anonymous ? "" : me.displayName;
+      $id("us-username").value = anonymous ? "" : (me.displayName || "");
+      $id("us-first").value = me.firstName || "";
+      $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
       $id("us-current").textContent = anonymous
         ? `You're currently anonymous, appearing as “${me.displayName || "guest"}”.`
         : `This tab belongs to ${me.displayName}.`;
-      $id("brand-subtitle").textContent = anonymous
-        ? `${me.displayName || "Guest"} — anonymous snack profile`
-        : `${me.displayName} — private snack profile`;
+      if (CLAIM) {
+        $id("brand-subtitle").textContent =
+          `${CLAIM.displayName || (anonymous ? "Linked tab" : me.displayName)} — tab code ${CLAIM.code}`;
+      } else {
+        $id("brand-subtitle").textContent = anonymous
+          ? `${me.displayName || "Guest"} — anonymous snack profile`
+          : `${me.displayName} — private snack profile`;
+      }
     }
 
     $id("us-save").onclick = async () => {
@@ -339,7 +373,9 @@
       st.className = "status ok";
       try {
         const me = await FS.updateMyProfile({
-          displayName: $id("us-name").value,
+          displayName: $id("us-username").value,
+          firstName: $id("us-first").value,
+          lastName: $id("us-last").value,
           email: $id("us-email").value,
           phone: $id("us-phone").value,
         });
@@ -353,6 +389,7 @@
 
     FS.loadData()
       .then((data) => {
+        CLAIM = data.claim || null;
         render(data);
         return FS.getMyProfile();
       })

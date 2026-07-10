@@ -12,6 +12,21 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
 
+    // Share-code capability: a visitor who stores a valid claim code on their
+    // own user doc may read the tab (transactions/payments/profile) of the
+    // user that codes/{code} points at. The 8-char code is the secret; codes
+    // cannot be listed, only fetched by exact id.
+    function myClaimedCode() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('claimedCode', '');
+    }
+
+    function hasClaimOn(ownerId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myClaimedCode() != ''
+        && get(/databases/$(database)/documents/codes/$(myClaimedCode())).data.userId == ownerId;
+    }
+
     match /settings/{settingId} {
       allow read: if signedIn();
       allow write: if isAdmin();
@@ -37,8 +52,17 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow create: if signedIn() && userId == request.auth.uid;
-      allow read, update: if isAdmin() || (signedIn() && userId == request.auth.uid);
+      allow read: if isAdmin()
+        || (signedIn() && userId == request.auth.uid)
+        || hasClaimOn(userId);
+      allow update: if isAdmin() || (signedIn() && userId == request.auth.uid);
       allow delete: if isAdmin();
+    }
+
+    match /codes/{code} {
+      // fetch by exact code only — no listing, so codes stay unguessable
+      allow get: if signedIn();
+      allow list, create, update, delete: if isAdmin();
     }
 
     match /transactions/{transactionId} {
@@ -46,12 +70,16 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == "active";
-      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.uid == request.auth.uid)
+        || hasClaimOn(resource.data.userId);
       allow update, delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || hasClaimOn(resource.data.userId);
       allow create, update, delete: if isAdmin();
     }
 

@@ -10,6 +10,7 @@
     "firebase:seed": "node scripts/seed.mjs",
     "firebase:e2e": "node scripts/e2e-test.mjs",
     "firebase:browser-test": "node scripts/browser-test.mjs",
+    "firebase:make-code": "node scripts/make-code.mjs",
     "deploy:rules": "node scripts/deploy-rules.mjs",
     "deploy:rules:cli": "firebase deploy --only firestore:rules,firestore:indexes",
     "deploy:hosting": "firebase deploy --only hosting"

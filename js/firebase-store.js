@@ -226,6 +226,58 @@ FS.getOrCreateDevice = async () => {
   return FS.currentDevice;
 };
 
+/* ---------- share-code claims (view an existing tab via 8-char code) ---------- */
+
+FS.tabCodeKey = "fresh_snacks_tab_code";
+
+/* Reads ?code= from the URL (persisting it) or falls back to the stored one. */
+FS.getTabCode = () => {
+  const fromUrl = new URLSearchParams(location.search).get("code");
+  if (fromUrl && fromUrl.trim()) {
+    localStorage.setItem(FS.tabCodeKey, fromUrl.trim().toUpperCase());
+  }
+  return localStorage.getItem(FS.tabCodeKey) || null;
+};
+
+FS.clearTabCode = () => localStorage.removeItem(FS.tabCodeKey);
+
+/* Stores the code on the visitor's own user doc (the rules verify it against
+ * codes/{code} on every read) and resolves who the code points at. */
+FS.resolveClaim = async () => {
+  const code = FS.getTabCode();
+  if (!code) return null;
+  const user = await FS.signInAnonymous();
+  await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
+  const snap = await FS._db.collection("codes").doc(code).get();
+  if (!snap.exists || snap.data().active === false || !snap.data().userId) return null;
+  const target = snap.data().userId;
+  if (target === user.uid) return null;
+  let displayName = null;
+  try {
+    const u = await FS._db.collection("users").doc(target).get();
+    if (u.exists) displayName = u.data().displayName || null;
+  } catch (e) { /* profile read is cosmetic */ }
+  return { code, userId: target, displayName };
+};
+
+FS.getUserTransactions = async (userId) => {
+  await FS.initFirebase();
+  const snap = await FS._db.collection("transactions")
+    .where("userId", "==", userId)
+    .where("status", "==", "active")
+    .get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
+FS.getUserPayments = async (userId) => {
+  await FS.initFirebase();
+  const snap = await FS._db.collection("payments")
+    .where("userId", "==", userId)
+    .where("status", "==", "active")
+    .get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
 /* ---------- user identity (optional, anonymous by default) ---------- */
 
 FS.getMyProfile = async () => {
@@ -242,8 +294,14 @@ FS.updateMyProfile = async (fields) => {
     const s = (v ?? "").toString().trim();
     return s || null;
   };
-  const displayName = clean(fields.displayName);
+  const firstName = clean(fields.firstName);
+  const lastName = clean(fields.lastName);
+  // username wins; otherwise compose a display name from first/last
+  const displayName = clean(fields.displayName)
+    || clean(`${firstName || ""} ${lastName || ""}`);
   const payload = {
+    firstName,
+    lastName,
     email: clean(fields.email),
     phone: clean(fields.phone),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -336,17 +394,32 @@ FS.toPayment = (p) => ({
 
 FS.loadData = async () => {
   await FS.getOrCreateDevice();
+  const claim = await FS.resolveClaim().catch(() => null);
   const [profile, catalog, transactions, payments] = await Promise.all([
     FS.getSettings(),
     FS.getCatalog(),
     FS.getOwnTransactions(),
     FS.getOwnPayments(),
   ]);
+  let entries = transactions.map(FS.toEntry);
+  let pays = payments.map(FS.toPayment);
+  if (claim) {
+    // merge the claimed tab's history (e.g. the migrated legacy data) with
+    // whatever this browser has logged itself
+    const [ct, cp] = await Promise.all([
+      FS.getUserTransactions(claim.userId),
+      FS.getUserPayments(claim.userId),
+    ]);
+    entries = entries.concat(ct.map(FS.toEntry));
+    pays = pays.concat(cp.map(FS.toPayment));
+  }
+  const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
   return {
     profile,
     catalog,
-    entries: transactions.map(FS.toEntry).sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))),
-    payments: payments.map(FS.toPayment).sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))),
+    claim,
+    entries: entries.sort(byDate),
+    payments: pays.sort(byDate),
   };
 };
 
