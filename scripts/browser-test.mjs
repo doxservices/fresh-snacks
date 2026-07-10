@@ -23,9 +23,10 @@ try {
   page.on("console", (m) => { if (m.type() === "error") console.log("console.error:", m.text()); });
   page.on("pageerror", (e) => console.log("pageerror:", e.message));
 
-  // --- optional: share-code link shows the claimed tab's history merged in
+  // --- optional: share-code link (path form, routed via 404.html) shows the
+  // claimed tab's history merged in
   if (process.env.TAB_CODE) {
-    await page.goto(`${base}/?code=${process.env.TAB_CODE}`, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.goto(`${base}/${process.env.TAB_CODE}`, { waitUntil: "networkidle2", timeout: 60000 });
     await page.waitForFunction(
       () => {
         const t = document.getElementById("stat-balance")?.textContent.trim();

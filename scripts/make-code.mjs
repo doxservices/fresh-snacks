@@ -54,5 +54,5 @@ console.log(JSON.stringify({
   code,
   userId,
   displayName: process.env.DISPLAY_NAME || userSnap.data().displayName || null,
-  link: `${siteBase}/?code=${code}`,
+  link: `${siteBase}/${code}`,
 }, null, 2));

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks</title>
+  <link rel="stylesheet" href="/fresh-snacks/styles.css" />
+  <script>
+    /* GitHub Pages serves this page for any unknown path. Treat a single
+     * path segment that looks like a share code (e.g. /fresh-snacks/25E4BYJH)
+     * as a tab link and route it to the tab view. */
+    (function () {
+      var base = "/fresh-snacks/";
+      var seg = location.pathname.indexOf(base) === 0
+        ? location.pathname.slice(base.length).replace(/\/+$/, "")
+        : "";
+      if (/^[A-Za-z0-9]{6,12}$/.test(seg)) {
+        location.replace(base + "?code=" + seg.toUpperCase());
+      }
+    })();
+  </script>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Fresh Snacks</h1>
+          <p>That link doesn't match a page or tab code.</p>
+        </div>
+      </div>
+    </header>
+    <section class="card section-card">
+      <p><a href="/fresh-snacks/">Go to the snack tab</a></p>
+    </section>
+  </main>
+</body>
+</html>
