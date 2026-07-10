@@ -657,6 +657,18 @@ select:focus {
   padding: 9px 12px;
 }
 
+.profile-btn {
+  padding: 5px;
+}
+
+.profile-btn img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: block;
+  border: 1px solid rgba(47, 122, 68, 0.25);
+}
+
 .drawer-backdrop {
   position: fixed;
   inset: 0;
