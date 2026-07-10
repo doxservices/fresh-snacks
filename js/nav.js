@@ -7,8 +7,9 @@
   const items = [
     { label: "My tab", href: "index.html" },
     { label: "Log my snacks", href: "bins.html" },
-    { label: "Print / Save PDF", print: true },
+    { label: "Invoice", href: "invoice.html" },
   ];
+  if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
 
   const backdrop = document.createElement("div");
   backdrop.className = "drawer-backdrop";

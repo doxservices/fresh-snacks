@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fresh Snacks — Log My Snacks</title>
+  <title>Fresh Snacks - Log My Snacks</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -14,32 +14,19 @@
           <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
           <div>
             <h1>Took a snack?</h1>
-            <p>Tap what you grabbed from the bins and add it straight to your tab. Honor system!</p>
+            <p>Take a snack. We'll remember your favorites.</p>
           </div>
         </div>
       </div>
     </header>
 
-    <section class="card section-card hidden" id="setup">
-      <h2>One-time device setup</h2>
-      <p style="margin-bottom:10px;">
-        This device isn't connected yet. Ask the snack keeper to paste the device token here
-        (it lets this page write to the tab).
-      </p>
-      <div class="form-grid">
-        <div class="field" style="grid-column: span 2;">
-          <label for="token-input">Device token</label>
-          <input id="token-input" type="password" placeholder="github_pat_…" autocomplete="off" />
-        </div>
-        <button class="primary" id="token-save">Connect</button>
-      </div>
-      <div class="status" id="token-status"></div>
-    </section>
+    <div id="firebase-auth-prompt"></div>
 
     <section class="card section-card">
       <h2>Snack bins</h2>
+      <div class="note" id="device-note">Connecting this browser...</div>
       <div class="bin-grid" id="bins">
-        <p>Loading snacks…</p>
+        <p>Loading snacks...</p>
       </div>
 
       <div class="bin-total">
@@ -55,14 +42,18 @@
       <div class="status" id="submit-status"></div>
     </section>
 
-    <footer>Your snacks are added to the tab right away — thank you for logging them.</footer>
+    <footer>Your snack activity is added to your tab right away.</footer>
   </main>
 
-  <script src="js/store.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
   <script src="js/nav.js"></script>
   <script>
     let DATA = null;
-    const picked = new Map(); // snackId -> qty
+    const picked = new Map();
 
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -90,93 +81,87 @@
         if (el) el.textContent = picked.get(s.id) || 0;
       }
       $("total").textContent = FS.money(total(), cur);
-      $("submit").disabled = total() === 0 || !FS.getToken();
+      $("submit").disabled = total() === 0;
     }
 
     function renderBins() {
+      if (!DATA.catalog.length) {
+        $("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
+        return;
+      }
       $("bins").innerHTML = DATA.catalog.map((s) => `
         <div class="bin-card">
           <div class="bin-name">${esc(s.name)}</div>
           <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>
           ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
           <div class="stepper">
-            <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">−</button>
+            <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">-</button>
             <span class="qty" data-id="${esc(s.id)}">0</span>
             <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
           </div>
         </div>`).join("");
-      $("bins").addEventListener("click", (ev) => {
-        const facts = ev.target.closest("a[data-facts]");
-        if (facts) {
-          ev.preventDefault();
-          FS.showFacts(facts.dataset.facts, facts.dataset.name);
-          return;
-        }
-        const btn = ev.target.closest("button[data-id]");
-        if (!btn) return;
-        const id = btn.dataset.id;
-        const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
-        if (next === 0) picked.delete(id); else picked.set(id, next);
-        sync();
-      });
       sync();
     }
+
+    $("bins").addEventListener("click", (ev) => {
+      const facts = ev.target.closest("a[data-facts]");
+      if (facts) {
+        ev.preventDefault();
+        FS.showFacts(facts.dataset.facts, facts.dataset.name);
+        return;
+      }
+      const btn = ev.target.closest("button[data-id]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
+      if (next === 0) picked.delete(id); else picked.set(id, next);
+      sync();
+    });
 
     $("reset").onclick = () => { picked.clear(); sync(); };
 
     $("submit").onclick = async () => {
       const cur = DATA.profile.currency;
       const items = [...picked.entries()].map(([id, qty]) => {
-        const s = FS.snackById(DATA, id);
-        return { snack: s, qty };
+        const snack = FS.snackById(DATA, id);
+        return { snack, qty };
       }).filter((x) => x.snack);
       if (!items.length) return;
 
-      const summary = items.map((x) => `${x.qty}× ${x.snack.name}`).join(", ");
-      if (!confirm(`Add ${summary} (${FS.money(total(), cur)}) to the tab?`)) return;
+      const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
+      if (!confirm(`Add ${summary} (${FS.money(total(), cur)}) to your tab?`)) return;
 
       $("submit").disabled = true;
-      status("submit-status", "Adding to your tab…", true);
+      status("submit-status", "Adding to your tab...", true);
       try {
-        const today = FS.todayISO();
-        DATA = await FS.saveData((d) => {
-          for (const { snack, qty } of items) {
-            d.entries.push({
-              id: FS.uid("e"),
-              date: today,
-              snackId: snack.id,
-              count: qty,
-              value: snack.price * qty,
-              source: "self",
-            });
-          }
-        }, `Self-serve: ${summary}`);
+        await FS.addTransaction(items);
         picked.clear();
         sync();
-        status("submit-status", `Added ${summary} to the tab. Enjoy!`, true);
+        status("submit-status", `Added ${summary} to your tab.`, true);
       } catch (e) {
         status("submit-status", e.message, false);
-        $("submit").disabled = false;
-      }
-    };
-
-    $("token-save").onclick = async () => {
-      FS.setToken($("token-input").value);
-      try {
-        await FS.testToken();
-        $("setup").classList.add("hidden");
-        status("submit-status", "Device connected. ✓", true);
+      } finally {
         sync();
-      } catch (e) {
-        status("token-status", e.message, false);
       }
     };
-
-    if (!FS.getToken()) $("setup").classList.remove("hidden");
 
     FS.loadData()
-      .then((d) => { DATA = d; renderBins(); })
-      .catch((e) => { $("bins").innerHTML = `<p class="status err">Could not load snacks: ${esc(e.message)}</p>`; });
+      .then((d) => {
+        DATA = d;
+        $("device-note").textContent = `Connected as ${FS.currentDevice.deviceId}.`;
+        renderBins();
+      })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
+          $("device-note").textContent = "Firebase setup is required before snack logging.";
+          $("bins").innerHTML = "";
+        } else {
+          $("device-note").className = "status err";
+          $("device-note").textContent = e.message;
+          $("bins").innerHTML = `<p class="status err">Could not load snacks.</p>`;
+        }
+      });
   </script>
 </body>
 </html>

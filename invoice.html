@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Invoice</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page invoice-page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <div>
+            <h1>Invoice</h1>
+            <p>Printable Fresh Snacks tab summary.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="primary" id="print-invoice">Print / Save PDF</button>
+        </div>
+      </div>
+    </header>
+
+    <div id="firebase-auth-prompt"></div>
+    <div id="invoice-root">
+      <section class="card section-card">
+        <p>Loading invoice...</p>
+      </section>
+    </div>
+
+    <footer>Fresh Snacks invoice.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => FS.escapeHtml(s);
+
+    function renderInvoice(data) {
+      const cur = data.profile.currency;
+      const totals = FS.totals(data);
+      const activity = [
+        ...data.entries.map((e) => ({
+          date: e.date,
+          type: "Snack",
+          label: FS.entryName(data, e),
+          qty: e.count ?? "-",
+          charge: Number(e.value || 0),
+          payment: 0,
+        })),
+        ...data.payments.map((p) => ({
+          date: p.date,
+          type: "Payment",
+          label: p.note || "Payment",
+          qty: "-",
+          charge: 0,
+          payment: Number(p.amount || 0),
+        })),
+      ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+
+      $("invoice-root").innerHTML = `
+        <section class="brand-card">
+          <div class="brand-grid">
+            <div>
+              <div class="brand-title">${esc(data.profile.brand)}</div>
+              <div class="brand-subtitle">Snack tab invoice</div>
+            </div>
+            <div class="brand-stats">
+              <div class="stat-box balance-stat"><div class="stat-label">Current balance</div><div class="stat-value warm">${FS.money(totals.balance, cur)}</div></div>
+              <div class="stat-box"><div class="stat-label">Snack value</div><div class="stat-value green">${FS.money(totals.value, cur)}</div></div>
+              <div class="stat-box"><div class="stat-label">Paid</div><div class="stat-value blue">${FS.money(totals.paid, cur)}</div></div>
+              <div class="stat-box"><div class="stat-label">Issued</div><div class="stat-value">${FS.todayISO()}</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card section-card">
+          <h2>Invoice detail</h2>
+          <table class="admin-table">
+            <thead><tr><th>Day</th><th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Charge</th><th class="num">Payment</th></tr></thead>
+            <tbody>${activity.map((row) => `<tr>
+              <td>${row.date ? esc(FS.fmtDay(row.date)) : "-"}</td>
+              <td>${esc(row.type)}</td>
+              <td>${esc(row.label)}</td>
+              <td class="num">${esc(row.qty)}</td>
+              <td class="num">${row.charge ? FS.money(row.charge, cur) : "-"}</td>
+              <td class="num">${row.payment ? FS.money(row.payment, cur) : "-"}</td>
+            </tr>`).join("")}</tbody>
+          </table>
+          <table class="bottom-summary">
+            <tbody>
+              <tr><td>Total snack value</td><td class="num">${FS.money(totals.value, cur)}</td></tr>
+              <tr><td>Payments added</td><td class="num">${FS.money(totals.paid, cur)}</td></tr>
+              <tr class="balance-row"><td>Current balance</td><td class="num">${FS.money(totals.balance, cur)}</td></tr>
+            </tbody>
+          </table>
+        </section>`;
+    }
+
+    $("print-invoice").onclick = () => window.print();
+
+    FS.loadData()
+      .then(renderInvoice)
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
+          $("invoice-root").innerHTML = "";
+        } else {
+          $("invoice-root").innerHTML = `<section class="card section-card"><p class="status err">${esc(e.message)}</p></section>`;
+        }
+      });
+  </script>
+</body>
+</html>

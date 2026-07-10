@@ -1,4 +1,15 @@
-# original static one-pager kept locally for reference; index.html is the live version
+node_modules/
+.npm-cache/
+.firebase-config/
+.gcloud-config/
+.firebase/
+firebase-debug.log
+*-firebase-adminsdk-*.json
+service-account*.json
+.env
+.env.*
+
+# local-only artifacts kept out of the repo
 fresh_snacks_tab_v5.html
-# design reference image, not used by the site
 fresh-snacks-reference.png
+fresh-snacks-kiosk/

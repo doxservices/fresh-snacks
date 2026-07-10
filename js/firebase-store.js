@@ -1,0 +1,400 @@
+/* Fresh Snacks Firebase data layer.
+ *
+ * This replaces browser-side GitHub Contents API writes. Regular snack users
+ * sign in anonymously, receive a local browser/device ID, and write only their
+ * own snack transactions to Firestore.
+ */
+
+const FS = window.FS || {};
+window.FS = FS;
+
+FS.appConfig = window.FS_APP_CONFIG || {};
+FS.firebaseConfig = window.FS_FIREBASE_CONFIG || {};
+FS._ready = null;
+FS._auth = null;
+FS._db = null;
+FS.currentUser = null;
+FS.currentDevice = null;
+FS.firebaseConfigStorageKey = "fresh_snacks_firebase_config";
+
+FS.configured = () =>
+  FS.firebaseConfig &&
+  FS.firebaseConfig.apiKey &&
+  !String(FS.firebaseConfig.apiKey).startsWith("YOUR_") &&
+  !String(FS.firebaseConfig.projectId || "").startsWith("YOUR_");
+
+FS.initFirebase = async () => {
+  if (FS._ready) return FS._ready;
+  FS._ready = (async () => {
+    if (!FS.configured()) {
+      throw new Error("Firebase is not configured yet. Add your Web app config in js/firebase-config.js.");
+    }
+    if (!window.firebase) {
+      throw new Error("Firebase SDK failed to load.");
+    }
+    if (!firebase.apps.length) firebase.initializeApp(FS.firebaseConfig);
+    FS._auth = firebase.auth();
+    FS._db = firebase.firestore();
+    return FS;
+  })();
+  return FS._ready;
+};
+
+FS.showFirebaseSetupPrompt = (target, message) => {
+  const el = typeof target === "string" ? document.getElementById(target) : target;
+  if (!el) return;
+  const cfg = FS.firebaseConfig || {};
+  el.innerHTML = `
+    <section class="card section-card firebase-auth-card">
+      <h2>Connect Firebase</h2>
+      <p style="margin-bottom:10px;">${FS.escapeHtml(message || "Enter your Firebase Web app config to continue.")}</p>
+      <div class="form-grid">
+        <div class="field"><label for="fb-api-key">API key</label><input id="fb-api-key" value="${FS.escapeHtml(cfg.apiKey || "")}" /></div>
+        <div class="field"><label for="fb-auth-domain">Auth domain</label><input id="fb-auth-domain" value="${FS.escapeHtml(cfg.authDomain || "")}" /></div>
+        <div class="field"><label for="fb-project-id">Project ID</label><input id="fb-project-id" value="${FS.escapeHtml(cfg.projectId || "")}" /></div>
+        <div class="field"><label for="fb-storage-bucket">Storage bucket</label><input id="fb-storage-bucket" value="${FS.escapeHtml(cfg.storageBucket || "")}" /></div>
+        <div class="field"><label for="fb-sender-id">Messaging sender ID</label><input id="fb-sender-id" value="${FS.escapeHtml(cfg.messagingSenderId || "")}" /></div>
+        <div class="field"><label for="fb-app-id">App ID</label><input id="fb-app-id" value="${FS.escapeHtml(cfg.appId || "")}" /></div>
+        <button class="primary" id="fb-config-save">Save Firebase config</button>
+        <button id="fb-config-clear">Clear saved config</button>
+      </div>
+      <div class="status" id="fb-config-status"></div>
+    </section>`;
+
+  const status = document.getElementById("fb-config-status");
+  const value = (id) => document.getElementById(id).value.trim();
+  document.getElementById("fb-config-save").onclick = () => {
+    const next = {
+      apiKey: value("fb-api-key"),
+      authDomain: value("fb-auth-domain"),
+      projectId: value("fb-project-id"),
+      storageBucket: value("fb-storage-bucket"),
+      messagingSenderId: value("fb-sender-id"),
+      appId: value("fb-app-id"),
+    };
+    if (!next.apiKey || !next.authDomain || !next.projectId || !next.appId) {
+      status.textContent = "API key, auth domain, project ID, and app ID are required.";
+      status.className = "status err";
+      return;
+    }
+    localStorage.setItem(FS.firebaseConfigStorageKey, JSON.stringify(next));
+    status.textContent = "Firebase config saved. Reloading...";
+    status.className = "status ok";
+    location.reload();
+  };
+  document.getElementById("fb-config-clear").onclick = () => {
+    localStorage.removeItem(FS.firebaseConfigStorageKey);
+    status.textContent = "Saved Firebase config cleared.";
+    status.className = "status ok";
+  };
+};
+
+FS.escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+FS.signInAnonymous = async () => {
+  await FS.initFirebase();
+  if (!FS._auth.currentUser) await FS._auth.signInAnonymously();
+  FS.currentUser = FS._auth.currentUser;
+  localStorage.setItem(FS.appConfig.storageKeys.uid, FS.currentUser.uid);
+  return FS.currentUser;
+};
+
+FS.uid = (prefix) =>
+  `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+FS.randomCode = (len = 4) =>
+  Math.random().toString(36).slice(2, 2 + len).toUpperCase();
+
+FS.money = (n, currency) => `${currency || FS.appConfig.currency || "J$"}${Number(n || 0).toLocaleString("en-US")}`;
+
+FS.todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+FS.parseDate = (iso) => {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+FS.fmtDay = (iso) => {
+  const d = FS.parseDate(iso);
+  return d ? `${d.getDate()} ${d.toLocaleString("en", { month: "short" })}` : "-";
+};
+
+FS.monthLabel = (key) => {
+  const [y, m] = key.split("-").map(Number);
+  const name = new Date(y, m - 1, 1).toLocaleString("en", { month: "long" });
+  return y === new Date().getFullYear() ? name : `${name} ${y}`;
+};
+
+FS.factsPath = (factsId) => `nutritional-facts/${factsId}.jpg`;
+
+FS.showFacts = (url, name) => {
+  const ov = document.createElement("div");
+  ov.className = "facts-overlay";
+  const fig = document.createElement("figure");
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = `Nutrition facts for ${name}`;
+  const cap = document.createElement("figcaption");
+  cap.textContent = `${name} - nutrition facts (tap anywhere to close)`;
+  fig.append(img, cap);
+  ov.append(fig);
+  const close = () => {
+    ov.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  ov.addEventListener("click", close);
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(ov);
+};
+
+FS.deviceLabel = () => {
+  const ua = navigator.userAgent || "";
+  if (/iPhone/i.test(ua)) return "iPhone";
+  if (/Android/i.test(ua)) return "Android phone";
+  if (/iPad/i.test(ua)) return "iPad";
+  if (/Windows/i.test(ua)) return "Windows browser";
+  if (/Mac/i.test(ua)) return "Mac browser";
+  return "Browser";
+};
+
+FS.userAgentBrief = () => (navigator.userAgent || "").slice(0, 160);
+
+FS.ensureLocalId = (key, prefix) => {
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = FS.uid(prefix);
+    localStorage.setItem(key, id);
+  }
+  return id;
+};
+
+FS.getOrCreateDevice = async () => {
+  const user = await FS.signInAnonymous();
+  const keys = FS.appConfig.storageKeys;
+  const deviceId = FS.ensureLocalId(keys.deviceId, FS.appConfig.devicePrefix || "fs_dev");
+  const visitorId = FS.ensureLocalId(keys.visitorId, FS.appConfig.visitorPrefix || "fs_guest");
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const deviceRef = FS._db.collection("devices").doc(deviceId);
+  const deviceSnap = await deviceRef.get();
+  const base = {
+    deviceId,
+    uid: user.uid,
+    visitorId,
+    userId: user.uid,
+    deviceLabel: FS.deviceLabel(),
+    status: "active",
+    lastSeenAt: now,
+    userAgentBrief: FS.userAgentBrief(),
+    source: "web",
+  };
+  if (deviceSnap.exists) {
+    await deviceRef.set(base, { merge: true });
+  } else {
+    await deviceRef.set({ ...base, firstSeenAt: now });
+  }
+
+  const userRef = FS._db.collection("users").doc(user.uid);
+  const userSnap = await userRef.get();
+  const displayName = `${FS.appConfig.anonUserPrefix || "guest"} ${FS.randomCode(4)}`;
+  const userBase = {
+    userId: user.uid,
+    uid: user.uid,
+    vipStatus: "anonymous",
+    lastSeenAt: now,
+    linkedDevices: firebase.firestore.FieldValue.arrayUnion(deviceId),
+  };
+  if (userSnap.exists) {
+    await userRef.set(userBase, { merge: true });
+  } else {
+    await userRef.set({
+      ...userBase,
+      displayName,
+      email: null,
+      phone: null,
+      favoriteSnackId: null,
+      createdAt: now,
+    });
+  }
+
+  FS.currentDevice = { deviceId, visitorId, userId: user.uid };
+  return FS.currentDevice;
+};
+
+FS.getSettings = async () => {
+  await FS.initFirebase();
+  const snap = await FS._db.collection("settings").doc("app").get();
+  const settings = snap.exists ? snap.data() : {};
+  return {
+    brand: settings.brand || FS.appConfig.appName || "Fresh Snacks",
+    subtitle: settings.subtitle || "Private snack profile",
+    currency: settings.currency || FS.appConfig.currency || "J$",
+    openingLabel: settings.openingLabel || "Opening history",
+    openingNote: settings.openingNote || "Migrated snack history",
+    favoriteSnackId: settings.favoriteSnackId || null,
+    favoriteName: settings.favoriteName || "Favorite snack",
+    favoriteDescription: settings.favoriteDescription || "",
+  };
+};
+
+FS.getCatalog = async (includeInactive = false) => {
+  await FS.initFirebase();
+  const ref = includeInactive
+    ? FS._db.collection("snacks")
+    : FS._db.collection("snacks").where("active", "==", true);
+  const snap = await ref.get();
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((s) => includeInactive || s.active !== false)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+};
+
+FS.snackById = (data, id) => (data.catalog || []).find((s) => s.id === id) || null;
+
+FS.entryName = (data, entry) => {
+  if (entry.snackId) {
+    const s = FS.snackById(data, entry.snackId);
+    if (s) return s.name;
+  }
+  return entry.label || entry.snackName || "Item";
+};
+
+FS.entryPillClass = (data, entry) => {
+  const s = entry.snackId ? FS.snackById(data, entry.snackId) : null;
+  return s && s.style !== "other" ? "snack-pill" : "snack-pill other-pill";
+};
+
+FS.getOwnTransactions = async () => {
+  const user = await FS.signInAnonymous();
+  const snap = await FS._db.collection("transactions")
+    .where("uid", "==", user.uid)
+    .where("status", "==", "active")
+    .get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
+FS.getOwnPayments = async () => {
+  const user = await FS.signInAnonymous();
+  const snap = await FS._db.collection("payments")
+    .where("userId", "==", user.uid)
+    .where("status", "==", "active")
+    .get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
+FS.toEntry = (t) => ({
+  id: t.transactionId || t.id,
+  date: t.createdDate || null,
+  snackId: t.snackId || null,
+  label: t.snackName || t.label || null,
+  count: Number(t.quantity || t.count || 1),
+  value: Number(t.total || t.value || 0),
+  source: t.source || "self",
+});
+
+FS.toPayment = (p) => ({
+  id: p.paymentId || p.id,
+  date: p.createdDate || null,
+  amount: Number(p.amount || 0),
+  note: p.note || "",
+});
+
+FS.loadData = async () => {
+  await FS.getOrCreateDevice();
+  const [profile, catalog, transactions, payments] = await Promise.all([
+    FS.getSettings(),
+    FS.getCatalog(),
+    FS.getOwnTransactions(),
+    FS.getOwnPayments(),
+  ]);
+  return {
+    profile,
+    catalog,
+    entries: transactions.map(FS.toEntry).sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))),
+    payments: payments.map(FS.toPayment).sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))),
+  };
+};
+
+FS.addTransaction = async (items) => {
+  const device = await FS.getOrCreateDevice();
+  const batch = FS._db.batch();
+  const today = FS.todayISO();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const saved = [];
+  for (const item of items) {
+    const snack = item.snack || item;
+    const quantity = Number(item.qty || item.quantity || 1);
+    if (!snack || !snack.id || quantity < 1) continue;
+    const transactionId = FS.uid("fs_txn");
+    const ref = FS._db.collection("transactions").doc(transactionId);
+    const record = {
+      transactionId,
+      uid: FS.currentUser.uid,
+      userId: FS.currentUser.uid,
+      deviceId: device.deviceId,
+      visitorId: device.visitorId,
+      snackId: snack.id,
+      snackName: snack.name,
+      quantity,
+      unitPrice: Number(snack.price || 0),
+      total: Number(snack.price || 0) * quantity,
+      calories: snack.calories ?? null,
+      source: "self",
+      createdAt: now,
+      createdDate: today,
+      status: "active",
+    };
+    batch.set(ref, record);
+    saved.push(record);
+  }
+  if (!saved.length) throw new Error("Choose at least one snack.");
+  await batch.commit();
+  return saved;
+};
+
+FS.totals = (data) => {
+  const value = data.entries.reduce((t, e) => t + Number(e.value || 0), 0);
+  const paid = data.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
+  return { value, paid, balance: value - paid };
+};
+
+FS.getMyBalance = async () => FS.totals(await FS.loadData());
+
+FS.getMyHistory = async () => {
+  const data = await FS.loadData();
+  return data.entries;
+};
+
+FS.groups = (data) => {
+  const buckets = new Map();
+  const keyOf = (dated) => (dated ? dated.slice(0, 7) : "opening");
+  for (const e of data.entries) {
+    const k = keyOf(e.date);
+    if (!buckets.has(k)) buckets.set(k, { key: k, entries: [], payments: [] });
+    buckets.get(k).entries.push(e);
+  }
+  for (const p of data.payments) {
+    const k = keyOf(p.date);
+    if (!buckets.has(k)) buckets.set(k, { key: k, entries: [], payments: [] });
+    buckets.get(k).payments.push(p);
+  }
+  const keys = [...buckets.keys()].sort((a, b) => {
+    if (a === "opening") return -1;
+    if (b === "opening") return 1;
+    return a.localeCompare(b);
+  });
+  return keys.map((k) => {
+    const g = buckets.get(k);
+    const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
+    g.entries.sort(byDate);
+    g.payments.sort(byDate);
+    g.value = g.entries.reduce((t, e) => t + Number(e.value || 0), 0);
+    g.paid = g.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
+    return g;
+  });
+};
