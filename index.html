@@ -361,7 +361,7 @@
         : `This tab belongs to ${me.displayName}.`;
       if (CLAIM) {
         $id("brand-subtitle").textContent =
-          `${CLAIM.displayName || (anonymous ? "Linked tab" : me.displayName)} — tab code ${CLAIM.code}`;
+          `${CLAIM.displayName || (anonymous ? "Guest" : me.displayName)} — private snack profile`;
       } else {
         $id("brand-subtitle").textContent = anonymous
           ? `${me.displayName || "Guest"} — anonymous snack profile`
