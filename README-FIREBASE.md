@@ -96,12 +96,19 @@ whole backend from a fresh project:
 
 ```powershell
 npm run firebase:setup-auth        # enable anonymous + email/password sign-in
-npm run firebase:setup-firestore   # create the (default) Firestore DB (nam5) + authorize the Pages domain
-npm run deploy:rules               # publish firestore.rules + indexes
+npm run firebase:setup-firestore   # authorize the Pages domain + create the (default) Firestore DB
+npm run deploy:rules               # publish firestore.rules + indexes via REST (works with the Admin SDK SA)
 $env:ADMIN_EMAIL="you@example.com" # the admin account to create/link
 npm run firebase:seed              # import firebase-seed.json + create /admins/{uid}
-npm run firebase:e2e               # smoke test: anon sign-in, own write allowed, admin write denied
+npm run firebase:e2e               # smoke test: anon sign-in, own writes allowed, cross-user/admin writes denied
 ```
+
+(`deploy:rules:cli` is the firebase-tools variant for machines with a
+`firebase login`; the default `deploy:rules` uses REST because the Admin SDK
+service account lacks the CLI's serviceusage preflight permission. Free-plan
+console steps that no API can do: Authentication "Get started" and Firestore
+"Create database". Database creation and composite indexes also exceed the
+default Admin SDK service account's IAM — create those in the console.)
 
 `firebase:seed` prints a generated password when it creates a brand-new admin
 user; change it after first login. Rerunning any of these is safe — they are

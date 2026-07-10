@@ -99,11 +99,39 @@ async function main() {
   const mine = (Array.isArray(queryBody) ? queryBody : []).filter((r) => r.document);
   check("read back own transactions", query.ok && mine.length === 1, `found=${mine.length}`);
 
+  // 6. user settings: update own users/{uid} profile — allowed
+  const ownProfile = await fetch(
+    `${fsBase}/users/${uid}?updateMask.fieldPaths=displayName&updateMask.fieldPaths=vipStatus`,
+    {
+      method: "PATCH",
+      headers: authz,
+      body: JSON.stringify({ fields: {
+        displayName: { stringValue: "E2E Tester" },
+        vipStatus: { stringValue: "named" },
+      } }),
+    },
+  );
+  check("update own user profile", ownProfile.ok,
+    ownProfile.ok ? "" : (await ownProfile.json()).error?.message);
+
+  // 7. user settings: update someone else's profile — must be DENIED
+  const otherProfile = await fetch(
+    `${fsBase}/users/legacy-profile?updateMask.fieldPaths=displayName`,
+    {
+      method: "PATCH",
+      headers: authz,
+      body: JSON.stringify({ fields: { displayName: { stringValue: "hacked" } } }),
+    },
+  );
+  check("other user's profile write DENIED", otherProfile.status === 403,
+    `status=${otherProfile.status}`);
+
   // cleanup with Admin SDK
   initializeApp({ credential: applicationDefault(), projectId });
   await getFirestore().collection("transactions").doc(txnId).delete();
+  await getFirestore().collection("users").doc(uid).delete().catch(() => {});
   await getAuth().deleteUser(uid);
-  console.log("cleanup: test transaction and anonymous user removed");
+  console.log("cleanup: test transaction, profile, and anonymous user removed");
 
   if (results.some((r) => !r.ok)) process.exit(1);
 }

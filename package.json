@@ -9,7 +9,8 @@
     "firebase:setup-firestore": "node scripts/setup-firestore.mjs",
     "firebase:seed": "node scripts/seed.mjs",
     "firebase:e2e": "node scripts/e2e-test.mjs",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:rules": "node scripts/deploy-rules.mjs",
+    "deploy:rules:cli": "firebase deploy --only firestore:rules,firestore:indexes",
     "deploy:hosting": "firebase deploy --only hosting"
   },
   "devDependencies": {
