@@ -73,6 +73,12 @@ try {
   // --- user settings right well: save an identity, check it reflects
   await page.click("#profile-toggle");
   await page.waitForSelector("#settings-drawer.open", { timeout: 10000 });
+  // wait until the well has been populated from the profile before typing,
+  // or the late populate would clear what we type
+  await page.waitForFunction(
+    () => (document.getElementById("us-current")?.textContent || "").length > 0,
+    { timeout: 30000 },
+  );
   await page.type("#us-username", "Browser E2E");
   await page.type("#us-first", "Browser");
   await page.type("#us-last", "Tester");
