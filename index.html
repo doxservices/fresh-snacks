@@ -234,11 +234,11 @@
           </span>` : "";
         rows.push(`<tr${e.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
-          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span>${verdict}</td>
+          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></td>
           <td class="num">${esc(e.count ?? "—")}</td>
           <td class="num-money">${FS.money(e.value, cur)}</td>
           <td class="num-money">—</td>
-          <td></td>
+          <td class="verdict-cell">${verdict}</td>
         </tr>`);
       }
       for (const p of group.payments) {
@@ -372,14 +372,12 @@
         return `<details data-key="${esc(g.key)}"${g.key === latestKey ? " open" : ""}>
           <summary>
             <span class="toggle"></span>
-            <span>
-              <span class="month-name">${esc(label)}</span>
-              <span class="month-note">${esc(note)}</span>
-            </span>
+            <span><span class="month-name">${esc(label)}</span></span>
             <span class="month-total num-money sum-tab">${FS.money(g.value, cur)}</span>
             <span class="month-total num-money sum-paid">${g.paid ? FS.money(g.paid, cur) : "—"}</span>
             <span class="month-total num-money">${FS.money(g.value - g.paid, cur)}</span>
           </summary>
+          <div class="period-note">${esc(note)}</div>
           ${trackerTable(data, g, cur)}
         </details>`;
       }).join("");

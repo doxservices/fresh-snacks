@@ -440,12 +440,6 @@ details[open] .toggle::before { content: "\2013"; }
   overflow-wrap: anywhere;
 }
 
-/* breathing room between Qty and the Value lane */
-.tracker-table th.num,
-.tracker-table td.num {
-  padding-right: 18px;
-}
-
 /* numbers, money, and dates never break mid-value */
 .tracker-table th,
 .tracker-table .num,
@@ -460,11 +454,26 @@ details[open] .toggle::before { content: "\2013"; }
   padding: 0 10px 10px;
 }
 
+/* titles and counts center; currency stays left-aligned at the J$ */
 .tracker-table th {
-  text-align: left;
+  text-align: center;
   color: var(--muted);
   font-weight: 500;
   padding: 8px 9px 4px;
+  font-size: 13px;
+}
+
+.tracker-table .num {
+  text-align: center;
+}
+
+.log-head > span {
+  text-align: center;
+}
+
+.period-note {
+  padding: 10px 15px 0;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -907,23 +916,26 @@ select:focus {
 
 /* ---- listing verdict (thin check / cross) ---- */
 
+.verdict-cell {
+  text-align: center;
+}
+
 .row-verdict {
   display: inline-flex;
   gap: 6px;
-  margin-left: 8px;
   vertical-align: middle;
 }
 
 .verdict-btn {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   display: inline-grid;
   place-items: center;
   font-size: 13px;
   font-weight: 300;
   line-height: 1;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.9);
   color: var(--muted);
@@ -1173,13 +1185,23 @@ tr.disputed td {
     padding: 9px 6px;
   }
 
-  /* phones have no room for trailing slack — give it back to the data */
-  .col-day { width: 14%; }
-  .col-snack { width: 31%; }
-  .col-count { width: 9%; }
-  .col-value { width: 22%; }
-  .col-payment { width: 24%; }
-  .col-fill { width: 0%; }
+  /* phones: keep a slim Remaining lane for the verdict buttons */
+  .col-day { width: 13%; }
+  .col-snack { width: 25%; }
+  .col-count { width: 7%; }
+  .col-value { width: 20%; }
+  .col-payment { width: 21%; }
+  .col-fill { width: 14%; }
+
+  .verdict-btn {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .row-verdict {
+    gap: 4px;
+  }
 
   .bs-label { width: 40%; }
   .bs-a { width: 20%; }
