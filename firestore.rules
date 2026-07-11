@@ -78,7 +78,8 @@ service cloud.firestore {
       allow update: if isAdmin()
         || ((signedIn() && resource.data.uid == request.auth.uid || hasClaimOn(resource.data.userId))
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userStatus', 'userStatusAt'])
-            && request.resource.data.userStatus in ['agreed', 'disputed']);
+            && (!('userStatus' in request.resource.data)
+                || request.resource.data.userStatus in ['agreed', 'disputed']));
       allow delete: if isAdmin();
     }
 

@@ -135,21 +135,21 @@
         <tbody>
           <tr>
             <td>Total snack value</td>
-            <td class="num-money" id="bottom-value">–</td>
+            <td class="num-money"><span class="mv" id="bottom-value">–</span></td>
             <td></td>
             <td></td>
           </tr>
           <tr>
             <td>Payments added</td>
             <td></td>
-            <td class="num-money" id="bottom-paid">–</td>
+            <td class="num-money"><span class="mv" id="bottom-paid">–</span></td>
             <td></td>
           </tr>
           <tr class="balance-row">
             <td>Current tab</td>
             <td></td>
             <td></td>
-            <td class="num-money" id="bottom-balance">–</td>
+            <td class="num-money"><span class="mv" id="bottom-balance">–</span></td>
           </tr>
         </tbody>
       </table>
@@ -236,7 +236,7 @@
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
           <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></td>
           <td class="num">${esc(e.count ?? "—")}</td>
-          <td class="num-money">${FS.money(e.value, cur)}</td>
+          <td class="num-money"><span class="mv">${FS.money(e.value, cur)}</span></td>
           <td class="num-money">—</td>
           <td class="verdict-cell">${verdict}</td>
         </tr>`);
@@ -247,14 +247,14 @@
           <td><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></td>
           <td class="num">—</td>
           <td class="num-money">—</td>
-          <td class="num-money">${FS.money(p.amount, cur)}</td>
+          <td class="num-money"><span class="mv">${FS.money(p.amount, cur)}</span></td>
           <td></td>
         </tr>`);
       }
       rows.push(`<tr class="month-line">
         <td colspan="3">${esc(label)} total</td>
-        <td class="num-money">${FS.money(group.value, cur)}</td>
-        <td class="num-money">${group.paid ? FS.money(group.paid, cur) : "—"}</td>
+        <td class="num-money"><span class="mv">${FS.money(group.value, cur)}</span></td>
+        <td class="num-money">${group.paid ? `<span class="mv">${FS.money(group.paid, cur)}</span>` : "—"}</td>
         <td></td>
       </tr>`);
 
@@ -373,9 +373,9 @@
           <summary>
             <span class="toggle"></span>
             <span><span class="month-name">${esc(label)}</span></span>
-            <span class="month-total num-money sum-tab">${FS.money(g.value, cur)}</span>
-            <span class="month-total num-money sum-paid">${g.paid ? FS.money(g.paid, cur) : "—"}</span>
-            <span class="month-total num-money">${FS.money(g.value - g.paid, cur)}</span>
+            <span class="month-total num-money sum-tab"><span class="mv">${FS.money(g.value, cur)}</span></span>
+            <span class="month-total num-money sum-paid">${g.paid ? `<span class="mv">${FS.money(g.paid, cur)}</span>` : "—"}</span>
+            <span class="month-total num-money"><span class="mv">${FS.money(g.value - g.paid, cur)}</span></span>
           </summary>
           <div class="period-note">${esc(note)}</div>
           ${trackerTable(data, g, cur)}
@@ -390,10 +390,12 @@
       if (vb) {
         ev.preventDefault();
         vb.disabled = true;
-        FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict)
+        const entry0 = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
+        // clicking the already-selected option clears back to neutral
+        const next = entry0 && entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
+        FS.setEntryStatus(vb.dataset.id, next)
           .then(() => {
-            const entry = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
-            if (entry) entry.userStatus = vb.dataset.verdict;
+            if (entry0) entry0.userStatus = next;
             const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
             render(LAST_DATA);
             document.querySelectorAll("#log details").forEach((d) =>

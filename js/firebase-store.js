@@ -416,14 +416,20 @@ FS.toEntry = (t) => ({
   userStatus: t.userStatus || null,
 });
 
-/* Owner/claim-holder verdict on a listing: "agreed" or "disputed".
- * Rules restrict the write to exactly these fields. */
+/* Owner/claim-holder verdict on a listing: "agreed", "disputed", or null to
+ * clear back to neutral. Rules restrict the write to exactly these fields. */
 FS.setEntryStatus = async (transactionId, verdict) => {
   await FS.signInAnonymous();
-  await FS._db.collection("transactions").doc(transactionId).update({
-    userStatus: verdict,
-    userStatusAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
+  const payload = verdict
+    ? {
+        userStatus: verdict,
+        userStatusAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }
+    : {
+        userStatus: firebase.firestore.FieldValue.delete(),
+        userStatusAt: firebase.firestore.FieldValue.delete(),
+      };
+  await FS._db.collection("transactions").doc(transactionId).update(payload);
 };
 
 FS.toPayment = (p) => ({
