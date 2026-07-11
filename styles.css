@@ -347,27 +347,34 @@ details {
 summary {
   cursor: pointer;
   list-style: none;
-  padding: 16px 22px 16px 14px;
+  padding: 16px 0 16px 14px;
   font-size: 15px;
   background: linear-gradient(90deg, rgba(244,250,243,0.94), rgba(255,255,255,0.82));
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 110px 110px 120px;
-  gap: 9px;
-  column-gap: 28px;
+  grid-template-columns: 24px minmax(0, 1fr) 17% 17% 22%;
+  column-gap: 0;
   align-items: center;
 }
 
-/* column headings above the collapsible periods; mirrors the summary grid
-   (details border 1px + summary horizontal padding = inset) */
+summary > span:nth-child(2),
+summary .month-total {
+  padding: 0 9px;
+}
+
+/* column headings above the collapsible periods; same lanes as the summary
+   rows and the tables inside (details border 1px + summary padding = inset) */
 .log-head {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 110px 110px 120px;
-  gap: 9px;
-  column-gap: 28px;
+  grid-template-columns: 24px minmax(0, 1fr) 17% 17% 22%;
+  column-gap: 0;
   align-items: center;
-  padding: 4px 23px 8px 15px;
+  padding: 4px 0 8px 15px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.log-head > span {
+  padding: 0 9px;
 }
 
 summary::-webkit-details-marker { display: none; }
@@ -412,17 +419,21 @@ details[open] .toggle::before { content: "\2013"; }
   table-layout: fixed;
 }
 
+/* one column system top to bottom:
+   lead (day+snack+qty) = 44%, then Tab/Value 17%, Paid/Payment 17%, Remaining 22% */
 .col-day { width: 10%; }
 .col-snack { width: 26%; }
-.col-count { width: 9%; }
-.col-value { width: 14%; }
-.col-payment { width: 14%; }
-.col-fill { width: 27%; } /* trailing slack keeps the data columns close together */
+.col-count { width: 8%; }
+.col-value { width: 17%; }
+.col-payment { width: 17%; }
+.col-fill { width: 22%; } /* the Remaining lane; tables leave it empty */
 
-/* bottom summary mirrors the tables: money starts where the Payment column does */
-.bs-label { width: 59%; }
-.bs-money { width: 14%; }
-.bs-fill { width: 27%; }
+/* bottom summary continues the same lanes: value under Tab, paid under Paid,
+   balance under Remaining */
+.bs-label { width: 44%; }
+.bs-a { width: 17%; }
+.bs-b { width: 17%; }
+.bs-c { width: 22%; }
 
 .tracker-table th,
 .tracker-table td {
@@ -1164,16 +1175,17 @@ tr.disputed td {
   .col-payment { width: 24%; }
   .col-fill { width: 0%; }
 
-  .bs-label { width: 75%; }
-  .bs-money { width: 25%; }
-  .bs-fill { width: 0%; }
+  .bs-label { width: 40%; }
+  .bs-a { width: 20%; }
+  .bs-b { width: 20%; }
+  .bs-c { width: 20%; }
 
   .bottom-summary {
     font-size: 13px;
   }
 
   .bottom-summary td {
-    padding: 9px 7px;
+    padding: 9px 5px;
   }
 }
 
