@@ -1086,16 +1086,24 @@ tr.disputed td {
   }
 
   /* phones have no room for trailing slack — give it back to the data */
-  .col-day { width: 15%; }
-  .col-snack { width: 33%; }
+  .col-day { width: 14%; }
+  .col-snack { width: 31%; }
   .col-count { width: 9%; }
   .col-value { width: 22%; }
-  .col-payment { width: 21%; }
+  .col-payment { width: 24%; }
   .col-fill { width: 0%; }
 
-  .bs-label { width: 79%; }
-  .bs-money { width: 21%; }
+  .bs-label { width: 75%; }
+  .bs-money { width: 25%; }
   .bs-fill { width: 0%; }
+
+  .bottom-summary {
+    font-size: 13px;
+  }
+
+  .bottom-summary td {
+    padding: 9px 7px;
+  }
 }
 
 @media print {
