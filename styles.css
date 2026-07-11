@@ -429,6 +429,16 @@ details[open] .toggle::before { content: "\2013"; }
   overflow-wrap: anywhere;
 }
 
+/* numbers, money, and dates never break mid-value */
+.tracker-table th,
+.tracker-table .num,
+.tracker-table .num-money,
+.tracker-table td:first-child,
+.bottom-summary .num-money {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
 .tracker-table {
   padding: 0 10px 10px;
 }
@@ -1063,19 +1073,29 @@ tr.disputed td {
 
   .tracker-table {
     font-size: 13px;
+    padding: 0 6px 8px;
+  }
+
+  .tracker-table th {
+    font-size: 12px;
+    padding: 8px 6px 4px;
+  }
+
+  .tracker-table td {
+    padding: 9px 6px;
   }
 
   /* phones have no room for trailing slack — give it back to the data */
-  .col-day { width: 14%; }
-  .col-snack { width: 32%; }
-  .col-count { width: 10%; }
-  .col-value { width: 20%; }
-  .col-payment { width: 20%; }
-  .col-fill { width: 4%; }
+  .col-day { width: 15%; }
+  .col-snack { width: 33%; }
+  .col-count { width: 9%; }
+  .col-value { width: 22%; }
+  .col-payment { width: 21%; }
+  .col-fill { width: 0%; }
 
-  .bs-label { width: 76%; }
-  .bs-money { width: 20%; }
-  .bs-fill { width: 4%; }
+  .bs-label { width: 79%; }
+  .bs-money { width: 21%; }
+  .bs-fill { width: 0%; }
 }
 
 @media print {
