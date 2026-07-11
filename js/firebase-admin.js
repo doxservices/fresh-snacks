@@ -225,6 +225,7 @@ FS.admin.saveSnack = async (snack) => {
     calories: snack.calories === "" || snack.calories == null ? null : Number(snack.calories),
     style: snack.style || "green",
     factsId: snack.factsId || null,
+    photo: snack.photo || null,
     active: snack.active !== false,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });

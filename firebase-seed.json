@@ -21,6 +21,7 @@
       "calories": 100,
       "style": "green",
       "factsId": "0001",
+      "photo": "snack-photo.png",
       "active": true
     },
     "plantain-chips": {

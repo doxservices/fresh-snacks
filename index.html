@@ -111,6 +111,11 @@
     </section>
 
     <section class="card section-card">
+      <h2>Snacks Taken</h2>
+      <div class="macro-chips" id="macro"></div>
+    </section>
+
+    <section class="card section-card">
       <h2>Snack Log</h2>
       <div class="note">
         Snack activity is grouped by month. Payments and purchases stay separate for accounting.
@@ -326,6 +331,24 @@
       set("bottom-value", FS.money(t.value, cur));
       set("bottom-paid", FS.money(t.paid, cur));
       set("bottom-balance", FS.money(t.balance, cur));
+
+      // macro: per-snack tally of everything taken
+      const tally = new Map();
+      for (const e of data.entries) {
+        const name = FS.entryName(data, e);
+        const t = tally.get(name) || { count: 0, value: 0 };
+        t.count += Number(e.count || 0);
+        t.value += Number(e.value || 0);
+        tally.set(name, t);
+      }
+      document.getElementById("macro").innerHTML = tally.size
+        ? [...tally.entries()]
+            .sort((a, b) => b[1].value - a[1].value)
+            .map(([name, t]) =>
+              `<span class="macro-chip"><strong>${esc(name)}</strong>
+                <span class="macro-meta">&times; ${t.count} &middot; ${FS.money(t.value, cur)}</span></span>`)
+            .join("")
+        : `<p class="muted-small">Nothing on the tab yet — grab something from the bins.</p>`;
 
       const groups = FS.groups(data);
       const latestKey = groups.length ? groups[groups.length - 1].key : null;

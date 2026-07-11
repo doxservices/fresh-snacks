@@ -14,8 +14,9 @@
           <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
           <img class="header-logo" src="profile-icon.png" alt="" />
           <div>
-            <h1>Took a snack?</h1>
-            <p>Take a snack. We'll remember your favorites.</p>
+            <h1>Snack now, pay later</h1>
+            <p><strong>Took a snack?</strong></p>
+            <p class="muted-small">Take a snack. We'll remember you.</p>
           </div>
         </div>
       </div>
@@ -92,13 +93,18 @@
       }
       $("bins").innerHTML = DATA.catalog.map((s) => `
         <div class="bin-card">
-          <div class="bin-name">${esc(s.name)}</div>
-          <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>
-          ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
-          <div class="stepper">
-            <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">-</button>
-            <span class="qty" data-id="${esc(s.id)}">0</span>
-            <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+          <div class="bin-photo">${s.photo
+            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="bin-body">
+            <div class="bin-name">${esc(s.name)}</div>
+            <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>
+            ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
+            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
+              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+              <span class="qty" data-id="${esc(s.id)}">0</span>
+              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+            </div>
           </div>
         </div>`).join("");
       sync();

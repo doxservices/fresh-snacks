@@ -205,12 +205,13 @@
 
     function renderCatalog() {
       $("catalog-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Photo</th><th>Active</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
           <td><input data-f="name" value="${esc(s.name)}" /></td>
           <td><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></td>
           <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
           <td><input data-f="factsId" value="${esc(s.factsId || "")}" placeholder="0001" /></td>
+          <td><input data-f="photo" value="${esc(s.photo || "")}" placeholder="snack-photo.png" /></td>
           <td><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></td>
           <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
         </tr>`).join("")}</tbody>
@@ -361,6 +362,7 @@
             price: get("price"),
             calories: get("calories"),
             factsId: get("factsId").trim(),
+            photo: get("photo").trim(),
             active: get("active") === "true",
           });
           await refresh();

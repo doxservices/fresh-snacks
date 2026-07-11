@@ -628,40 +628,83 @@ select:focus {
   background: rgba(255,255,255,0.88);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 0;
+  overflow: hidden;
   text-align: center;
 }
 
+.bin-photo {
+  height: 132px;
+  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+}
+
+.bin-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.bin-placeholder {
+  font-size: 46px;
+  opacity: 0.5;
+}
+
+.bin-body {
+  padding: 12px 14px 16px;
+}
+
 .bin-card .bin-name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--green-dark);
 }
 
 .bin-card .bin-price {
   color: var(--muted);
-  font-size: 14px;
-  margin: 4px 0 12px;
+  font-size: 13.5px;
+  margin: 3px 0 10px;
 }
 
+/* one encapsulated control: [ − | qty | + ] */
 .stepper {
   display: inline-flex;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fff;
 }
 
 .stepper button {
-  width: 44px;
-  height: 44px;
-  font-size: 22px;
+  width: 42px;
+  height: 38px;
   padding: 0;
-  border-radius: 50%;
+  border: none;
+  border-radius: 0;
+  font-size: 18px;
+  line-height: 1;
+  background: linear-gradient(180deg, #ffffff, #eff7ee);
+  color: var(--green-dark);
+}
+
+.stepper button:first-child {
+  border-right: 1px solid var(--line);
+}
+
+.stepper button:last-child {
+  border-left: 1px solid var(--line);
 }
 
 .stepper .qty {
-  font-size: 26px;
+  min-width: 46px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
   font-weight: 600;
-  min-width: 34px;
   color: var(--green-dark);
   font-variant-numeric: tabular-nums;
 }
@@ -899,6 +942,32 @@ tr.disputed td {
 .verdict-badge.disputed {
   background: #faf0ef;
   color: #8a2f2f;
+}
+
+/* ---- snacks-taken macro chips ---- */
+
+.macro-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.macro-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  border: 1px solid rgba(47, 122, 68, 0.16);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 14px;
+}
+
+.macro-chip .macro-meta {
+  color: var(--green);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- QR join card ---- */
