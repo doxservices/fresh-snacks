@@ -347,7 +347,9 @@ details {
 summary {
   cursor: pointer;
   list-style: none;
-  padding: 16px 0 16px 14px;
+  /* 10px + the details 1px border = the same 11px inset as the table,
+     so the percentage lanes land on identical x positions */
+  padding: 16px 10px;
   font-size: 15px;
   background: linear-gradient(90deg, rgba(244,250,243,0.94), rgba(255,255,255,0.82));
   display: grid;
@@ -368,7 +370,8 @@ summary .month-total {
   grid-template-columns: 24px minmax(0, 1fr) 17% 17% 22%;
   column-gap: 0;
   align-items: center;
-  padding: 4px 0 8px 15px;
+  /* no border here, so 11px does the whole inset */
+  padding: 4px 11px 8px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -1162,13 +1165,13 @@ tr.disputed td {
   summary {
     grid-template-columns: 24px minmax(0, 1fr) 96px;
     column-gap: 12px;
-    padding: 14px;
+    padding: 14px 10px;
   }
 
   .log-head {
     grid-template-columns: 24px minmax(0, 1fr) 96px;
     column-gap: 12px;
-    padding-right: 15px;
+    padding-right: 11px;
   }
 
   /* small screens keep only the Remaining column */
@@ -1224,30 +1227,6 @@ tr.disputed td {
     padding: 9px 5px;
   }
 }
-
-/* ================= DIAGNOSTIC BORDERS =================
-   Temporary: outlines every column cell so lane alignment
-   can be reviewed from a screenshot. Remove after review. */
-
-.log-head > span {
-  outline: 1px dashed rgba(220, 60, 60, 0.65);
-}
-
-summary > * {
-  outline: 1px dashed rgba(60, 90, 220, 0.65);
-}
-
-.tracker-table th,
-.tracker-table td {
-  outline: 1px dashed rgba(230, 140, 30, 0.65);
-  outline-offset: -1px;
-}
-
-.bottom-summary td {
-  outline: 1px dashed rgba(140, 60, 200, 0.65);
-  outline-offset: -1px;
-}
-/* =============== END DIAGNOSTIC BORDERS =============== */
 
 @media print {
   body { background: white; }
