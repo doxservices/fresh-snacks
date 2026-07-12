@@ -474,10 +474,14 @@ details[open] .toggle::before { content: "\2013"; }
   text-align: center;
 }
 
-.period-note {
-  padding: 10px 15px 0;
-  color: var(--muted);
-  font-size: 13px;
+/* the period detail (e.g. "5 snack day(s)") rides the month's line,
+   but only while the section is expanded */
+.month-note {
+  display: none;
+}
+
+details[open] .month-note {
+  display: inline;
 }
 
 .tracker-table td,

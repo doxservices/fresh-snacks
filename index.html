@@ -229,8 +229,8 @@
           ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
           : "";
         const verdict = e.id ? `<span class="row-verdict">
-            <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Agree with this listing" aria-label="Agree">&#10003;</button>
-            <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Disagree — flag for review" aria-label="Disagree">&#10005;</button>
+            <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
+            <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
           </span>` : "";
         rows.push(`<tr${e.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
@@ -266,7 +266,7 @@
         <thead>
           <tr>
             <th>Day</th><th>Snack</th>
-            <th class="num">Qty</th><th class="num-money">Value</th><th class="num-money">Payment</th><th></th>
+            <th class="num">Qty</th><th class="num-money">Value</th><th class="num-money">Payment</th><th>Confirm / Review</th>
           </tr>
         </thead>
         <tbody>${rows.join("")}</tbody>
@@ -372,12 +372,11 @@
         return `<details data-key="${esc(g.key)}"${g.key === latestKey ? " open" : ""}>
           <summary>
             <span class="toggle"></span>
-            <span><span class="month-name">${esc(label)}</span></span>
+            <span><span class="month-name">${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>
             <span class="month-total num-money sum-tab"><span class="mv">${FS.money(g.value, cur)}</span></span>
             <span class="month-total num-money sum-paid">${g.paid ? `<span class="mv">${FS.money(g.paid, cur)}</span>` : "—"}</span>
             <span class="month-total num-money"><span class="mv">${FS.money(g.value - g.paid, cur)}</span></span>
           </summary>
-          <div class="period-note">${esc(note)}</div>
           ${trackerTable(data, g, cur)}
         </details>`;
       }).join("");
