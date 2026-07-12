@@ -363,6 +363,11 @@ summary .month-total {
   padding: 0 9px;
 }
 
+/* month name centers under the centered Period title */
+summary > span:nth-child(2) {
+  text-align: center;
+}
+
 /* column headings above the collapsible periods; same lanes as the summary
    rows and the tables inside (details border 1px + summary padding = inset) */
 .log-head {
@@ -464,6 +469,10 @@ details[open] .toggle::before { content: "\2013"; }
   font-weight: 500;
   padding: 8px 9px 4px;
   font-size: 13px;
+}
+
+.tracker-table td {
+  text-align: center;
 }
 
 .tracker-table .num {
