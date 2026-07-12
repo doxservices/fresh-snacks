@@ -363,9 +363,14 @@ summary .month-total {
   padding: 0 9px;
 }
 
-/* month name centers under the centered Period title */
+/* month names stay put (left) so nothing shifts when a section expands;
+   the snack-days annotation simply appears to the right of the name */
 summary > span:nth-child(2) {
-  text-align: center;
+  text-align: left;
+}
+
+.log-head > span:nth-child(2) {
+  text-align: left;
 }
 
 /* column headings above the collapsible periods; same lanes as the summary
@@ -518,23 +523,27 @@ details[open] .month-note {
   font-variant-numeric: tabular-nums;
 }
 
-/* money cells and titles: everything centers in its lane */
+/* money cells: an invisible fixed-width box is centered in the lane and the
+   value is left-aligned inside it, so all prices start on the same line */
 .num-money {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
 .mv {
-  display: inline;
-  text-align: center;
+  display: inline-block;
+  min-width: 4.6em;
+  text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
-/* .tracker-table th (higher specificity) sets left; numeric headers must
- * right-align with the numbers beneath them */
-.tracker-table th.num {
-  text-align: right;
+/* same idea for snack names: centered invisible box, name left-aligned inside */
+.nv {
+  display: inline-block;
+  min-width: 118px;
+  text-align: left;
 }
+
 
 .snack-pill {
   display: inline-block;
@@ -1223,6 +1232,10 @@ tr.disputed td {
 
   .row-verdict {
     gap: 4px;
+  }
+
+  .nv {
+    min-width: 0;
   }
 
   .bs-label { width: 40%; }

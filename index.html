@@ -118,7 +118,7 @@
     <section class="card section-card">
       <h2>Snack Log</h2>
       <div class="note">
-        Snack activity is grouped by month. Payments and purchases stay separate for accounting.
+        View all of your activity, neatly organized — track your favorite snacks and keep tabs on your payments.
       </div>
 
       <div id="log">
@@ -234,7 +234,7 @@
           </span>` : "";
         rows.push(`<tr${e.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
-          <td><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></td>
+          <td><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
           <td class="num">${esc(e.count ?? "—")}</td>
           <td class="num-money"><span class="mv">${FS.money(e.value, cur)}</span></td>
           <td class="num-money">—</td>
@@ -244,7 +244,7 @@
       for (const p of group.payments) {
         rows.push(`<tr>
           <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
-          <td><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></td>
+          <td><span class="nv"><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></span></td>
           <td class="num">—</td>
           <td class="num-money">—</td>
           <td class="num-money"><span class="mv">${FS.money(p.amount, cur)}</span></td>
