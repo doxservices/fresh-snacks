@@ -505,17 +505,15 @@ details[open] .toggle::before { content: "\2013"; }
   font-variant-numeric: tabular-nums;
 }
 
-/* money cells: the value block is centered in the lane, while the text
-   inside is left-aligned in a fixed-width box so the J$ signs line up */
+/* money cells and titles: everything centers in its lane */
 .num-money {
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
 .mv {
-  display: inline-block;
-  min-width: 4.6em;
-  text-align: left;
+  display: inline;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
