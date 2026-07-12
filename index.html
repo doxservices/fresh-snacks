@@ -265,7 +265,7 @@
         </colgroup>
         <thead>
           <tr>
-            <th>Day</th><th>Snack</th>
+            <th>Day</th><th><span class="nv">Snack</span></th>
             <th class="num">Qty</th><th class="num-money">Value</th><th class="num-money">Payment</th><th>Confirm / Review</th>
           </tr>
         </thead>
@@ -369,10 +369,11 @@
         const note = opening
           ? data.profile.openingNote
           : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
+        const flagged = g.entries.some((e) => e.userStatus === "disputed");
         return `<details data-key="${esc(g.key)}"${g.key === latestKey ? " open" : ""}>
           <summary>
             <span class="toggle"></span>
-            <span><span class="month-name">${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>
+            <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>
             <span class="month-total num-money sum-tab"><span class="mv">${FS.money(g.value, cur)}</span></span>
             <span class="month-total num-money sum-paid">${g.paid ? `<span class="mv">${FS.money(g.paid, cur)}</span>` : "—"}</span>
             <span class="month-total num-money"><span class="mv">${FS.money(g.value - g.paid, cur)}</span></span>
