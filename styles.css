@@ -537,11 +537,13 @@ details[open] .month-note {
   font-variant-numeric: tabular-nums;
 }
 
-/* same idea for snack names: centered invisible box, name left-aligned inside */
+/* same idea for snack names: a fixed-width invisible box centered in the
+   lane, names left-aligned inside so they all start on the same line */
 .nv {
   display: inline-block;
-  min-width: 118px;
+  width: 150px;
   text-align: left;
+  white-space: nowrap;
 }
 
 
@@ -1235,7 +1237,8 @@ tr.disputed td {
   }
 
   .nv {
-    min-width: 0;
+    width: auto;
+    white-space: normal;
   }
 
   .bs-label { width: 40%; }
