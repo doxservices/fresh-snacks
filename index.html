@@ -41,8 +41,8 @@
       <div class="banner-inner">
         <button class="hamburger banner-menu" id="nav-toggle" aria-label="Open menu">&#9776;</button>
         <img class="banner-badge" src="banner-logo.png" alt="Fresh Snacks" />
+        <img class="banner-avatar" id="banner-avatar" src="profile-icon.png" alt="" aria-hidden="true" />
         <div class="banner-main">
-          <h1>Fresh Snacks</h1>
           <div class="banner-tagline"><span class="tick">&#8779;</span> Snack smart, live fresh! <span class="tick">&#8779;</span></div>
           <div class="banner-subrow">
             <span class="banner-track"><span class="ico">&#127991;&#65039;</span> Track your purchases, payments, and running balance</span>
@@ -60,7 +60,7 @@
     <section class="brand-card">
       <div class="brand-grid">
         <div class="avatar" aria-hidden="true">
-          <img src="profile-icon.png" alt="Profile icon" />
+          <img id="brand-avatar" src="profile-icon.png" alt="Profile icon" />
         </div>
 
         <div>
@@ -503,6 +503,12 @@
       $id("brand-subtitle").textContent = (CLAIM || !anonymous)
         ? "Private snack profile"
         : "Anonymous snack profile";
+
+      // this device's own identity: vip icon once claimed or named,
+      // grey silhouette for a brand-new anonymous guest
+      const avatarSrc = FS.avatarFor(me, CLAIM);
+      $id("banner-avatar").src = avatarSrc;
+      $id("brand-avatar").src = avatarSrc;
     }
 
     $id("us-save").onclick = async () => {

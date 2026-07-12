@@ -152,6 +152,23 @@ FS.monthLabel = (key) => {
 
 FS.factsPath = (factsId) => `nutritional-facts/${factsId}.jpg`;
 
+/* Generic grey avatar for anonymous guests, inline so no extra asset file
+ * is needed. Named/claimed viewers get profile-icon.png (the "VIP" icon)
+ * instead — see FS.avatarFor. */
+FS.greySilhouette =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
+  "<rect width='64' height='64' fill='%23d8ded9'/>" +
+  "<circle cx='32' cy='25' r='12' fill='%23a9b3ac'/>" +
+  "<path d='M10 58c0-13 10-21 22-21s22 8 22 21' fill='%23a9b3ac'/>" +
+  "</svg>";
+
+/* A viewer counts as "vip" (gets the nice icon instead of the grey
+ * silhouette) once they're either viewing through a claimed tab code or
+ * have given themselves a name — i.e. no longer a brand-new anonymous guest. */
+FS.avatarFor = (me, claim) => (claim || (me && me.vipStatus !== "anonymous" && me.displayName))
+  ? "profile-icon.png"
+  : FS.greySilhouette;
+
 FS.showFacts = (url, name) => {
   const ov = document.createElement("div");
   ov.className = "facts-overlay";

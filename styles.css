@@ -259,16 +259,24 @@ header.banner {
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
 }
 
+/* fills the space freed by dropping the redundant "Fresh Snacks" title;
+   shows the viewer's own identity (vip icon vs grey silhouette) */
+.banner-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #eaf5e8;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
 .banner-main {
   flex: 1;
   min-width: 0;
 }
 
-header.banner h1 {
-  color: #fff;
-  margin: 0;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-}
 
 .banner-tagline {
   font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
@@ -1302,6 +1310,13 @@ tr.disputed td {
 
   .banner-badge {
     width: 54px;
+    margin-top: 2px;
+  }
+
+  .banner-avatar {
+    width: 44px;
+    height: 44px;
+    border-width: 2px;
     margin-top: 2px;
   }
 
