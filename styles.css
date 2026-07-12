@@ -252,24 +252,44 @@ header.banner {
   background: rgba(255, 255, 255, 0.96);
 }
 
+/* the banner's icon buttons/badges hold inline SVGs (crisp at any zoom,
+   no emoji-rendering variance across OS/browser) instead of glyphs */
+.banner-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner-menu svg {
+  width: 19px;
+  height: 19px;
+  color: var(--green-dark);
+}
+
+.banner-track .ico svg {
+  width: 15px;
+  height: 15px;
+  color: #fff;
+}
+
+.banner-pill svg {
+  width: 15px;
+  height: 15px;
+  vertical-align: -3px;
+  margin-right: 2px;
+}
+
+.banner-profile .chev svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
 .banner-badge {
   width: 92px;
   height: auto;
   flex-shrink: 0;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
-}
-
-/* fills the space freed by dropping the redundant "Fresh Snacks" title;
-   shows the viewer's own identity (vip icon vs grey silhouette) */
-.banner-avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: #eaf5e8;
-  border: 3px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
 .banner-main {
@@ -1310,13 +1330,6 @@ tr.disputed td {
 
   .banner-badge {
     width: 54px;
-    margin-top: 2px;
-  }
-
-  .banner-avatar {
-    width: 44px;
-    height: 44px;
-    border-width: 2px;
     margin-top: 2px;
   }
 

@@ -39,18 +39,20 @@
       <video class="banner-bg banner-video" src="fresh-snacks-banner.mp4" autoplay muted loop playsinline preload="auto" aria-hidden="true"></video>
       <div class="banner-shade" aria-hidden="true"></div>
       <div class="banner-inner">
-        <button class="hamburger banner-menu" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+        <button class="hamburger banner-menu" id="nav-toggle" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
         <img class="banner-badge" src="banner-logo.png" alt="Fresh Snacks" />
-        <img class="banner-avatar" id="banner-avatar" src="profile-icon.png" alt="" aria-hidden="true" />
         <div class="banner-main">
           <div class="banner-tagline"><span class="tick">&#8779;</span> Snack smart, live fresh! <span class="tick">&#8779;</span></div>
           <div class="banner-subrow">
-            <span class="banner-track"><span class="ico">&#127991;&#65039;</span> Track your purchases, payments, and running balance</span>
-            <span class="banner-pill">&#11088; Happy snacking!</span>
+            <span class="banner-track"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10.5V4a1 1 0 0 0-1-1h-6.5a1 1 0 0 0-.71.29l-8 8a1 1 0 0 0 0 1.42l7 7a1 1 0 0 0 1.42 0l8-8a1 1 0 0 0 .29-.71Z"/><circle cx="15.5" cy="7.5" r="1.4" fill="currentColor" stroke="none"/></svg></span> Track your purchases, payments, and running balance</span>
+            <span class="banner-pill"><svg viewBox="0 0 24 24" fill="#f5b400"><path d="M12 2l2.9 6.26L21.8 9l-5 4.87L18.2 21 12 17.3 5.8 21l1.4-7.13-5-4.87 6.9-.74L12 2z"/></svg> Happy snacking!</span>
           </div>
         </div>
         <button class="hamburger profile-btn banner-profile" id="profile-toggle" aria-label="Open user settings" title="User settings">
-          <img src="profile-icon.png" alt="" /><span class="chev">&#9662;</span>
+          <img src="profile-icon.png" alt="" />
+          <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
         </button>
       </div>
     </header>
@@ -506,9 +508,7 @@
 
       // this device's own identity: vip icon once claimed or named,
       // grey silhouette for a brand-new anonymous guest
-      const avatarSrc = FS.avatarFor(me, CLAIM);
-      $id("banner-avatar").src = avatarSrc;
-      $id("brand-avatar").src = avatarSrc;
+      $id("brand-avatar").src = FS.avatarFor(me, CLAIM);
     }
 
     $id("us-save").onclick = async () => {
