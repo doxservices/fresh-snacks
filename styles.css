@@ -219,6 +219,26 @@ header.banner {
   height: 100%;
 }
 
+.banner-video {
+  object-fit: cover;
+}
+
+/* keeps the left-side text readable over the video */
+.banner-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(20, 68, 36, 0.55),
+    rgba(20, 68, 36, 0.2) 55%,
+    rgba(20, 68, 36, 0) 78%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner-video {
+    display: none;
+  }
+}
+
 .banner-inner {
   position: relative;
   display: flex;
