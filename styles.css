@@ -1277,10 +1277,16 @@ tr.disputed td {
   .banner-inner {
     padding: 14px;
     gap: 10px;
+    align-items: flex-start;
   }
 
   .banner-badge {
-    width: 62px;
+    width: 54px;
+    margin-top: 2px;
+  }
+
+  .banner-track .ico {
+    display: none;
   }
 
   .banner-tagline {
