@@ -201,6 +201,113 @@ button:disabled {
   border: 1px solid rgba(47, 122, 68, 0.2);
 }
 
+/* ---- top banner ---- */
+
+header.banner {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  background: #1d5c31;
+  color: #fff;
+}
+
+.banner-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.banner-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px;
+}
+
+.banner-menu,
+.banner-profile {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.banner-badge {
+  width: 92px;
+  height: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+}
+
+.banner-main {
+  flex: 1;
+  min-width: 0;
+}
+
+header.banner h1 {
+  color: #fff;
+  margin: 0;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.banner-tagline {
+  font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+  color: #c8e96a;
+  font-size: 18px;
+  margin: 2px 0 12px;
+}
+
+.banner-tagline .tick {
+  color: #a9cf3e;
+}
+
+.banner-subrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.banner-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: #eef7ea;
+}
+
+.banner-track .ico {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+}
+
+.banner-pill {
+  background: #fff;
+  color: var(--green-dark);
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.banner-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.banner-profile .chev {
+  color: var(--green-dark);
+  font-size: 11px;
+}
+
 .brand-subtitle {
   margin-top: 7px;
   font-size: 15px;
@@ -1165,6 +1272,29 @@ tr.disputed td {
   .header-logo {
     width: 30px;
     height: 30px;
+  }
+
+  .banner-inner {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .banner-badge {
+    width: 62px;
+  }
+
+  .banner-tagline {
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+
+  .banner-track {
+    font-size: 12.5px;
+  }
+
+  .banner-pill {
+    font-size: 12.5px;
+    padding: 6px 12px;
   }
 
   .hamburger {
