@@ -536,9 +536,13 @@ details[open] .month-note {
 }
 
 .mv {
+  /* fixed-width box centered in the lane; the value is left-aligned inside
+     and starts where the centered title's text starts. Long values overflow
+     to the right without moving the shared start line. */
   display: inline-block;
-  min-width: 4.6em;
+  width: 2.8em;
   text-align: left;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
