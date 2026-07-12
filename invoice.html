@@ -14,8 +14,8 @@
           <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
           <img class="header-logo" src="profile-icon.png" alt="" />
           <div>
-            <h1>Invoice</h1>
-            <p>Printable Fresh Snacks tab summary.</p>
+            <h1>Invoice Me</h1>
+            <p>Your tab, ready to print or save — arranged just how you like it.</p>
           </div>
         </div>
         <div class="header-actions">
@@ -44,27 +44,71 @@
     const $ = (id) => document.getElementById(id);
     const esc = (s) => FS.escapeHtml(s);
 
+    function trackerTable(data, group, cur) {
+      const opening = group.key === "opening";
+      const label = opening ? data.profile.openingLabel : FS.monthLabel(group.key);
+      const rows = [];
+      for (const e of group.entries) {
+        rows.push(`<tr>
+          <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
+          <td><span class="nv"><span class="${FS.entryPillClass(data, e)}">${esc(FS.entryName(data, e))}</span></span></td>
+          <td class="num">${esc(e.count ?? "—")}</td>
+          <td class="num-money"><span class="mv">${FS.money(e.value, cur)}</span></td>
+          <td class="num-money">—</td>
+          <td></td>
+        </tr>`);
+      }
+      for (const p of group.payments) {
+        rows.push(`<tr>
+          <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
+          <td><span class="nv"><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></span></td>
+          <td class="num">—</td>
+          <td class="num-money">—</td>
+          <td class="num-money"><span class="mv">${FS.money(p.amount, cur)}</span></td>
+          <td></td>
+        </tr>`);
+      }
+      rows.push(`<tr class="month-line">
+        <td colspan="3">${esc(label)} total</td>
+        <td class="num-money"><span class="mv">${FS.money(group.value, cur)}</span></td>
+        <td class="num-money">${group.paid ? `<span class="mv">${FS.money(group.paid, cur)}</span>` : "—"}</td>
+        <td></td>
+      </tr>`);
+      return `<table class="tracker-table">
+        <colgroup>
+          <col class="col-day"><col class="col-snack"><col class="col-count">
+          <col class="col-value"><col class="col-payment"><col class="col-fill">
+        </colgroup>
+        <thead><tr>
+          <th>Day</th><th><span class="nv">Snack</span></th>
+          <th class="num">Qty</th><th class="num-money">Value</th><th class="num-money">Payment</th><th></th>
+        </tr></thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>`;
+    }
+
     function renderInvoice(data) {
       const cur = data.profile.currency;
       const totals = FS.totals(data);
-      const activity = [
-        ...data.entries.map((e) => ({
-          date: e.date,
-          type: "Snack",
-          label: FS.entryName(data, e),
-          qty: e.count ?? "-",
-          charge: Number(e.value || 0),
-          payment: 0,
-        })),
-        ...data.payments.map((p) => ({
-          date: p.date,
-          type: "Payment",
-          label: p.note || "Payment",
-          qty: "-",
-          charge: 0,
-          payment: Number(p.amount || 0),
-        })),
-      ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+      const groups = FS.groups(data);
+
+      const periods = groups.map((g) => {
+        const opening = g.key === "opening";
+        const label = opening ? data.profile.openingLabel : FS.monthLabel(g.key);
+        const note = opening
+          ? data.profile.openingNote
+          : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
+        return `<details open>
+          <summary>
+            <span class="toggle"></span>
+            <span><span class="month-name">${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>
+            <span class="month-total num-money sum-tab"><span class="mv">${FS.money(g.value, cur)}</span></span>
+            <span class="month-total num-money sum-paid">${g.paid ? `<span class="mv">${FS.money(g.paid, cur)}</span>` : "—"}</span>
+            <span class="month-total num-money"><span class="mv">${FS.money(g.value - g.paid, cur)}</span></span>
+          </summary>
+          ${trackerTable(data, g, cur)}
+        </details>`;
+      }).join("");
 
       $("invoice-root").innerHTML = `
         <section class="brand-card">
@@ -83,26 +127,40 @@
         </section>
 
         <section class="card section-card">
-          <h2>Invoice detail</h2>
-          <table class="admin-table">
-            <thead><tr><th>Day</th><th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Charge</th><th class="num">Payment</th></tr></thead>
-            <tbody>${activity.map((row) => `<tr>
-              <td>${row.date ? esc(FS.fmtDay(row.date)) : "-"}</td>
-              <td>${esc(row.type)}</td>
-              <td>${esc(row.label)}</td>
-              <td class="num">${esc(row.qty)}</td>
-              <td class="num">${row.charge ? FS.money(row.charge, cur) : "-"}</td>
-              <td class="num">${row.payment ? FS.money(row.payment, cur) : "-"}</td>
-            </tr>`).join("")}</tbody>
-          </table>
+          <div class="section-head">
+            <h2>Your Snack Log</h2>
+            <div class="log-controls">
+              <button id="inv-expand">Expand all</button>
+              <button id="inv-collapse">Collapse all</button>
+            </div>
+          </div>
+          <div class="note">
+            Open the months you want on paper, collapse the rest, then hit Print / Save PDF — it prints just as you see it.
+          </div>
+          <div id="inv-log">
+            <div class="log-head" aria-hidden="true">
+              <span></span>
+              <span>Period</span>
+              <span class="num-money head-tab">Tab</span>
+              <span class="num-money head-paid">Paid</span>
+              <span class="num-money">Remaining</span>
+            </div>
+            ${periods}
+          </div>
           <table class="bottom-summary">
+            <colgroup><col class="bs-label"><col class="bs-a"><col class="bs-b"><col class="bs-c"></colgroup>
             <tbody>
-              <tr><td>Total snack value</td><td class="num">${FS.money(totals.value, cur)}</td></tr>
-              <tr><td>Payments added</td><td class="num">${FS.money(totals.paid, cur)}</td></tr>
-              <tr class="balance-row"><td>Current balance</td><td class="num">${FS.money(totals.balance, cur)}</td></tr>
+              <tr><td>Total snack value</td><td class="num-money"><span class="mv">${FS.money(totals.value, cur)}</span></td><td></td><td></td></tr>
+              <tr><td>Payments added</td><td></td><td class="num-money"><span class="mv">${FS.money(totals.paid, cur)}</span></td><td></td></tr>
+              <tr class="balance-row"><td>Current balance</td><td></td><td></td><td class="num-money"><span class="mv">${FS.money(totals.balance, cur)}</span></td></tr>
             </tbody>
           </table>
         </section>`;
+
+      $("inv-expand").onclick = () =>
+        document.querySelectorAll("#inv-log details").forEach((d) => d.setAttribute("open", ""));
+      $("inv-collapse").onclick = () =>
+        document.querySelectorAll("#inv-log details").forEach((d) => d.removeAttribute("open"));
     }
 
     $("print-invoice").onclick = () => window.print();

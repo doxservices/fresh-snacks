@@ -116,7 +116,13 @@
     </section>
 
     <section class="card section-card">
-      <h2>Snack Log</h2>
+      <div class="section-head">
+        <h2>Snack Log</h2>
+        <div class="log-controls">
+          <button id="expand-all">Expand all</button>
+          <button id="collapse-all">Collapse all</button>
+        </div>
+      </div>
       <div class="note">
         View all of your activity, neatly organized — track your favorite snacks and keep tabs on your payments.
       </div>
@@ -384,6 +390,11 @@
     }
 
     let LAST_DATA = null;
+
+    document.getElementById("expand-all").onclick = () =>
+      document.querySelectorAll("#log details").forEach((d) => d.setAttribute("open", ""));
+    document.getElementById("collapse-all").onclick = () =>
+      document.querySelectorAll("#log details").forEach((d) => d.removeAttribute("open"));
 
     document.getElementById("log").addEventListener("click", (ev) => {
       const vb = ev.target.closest(".verdict-btn");

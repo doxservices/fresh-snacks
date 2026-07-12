@@ -493,6 +493,24 @@ details[open] .toggle::before { content: "\2013"; }
   text-align: center;
 }
 
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.log-controls {
+  display: flex;
+  gap: 8px;
+}
+
 /* the period detail (e.g. "5 snack day(s)") rides the month's line,
    but only while the section is expanded */
 .month-note {

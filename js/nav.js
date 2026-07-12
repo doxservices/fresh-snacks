@@ -7,7 +7,7 @@
   const items = [
     { label: "My tab", href: "index.html" },
     { label: "Log my snacks", href: "bins.html" },
-    { label: "Invoice", href: "invoice.html" },
+    { label: "Invoice Me", href: "invoice.html" },
     { label: "User settings", href: "index.html#user-settings" },
   ];
   if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
