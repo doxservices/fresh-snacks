@@ -1466,31 +1466,6 @@ tr.disputed td {
   }
 }
 
-/* ================= DIAGNOSTIC BORDERS =================
-   Temporary: outlines every column cell so lane alignment
-   can be reviewed from a screenshot. Remove only when the
-   value/title alignment is signed off. */
-
-.log-head > span {
-  outline: 1px dashed rgba(220, 60, 60, 0.65);
-}
-
-summary > * {
-  outline: 1px dashed rgba(60, 90, 220, 0.65);
-}
-
-.tracker-table th,
-.tracker-table td {
-  outline: 1px dashed rgba(230, 140, 30, 0.65);
-  outline-offset: -1px;
-}
-
-.bottom-summary td {
-  outline: 1px dashed rgba(140, 60, 200, 0.65);
-  outline-offset: -1px;
-}
-/* =============== END DIAGNOSTIC BORDERS =============== */
-
 @media print {
   body { background: white; }
   body::before,
