@@ -1002,44 +1002,6 @@ textarea:focus {
   color: #8a2f2f;
 }
 
-.segmented {
-  display: flex;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  overflow: hidden;
-  width: fit-content;
-  max-width: 100%;
-}
-
-.seg-btn {
-  flex: 1;
-  text-align: center;
-  padding: 9px 16px;
-  border: none;
-  background: #fff;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.seg-btn + .seg-btn {
-  border-left: 1px solid var(--line);
-}
-
-.seg-btn.active {
-  background: var(--green-dark);
-  color: #fff;
-}
-
-@media (max-width: 480px) {
-  .segmented {
-    border-radius: var(--radius-sm);
-    width: 100%;
-  }
-}
-
 /* ---- quick-request modal ---- */
 
 .modal-backdrop {
