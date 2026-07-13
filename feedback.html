@@ -41,8 +41,10 @@
         <button type="button" class="request-card" data-category="snack">
           <span class="request-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 8h12l1 12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 8Z"/>
-              <path d="M9 8V6a3 3 0 0 1 6 0v2"/>
+              <rect x="3" y="8" width="18" height="8" rx="2.2"/>
+              <line x1="8.5" y1="8" x2="8.5" y2="16"/>
+              <line x1="13" y1="8" x2="13" y2="16"/>
+              <line x1="17.5" y1="8" x2="17.5" y2="16"/>
             </svg>
           </span>
           <span class="request-title">Request a Snack</span>
@@ -58,39 +60,17 @@
           <span class="request-title">Request Credit</span>
           <span class="request-desc">Snack now, pay later — ask us to open a tab</span>
         </button>
+        <button type="button" class="request-card" data-category="message">
+          <span class="request-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4.5 4V17H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/>
+            </svg>
+          </span>
+          <span class="request-title">Send Us a Message</span>
+          <span class="request-desc">A question, a concern, or just say hello</span>
+        </button>
       </div>
-    </section>
-
-    <section class="card section-card">
-      <h2>Send us a message</h2>
-      <div class="note" id="fb-name-note">
-        A name is only required if you need credit — questions, concerns, and snack requests can stay anonymous.
-      </div>
-      <div class="form-grid">
-        <div class="field">
-          <label for="fb-first">First name</label>
-          <input id="fb-first" type="text" placeholder="e.g. Xavier" autocomplete="given-name" />
-        </div>
-        <div class="field">
-          <label for="fb-last">Last name</label>
-          <input id="fb-last" type="text" autocomplete="family-name" />
-        </div>
-        <div class="field">
-          <label for="fb-email">Work email</label>
-          <input id="fb-email" type="email" autocomplete="email" />
-        </div>
-        <div class="field">
-          <label for="fb-category">This is about...</label>
-          <select id="fb-category"></select>
-        </div>
-        <div class="field wide">
-          <label for="fb-message">Your message</label>
-          <textarea id="fb-message" placeholder="Ask away, or let us know what's on your mind..."></textarea>
-        </div>
-        <button class="primary" id="fb-send">Send feedback</button>
-      </div>
-      <div class="status" id="fb-status"></div>
-
+      <div class="status" id="fb-status" style="margin-top:14px;"></div>
       <div class="profile-prompt hidden" id="profile-prompt">
         <p id="profile-prompt-text"></p>
         <div class="row">
@@ -105,12 +85,16 @@
     </footer>
   </main>
 
-  <div class="modal-backdrop hidden" id="request-modal-backdrop">
+  <div class="modal-backdrop" id="request-modal-backdrop">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
       <button type="button" class="modal-close" id="request-modal-close" aria-label="Close">&times;</button>
       <h2 id="request-modal-title">Request</h2>
       <p class="muted-small" id="request-modal-desc" style="margin-bottom:14px;"></p>
       <div class="form-grid">
+        <div class="field hidden" id="rq-category-field">
+          <label for="rq-category">This is about...</label>
+          <select id="rq-category"></select>
+        </div>
         <div class="field">
           <label for="rq-first">First name<span class="req-mark hidden" id="rq-first-req"> *</span></label>
           <input id="rq-first" type="text" autocomplete="given-name" />
@@ -123,7 +107,7 @@
           <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
           <input id="rq-email" type="email" autocomplete="email" />
         </div>
-        <div class="field wide">
+        <div class="field wide hidden" id="rq-phone-field">
           <label for="rq-phone-number">Cell number<span class="req-mark hidden" id="rq-phone-req"> *</span></label>
           <div class="phone-row">
             <select id="rq-phone-area" aria-label="Area code">
@@ -141,7 +125,7 @@
       <div class="status" id="rq-status"></div>
       <div class="modal-actions">
         <button type="button" id="rq-cancel">Cancel</button>
-        <button type="button" class="primary" id="rq-send">Send request</button>
+        <button type="button" class="primary" id="rq-send">Send</button>
       </div>
     </div>
   </div>
@@ -162,11 +146,9 @@
       el.className = "status " + (ok ? "ok" : "err");
     }
 
-    $("fb-category").innerHTML = FS.feedbackCategories
+    $("rq-category").innerHTML = FS.feedbackCategories
       .filter((c) => !["change", "snack", "credit"].includes(c.id))
       .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
-
-    /* ---------- profile-save prompt (shared by both paths) ---------- */
 
     async function offerToSaveProfile(firstName, lastName) {
       const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
@@ -192,55 +174,35 @@
       $("profile-prompt-no").onclick = () => $("profile-prompt").classList.add("hidden");
     }
 
-    /* ---------- general "Send us a message" (question / concern / other) ---------- */
-
-    $("fb-send").onclick = async () => {
-      const btn = $("fb-send");
-      const firstName = $("fb-first").value;
-      const lastName = $("fb-last").value;
-      btn.disabled = true;
-      status("fb-status", "Sending…", true);
-      try {
-        await FS.submitFeedback({
-          firstName,
-          lastName,
-          email: $("fb-email").value,
-          category: $("fb-category").value,
-          message: $("fb-message").value,
-        });
-        status("fb-status", "Thank you — your message has been sent! 🎉", true);
-        $("fb-message").value = "";
-        await offerToSaveProfile(firstName, lastName);
-      } catch (e) {
-        status("fb-status", e.message, false);
-      } finally {
-        btn.disabled = false;
-      }
-    };
-
-    /* ---------- quick-request modal (change / snack / credit) ---------- */
-
     const REQUEST_INFO = {
       change: {
         title: "Request Change",
         desc: "A correction to your tab or balance — tell us what looks off.",
+        showCategoryPicker: false, showPhone: true, required: false,
       },
       snack: {
         title: "Request a Snack",
         desc: "A bin's run out, or there's a snack you wish we carried — let us know.",
+        showCategoryPicker: false, showPhone: true, required: false,
       },
       credit: {
         title: "Request Credit",
         desc: "Snack now, pay later — ask us to open or extend a tab for you.",
+        showCategoryPicker: false, showPhone: true, required: true,
+      },
+      message: {
+        title: "Send Us a Message",
+        desc: "A name is only required if you need credit — questions, concerns, and snack requests can stay anonymous.",
+        showCategoryPicker: true, showPhone: false, required: false,
       },
     };
 
     const modalBackdrop = $("request-modal-backdrop");
-    let activeRequestCategory = null;
+    let activeCard = null;
 
-    function openRequestModal(category) {
-      activeRequestCategory = category;
-      const info = REQUEST_INFO[category];
+    function openRequestModal(cardType) {
+      activeCard = cardType;
+      const info = REQUEST_INFO[cardType];
       $("request-modal-title").textContent = info.title;
       $("request-modal-desc").textContent = info.desc;
       $("rq-first").value = "";
@@ -249,15 +211,16 @@
       $("rq-phone-number").value = "";
       $("rq-message").value = "";
       status("rq-status", "", true);
-      const required = category === "credit";
-      ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !required));
-      modalBackdrop.classList.remove("hidden");
+      $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
+      $("rq-phone-field").classList.toggle("hidden", !info.showPhone);
+      ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !info.required));
+      modalBackdrop.classList.add("show");
       $("rq-first").focus();
     }
 
     function closeRequestModal() {
-      modalBackdrop.classList.add("hidden");
-      activeRequestCategory = null;
+      modalBackdrop.classList.remove("show");
+      activeCard = null;
     }
 
     $("request-cards").addEventListener("click", (ev) => {
@@ -270,20 +233,27 @@
     $("rq-cancel").onclick = closeRequestModal;
     modalBackdrop.addEventListener("click", (ev) => { if (ev.target === modalBackdrop) closeRequestModal(); });
     document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && !modalBackdrop.classList.contains("hidden")) closeRequestModal();
+      if (ev.key === "Escape" && modalBackdrop.classList.contains("show")) closeRequestModal();
     });
 
     $("rq-send").onclick = async () => {
+      const info = REQUEST_INFO[activeCard];
       const firstName = $("rq-first").value;
       const lastName = $("rq-last").value;
       const email = $("rq-email").value;
       const phoneNumber = $("rq-phone-number").value.trim();
-      const phone = phoneNumber ? `${$("rq-phone-area").value}-${phoneNumber}` : "";
+      const phone = info.showPhone && phoneNumber ? `${$("rq-phone-area").value}-${phoneNumber}` : "";
+      const category = info.showCategoryPicker ? $("rq-category").value : activeCard;
+      const message = $("rq-message").value;
 
-      if (activeRequestCategory === "credit") {
+      if (info.required) {
         if (!firstName.trim()) return status("rq-status", "Please add your first name so we know whose tab to credit.", false);
         if (!email.trim()) return status("rq-status", "Please add a work email so we can follow up.", false);
         if (phoneNumber.replace(/\D/g, "").length < 7) return status("rq-status", "Please add a complete cell number so we can reach you.", false);
+      }
+      if (!info.showCategoryPicker && !message.trim() && !info.required) {
+        // change/snack requests still need something to act on
+        return status("rq-status", "Please add a few details so we know what to do.", false);
       }
 
       const btn = $("rq-send");
@@ -291,12 +261,8 @@
       status("rq-status", "Sending…", true);
       try {
         await FS.submitFeedback({
-          firstName,
-          lastName,
-          email,
-          phone,
-          category: activeRequestCategory,
-          message: $("rq-message").value || REQUEST_INFO[activeRequestCategory].title,
+          firstName, lastName, email, phone, category,
+          message: message || info.title,
         });
         closeRequestModal();
         status("fb-status", "Thank you — your request has been sent! 🎉", true);
