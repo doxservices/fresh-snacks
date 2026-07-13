@@ -162,35 +162,22 @@
 
       <div class="invite-card">
         <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
-        <div class="invite-card-inner">
-          <p class="invite-card-kicker"><span class="chev">&raquo;</span> Device-link invite <span class="chev">&laquo;</span></p>
+
+        <div class="invite-card-qr-area">
           <div class="invite-qr-frame">
             <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
           </div>
-          <p class="invite-card-name"><span class="chev">&raquo;</span> For <span id="invite-card-person">Guest</span> <span class="chev">&laquo;</span></p>
+          <p class="invite-card-name">For <span id="invite-card-person">Guest</span></p>
           <p class="invite-card-note">Scan to link — up to 3 devices per tab</p>
         </div>
+
+        <input id="invite-link-url" class="invite-card-link-input" type="text" readonly aria-label="Invite link" />
+        <button type="button" class="invite-card-copy-btn" id="invite-copy-link">Copy to share</button>
       </div>
 
       <canvas id="invite-canvas" width="560" height="700" class="hidden" aria-hidden="true"></canvas>
 
-      <div class="field wide invite-link-field">
-        <label for="invite-link-url">Invite link</label>
-        <div class="invite-link-row">
-          <input id="invite-link-url" type="text" readonly />
-          <button type="button" class="icon-btn" id="invite-copy-link-only" title="Copy link text" aria-label="Copy link text">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-          </button>
-        </div>
-      </div>
       <div class="status" id="invite-modal-status"></div>
-      <div class="modal-actions">
-        <button type="button" id="invite-modal-done">Close</button>
-        <button type="button" class="primary" id="invite-copy-link">
-          Copy to share
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-        </button>
-      </div>
     </div>
   </div>
 
@@ -230,7 +217,6 @@
 
     const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
     $("invite-modal-close").onclick = closeInviteModal;
-    $("invite-modal-done").onclick = closeInviteModal;
     $("invite-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
     });
@@ -241,8 +227,13 @@
     // is preceded by an await (e.g. canvas.toBlob()), silently failing.
     let inviteCardBlob = null;
 
-// bounds of the frame's white panel, measured directly from invite-card-frame.jpg (560x700)
-    const FRAME_BOX = { left: 55, top: 50, right: 504, bottom: 626 };
+// bounds of the frame's three reserved panels, measured directly from
+    // invite-card-frame.jpg (560x700): the QR box, the link-input box, and
+    // the copy-button box. These same fractions drive the on-screen CSS
+    // overlay positions (see .invite-card-qr-area / -link-input / -copy-btn).
+    const QR_BOX = { left: 79, top: 128, right: 480, bottom: 529 };
+    const LINK_BOX = { left: 158, top: 598, right: 284, bottom: 654 };
+    const BUTTON_BOX = { left: 299, top: 597, right: 496, bottom: 655 };
 
     let frameImgPromise = null;
     function loadFrameImage() {
@@ -281,34 +272,52 @@
       const canvas = $("invite-canvas");
       const ctx = canvas.getContext("2d");
       const W = canvas.width, H = canvas.height;
-      const box = FRAME_BOX;
-      const boxW = box.right - box.left, boxCenterX = (box.left + box.right) / 2;
 
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(frameImg, 0, 0, W, H);
       ctx.textAlign = "center";
 
-      ctx.fillStyle = "#66736a";
-      ctx.font = "600 15px Arial, Helvetica, sans-serif";
-      ctx.fillText("»  Device-link invite  «", boxCenterX, box.top + 34);
-
-      const qrSize = Math.min(boxW - 40, 300);
-      const qrX = boxCenterX - qrSize / 2;
-      const qrY = box.top + 52;
+      // QR + name + note, inside the frame's reserved white box
+      const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
+      const qrSize = 210;
+      const qrX = qrBoxCenterX - qrSize / 2;
+      const qrY = QR_BOX.top + 22;
       ctx.strokeStyle = "#2f7a44";
       ctx.lineWidth = 2.4;
-      roundRectPath(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
+      roundRectPath(ctx, qrX - 9, qrY - 9, qrSize + 18, qrSize + 18, 12);
       ctx.stroke();
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
       ctx.fillStyle = "#184f2a";
-      ctx.font = "700 22px Arial, Helvetica, sans-serif";
-      ctx.fillText(`»  For ${name}  «`, boxCenterX, qrY + qrSize + 42);
+      ctx.font = "700 19px Arial, Helvetica, sans-serif";
+      ctx.fillText(`For ${name}`, qrBoxCenterX, qrY + qrSize + 32);
       ctx.fillStyle = "#66736a";
-      ctx.font = "400 14px Arial, Helvetica, sans-serif";
-      ctx.fillText("Scan to link — up to 3 devices per tab", boxCenterX, qrY + qrSize + 65);
+      ctx.font = "400 13px Arial, Helvetica, sans-serif";
+      ctx.fillText("Scan to link — up to 3 devices per tab", qrBoxCenterX, qrY + qrSize + 54);
+
+      // link text + button label, inside their own reserved boxes, so the
+      // exported/pasted image looks complete (these boxes hold live <input>/
+      // <button> elements on screen, but a static PNG needs the text drawn)
+      ctx.fillStyle = "#184f2a";
+      ctx.font = "400 11px Arial, Helvetica, sans-serif";
+      const linkBoxCenterX = (LINK_BOX.left + LINK_BOX.right) / 2;
+      const linkBoxCenterY = (LINK_BOX.top + LINK_BOX.bottom) / 2 + 4;
+      ctx.fillText(fitText(ctx, url, LINK_BOX.right - LINK_BOX.left - 12), linkBoxCenterX, linkBoxCenterY);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "700 15px Arial, Helvetica, sans-serif";
+      const btnBoxCenterX = (BUTTON_BOX.left + BUTTON_BOX.right) / 2;
+      const btnBoxCenterY = (BUTTON_BOX.top + BUTTON_BOX.bottom) / 2 + 5;
+      ctx.fillText("Copy to share", btnBoxCenterX, btnBoxCenterY);
 
       inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    }
+
+    function fitText(ctx, text, maxWidth) {
+      if (ctx.measureText(text).width <= maxWidth) return text;
+      let s = text;
+      while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+      return s + "…";
     }
 
     function roundRectPath(ctx, x, y, w, h, r) {
@@ -356,16 +365,9 @@
       }
     };
 
-    $("invite-copy-link-only").onclick = async () => {
-      const url = $("invite-link-url").value;
-      try {
-        await navigator.clipboard.writeText(url);
-        status("invite-modal-status", "Link copied.", true);
-      } catch (e) {
-        $("invite-link-url").select();
-        status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
-      }
-    };
+    // clicking the (visually tiny, truncated) link field selects its full
+    // value so Ctrl+C still works even though only part of the URL is shown
+    $("invite-link-url").onclick = () => $("invite-link-url").select();
 
     const closeDevicesModal = () => $("devices-modal-backdrop").classList.remove("show");
     $("devices-modal-close").onclick = closeDevicesModal;

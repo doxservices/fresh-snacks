@@ -1110,19 +1110,18 @@ textarea:focus {
 /* ---- invite card (compact, no-scroll, branded) ---- */
 
 .invite-modal {
-  width: min(320px, 100%);
+  width: min(340px, 100%);
   padding: 16px;
 }
 
 .invite-card {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1122 / 1402;
   background-image: url("invite-card-frame.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: 20px;
-  margin-bottom: 14px;
   box-shadow: var(--shadow);
 }
 
@@ -1135,40 +1134,29 @@ textarea:focus {
   z-index: 2;
 }
 
-.invite-card-inner {
+/* these four overlays sit at the exact fractional bounds of the three
+   reserved panels baked into invite-card-frame.jpg (QR box, link-input
+   box, copy-button box), measured directly from the source image */
+.invite-card-qr-area {
   position: absolute;
-  top: 7.5%;
-  left: 10%;
-  right: 10%;
-  bottom: 11%;
+  left: 14.17%;
+  top: 18.33%;
+  width: 71.48%;
+  height: 57.21%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   text-align: center;
-}
-
-.invite-card .chev {
-  color: var(--green);
-  font-weight: 700;
-  padding: 0 4px;
-}
-
-.invite-card-kicker {
-  margin: 0 0 4px;
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 .invite-qr-frame {
   display: inline-flex;
   border: 2px solid var(--green);
   border-radius: 12px;
-  padding: 7px;
-  margin-bottom: 8px;
+  padding: 6px;
+  margin-bottom: 6px;
 }
 
 .invite-qr-frame canvas {
@@ -1182,46 +1170,46 @@ textarea:focus {
   margin: 0;
   color: var(--green-dark);
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .invite-card-note {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
+  padding: 0 6px;
 }
 
-.invite-link-field {
-  margin-bottom: 4px;
+.invite-card-link-input {
+  position: absolute;
+  left: 28.25%;
+  top: 85.45%;
+  width: 22.37%;
+  height: 7.99%;
+  border: none;
+  background: transparent;
+  color: var(--green-dark);
+  font-size: 9px;
+  text-align: center;
+  padding: 0 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-.invite-link-row {
-  display: flex;
-  gap: 6px;
-}
-
-.invite-link-row input {
-  flex: 1;
-  font-size: 12px;
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  flex-shrink: 0;
-  padding: 0;
-}
-
-.icon-btn svg, .modal-actions svg {
-  width: 16px;
-  height: 16px;
-}
-
-.modal-actions .primary svg {
-  vertical-align: -3px;
-  margin-left: 4px;
+.invite-card-copy-btn {
+  position: absolute;
+  left: 53.3%;
+  top: 85.31%;
+  width: 35.29%;
+  height: 8.2%;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 /* ---- linked devices list ---- */
