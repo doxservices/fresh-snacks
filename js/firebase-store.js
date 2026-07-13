@@ -527,8 +527,12 @@ FS.entryPillClass = (data, entry) => {
 
 FS.getOwnTransactions = async () => {
   const eff = await FS.getEffectiveUser();
+  // filtered by userId (not uid) to match what the transactions read rule's
+  // claim/link check inspects — Firestore rejects a list query whose filter
+  // field doesn't align with what the security rule reads, even though uid
+  // and userId are always equal on every transaction doc in this schema.
   const snap = await FS._db.collection("transactions")
-    .where("uid", "==", eff.effectiveUid)
+    .where("userId", "==", eff.effectiveUid)
     .where("status", "==", "active")
     .get();
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
