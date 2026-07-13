@@ -216,10 +216,17 @@
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
     });
 
+    // pre-rendered PNG blob of the current invite card, so the copy button's
+    // click handler can call clipboard.write() with no async gap beforehand
+    // — Chrome/Safari can drop the click's transient activation if a write
+    // is preceded by an await (e.g. canvas.toBlob()), silently failing.
+    let inviteCardBlob = null;
+
     /* Draws a small branded "invite card" (QR + wordmark + customer name)
      * onto the modal's canvas — this is both what the admin sees and, via
      * canvas.toBlob(), the exact image copied to the clipboard. */
     async function drawInviteCard(url, name) {
+      inviteCardBlob = null;
       const canvas = $("invite-canvas");
       const ctx = canvas.getContext("2d");
       const W = canvas.width, H = canvas.height;
@@ -266,6 +273,8 @@
       ctx.fillStyle = "#66736a";
       ctx.font = "400 14px Arial, Helvetica, sans-serif";
       ctx.fillText("Scan to link this device — up to 3 devices per tab", W / 2, qrY + qrSize + 56);
+
+      inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     }
 
     function roundRectPath(ctx, x, y, w, h, r) {
@@ -290,11 +299,10 @@
     $("invite-copy-link").onclick = async () => {
       const url = $("invite-link-url").value;
       try {
-        if (window.ClipboardItem && navigator.clipboard.write) {
-          const blob = await new Promise((resolve) => $("invite-canvas").toBlob(resolve, "image/png"));
+        if (window.ClipboardItem && navigator.clipboard.write && inviteCardBlob) {
           await navigator.clipboard.write([
             new ClipboardItem({
-              "image/png": blob,
+              "image/png": inviteCardBlob,
               "text/plain": new Blob([url], { type: "text/plain" }),
             }),
           ]);
