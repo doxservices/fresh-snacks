@@ -248,7 +248,7 @@ FS.getOrCreateDevice = async () => {
 
   const userRef = FS._db.collection("users").doc(user.uid);
   const userSnap = await userRef.get();
-  const displayName = `${FS.appConfig.anonUserPrefix || "guest"} ${FS.randomCode(4)}`;
+  const displayName = `${FS.appConfig.anonUserPrefix || "Guest"} ${FS.randomCode(4)}`;
   const userBase = {
     userId: user.uid,
     uid: user.uid,
@@ -330,11 +330,13 @@ FS.getUserPayments = async (userId) => {
 FS.feedbackCategories = [
   { id: "question", label: "A question" },
   { id: "concern", label: "A concern" },
-  { id: "suggestion", label: "A favorite snack I'd love to see" },
+  { id: "change", label: "Request a change" },
+  { id: "snack", label: "Request a snack" },
+  { id: "credit", label: "Request credit" },
   { id: "other", label: "Something else" },
 ];
 
-FS.submitFeedback = async ({ firstName, lastName, email, category, message }) => {
+FS.submitFeedback = async ({ firstName, lastName, email, phone, category, message }) => {
   const user = await FS.signInAnonymous();
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
@@ -349,6 +351,7 @@ FS.submitFeedback = async ({ firstName, lastName, email, category, message }) =>
     firstName: clean(firstName),
     lastName: clean(lastName),
     email: clean(email),
+    phone: clean(phone),
     category: category || "other",
     message: msg,
     status: "new",

@@ -37,7 +37,7 @@ window.FS_FIREBASE_CONFIG = fsConfigLooksUsable(fsSavedFirebaseConfig)
 window.FS_APP_CONFIG = {
   appName: "Fresh Snacks",
   currency: "J$",
-  anonUserPrefix: "guest",
+  anonUserPrefix: "Guest",
   devicePrefix: "fs_dev",
   visitorPrefix: "fs_guest",
   storageKeys: {

@@ -875,6 +875,77 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+/* ---- quick-request cards ---- */
+
+.request-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.request-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: normal;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.request-card:hover {
+  border-color: rgba(47, 122, 68, 0.4);
+  box-shadow: var(--shadow);
+}
+
+.request-card.active {
+  border-color: var(--green);
+  background: var(--green-light);
+  box-shadow: 0 0 0 2px rgba(47, 122, 68, 0.25);
+}
+
+.request-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: rgba(234, 245, 232, 0.9);
+  color: var(--green-dark);
+  flex-shrink: 0;
+}
+
+.request-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.request-title {
+  font-weight: 600;
+  color: var(--green-dark);
+  font-size: 15px;
+}
+
+.request-desc {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* ---- cell number: area-code dropdown + local number ---- */
+
+.phone-row {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 8px;
+}
+
 .status {
   margin-top: 10px;
   font-size: 14px;
