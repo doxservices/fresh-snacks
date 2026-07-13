@@ -140,6 +140,11 @@
         <h2>Recent transactions</h2>
         <div id="transaction-list"></div>
       </section>
+
+      <section class="card section-card">
+        <h2>Customer Feedback</h2>
+        <div id="feedback-list"></div>
+      </section>
     </section>
 
     <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
@@ -250,6 +255,33 @@
       Approve keeps them and clears the flag, Change edits them, Void removes them from the tab.</p>`;
     }
 
+    function renderFeedback() {
+      const catLabel = (id) => (FS.feedbackCategories.find((c) => c.id === id) || {}).label || id;
+      const fmtWhen = (f) => FS.admin.dateFromRecord(f, "createdAt") || "-";
+      if (!SNAPSHOT.feedback.length) {
+        $("feedback-list").innerHTML = `<p class="muted-small">No feedback submitted yet.</p>`;
+        return;
+      }
+      const rows = SNAPSHOT.feedback.map((f) => {
+        const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous";
+        return `<tr data-id="${esc(f.feedbackId || f.id)}"${f.status === "new" ? ' class="disputed"' : ""}>
+          <td>${esc(fmtWhen(f))}</td>
+          <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}</td>
+          <td>${esc(catLabel(f.category))}</td>
+          <td style="white-space:pre-wrap;">${esc(f.message)}</td>
+          <td>${esc(f.status || "new")}</td>
+          <td style="white-space:nowrap;">
+            ${f.status !== "read" ? `<button data-act="fb-read">Mark read</button>` : ""}
+            ${f.status !== "archived" ? `<button data-act="fb-archive">Archive</button>` : ""}
+          </td>
+        </tr>`;
+      }).join("");
+      $("feedback-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Received</th><th>From</th><th>Type</th><th>Message</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
     async function refresh() {
       SNAPSHOT = await FS.admin.getSnapshot();
       $("login-panel").classList.add("hidden");
@@ -259,6 +291,7 @@
       renderAccounting();
       renderCatalog();
       renderTransactions();
+      renderFeedback();
     }
 
     $("google-login").onclick = async () => {
@@ -392,6 +425,12 @@
         } else if (act === "txn-void") {
           if (!confirm("Void this listing? It disappears from the customer's tab and totals.")) return;
           await FS.admin.voidTransaction(row.dataset.id);
+          await refresh();
+        } else if (act === "fb-read") {
+          await FS.admin.setFeedbackStatus(row.dataset.id, "read");
+          await refresh();
+        } else if (act === "fb-archive") {
+          await FS.admin.setFeedbackStatus(row.dataset.id, "archived");
           await refresh();
         }
       } catch (e) {

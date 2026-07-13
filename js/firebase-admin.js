@@ -65,7 +65,7 @@ FS.admin.getCollection = async (name) => {
 
 FS.admin.getSnapshot = async () => {
   await FS.admin.requireAdmin();
-  const [settings, snacks, users, devices, transactions, payments, adjustments] = await Promise.all([
+  const [settings, snacks, users, devices, transactions, payments, adjustments, feedback] = await Promise.all([
     FS.getSettings(),
     FS.getCatalog(true),
     FS.admin.getCollection("users"),
@@ -73,6 +73,7 @@ FS.admin.getSnapshot = async () => {
     FS.admin.getCollection("transactions"),
     FS.admin.getCollection("payments"),
     FS.admin.getCollection("adjustments"),
+    FS.admin.getCollection("feedback"),
   ]);
   const activeTransactions = transactions.filter((x) => x.status !== "void");
   const activePayments = payments.filter((x) => x.status !== "void");
@@ -85,8 +86,18 @@ FS.admin.getSnapshot = async () => {
     transactions: activeTransactions,
     payments: activePayments,
     adjustments: activeAdjustments,
+    feedback: feedback.sort((a, b) => FS.admin.dateFromRecord(b, "createdAt").localeCompare(FS.admin.dateFromRecord(a, "createdAt"))),
     accounting: FS.admin.accounting(users, devices, activeTransactions, activePayments, activeAdjustments),
   };
+};
+
+FS.admin.setFeedbackStatus = async (id, status) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("feedback").doc(id).update({
+    status,
+    updatedBy: FS.admin.user.uid,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
 };
 
 FS.admin.accountKey = (record) => record.userId || record.uid || record.deviceId || "unassigned";

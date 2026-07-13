@@ -796,7 +796,8 @@ footer {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--line);
@@ -807,10 +808,71 @@ select {
   color: var(--text);
 }
 
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: 2px solid rgba(47, 122, 68, 0.35);
   border-color: var(--green);
+}
+
+.field.wide {
+  grid-column: 1 / -1;
+}
+
+/* ---- feedback page ---- */
+
+.coming-soon {
+  background: linear-gradient(135deg, rgba(234,245,232,0.95), rgba(255,255,255,0.9));
+  border: 1px solid rgba(47, 122, 68, 0.2);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+
+.coming-soon .kicker {
+  display: inline-block;
+  background: var(--green-dark);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin-bottom: 10px;
+}
+
+.coming-soon h2 {
+  margin-bottom: 6px;
+}
+
+.coming-soon p {
+  color: var(--text);
+  font-size: 14.5px;
+}
+
+.profile-prompt {
+  margin-top: 14px;
+  background: rgba(234, 245, 232, 0.94);
+  border: 1px solid rgba(47, 122, 68, 0.18);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+
+.profile-prompt p {
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.profile-prompt .row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .status {

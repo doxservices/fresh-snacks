@@ -9,6 +9,8 @@
     { label: "Log my snacks", href: "bins.html" },
     { label: "Invoice Me", href: "invoice.html" },
     { label: "User settings", href: "index.html#user-settings" },
+    { label: "Feedback", href: "feedback.html" },
+    { label: "Privacy Policy", href: "privacy.html" },
   ];
   if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
 

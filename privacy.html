@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks — Privacy Policy</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <img class="header-logo" src="profile-icon.png" alt="" />
+          <div>
+            <h1>Privacy Policy</h1>
+            <p>A plain-language summary of how Fresh Snacks handles your information.</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card">
+      <p style="margin-bottom: 14px;">
+        This page explains what Fresh Snacks collects, why, and how it's protected — in plain
+        language, not legal boilerplate. It's a summary of our actual practices, not a substitute
+        for formal legal advice.
+      </p>
+
+      <h2>What we collect</h2>
+      <p style="margin-bottom: 8px;"><strong>Automatically, the moment you open the site:</strong></p>
+      <p style="margin-bottom: 14px;">
+        An anonymous account identifier (created by Firebase Authentication) and a device
+        identifier stored in your browser's local storage — not a tracking cookie, just enough
+        for your snack tab to reload the next time you visit the same browser.
+      </p>
+      <p style="margin-bottom: 8px;"><strong>Only if you choose to provide it:</strong></p>
+      <p style="margin-bottom: 14px;">
+        A name, email, or phone number in User Settings; or a name, email, and message if you
+        submit the Feedback form. None of this is required — the tab works perfectly with no
+        name at all.
+      </p>
+      <p style="margin-bottom: 14px;">
+        <strong>Snack activity:</strong> what you log from the Bins page (snack, quantity, price,
+        date), plus any payments the snack keeper records against your tab.
+      </p>
+
+      <h2>How we use it</h2>
+      <p style="margin-bottom: 14px;">
+        To keep your snack tab and running balance accurate, to let the snack keeper manage
+        accounts and payments, to show your chosen name back to you if you set one, and to read
+        and respond to feedback you send us. We do not use your information for advertising, and
+        we do not sell it to anyone.
+      </p>
+
+      <h2>Where it's stored</h2>
+      <p style="margin-bottom: 14px;">
+        In Google Firebase (Authentication and Firestore), transmitted over HTTPS. Access is
+        controlled by database security rules: you can only read or write your own tab and your
+        own feedback; only the snack keeper (admin) can see every customer's data or the feedback
+        inbox.
+      </p>
+
+      <h2>Cookies &amp; local storage</h2>
+      <p style="margin-bottom: 14px;">
+        We use your browser's local storage to remember your anonymous identity and, if you've
+        opened a shared tab link, the code that connects you to it. We don't use third-party
+        advertising or analytics cookies.
+      </p>
+
+      <h2>Sharing</h2>
+      <p style="margin-bottom: 14px;">
+        We don't share your information with third parties. The only people who can see your full
+        tab or your feedback messages are you and the snack keeper.
+      </p>
+
+      <h2>Your choices</h2>
+      <p style="margin-bottom: 14px;">
+        You can use Fresh Snacks entirely anonymously — a name is never required. You can add,
+        change, or remove your name, email, or phone at any time from User Settings. You can ask
+        the snack keeper to delete your data by reaching out through the
+        <a href="feedback.html">Feedback page</a>.
+      </p>
+
+      <h2>Children's privacy</h2>
+      <p style="margin-bottom: 14px;">
+        Fresh Snacks isn't directed at children. If you believe a child has provided personal
+        information, contact us through the Feedback page and we'll remove it.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        We may update this page as Fresh Snacks grows. Continuing to use the site after a change
+        means you accept the updated policy.
+      </p>
+    </section>
+
+    <footer>
+      Questions about your data? Reach out any time via <a href="feedback.html">Feedback</a>.
+    </footer>
+  </main>
+
+  <script src="js/nav.js"></script>
+</body>
+</html>

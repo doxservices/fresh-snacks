@@ -325,6 +325,39 @@ FS.getUserPayments = async (userId) => {
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
+/* ---------- feedback ---------- */
+
+FS.feedbackCategories = [
+  { id: "question", label: "A question" },
+  { id: "concern", label: "A concern" },
+  { id: "suggestion", label: "A favorite snack I'd love to see" },
+  { id: "other", label: "Something else" },
+];
+
+FS.submitFeedback = async ({ firstName, lastName, email, category, message }) => {
+  const user = await FS.signInAnonymous();
+  const clean = (v) => {
+    const s = (v ?? "").toString().trim();
+    return s || null;
+  };
+  const msg = clean(message);
+  if (!msg) throw new Error("Please enter a message before sending.");
+  const id = FS.uid("fs_fb");
+  const payload = {
+    feedbackId: id,
+    uid: user.uid,
+    firstName: clean(firstName),
+    lastName: clean(lastName),
+    email: clean(email),
+    category: category || "other",
+    message: msg,
+    status: "new",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  await FS._db.collection("feedback").doc(id).set(payload);
+  return payload;
+};
+
 /* ---------- user identity (optional, anonymous by default) ---------- */
 
 FS.getMyProfile = async () => {

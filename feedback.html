@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks — Feedback</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <img class="header-logo" src="profile-icon.png" alt="" />
+          <div>
+            <h1>We'd Love to Hear From You</h1>
+            <p>Your voice helps shape what Fresh Snacks becomes next.</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="coming-soon">
+      <span class="kicker">More features coming soon</span>
+      <h2>We're just getting started!</h2>
+      <p>
+        New snacks, rewards for regulars, and easier ways to track your tab are all on the way.
+        Got a question, a concern, or a favorite snack you'd love to see in the bins? This is the place — tell us anything.
+      </p>
+    </section>
+
+    <div id="firebase-auth-prompt"></div>
+
+    <section class="card section-card">
+      <h2>Send us a message</h2>
+      <div class="note">
+        A name is never required — but if you'd like us to know who you are, we're happy to remember you.
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="fb-first">First name</label>
+          <input id="fb-first" type="text" placeholder="e.g. Xavier" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="fb-last">Last name</label>
+          <input id="fb-last" type="text" autocomplete="family-name" />
+        </div>
+        <div class="field">
+          <label for="fb-email">Email (optional)</label>
+          <input id="fb-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="fb-category">This is about...</label>
+          <select id="fb-category"></select>
+        </div>
+        <div class="field wide">
+          <label for="fb-message">Your message</label>
+          <textarea id="fb-message" placeholder="Ask away, let us know what's on your mind, or tell us the snack you wish we carried..."></textarea>
+        </div>
+        <button class="primary" id="fb-send">Send feedback</button>
+      </div>
+      <div class="status" id="fb-status"></div>
+
+      <div class="profile-prompt hidden" id="profile-prompt">
+        <p id="profile-prompt-text"></p>
+        <div class="row">
+          <button class="primary" id="profile-prompt-yes">Yes, remember me</button>
+          <button id="profile-prompt-no">No thanks</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Thank you for helping us improve Fresh Snacks. Read our <a href="privacy.html">Privacy Policy</a>.
+    </footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+    }
+
+    $("fb-category").innerHTML = FS.feedbackCategories
+      .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
+
+    $("fb-send").onclick = async () => {
+      const btn = $("fb-send");
+      const firstName = $("fb-first").value;
+      const lastName = $("fb-last").value;
+      btn.disabled = true;
+      status("fb-status", "Sending…", true);
+      try {
+        await FS.submitFeedback({
+          firstName,
+          lastName,
+          email: $("fb-email").value,
+          category: $("fb-category").value,
+          message: $("fb-message").value,
+        });
+        status("fb-status", "Thank you — your message has been sent! 🎉", true);
+        $("fb-message").value = "";
+
+        const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+        if (name) {
+          const me = await FS.getMyProfile();
+          const alreadyNamed = me.vipStatus !== "anonymous" && me.displayName === name;
+          if (!alreadyNamed) {
+            $("profile-prompt-text").textContent =
+              `Want us to remember you as ${name} next time you visit your tab?`;
+            $("profile-prompt").classList.remove("hidden");
+            $("profile-prompt-yes").onclick = async () => {
+              $("profile-prompt-yes").disabled = true;
+              try {
+                await FS.updateMyProfile({ firstName, lastName, displayName: name });
+                $("profile-prompt-text").textContent = `You're all set, ${name} — we'll remember you next time.`;
+                $("profile-prompt-yes").classList.add("hidden");
+                $("profile-prompt-no").classList.add("hidden");
+              } catch (e) {
+                $("profile-prompt-yes").disabled = false;
+                status("fb-status", e.message, false);
+              }
+            };
+            $("profile-prompt-no").onclick = () => $("profile-prompt").classList.add("hidden");
+          }
+        }
+      } catch (e) {
+        status("fb-status", e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
