@@ -283,12 +283,14 @@
         $("feedback-list").innerHTML = `<p class="muted-small">No feedback submitted yet.</p>`;
         return;
       }
+      const cur = SNAPSHOT.settings.currency;
       const rows = SNAPSHOT.feedback.map((f) => {
         const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous";
         return `<tr data-id="${esc(f.feedbackId || f.id)}"${f.status === "new" ? ' class="disputed"' : ""}>
           <td>${esc(fmtWhen(f))}</td>
           <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}</span>` : ""}</td>
           <td>${esc(catLabel(f.category))}</td>
+          <td class="num-money">${f.amount ? FS.money(f.amount, cur) : "-"}</td>
           <td style="white-space:pre-wrap;">${esc(f.message)}</td>
           <td>${esc(f.status || "new")}</td>
           <td style="white-space:nowrap;">
@@ -298,7 +300,7 @@
         </tr>`;
       }).join("");
       $("feedback-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Received</th><th>From</th><th>Type</th><th>Message</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Received</th><th>From</th><th>Type</th><th class="num-money">Amount</th><th>Message</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
     }

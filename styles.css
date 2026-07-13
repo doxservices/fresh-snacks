@@ -973,6 +973,31 @@ textarea:focus {
   gap: 8px;
 }
 
+/* ---- amount: currency prefix + numeric input ---- */
+
+.amount-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.amount-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background: rgba(234, 245, 232, 0.75);
+  color: var(--green-dark);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.amount-row input {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
 .req-mark {
   color: #8a2f2f;
 }

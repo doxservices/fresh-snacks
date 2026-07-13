@@ -36,7 +36,7 @@
             </svg>
           </span>
           <span class="request-title">Request Change</span>
-          <span class="request-desc">A correction to your tab or balance</span>
+          <span class="request-desc">Didn't get enough change at the bin</span>
         </button>
         <button type="button" class="request-card" data-category="snack">
           <span class="request-icon">
@@ -58,7 +58,7 @@
             </svg>
           </span>
           <span class="request-title">Request Credit</span>
-          <span class="request-desc">Snack now, pay later — ask us to open a tab</span>
+          <span class="request-desc">Snack now, pay later — need credit on your tab</span>
         </button>
         <button type="button" class="request-card" data-category="message">
           <span class="request-icon">
@@ -107,6 +107,13 @@
           <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
           <input id="rq-email" type="email" autocomplete="email" />
         </div>
+        <div class="field wide hidden" id="rq-amount-field">
+          <label for="rq-amount">Amount<span class="req-mark hidden" id="rq-amount-req"> *</span></label>
+          <div class="amount-row">
+            <span class="amount-prefix" id="rq-amount-currency">J$</span>
+            <input id="rq-amount" type="number" min="1" step="1" placeholder="e.g. 200" />
+          </div>
+        </div>
         <div class="field wide hidden" id="rq-phone-field">
           <label for="rq-phone-number">Cell number<span class="req-mark hidden" id="rq-phone-req"> *</span></label>
           <div class="phone-row">
@@ -149,6 +156,7 @@
     $("rq-category").innerHTML = FS.feedbackCategories
       .filter((c) => !["change", "snack", "credit"].includes(c.id))
       .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
+    $("rq-amount-currency").textContent = FS.appConfig.currency || "J$";
 
     async function offerToSaveProfile(firstName, lastName) {
       const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
@@ -177,23 +185,23 @@
     const REQUEST_INFO = {
       change: {
         title: "Request Change",
-        desc: "A correction to your tab or balance — tell us what looks off.",
-        showCategoryPicker: false, showPhone: true, required: false,
+        desc: "Didn't get enough change back at the bin? Enter how much you're still owed so we can pay you back.",
+        showCategoryPicker: false, showPhone: true, showAmount: true, requireAmount: true, requireContact: true,
       },
       snack: {
         title: "Request a Snack",
         desc: "A bin's run out, or there's a snack you wish we carried — let us know.",
-        showCategoryPicker: false, showPhone: true, required: false,
+        showCategoryPicker: false, showPhone: true, showAmount: false, requireAmount: false, requireContact: false,
       },
       credit: {
         title: "Request Credit",
-        desc: "Snack now, pay later — ask us to open or extend a tab for you.",
-        showCategoryPicker: false, showPhone: true, required: true,
+        desc: "Snack now, pay later — enter how much credit you need and we'll open or extend your tab.",
+        showCategoryPicker: false, showPhone: true, showAmount: true, requireAmount: true, requireContact: true,
       },
       message: {
         title: "Send Us a Message",
-        desc: "A name is only required if you need credit — questions, concerns, and snack requests can stay anonymous.",
-        showCategoryPicker: true, showPhone: false, required: false,
+        desc: "A name is only required for change or credit requests — questions, concerns, and snack requests can stay anonymous.",
+        showCategoryPicker: true, showPhone: false, showAmount: false, requireAmount: false, requireContact: false,
       },
     };
 
@@ -209,11 +217,14 @@
       $("rq-last").value = "";
       $("rq-email").value = "";
       $("rq-phone-number").value = "";
+      $("rq-amount").value = "";
       $("rq-message").value = "";
       status("rq-status", "", true);
       $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
       $("rq-phone-field").classList.toggle("hidden", !info.showPhone);
-      ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !info.required));
+      $("rq-amount-field").classList.toggle("hidden", !info.showAmount);
+      ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !info.requireContact));
+      $("rq-amount-req").classList.toggle("hidden", !info.requireAmount);
       modalBackdrop.classList.add("show");
       $("rq-first").focus();
     }
@@ -245,14 +256,19 @@
       const phone = info.showPhone && phoneNumber ? `${$("rq-phone-area").value}-${phoneNumber}` : "";
       const category = info.showCategoryPicker ? $("rq-category").value : activeCard;
       const message = $("rq-message").value;
+      const amountRaw = $("rq-amount").value;
+      const amount = info.showAmount && amountRaw ? Number(amountRaw) : null;
 
-      if (info.required) {
-        if (!firstName.trim()) return status("rq-status", "Please add your first name so we know whose tab to credit.", false);
+      if (info.requireAmount && !(amount > 0)) {
+        return status("rq-status", "Please enter the amount.", false);
+      }
+      if (info.requireContact) {
+        if (!firstName.trim()) return status("rq-status", "Please add your first name so we know who this is for.", false);
         if (!email.trim()) return status("rq-status", "Please add a work email so we can follow up.", false);
         if (phoneNumber.replace(/\D/g, "").length < 7) return status("rq-status", "Please add a complete cell number so we can reach you.", false);
       }
-      if (!info.showCategoryPicker && !message.trim() && !info.required) {
-        // change/snack requests still need something to act on
+      if (!info.showCategoryPicker && !info.requireAmount && !message.trim()) {
+        // snack requests still need something to act on
         return status("rq-status", "Please add a few details so we know what to do.", false);
       }
 
@@ -261,7 +277,7 @@
       status("rq-status", "Sending…", true);
       try {
         await FS.submitFeedback({
-          firstName, lastName, email, phone, category,
+          firstName, lastName, email, phone, category, amount,
           message: message || info.title,
         });
         closeRequestModal();

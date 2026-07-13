@@ -336,7 +336,7 @@ FS.feedbackCategories = [
   { id: "other", label: "Something else" },
 ];
 
-FS.submitFeedback = async ({ firstName, lastName, email, phone, category, message }) => {
+FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, message }) => {
   const user = await FS.signInAnonymous();
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
@@ -352,6 +352,7 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, messag
     lastName: clean(lastName),
     email: clean(email),
     phone: clean(phone),
+    amount: amount > 0 ? Number(amount) : null,
     category: category || "other",
     message: msg,
     status: "new",
