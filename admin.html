@@ -167,19 +167,27 @@
         <div class="invite-card-qr-area" data-diag="QR area">
           <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
         </div>
-        <p class="invite-card-name" data-diag="name">
-          <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
-          For <span id="invite-card-person">Guest</span>
-          <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
-        </p>
-        <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
 
-        <label class="invite-card-link-label" for="invite-link-url" data-diag="link label">Invite link</label>
-        <div class="invite-card-link-wrap" data-diag="link field">
-          <input id="invite-link-url" type="text" readonly aria-label="Invite link" />
-          <button type="button" class="invite-card-link-copy-icon" id="invite-copy-link-only" aria-label="Copy link" title="Copy link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-          </button>
+        <!-- everything between the QR box and the buttons is one flex column
+             so it self-distributes evenly instead of relying on hand-tuned
+             top percentages for each line -->
+        <div class="invite-card-gap">
+          <p class="invite-card-name" data-diag="name">
+            <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
+            For <span id="invite-card-person">Guest</span>
+            <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
+          </p>
+          <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
+
+          <div class="invite-card-link-group">
+            <label class="invite-card-link-label" for="invite-link-url" data-diag="link label">Invite link</label>
+            <div class="invite-card-link-wrap" data-diag="link field">
+              <input id="invite-link-url" type="text" readonly aria-label="Invite link" />
+              <button type="button" class="invite-card-link-copy-icon" id="invite-copy-link-only" aria-label="Copy link" title="Copy link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <button type="button" class="invite-card-close-btn" id="invite-modal-done" data-diag="Close btn">Close</button>
@@ -189,7 +197,7 @@
         </button>
       </div>
 
-      <canvas id="invite-canvas" width="543" height="794" class="hidden" aria-hidden="true"></canvas>
+      <canvas id="invite-canvas" width="543" height="724" class="hidden" aria-hidden="true"></canvas>
 
       <div class="status" id="invite-modal-status"></div>
     </div>
@@ -242,11 +250,14 @@
       $("invite-card").classList.add("invite-card-debug");
     }
 
-    // pre-rendered PNG blob of the current invite card, so the copy button's
-    // click handler can call clipboard.write() with no async gap beforehand
-    // — Chrome/Safari can drop the click's transient activation if a write
-    // is preceded by an await (e.g. canvas.toBlob()), silently failing.
+    // pre-rendered PNG blob + data URL of the current invite card, so the
+    // copy button's click handler can call clipboard.write() with no async
+    // gap beforehand — Chrome/Safari can drop the click's transient
+    // activation if a write is preceded by an await (e.g. canvas.toBlob()),
+    // silently failing. The data URL is what gets embedded in the text/html
+    // clipboard entry alongside the real, clickable link.
     let inviteCardBlob = null;
+    let inviteCardDataUrl = null;
 
     // bounds of the frame's reserved panels, measured directly from
     // invite-card-frame.jpg (543x724): the QR box, the Close button, and
@@ -257,10 +268,13 @@
     const QR_BOX = { left: 102, top: 142, right: 438, bottom: 481 };
     const CLOSE_BOX = { left: 191, top: 648, right: 297, bottom: 699 };
     const COPY_BOX = { left: 299, top: 647, right: 497, bottom: 698 };
-    const NAME_Y = 0.68 * CARD_H;
-    const NOTE_Y = 0.735 * CARD_H;
-    const LABEL_Y = 0.785 * CARD_H;
-    const LINK_BOX = { left: 0.12 * CARD_W, right: 0.88 * CARD_W, top: 0.83 * CARD_H, bottom: 0.892 * CARD_H };
+    // approximates the on-screen flex column's space-evenly distribution
+    // across the open gap (QR_BOX.bottom to CLOSE_BOX.top) for the export
+    // canvas, which can't run actual flex layout
+    const NAME_Y = 512;
+    const NOTE_Y = 550;
+    const LABEL_Y = 585;
+    const LINK_BOX = { left: 0.12 * CARD_W, right: 0.88 * CARD_W, top: 598, bottom: 628 };
 
     let frameImgPromise = null;
     function loadFrameImage() {
@@ -296,6 +310,7 @@
      * live DOM card. */
     async function drawInviteCard(url, name) {
       inviteCardBlob = null;
+      inviteCardDataUrl = null;
       $("invite-card-person").textContent = name;
 
       const qr = qrcode(0, "M");
@@ -327,7 +342,7 @@
       // reference — not sized to nearly touch the panel)
       const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
       const qrBoxCenterY = (QR_BOX.top + QR_BOX.bottom) / 2;
-      const qrSize = 170;
+      const qrSize = 195;
       const qrX = qrBoxCenterX - qrSize / 2;
       const qrY = qrBoxCenterY - qrSize / 2;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
@@ -388,30 +403,10 @@
       ctx.fillText(btnLabel, textX, copyBoxCenterY);
       drawCopyIcon(ctx, copyBoxCenterX + groupWidth / 2 - iconSize, copyBoxCenterY - iconSize + 3, iconSize, "#ffffff");
 
-      // Plain-text copy of the link below the card graphic, so whatever
-      // paste behavior a chat app uses, the raw URL is visibly readable
-      // as part of the same image (not just embedded in the QR/small field).
-      const bandY = FRAME_H;
-      const bandH = H - FRAME_H;
-      ctx.fillStyle = "#f4faf3";
-      ctx.fillRect(0, bandY, W, bandH);
-      ctx.strokeStyle = "rgba(24,79,42,0.14)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, bandY + 0.5);
-      ctx.lineTo(W, bandY + 0.5);
-      ctx.stroke();
-
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#184f2a";
-      let urlFontSize = 15;
-      ctx.font = `600 ${urlFontSize}px Arial, Helvetica, sans-serif`;
-      while (ctx.measureText(url).width > W - 24 && urlFontSize > 9) {
-        urlFontSize -= 1;
-        ctx.font = `600 ${urlFontSize}px Arial, Helvetica, sans-serif`;
-      }
-      ctx.fillText(url, W / 2, bandY + bandH / 2 + 5 + NUDGE);
-
+      // no text drawn onto the canvas below this point — the link is
+      // appended as a real, separate, clickable clipboard entry instead
+      // (see the copy button handler), not rasterized into the image
+      inviteCardDataUrl = canvas.toDataURL("image/png");
       inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     }
 
@@ -465,9 +460,18 @@
     $("invite-copy-link").onclick = async () => {
       const url = $("invite-link-url").value;
       try {
-        if (window.ClipboardItem && navigator.clipboard.write && inviteCardBlob) {
+        if (window.ClipboardItem && navigator.clipboard.write && inviteCardBlob && inviteCardDataUrl) {
+          // text/html embeds the card image AND a real, separate, clickable
+          // link below it — pasting into any rich-text target (chat apps,
+          // email, docs) drops in both together as one paste, rather than
+          // baking the URL into the image's own pixels (which can't be
+          // clicked or re-copied as text). text/plain is a universal
+          // fallback for plain-text-only paste targets.
+          const escapedUrl = url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+          const html = `<div><img src="${inviteCardDataUrl}" alt="Fresh Snacks device-link invite"><div><a href="${escapedUrl}">${escapedUrl}</a></div></div>`;
           await navigator.clipboard.write([
             new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
               "image/png": inviteCardBlob,
               "text/plain": new Blob([url], { type: "text/plain" }),
             }),
