@@ -1157,10 +1157,10 @@ textarea:focus {
   left: 29.37%;
   width: 41.53%;
   top: 66.8%;
-  height: 3.2%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* text-align (not flex) for centering: flex splits "For " and the
+     <span> into separate anonymous items and collapses the space
+     between them */
+  text-align: center;
   margin: 0;
   color: var(--green-dark);
   font-weight: 700;
