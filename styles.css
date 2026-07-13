@@ -1322,7 +1322,10 @@ textarea:focus {
 .invite-card-debug [data-diag] {
   outline: 1px dashed #ff2d2d;
   outline-offset: -1px;
-  position: relative;
+  /* no position property here — every [data-diag] element already sets its
+     own position:absolute; setting position:relative in this rule (same
+     selector weight, later in cascade) was overriding that and knocking
+     every element into normal flow, which is why they seemed to vanish */
 }
 
 .invite-card-debug [data-diag]::before {
