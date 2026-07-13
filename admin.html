@@ -161,14 +161,11 @@
       <div class="invite-card">
         <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
 
-        <!-- invisible hit target over the X baked into the frame image -->
-        <button type="button" class="invite-card-x-close" id="invite-modal-close" aria-label="Close"></button>
-
         <div class="invite-card-qr-area">
           <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
-          <p class="invite-card-name"><span class="chev">&raquo;</span> For <span id="invite-card-person">Guest</span> <span class="chev">&laquo;</span></p>
-          <p class="invite-card-note">Scan to link this device — up to 3 devices per tab</p>
         </div>
+        <p class="invite-card-name">For <span id="invite-card-person">Guest</span></p>
+        <p class="invite-card-note">Up to 3 devices per tab</p>
 
         <label class="invite-card-link-label" for="invite-link-url">Invite link</label>
         <div class="invite-card-link-wrap">
@@ -226,7 +223,6 @@
     }
 
     const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
-    $("invite-modal-close").onclick = closeInviteModal;
     $("invite-modal-done").onclick = closeInviteModal;
     $("invite-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
@@ -243,6 +239,8 @@
     // link-input box, the Close button, and the Copy button. These same
     // fractions drive the on-screen CSS overlay positions.
     const QR_BOX = { left: 124, top: 143, right: 418, bottom: 462 };
+    const NAME_ZONE = { left: 160, right: 385, top: 486, bottom: 507 };
+    const NOTE_ZONE = { top: 507, bottom: 526 };
     const LABEL_BAND = { left: 54, top: 526, bottom: 574 };
     const LINK_BOX = { left: 54, top: 574, right: 488, bottom: 619 };
     const CLOSE_BOX = { left: 184, top: 642, right: 289, bottom: 692 };
@@ -290,21 +288,25 @@
       ctx.drawImage(frameImg, 0, 0, W, H);
       ctx.textAlign = "center";
 
-      // QR + name + note, inside the frame's reserved white box (kept
-      // visibly smaller than the box itself so there's real margin around
-      // it, matching the reference — not sized to nearly touch the panel)
+      // QR, centered in the frame's reserved box (kept visibly smaller than
+      // the box itself so there's real margin around it, matching the
+      // reference — not sized to nearly touch the panel)
       const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
-      const qrSize = 150;
+      const qrBoxCenterY = (QR_BOX.top + QR_BOX.bottom) / 2;
+      const qrSize = 170;
       const qrX = qrBoxCenterX - qrSize / 2;
-      const qrY = QR_BOX.top + 25;
+      const qrY = qrBoxCenterY - qrSize / 2;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
+      // "For {name}" sits in the gap between the frame's baked-in chevron
+      // marks; the "up to 3 devices" note is short by design since the
+      // space below the chevrons is tight (not meant to wrap).
       ctx.fillStyle = "#184f2a";
-      ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      ctx.fillText(`»  For ${name}  «`, qrBoxCenterX, qrY + qrSize + 30);
+      ctx.font = "700 16px Arial, Helvetica, sans-serif";
+      ctx.fillText(`For ${name}`, (NAME_ZONE.left + NAME_ZONE.right) / 2, (NAME_ZONE.top + NAME_ZONE.bottom) / 2 + 5);
       ctx.fillStyle = "#66736a";
-      ctx.font = "400 12px Arial, Helvetica, sans-serif";
-      ctx.fillText("Scan to link this device — up to 3 devices per tab", qrBoxCenterX, qrY + qrSize + 51);
+      ctx.font = "400 11px Arial, Helvetica, sans-serif";
+      ctx.fillText("Up to 3 devices per tab", qrBoxCenterX, (NOTE_ZONE.top + NOTE_ZONE.bottom) / 2 + 4);
 
       // "Invite link" label, left-aligned above the link field
       ctx.textAlign = "left";
