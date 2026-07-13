@@ -280,11 +280,13 @@
       ctx.drawImage(frameImg, 0, 0, W, H);
       ctx.textAlign = "center";
 
-      // QR + name + note, inside the frame's reserved white box
+      // QR + name + note, inside the frame's reserved white box (kept
+      // visibly smaller than the box itself so there's real margin around
+      // it, matching the reference — not sized to nearly touch the panel)
       const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
-      const qrSize = 210;
+      const qrSize = 160;
       const qrX = qrBoxCenterX - qrSize / 2;
-      const qrY = QR_BOX.top + 22;
+      const qrY = QR_BOX.top + 40;
       ctx.strokeStyle = "#2f7a44";
       ctx.lineWidth = 2.4;
       roundRectPath(ctx, qrX - 9, qrY - 9, qrSize + 18, qrSize + 18, 12);

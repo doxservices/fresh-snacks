@@ -1164,8 +1164,8 @@ textarea:focus {
 
 .invite-qr-frame canvas {
   display: block;
-  width: 53cqw;
-  max-width: 150px;
+  width: 40cqw;
+  max-width: 120px;
   height: auto;
 }
 
