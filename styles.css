@@ -1173,11 +1173,18 @@ textarea:focus {
   font-size: 13px;
 }
 
+.invite-card .chev {
+  color: var(--green);
+  font-weight: 700;
+  padding: 0 2px;
+}
+
 .invite-card-note {
   margin: 0;
   color: var(--muted);
-  font-size: 10.5px;
-  padding: 0 6px;
+  font-size: 10px;
+  padding: 0 4px;
+  line-height: 1.3;
 }
 
 .invite-card-link-input {
@@ -1203,13 +1210,23 @@ textarea:focus {
   top: 85.31%;
   width: 35.29%;
   height: 8.2%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   border: none;
   background: transparent;
   color: #fff;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12.5px;
   cursor: pointer;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.invite-card-copy-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 /* ---- linked devices list ---- */

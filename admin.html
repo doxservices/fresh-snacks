@@ -167,12 +167,15 @@
           <div class="invite-qr-frame">
             <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
           </div>
-          <p class="invite-card-name">For <span id="invite-card-person">Guest</span></p>
-          <p class="invite-card-note">Scan to link — up to 3 devices per tab</p>
+          <p class="invite-card-name"><span class="chev">&raquo;</span> For <span id="invite-card-person">Guest</span> <span class="chev">&laquo;</span></p>
+          <p class="invite-card-note">Scan to link this device — up to 3 devices per tab</p>
         </div>
 
         <input id="invite-link-url" class="invite-card-link-input" type="text" readonly aria-label="Invite link" />
-        <button type="button" class="invite-card-copy-btn" id="invite-copy-link">Copy to share</button>
+        <button type="button" class="invite-card-copy-btn" id="invite-copy-link">
+          Copy to share
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+        </button>
       </div>
 
       <canvas id="invite-canvas" width="560" height="700" class="hidden" aria-hidden="true"></canvas>
@@ -290,10 +293,10 @@
 
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 19px Arial, Helvetica, sans-serif";
-      ctx.fillText(`For ${name}`, qrBoxCenterX, qrY + qrSize + 32);
+      ctx.fillText(`»  For ${name}  «`, qrBoxCenterX, qrY + qrSize + 32);
       ctx.fillStyle = "#66736a";
-      ctx.font = "400 13px Arial, Helvetica, sans-serif";
-      ctx.fillText("Scan to link — up to 3 devices per tab", qrBoxCenterX, qrY + qrSize + 54);
+      ctx.font = "400 12.5px Arial, Helvetica, sans-serif";
+      ctx.fillText("Scan to link this device — up to 3 devices per tab", qrBoxCenterX, qrY + qrSize + 54);
 
       // link text + button label, inside their own reserved boxes, so the
       // exported/pasted image looks complete (these boxes hold live <input>/
@@ -306,11 +309,38 @@
 
       ctx.fillStyle = "#ffffff";
       ctx.font = "700 15px Arial, Helvetica, sans-serif";
+      const btnLabel = "Copy to share";
       const btnBoxCenterX = (BUTTON_BOX.left + BUTTON_BOX.right) / 2;
       const btnBoxCenterY = (BUTTON_BOX.top + BUTTON_BOX.bottom) / 2 + 5;
-      ctx.fillText("Copy to share", btnBoxCenterX, btnBoxCenterY);
+      const btnLabelWidth = ctx.measureText(btnLabel).width;
+      const iconGap = 8, iconSize = 15;
+      const groupWidth = btnLabelWidth + iconGap + iconSize;
+      const textX = btnBoxCenterX - groupWidth / 2 + btnLabelWidth / 2;
+      ctx.fillText(btnLabel, textX, btnBoxCenterY);
+      drawCopyIcon(ctx, btnBoxCenterX + groupWidth / 2 - iconSize, btnBoxCenterY - iconSize + 3, iconSize);
 
       inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    }
+
+    function drawCopyIcon(ctx, x, y, size) {
+      ctx.save();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.6;
+      ctx.lineJoin = "round";
+      const s = size / 24;
+      roundRectPath(ctx, x + 9 * s, y + 9 * s, 12 * s, 12 * s, 2 * s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + 5 * s, y + 15 * s);
+      ctx.lineTo(x + 4 * s, y + 15 * s);
+      ctx.arcTo(x + 3 * s, y + 15 * s, x + 3 * s, y + 14 * s, 1 * s);
+      ctx.lineTo(x + 3 * s, y + 4 * s);
+      ctx.arcTo(x + 3 * s, y + 3 * s, x + 4 * s, y + 3 * s, 1 * s);
+      ctx.lineTo(x + 13 * s, y + 3 * s);
+      ctx.arcTo(x + 14 * s, y + 3 * s, x + 14 * s, y + 4 * s, 1 * s);
+      ctx.lineTo(x + 14 * s, y + 5 * s);
+      ctx.stroke();
+      ctx.restore();
     }
 
     function fitText(ctx, text, maxWidth) {
