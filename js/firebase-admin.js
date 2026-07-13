@@ -270,7 +270,8 @@ FS.admin.addInventory = async ({ snackId, quantity, note }) => {
 
 FS.admin.getInventorySnapshot = async () => {
   await FS.admin.requireAdmin();
-  const [snacks, entries, transactions] = await Promise.all([
+  const [settings, snacks, entries, transactions] = await Promise.all([
+    FS.getSettings(),
     FS.getCatalog(true),
     FS.admin.getCollection("inventory"),
     FS.admin.getCollection("transactions"),
@@ -298,6 +299,7 @@ FS.admin.getInventorySnapshot = async () => {
   }), { stocked: 0, sold: 0, remaining: 0, revenue: 0 });
 
   return {
+    settings,
     rows,
     totals,
     entries: entries.sort((a, b) => FS.admin.dateFromRecord(b, "createdAt").localeCompare(FS.admin.dateFromRecord(a, "createdAt"))),
