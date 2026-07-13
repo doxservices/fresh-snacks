@@ -158,19 +158,38 @@
 
   <div class="modal-backdrop" id="invite-modal-backdrop">
     <div class="modal invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
-      <button type="button" class="modal-close" id="invite-modal-close" aria-label="Close">&times;</button>
-      <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
-      <div class="invite-card-wrap">
-        <canvas id="invite-canvas" width="480" height="500"></canvas>
+      <button type="button" class="modal-close invite-card-close" id="invite-modal-close" aria-label="Close">&times;</button>
+
+      <div class="invite-card">
+        <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
+        <div class="invite-card-inner">
+          <p class="invite-card-kicker"><span class="chev">&raquo;</span> Device-link invite <span class="chev">&laquo;</span></p>
+          <div class="invite-qr-frame">
+            <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
+          </div>
+          <p class="invite-card-name"><span class="chev">&raquo;</span> For <span id="invite-card-person">Guest</span> <span class="chev">&laquo;</span></p>
+          <p class="invite-card-note">Scan to link — up to 3 devices per tab</p>
+        </div>
       </div>
+
+      <canvas id="invite-canvas" width="560" height="700" class="hidden" aria-hidden="true"></canvas>
+
       <div class="field wide invite-link-field">
         <label for="invite-link-url">Invite link</label>
-        <input id="invite-link-url" type="text" readonly />
+        <div class="invite-link-row">
+          <input id="invite-link-url" type="text" readonly />
+          <button type="button" class="icon-btn" id="invite-copy-link-only" title="Copy link text" aria-label="Copy link text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+          </button>
+        </div>
       </div>
       <div class="status" id="invite-modal-status"></div>
       <div class="modal-actions">
         <button type="button" id="invite-modal-done">Close</button>
-        <button type="button" class="primary" id="invite-copy-link">Copy to share</button>
+        <button type="button" class="primary" id="invite-copy-link">
+          Copy to share
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -222,57 +241,72 @@
     // is preceded by an await (e.g. canvas.toBlob()), silently failing.
     let inviteCardBlob = null;
 
-    /* Draws a small branded "invite card" (QR + wordmark + customer name)
-     * onto the modal's canvas — this is both what the admin sees and, via
-     * canvas.toBlob(), the exact image copied to the clipboard. */
+// bounds of the frame's white panel, measured directly from invite-card-frame.jpg (560x700)
+    const FRAME_BOX = { left: 55, top: 50, right: 504, bottom: 626 };
+
+    let frameImgPromise = null;
+    function loadFrameImage() {
+      if (!frameImgPromise) {
+        frameImgPromise = new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = "invite-card-frame.jpg";
+        });
+      }
+      return frameImgPromise;
+    }
+
+    /* Renders the on-screen QR (into the small framed canvas in the HTML
+     * card, which sits over the invite-card-frame.jpg background) and,
+     * separately, draws that same frame image plus the QR/text onto a
+     * hidden export canvas — that's what canvas.toBlob() copies to the
+     * clipboard, since there's no dependency-free way to rasterize the
+     * live DOM card. */
     async function drawInviteCard(url, name) {
       inviteCardBlob = null;
-      const canvas = $("invite-canvas");
-      const ctx = canvas.getContext("2d");
-      const W = canvas.width, H = canvas.height;
+      $("invite-card-person").textContent = name;
 
-      ctx.clearRect(0, 0, W, H);
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, "#184f2a");
-      bg.addColorStop(1, "#2f7a44");
-      ctx.fillStyle = bg;
-      roundRectPath(ctx, 0, 0, W, H, 22);
-      ctx.fill();
-
-      // inner white card
-      const pad = 22;
-      const cardY = 92, cardH = H - cardY - pad;
-      ctx.fillStyle = "rgba(255,255,255,0.96)";
-      roundRectPath(ctx, pad, cardY, W - pad * 2, cardH, 16);
-      ctx.fill();
-
-      // header wordmark
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "700 30px Arial, Helvetica, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("🥨 Fresh Snacks", W / 2, 46);
-      ctx.font = "400 16px Arial, Helvetica, sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.88)";
-      ctx.fillText("Device-link invite", W / 2, 70);
-
-      // QR, drawn from the vendored qrcode-generator SVG onto the canvas
       const qr = qrcode(0, "M");
       qr.addData(url);
       qr.make();
       const svgMarkup = qr.createSvgTag({ cellSize: 6, margin: 0 });
-      const qrImg = await svgToImage(svgMarkup);
-      const qrSize = cardH - 96;
-      const qrX = (W - qrSize) / 2;
-      const qrY = cardY + 16;
+      const [qrImg, frameImg] = await Promise.all([svgToImage(svgMarkup), loadFrameImage()]);
+
+      const qrCanvas = $("invite-qr-canvas");
+      const qrCtx = qrCanvas.getContext("2d");
+      qrCtx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
+      qrCtx.drawImage(qrImg, 0, 0, qrCanvas.width, qrCanvas.height);
+
+      const canvas = $("invite-canvas");
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width, H = canvas.height;
+      const box = FRAME_BOX;
+      const boxW = box.right - box.left, boxCenterX = (box.left + box.right) / 2;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(frameImg, 0, 0, W, H);
+      ctx.textAlign = "center";
+
+      ctx.fillStyle = "#66736a";
+      ctx.font = "600 15px Arial, Helvetica, sans-serif";
+      ctx.fillText("»  Device-link invite  «", boxCenterX, box.top + 34);
+
+      const qrSize = Math.min(boxW - 40, 300);
+      const qrX = boxCenterX - qrSize / 2;
+      const qrY = box.top + 52;
+      ctx.strokeStyle = "#2f7a44";
+      ctx.lineWidth = 2.4;
+      roundRectPath(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12);
+      ctx.stroke();
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-      // customer name + footer note, inside the white card
       ctx.fillStyle = "#184f2a";
-      ctx.font = "700 20px Arial, Helvetica, sans-serif";
-      ctx.fillText(`For ${name}`, W / 2, qrY + qrSize + 34);
+      ctx.font = "700 22px Arial, Helvetica, sans-serif";
+      ctx.fillText(`»  For ${name}  «`, boxCenterX, qrY + qrSize + 42);
       ctx.fillStyle = "#66736a";
       ctx.font = "400 14px Arial, Helvetica, sans-serif";
-      ctx.fillText("Scan to link this device — up to 3 devices per tab", W / 2, qrY + qrSize + 56);
+      ctx.fillText("Scan to link — up to 3 devices per tab", boxCenterX, qrY + qrSize + 65);
 
       inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     }
@@ -319,6 +353,17 @@
           $("invite-link-url").select();
           status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
         }
+      }
+    };
+
+    $("invite-copy-link-only").onclick = async () => {
+      const url = $("invite-link-url").value;
+      try {
+        await navigator.clipboard.writeText(url);
+        status("invite-modal-status", "Link copied.", true);
+      } catch (e) {
+        $("invite-link-url").select();
+        status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
       }
     };
 

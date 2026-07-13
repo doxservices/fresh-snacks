@@ -1111,29 +1111,117 @@ textarea:focus {
 
 .invite-modal {
   width: min(320px, 100%);
-  padding: 18px;
+  padding: 16px;
 }
 
-.invite-card-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.invite-card-wrap canvas {
-  width: 100%;
-  max-width: 260px;
-  height: auto;
-  border-radius: var(--radius);
+.invite-card {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  background-image: url("invite-card-frame.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 20px;
+  margin-bottom: 14px;
   box-shadow: var(--shadow);
+}
+
+.invite-card-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #fff;
+  color: var(--green-dark);
+  z-index: 2;
+}
+
+.invite-card-inner {
+  position: absolute;
+  top: 7.5%;
+  left: 10%;
+  right: 10%;
+  bottom: 11%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.invite-card .chev {
+  color: var(--green);
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.invite-card-kicker {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.invite-qr-frame {
+  display: inline-flex;
+  border: 2px solid var(--green);
+  border-radius: 12px;
+  padding: 7px;
+  margin-bottom: 8px;
+}
+
+.invite-qr-frame canvas {
+  display: block;
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+}
+
+.invite-card-name {
+  margin: 0;
+  color: var(--green-dark);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.invite-card-note {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .invite-link-field {
   margin-bottom: 4px;
 }
 
-.invite-link-field input {
+.invite-link-row {
+  display: flex;
+  gap: 6px;
+}
+
+.invite-link-row input {
+  flex: 1;
   font-size: 12px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.icon-btn svg, .modal-actions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.modal-actions .primary svg {
+  vertical-align: -3px;
+  margin-left: 4px;
 }
 
 /* ---- linked devices list ---- */
