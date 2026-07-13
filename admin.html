@@ -291,7 +291,7 @@
           <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}</span>` : ""}</td>
           <td>${esc(catLabel(f.category))}</td>
           <td class="num-money">${f.amount ? FS.money(f.amount, cur) : "-"}</td>
-          <td style="white-space:pre-wrap;">${esc(f.message)}</td>
+          <td style="white-space:pre-wrap;">${esc(f.message)}${f.requestedSnack ? `<br><span class="muted-small">Snack: ${esc(f.requestedSnack)}</span>` : ""}</td>
           <td>${esc(f.status || "new")}</td>
           <td style="white-space:nowrap;">
             ${f.status !== "read" ? `<button data-act="fb-read">Mark read</button>` : ""}
