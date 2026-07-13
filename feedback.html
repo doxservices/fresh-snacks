@@ -123,6 +123,10 @@
             </select>
             <input id="rq-phone-number" type="tel" placeholder="123-4567" maxlength="8" autocomplete="tel-national" />
           </div>
+          <label class="checkbox-row">
+            <input id="rq-whatsapp" type="checkbox" />
+            Contact me on WhatsApp
+          </label>
         </div>
         <!-- Short text for now; swap for a <select> of catalog snacks once
              the full snack list is ready (see FS.getCatalog). -->
@@ -214,7 +218,7 @@
         title: "Send Us a Message",
         desc: "A name is only required for change or credit requests — questions, concerns, and snack requests can stay anonymous.",
         showAmount: false, requireAmount: false,
-        showPhone: false, requireContact: false, showSnackName: false,
+        showPhone: true, requireContact: false, showSnackName: false,
         showMessageBox: true, showCategoryPicker: true,
       },
     };
@@ -232,6 +236,7 @@
       $("rq-amount").value = "";
       $("rq-snackname").value = "";
       $("rq-message").value = "";
+      $("rq-whatsapp").checked = false;
       status("rq-status", "", true);
 
       $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
@@ -279,6 +284,7 @@
       const amount = info.showAmount && amountRaw ? Number(amountRaw) : null;
       const snackName = $("rq-snackname").value.trim();
       const messageBox = $("rq-message").value;
+      const contactWhatsapp = info.showPhone && phoneNumber ? $("rq-whatsapp").checked : false;
 
       if (info.requireAmount && !(amount > 0)) {
         return status("rq-status", "Please enter the amount.", false);
@@ -309,6 +315,7 @@
         await FS.submitFeedback({
           firstName, lastName, email, phone, category, amount,
           requestedSnack: info.showSnackName ? snackName : null,
+          contactWhatsapp,
           message,
         });
         closeRequestModal();

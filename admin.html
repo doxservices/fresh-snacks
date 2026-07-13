@@ -156,9 +156,31 @@
     <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
   </main>
 
+  <div class="modal-backdrop" id="invite-modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+      <button type="button" class="modal-close" id="invite-modal-close" aria-label="Close">&times;</button>
+      <h2 id="invite-modal-title">Device-link invite</h2>
+      <p class="muted-small" style="margin-bottom:14px;">
+        Share this link or QR code with the customer. Anyone who opens it can link that browser as a
+        full member of this tab — up to 3 devices total.
+      </p>
+      <div id="invite-qr" style="display:flex; justify-content:center; margin-bottom:14px;"></div>
+      <div class="field wide">
+        <label for="invite-link-url">Invite link</label>
+        <input id="invite-link-url" type="text" readonly />
+      </div>
+      <div class="status" id="invite-modal-status"></div>
+      <div class="modal-actions">
+        <button type="button" id="invite-modal-done">Done</button>
+        <button type="button" class="primary" id="invite-copy-link">Copy link</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/firebase-admin.js"></script>
@@ -175,6 +197,22 @@
       el.className = "status " + (ok ? "ok" : "err");
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
     }
+
+    const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
+    $("invite-modal-close").onclick = closeInviteModal;
+    $("invite-modal-done").onclick = closeInviteModal;
+    $("invite-modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
+    });
+    $("invite-copy-link").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText($("invite-link-url").value);
+        status("invite-modal-status", "Link copied.", true);
+      } catch (e) {
+        $("invite-link-url").select();
+        status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
+      }
+    };
 
     function userOptions() {
       return SNAPSHOT.accounting.map((r) =>
@@ -211,6 +249,7 @@
           <td style="white-space:nowrap;">
             <button data-act="user-save">Save</button>
             <button data-act="user-view" title="Show this user's listings below">View</button>
+            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
             <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
           </td>
         </tr>`).join("")}</tbody>
@@ -288,7 +327,7 @@
         const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous";
         return `<tr data-id="${esc(f.feedbackId || f.id)}"${f.status === "new" ? ' class="disputed"' : ""}>
           <td>${esc(fmtWhen(f))}</td>
-          <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}</span>` : ""}</td>
+          <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}${f.contactWhatsapp ? " · WhatsApp OK" : ""}</span>` : ""}</td>
           <td>${esc(catLabel(f.category))}</td>
           <td class="num-money">${f.amount ? FS.money(f.amount, cur) : "-"}</td>
           <td style="white-space:pre-wrap;">${esc(f.message)}${f.requestedSnack ? `<br><span class="muted-small">Snack: ${esc(f.requestedSnack)}</span>` : ""}</td>
@@ -438,6 +477,23 @@
           SELECTED_USER = row.dataset.user;
           renderTransactions();
           $("transaction-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (act === "user-invite") {
+          btn.disabled = true;
+          try {
+            const code = await FS.admin.createLinkInvite(row.dataset.user);
+            const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
+            $("invite-link-url").value = url;
+            $("invite-modal-status").textContent = "";
+            const qr = qrcode(0, "M");
+            qr.addData(url);
+            qr.make();
+            $("invite-qr").innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0, scalable: true });
+            $("invite-modal-backdrop").classList.add("show");
+          } catch (e) {
+            alert("Could not create invite: " + e.message);
+          } finally {
+            btn.disabled = false;
+          }
         } else if (act === "user-delete") {
           const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
           const balance = row.children[5].textContent;

@@ -27,6 +27,27 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/codes/$(myClaimedCode())).data.userId == ownerId;
     }
 
+    // Device-linking: a "link"-type code (as opposed to the read-only "view"
+    // codes above) lets a new browser join a customer's profile as a full
+    // member (own anonymous uid, but shares the tab). hasLinkOn() only gates
+    // the one-time join step (adding yourself to linkedUids, capped at 3);
+    // isLinkedMember() gates everything ongoing (logging snacks, editing the
+    // shared profile) and requires you to already be in that array, so a
+    // reused link code can never let in more than 3 members.
+    function claimedCodeType() {
+      return get(/databases/$(database)/documents/codes/$(myClaimedCode())).data.get('type', 'view');
+    }
+
+    function hasLinkOn(ownerId) {
+      return hasClaimOn(ownerId) && claimedCodeType() == 'link';
+    }
+
+    function isLinkedMember(ownerId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(ownerId))
+        && request.auth.uid in get(/databases/$(database)/documents/users/$(ownerId)).data.get('linkedUids', []);
+    }
+
     match /settings/{settingId} {
       allow read: if signedIn();
       allow write: if isAdmin();
@@ -55,7 +76,12 @@ service cloud.firestore {
       allow read: if isAdmin()
         || (signedIn() && userId == request.auth.uid)
         || hasClaimOn(userId);
-      allow update: if isAdmin() || (signedIn() && userId == request.auth.uid);
+      allow update: if isAdmin()
+        || (signedIn() && userId == request.auth.uid)
+        || (signedIn() && request.auth.uid in resource.data.get('linkedUids', []))
+        || (hasLinkOn(userId)
+            && resource.data.get('linkedUids', []).size() < 3
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUids']));
       allow delete: if isAdmin();
     }
 
@@ -67,8 +93,8 @@ service cloud.firestore {
 
     match /transactions/{transactionId} {
       allow create: if signedIn()
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.resource.data.uid
+        && (request.resource.data.uid == request.auth.uid || isLinkedMember(request.resource.data.uid))
         && request.resource.data.status == "active";
       allow read: if isAdmin()
         || (signedIn() && resource.data.uid == request.auth.uid)

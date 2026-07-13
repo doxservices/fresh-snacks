@@ -289,7 +289,9 @@ FS.getTabCode = () => {
 FS.clearTabCode = () => localStorage.removeItem(FS.tabCodeKey);
 
 /* Stores the code on the visitor's own user doc (the rules verify it against
- * codes/{code} on every read) and resolves who the code points at. */
+ * codes/{code} on every read) and resolves who the code points at. "link"-type
+ * codes are handled by the device-linking flow below instead — this only
+ * resolves the read-only "view" codes. */
 FS.resolveClaim = async () => {
   const code = FS.getTabCode();
   if (!code) return null;
@@ -297,6 +299,7 @@ FS.resolveClaim = async () => {
   await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
   const snap = await FS._db.collection("codes").doc(code).get();
   if (!snap.exists || snap.data().active === false || !snap.data().userId) return null;
+  if (snap.data().type === "link") return null;
   const target = snap.data().userId;
   if (target === user.uid) return null;
   let displayName = null;
@@ -305,6 +308,84 @@ FS.resolveClaim = async () => {
     if (u.exists) displayName = u.data().displayName || null;
   } catch (e) { /* profile read is cosmetic */ }
   return { code, userId: target, displayName };
+};
+
+/* ---------- device linking (an invite lets a new browser join a customer's
+ * profile as a full member, up to 3 devices, rather than just viewing it) --- */
+
+FS.linkCodeKey = "fresh_snacks_link_code";
+
+FS.getLinkCode = () => {
+  const fromUrl = new URLSearchParams(location.search).get("link");
+  if (fromUrl && fromUrl.trim()) {
+    localStorage.setItem(FS.linkCodeKey, fromUrl.trim().toUpperCase());
+  }
+  return localStorage.getItem(FS.linkCodeKey) || null;
+};
+
+FS.clearLinkCode = () => localStorage.removeItem(FS.linkCodeKey);
+
+/* This browser's "effective" identity: its own uid normally, or the primary
+ * profile's uid once this browser has joined via an invite link. Cached in
+ * localStorage after joining, so this is a plain read with no extra
+ * round-trip once linked. */
+FS.getEffectiveUser = async () => {
+  const user = await FS.signInAnonymous();
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  if (!linkedTo || linkedTo === user.uid) return { uid: user.uid, effectiveUid: user.uid, linked: false };
+  return { uid: user.uid, effectiveUid: linkedTo, linked: true };
+};
+
+FS.isThisBrowserLinked = () => {
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  return !!(linkedTo && linkedTo !== FS.currentUser?.uid);
+};
+
+/* Joins this browser to the profile a pending ?link= invite points at.
+ * Capped at 3 linked devices per profile (enforced by firestore.rules, not
+ * just this check). Safe to call again for an invite already joined. */
+FS.acceptLinkInvite = async () => {
+  const code = FS.getLinkCode();
+  if (!code) throw new Error("No invite link found.");
+  const user = await FS.signInAnonymous();
+  const codeSnap = await FS._db.collection("codes").doc(code).get();
+  if (!codeSnap.exists || codeSnap.data().active === false || codeSnap.data().type !== "link" || !codeSnap.data().userId) {
+    FS.clearLinkCode();
+    throw new Error("This invite link is no longer valid.");
+  }
+  const targetUid = codeSnap.data().userId;
+  if (targetUid === user.uid) {
+    FS.clearLinkCode();
+    return { alreadySelf: true };
+  }
+  await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
+  const targetRef = FS._db.collection("users").doc(targetUid);
+  const targetSnap = await targetRef.get();
+  if (!targetSnap.exists) throw new Error("That tab no longer exists.");
+  const linked = targetSnap.data().linkedUids || [];
+  if (!linked.includes(user.uid)) {
+    if (linked.length >= 3) throw new Error("This tab already has the maximum of 3 linked devices.");
+    await targetRef.update({ linkedUids: firebase.firestore.FieldValue.arrayUnion(user.uid) });
+  }
+  localStorage.setItem(FS.appConfig.storageKeys.linkedTo, targetUid);
+  FS.clearLinkCode();
+  return { userId: targetUid, displayName: targetSnap.data().displayName || FS.appConfig.anonUserPrefix || "Guest" };
+};
+
+/* Self-service: forget this browser's link and return it to being its own
+ * separate guest identity. Only removes this browser, never other devices. */
+FS.unlinkDevice = async () => {
+  const user = await FS.signInAnonymous();
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  if (!linkedTo || linkedTo === user.uid) return;
+  await FS._db.collection("users").doc(linkedTo).update({
+    linkedUids: firebase.firestore.FieldValue.arrayRemove(user.uid),
+  });
+  await FS._db.collection("users").doc(user.uid).set(
+    { claimedCode: firebase.firestore.FieldValue.delete() },
+    { merge: true },
+  ).catch(() => {});
+  localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
 };
 
 FS.getUserTransactions = async (userId) => {
@@ -336,7 +417,7 @@ FS.feedbackCategories = [
   { id: "other", label: "Something else" },
 ];
 
-FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, requestedSnack, message }) => {
+FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, requestedSnack, contactWhatsapp, message }) => {
   const user = await FS.signInAnonymous();
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
@@ -352,6 +433,7 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
     lastName: clean(lastName),
     email: clean(email),
     phone: clean(phone),
+    contactWhatsapp: !!phone && !!contactWhatsapp,
     amount: amount > 0 ? Number(amount) : null,
     requestedSnack: clean(requestedSnack),
     category: category || "other",
@@ -366,15 +448,16 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
 /* ---------- user identity (optional, anonymous by default) ---------- */
 
 FS.getMyProfile = async () => {
-  const user = await FS.signInAnonymous();
-  const snap = await FS._db.collection("users").doc(user.uid).get();
-  return { userId: user.uid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) };
+  const eff = await FS.getEffectiveUser();
+  const snap = await FS._db.collection("users").doc(eff.effectiveUid).get();
+  return { userId: eff.effectiveUid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) };
 };
 
 /* Users start as an anonymous guest profile. Adding a name (and optionally
- * email/phone) is opt-in; leaving the name blank keeps the guest identity. */
+ * email/phone) is opt-in; leaving the name blank keeps the guest identity.
+ * Writes to the effective profile, so a linked device edits the shared tab. */
 FS.updateMyProfile = async (fields) => {
-  const user = await FS.signInAnonymous();
+  const eff = await FS.getEffectiveUser();
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
     return s || null;
@@ -395,7 +478,7 @@ FS.updateMyProfile = async (fields) => {
     payload.displayName = displayName;
     payload.vipStatus = "named";
   }
-  await FS._db.collection("users").doc(user.uid).set(payload, { merge: true });
+  await FS._db.collection("users").doc(eff.effectiveUid).set(payload, { merge: true });
   return FS.getMyProfile();
 };
 
@@ -443,18 +526,18 @@ FS.entryPillClass = (data, entry) => {
 };
 
 FS.getOwnTransactions = async () => {
-  const user = await FS.signInAnonymous();
+  const eff = await FS.getEffectiveUser();
   const snap = await FS._db.collection("transactions")
-    .where("uid", "==", user.uid)
+    .where("uid", "==", eff.effectiveUid)
     .where("status", "==", "active")
     .get();
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 FS.getOwnPayments = async () => {
-  const user = await FS.signInAnonymous();
+  const eff = await FS.getEffectiveUser();
   const snap = await FS._db.collection("payments")
-    .where("userId", "==", user.uid)
+    .where("userId", "==", eff.effectiveUid)
     .where("status", "==", "active")
     .get();
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -527,6 +610,7 @@ FS.loadData = async () => {
 
 FS.addTransaction = async (items) => {
   const device = await FS.getOrCreateDevice();
+  const eff = await FS.getEffectiveUser();
   const batch = FS._db.batch();
   const today = FS.todayISO();
   const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -539,8 +623,8 @@ FS.addTransaction = async (items) => {
     const ref = FS._db.collection("transactions").doc(transactionId);
     const record = {
       transactionId,
-      uid: FS.currentUser.uid,
-      userId: FS.currentUser.uid,
+      uid: eff.effectiveUid,
+      userId: eff.effectiveUid,
       deviceId: device.deviceId,
       visitorId: device.visitorId,
       snackId: snack.id,

@@ -116,6 +116,7 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
         adjustmentTotal: 0,
         balance: 0,
         lastActivity: "",
+        linkedUids: [],
       });
     }
     return rows.get(id);
@@ -125,6 +126,7 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
     row.displayName = user.displayName || row.displayName;
     row.vipStatus = user.vipStatus || row.vipStatus;
     row.email = user.email || "";
+    row.linkedUids = user.linkedUids || [];
   }
   for (const device of devices) {
     const row = ensure(device.userId || device.uid || device.deviceId || device.id);
@@ -160,6 +162,38 @@ FS.admin.dateFromRecord = (record, field) => {
 };
 
 FS.admin.maxDate = (a, b) => String(a || "") > String(b || "") ? a : b;
+
+/* Reusable device-linking invite for a customer: fetching/creating is
+ * idempotent (repeat clicks return the same code) so admin can safely
+ * re-open the "Invite link" panel any time. Up to 3 devices can join via
+ * this one code, enforced by firestore.rules. */
+FS.admin.createLinkInvite = async (userId) => {
+  await FS.admin.requireAdmin();
+  const userRef = FS._db.collection("users").doc(userId);
+  const userSnap = await userRef.get();
+  const existing = userSnap.exists ? userSnap.data().linkInviteCode : null;
+  if (existing) {
+    const codeSnap = await FS._db.collection("codes").doc(existing).get();
+    if (codeSnap.exists && codeSnap.data().active !== false) return existing;
+  }
+  let code;
+  for (let i = 0; i < 6; i++) {
+    const candidate = FS.randomCode(8);
+    const clash = await FS._db.collection("codes").doc(candidate).get();
+    if (!clash.exists) { code = candidate; break; }
+  }
+  if (!code) throw new Error("Could not generate a unique invite code, try again.");
+  await FS._db.collection("codes").doc(code).set({
+    code,
+    userId,
+    type: "link",
+    active: true,
+    createdBy: FS.admin.user.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  await userRef.set({ linkInviteCode: code }, { merge: true });
+  return code;
+};
 
 FS.admin.addPayment = async ({ userId, amount, note }) => {
   await FS.admin.requireAdmin();
