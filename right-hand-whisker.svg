@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Right-hand whisker accent</title>
+  <desc id="desc">Three rounded tapered green teardrop rays pointing left.</desc>
+
+  <defs>
+    <linearGradient id="whiskerGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#77B957"/>
+      <stop offset="100%" stop-color="#8CCB68"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#whiskerGradient)">
+    <path d="M146 222
+             C139 218 137 209 142 203
+             C145 199 149 196 154 193
+             L342 72
+             C357 62 377 66 387 81
+             C397 96 393 116 378 126
+             L161 223
+             C156 225 151 225 146 222 Z"/>
+
+    <path d="M151 239
+             C142 239 135 246 135 255
+             C135 264 142 271 151 271
+             L400 286
+             C421 287 438 271 439 250
+             C440 229 424 212 403 211
+             L151 239 Z"/>
+
+    <path d="M146 289
+             C138 293 136 303 141 310
+             C144 314 148 317 153 320
+             L335 441
+             C350 451 370 447 380 432
+             C390 417 386 397 371 387
+             L160 291
+             C155 289 150 288 146 289 Z"/>
+  </g>
+</svg>

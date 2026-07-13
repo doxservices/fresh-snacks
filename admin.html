@@ -158,25 +158,32 @@
 
   <div class="modal-backdrop" id="invite-modal-backdrop">
     <div class="modal invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
-      <div class="invite-card">
+      <div class="invite-card" id="invite-card">
         <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
 
-        <div class="invite-card-qr-area">
+        <!-- classic rotate-on-hover close button, brought back per feedback -->
+        <button type="button" class="modal-close invite-card-x-close" id="invite-modal-close" aria-label="Close">&times;</button>
+
+        <div class="invite-card-qr-area" data-diag="QR area">
           <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
         </div>
-        <p class="invite-card-name">For <span id="invite-card-person">Guest</span></p>
-        <p class="invite-card-note">Up to 3 devices per tab</p>
+        <p class="invite-card-name" data-diag="name">
+          <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
+          For <span id="invite-card-person">Guest</span>
+          <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
+        </p>
+        <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
 
-        <label class="invite-card-link-label" for="invite-link-url">Invite link</label>
-        <div class="invite-card-link-wrap">
+        <label class="invite-card-link-label" for="invite-link-url" data-diag="link label">Invite link</label>
+        <div class="invite-card-link-wrap" data-diag="link field">
           <input id="invite-link-url" type="text" readonly aria-label="Invite link" />
           <button type="button" class="invite-card-link-copy-icon" id="invite-copy-link-only" aria-label="Copy link" title="Copy link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
           </button>
         </div>
 
-        <button type="button" class="invite-card-close-btn" id="invite-modal-done">Close</button>
-        <button type="button" class="invite-card-copy-btn" id="invite-copy-link">
+        <button type="button" class="invite-card-close-btn" id="invite-modal-done" data-diag="Close btn">Close</button>
+        <button type="button" class="invite-card-copy-btn" id="invite-copy-link" data-diag="Copy btn">
           Copy to share
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
         </button>
@@ -224,9 +231,16 @@
 
     const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
     $("invite-modal-done").onclick = closeInviteModal;
+    $("invite-modal-close").onclick = closeInviteModal;
     $("invite-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
     });
+
+    // ?debug=1 in the URL outlines every overlay element on the invite card
+    // in dashed red, with a floating label — for diagnosing alignment only.
+    if (new URLSearchParams(location.search).get("debug") === "1") {
+      $("invite-card").classList.add("invite-card-debug");
+    }
 
     // pre-rendered PNG blob of the current invite card, so the copy button's
     // click handler can call clipboard.write() with no async gap beforehand
@@ -235,16 +249,18 @@
     let inviteCardBlob = null;
 
     // bounds of the frame's reserved panels, measured directly from
-    // invite-card-frame.jpg (543x724): the QR box, the label/link gap, the
-    // link-input box, the Close button, and the Copy button. These same
-    // fractions drive the on-screen CSS overlay positions.
-    const QR_BOX = { left: 124, top: 143, right: 418, bottom: 462 };
-    const NAME_ZONE = { left: 160, right: 385, top: 486, bottom: 507 };
-    const NOTE_ZONE = { top: 507, bottom: 526 };
-    const LABEL_BAND = { left: 54, top: 526, bottom: 574 };
-    const LINK_BOX = { left: 54, top: 574, right: 488, bottom: 619 };
-    const CLOSE_BOX = { left: 184, top: 642, right: 289, bottom: 692 };
-    const COPY_BOX = { left: 306, top: 642, right: 501, bottom: 692 };
+    // invite-card-frame.jpg (543x724): the QR box, the Close button, and
+    // the Copy button. The open gap between the QR box and the buttons has
+    // no baked-in guides, so name/note/label/link use the same percentage
+    // layout as the on-screen CSS rather than a measured pixel box.
+    const CARD_W = 543, CARD_H = 724;
+    const QR_BOX = { left: 102, top: 142, right: 438, bottom: 481 };
+    const CLOSE_BOX = { left: 191, top: 648, right: 297, bottom: 699 };
+    const COPY_BOX = { left: 299, top: 647, right: 497, bottom: 698 };
+    const NAME_Y = 0.68 * CARD_H;
+    const NOTE_Y = 0.735 * CARD_H;
+    const LABEL_Y = 0.785 * CARD_H;
+    const LINK_BOX = { left: 0.12 * CARD_W, right: 0.88 * CARD_W, top: 0.83 * CARD_H, bottom: 0.892 * CARD_H };
 
     let frameImgPromise = null;
     function loadFrameImage() {
@@ -257,6 +273,19 @@
         });
       }
       return frameImgPromise;
+    }
+
+    const whiskerImgCache = {};
+    function loadWhisker(src) {
+      if (!whiskerImgCache[src]) {
+        whiskerImgCache[src] = new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      }
+      return whiskerImgCache[src];
     }
 
     /* Renders the on-screen QR (into the small framed canvas in the HTML
@@ -273,7 +302,10 @@
       qr.addData(url);
       qr.make();
       const svgMarkup = qr.createSvgTag({ cellSize: 6, margin: 0 });
-      const [qrImg, frameImg] = await Promise.all([svgToImage(svgMarkup), loadFrameImage()]);
+      const [qrImg, frameImg, whiskerL, whiskerR] = await Promise.all([
+        svgToImage(svgMarkup), loadFrameImage(),
+        loadWhisker("left-hand-whisker.svg"), loadWhisker("right-hand-whisker.svg"),
+      ]);
 
       const qrCanvas = $("invite-qr-canvas");
       const qrCtx = qrCanvas.getContext("2d");
@@ -300,25 +332,36 @@
       const qrY = qrBoxCenterY - qrSize / 2;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-      // "For {name}" sits in the gap between the frame's baked-in chevron
-      // marks; the "up to 3 devices" note is short by design since the
-      // space below the chevrons is tight (not meant to wrap).
+      // "For {name}" and the note sit in the open gap below the QR box —
+      // the frame has no baked-in guides here, so this follows the same
+      // percentage layout as the on-screen CSS.
       ctx.fillStyle = "#184f2a";
-      ctx.font = "700 16px Arial, Helvetica, sans-serif";
-      ctx.fillText(`For ${name}`, (NAME_ZONE.left + NAME_ZONE.right) / 2, (NAME_ZONE.top + NAME_ZONE.bottom) / 2 + 5 + NUDGE);
+      ctx.font = "700 18px Arial, Helvetica, sans-serif";
+      const nameLabel = `For ${name}`;
+      const nameWidth = ctx.measureText(nameLabel).width;
+      const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
+      const whiskerGap = 8;
+      ctx.fillText(nameLabel, W / 2, NAME_Y + 6 + NUDGE);
+      const nameY = NAME_Y + 6 + NUDGE - whiskerH * 0.7;
+      ctx.drawImage(whiskerL, W / 2 - nameWidth / 2 - whiskerGap - whiskerW, nameY, whiskerW, whiskerH);
+      ctx.drawImage(whiskerR, W / 2 + nameWidth / 2 + whiskerGap, nameY, whiskerW, whiskerH);
       ctx.fillStyle = "#66736a";
-      ctx.font = "400 11px Arial, Helvetica, sans-serif";
-      ctx.fillText("Up to 3 devices per tab", qrBoxCenterX, (NOTE_ZONE.top + NOTE_ZONE.bottom) / 2 + 4 + NUDGE);
+      ctx.font = "400 13px Arial, Helvetica, sans-serif";
+      ctx.fillText("Up to 3 devices per tab", W / 2, NOTE_Y + 5 + NUDGE);
 
       // "Invite link" label, left-aligned above the link field
       ctx.textAlign = "left";
       ctx.fillStyle = "#184f2a";
-      ctx.font = "700 13px Arial, Helvetica, sans-serif";
-      ctx.fillText("Invite link", LABEL_BAND.left + 4, (LABEL_BAND.top + LABEL_BAND.bottom) / 2 + 5 + NUDGE);
+      ctx.font = "700 14px Arial, Helvetica, sans-serif";
+      ctx.fillText("Invite link", LINK_BOX.left + 2, LABEL_Y + 6 + NUDGE);
 
-      // link text (left-aligned, room reserved for the copy icon on the right)
+      // link field outline + text (room reserved for the copy icon on the right)
+      ctx.strokeStyle = "#2f7a44";
+      ctx.lineWidth = 1.5;
+      roundRectPath(ctx, LINK_BOX.left, LINK_BOX.top, LINK_BOX.right - LINK_BOX.left, LINK_BOX.bottom - LINK_BOX.top, 8);
+      ctx.stroke();
       ctx.fillStyle = "#184f2a";
-      ctx.font = "400 12px Arial, Helvetica, sans-serif";
+      ctx.font = "400 13px Arial, Helvetica, sans-serif";
       const linkBoxCenterY = (LINK_BOX.top + LINK_BOX.bottom) / 2 + 4 + NUDGE;
       const linkTextMaxWidth = (LINK_BOX.right - LINK_BOX.left) - 46;
       ctx.fillText(fitText(ctx, url, linkTextMaxWidth), LINK_BOX.left + 14, linkBoxCenterY);

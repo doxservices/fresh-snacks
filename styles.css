@@ -1127,18 +1127,29 @@ textarea:focus {
 }
 
 /* all overlays below sit at the exact fractional bounds of the panels
-   baked into invite-card-frame.jpg (QR box, chevron gap, link-input box,
-   Close button, Copy button), measured directly from the source image.
-   Font/icon sizes use cqw (% of .invite-card's own width) so they shrink
-   along with their panel on narrow screens instead of overflowing past
-   the card/modal/viewport edge. The frame now bakes in the chevron marks
-   that flank "For {name}", so only the plain text sits between them. */
+   baked into invite-card-frame.jpg (QR box, Close button, Copy button),
+   measured directly from the source image. The open gap between the QR
+   box and the buttons has no baked-in guides, so name/note/label/link
+   are freely positioned within it. Font/icon sizes use cqw (% of
+   .invite-card's own width) so they shrink along with the card on narrow
+   screens instead of overflowing past the card/modal/viewport edge.
+   transform: translateY(2px) nudges text down slightly everywhere —
+   percentage-based vertical centering left it sitting a touch too high. */
+.invite-card-x-close {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  background: #fff;
+  color: var(--green-dark);
+  z-index: 2;
+}
+
 .invite-card-qr-area {
   position: absolute;
-  left: 22.84%;
-  top: 19.68%;
-  width: 54.14%;
-  height: 44.06%;
+  left: 18.78%;
+  top: 19.55%;
+  width: 61.78%;
+  height: 46.89%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1146,19 +1157,16 @@ textarea:focus {
 
 .invite-card-qr-area canvas {
   display: block;
-  width: 55cqw;
-  max-width: 155px;
+  width: 50cqw;
+  max-width: 160px;
   height: auto;
 }
 
-/* sits in the gap between the baked-in chevron marks, right below the QR box.
-   transform: translateY nudges the text down 2px in all these overlays —
-   percentage-based vertical centering left them sitting a touch too high. */
 .invite-card-name {
   position: absolute;
-  left: 29.37%;
-  width: 41.53%;
-  top: 66.8%;
+  left: 15%;
+  width: 70%;
+  top: 68%;
   transform: translateY(2px);
   /* text-align (not flex) for centering: flex splits "For " and the
      <span> into separate anonymous items and collapses the space
@@ -1167,17 +1175,23 @@ textarea:focus {
   margin: 0;
   color: var(--green-dark);
   font-weight: 700;
-  font-size: 4cqw;
+  font-size: 4.4cqw;
   white-space: nowrap;
   overflow: hidden;
 }
 
-/* short, single-line by design — the gap below the chevrons is tight */
+.invite-card-name .whisker {
+  height: 3.4cqw;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
 .invite-card-note {
   position: absolute;
   left: 15%;
   width: 70%;
-  top: 69.8%;
+  top: 73.5%;
   height: 3%;
   display: flex;
   align-items: center;
@@ -1185,16 +1199,16 @@ textarea:focus {
   transform: translateY(2px);
   margin: 0;
   color: var(--muted);
-  font-size: 2.9cqw;
+  font-size: 3.2cqw;
   white-space: nowrap;
   overflow: hidden;
 }
 
 .invite-card-link-label {
   position: absolute;
-  left: 9.95%;
-  top: 72.65%;
-  height: 6.56%;
+  left: 12%;
+  top: 78.5%;
+  height: 4%;
   display: flex;
   align-items: center;
   transform: translateY(2px);
@@ -1205,12 +1219,15 @@ textarea:focus {
 
 .invite-card-link-wrap {
   position: absolute;
-  left: 9.95%;
-  top: 79.21%;
-  width: 79.83%;
-  height: 6.22%;
+  left: 12%;
+  top: 83%;
+  width: 76%;
+  height: 6.2%;
   display: flex;
   align-items: center;
+  border: 1.5px solid var(--green);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .invite-card-link-wrap input {
@@ -1253,10 +1270,10 @@ textarea:focus {
 
 .invite-card-close-btn {
   position: absolute;
-  left: 33.89%;
-  top: 88.61%;
-  width: 19.34%;
-  height: 6.9%;
+  left: 35.08%;
+  top: 89.43%;
+  width: 19.61%;
+  height: 7.05%;
   transform: translateY(2px);
   border: none;
   background: transparent;
@@ -1271,10 +1288,10 @@ textarea:focus {
 
 .invite-card-copy-btn {
   position: absolute;
-  left: 56.26%;
-  top: 88.67%;
-  width: 35.91%;
-  height: 6.84%;
+  left: 54.97%;
+  top: 89.3%;
+  width: 36.46%;
+  height: 7.05%;
   transform: translateY(2px);
   display: flex;
   align-items: center;
@@ -1297,6 +1314,31 @@ textarea:focus {
   max-width: 15px;
   max-height: 15px;
   flex-shrink: 0;
+}
+
+/* diagnostic-only: add ?debug=1 to the URL to outline every overlay
+   element on the invite card in dashed red with a floating label, so
+   misalignment against the background image is easy to see and measure. */
+.invite-card-debug [data-diag] {
+  outline: 1px dashed #ff2d2d;
+  outline-offset: -1px;
+  position: relative;
+}
+
+.invite-card-debug [data-diag]::before {
+  content: attr(data-diag);
+  position: absolute;
+  top: -1.4em;
+  left: 0;
+  font-size: 9px;
+  font-family: monospace;
+  background: #ff2d2d;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
 }
 
 /* ---- linked devices list ---- */
