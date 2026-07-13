@@ -109,5 +109,11 @@ service cloud.firestore {
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow update, delete: if isAdmin();
     }
+
+    // Physical stock ledger (admin restocking a bin). Entirely separate from
+    // /transactions (a customer taking a snack) — no customer access at all.
+    match /inventory/{entryId} {
+      allow read, create, update, delete: if isAdmin();
+    }
   }
 }

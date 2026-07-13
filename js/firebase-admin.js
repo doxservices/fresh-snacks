@@ -225,6 +225,85 @@ FS.admin.voidTransaction = async (id) => {
   });
 };
 
+/* Wipes every trace of one identity (transactions/payments/adjustments/
+ * devices/codes-pointing-at-them/the user doc itself) so that browser gets
+ * a genuinely clean slate next time it loads the app — used for clearing
+ * test guests. The underlying Firebase Auth account isn't reachable from
+ * client code, so it isn't deleted; a wiped identity that revisits just
+ * regenerates the same records from zero (same effect as a fresh guest). */
+FS.admin.deleteUserData = async (userId) => {
+  await FS.admin.requireAdmin();
+  const batch = FS._db.batch();
+  let count = 0;
+  for (const [col, field] of [["transactions", "uid"], ["payments", "userId"], ["adjustments", "userId"], ["devices", "uid"], ["codes", "userId"]]) {
+    const snap = await FS._db.collection(col).where(field, "==", userId).get();
+    for (const doc of snap.docs) { batch.delete(doc.ref); count++; }
+  }
+  batch.delete(FS._db.collection("users").doc(userId));
+  await batch.commit();
+  return count;
+};
+
+FS.admin.getUserTransactionHistory = async (userId) => {
+  await FS.admin.requireAdmin();
+  const snap = await FS._db.collection("transactions").where("uid", "==", userId).get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((t) => t.status !== "void");
+};
+
+/* ---------- bin inventory (admin stock-keeping, separate from customer self-serve) ---------- */
+
+FS.admin.addInventory = async ({ snackId, quantity, note }) => {
+  await FS.admin.requireAdmin();
+  const qty = Number(quantity);
+  if (!snackId) throw new Error("Choose a snack.");
+  if (!qty || qty <= 0) throw new Error("Enter a quantity greater than zero.");
+  const id = FS.uid("fs_inv");
+  await FS._db.collection("inventory").doc(id).set({
+    entryId: id,
+    snackId,
+    quantity: qty,
+    note: (note || "").trim(),
+    createdBy: FS.admin.user.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+FS.admin.getInventorySnapshot = async () => {
+  await FS.admin.requireAdmin();
+  const [snacks, entries, transactions] = await Promise.all([
+    FS.getCatalog(true),
+    FS.admin.getCollection("inventory"),
+    FS.admin.getCollection("transactions"),
+  ]);
+  const activeTxns = transactions.filter((t) => t.status !== "void");
+
+  const bySnack = new Map(snacks.map((s) => [s.id, { snack: s, stocked: 0, sold: 0, revenue: 0 }]));
+  for (const e of entries) {
+    const row = bySnack.get(e.snackId);
+    if (row) row.stocked += Number(e.quantity || 0);
+  }
+  for (const t of activeTxns) {
+    const row = t.snackId && bySnack.get(t.snackId);
+    if (row) {
+      row.sold += Number(t.quantity || 0);
+      row.revenue += Number(t.total || 0);
+    }
+  }
+  const rows = [...bySnack.values()].map((r) => ({ ...r, remaining: r.stocked - r.sold }));
+  const totals = rows.reduce((acc, r) => ({
+    stocked: acc.stocked + r.stocked,
+    sold: acc.sold + r.sold,
+    remaining: acc.remaining + r.remaining,
+    revenue: acc.revenue + r.revenue,
+  }), { stocked: 0, sold: 0, remaining: 0, revenue: 0 });
+
+  return {
+    rows,
+    totals,
+    entries: entries.sort((a, b) => FS.admin.dateFromRecord(b, "createdAt").localeCompare(FS.admin.dateFromRecord(a, "createdAt"))),
+  };
+};
+
 FS.admin.saveSnack = async (snack) => {
   await FS.admin.requireAdmin();
   const id = snack.id || String(snack.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");

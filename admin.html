@@ -16,7 +16,7 @@
         </div>
         <div class="header-actions">
           <a class="btn" href="index.html">Profile page</a>
-          <a class="btn" href="bins.html">Bins page</a>
+          <a class="btn" href="inventory.html">Inventory</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -71,7 +71,13 @@
 
       <section class="card section-card">
         <h2>User accounting</h2>
+        <p class="muted-small" style="margin-bottom:10px;">
+          View shows a user's own listings below for approval/edits. Delete wipes a user's data
+          entirely (transactions, payments, adjustments, devices, profile) so their browser starts
+          completely fresh — use it to clear test guests, not real customers you want to keep.
+        </p>
         <div id="accounting-list"></div>
+        <div class="status" id="acct-status"></div>
       </section>
 
       <section class="card section-card">
@@ -137,7 +143,7 @@
       </section>
 
       <section class="card section-card">
-        <h2>Recent transactions</h2>
+        <div id="transaction-heading"><h2>Recent transactions</h2></div>
         <div id="transaction-list"></div>
       </section>
 
@@ -158,6 +164,7 @@
   <script src="js/firebase-admin.js"></script>
   <script>
     let SNAPSHOT = null;
+    let SELECTED_USER = null;
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -201,7 +208,11 @@
           <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
           <td class="num">${FS.money(r.balance, cur)}</td>
           <td>${esc(r.lastActivity || "-")}</td>
-          <td><button data-act="user-save">Save</button></td>
+          <td style="white-space:nowrap;">
+            <button data-act="user-save">Save</button>
+            <button data-act="user-view" title="Show this user's listings below">View</button>
+            <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
+          </td>
         </tr>`).join("")}</tbody>
       </table>`;
       $("payment-user").innerHTML = userOptions();
@@ -229,11 +240,14 @@
       const badge = (t) => t.userStatus
         ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
         : "";
-      const rows = [...SNAPSHOT.transactions]
+      const filtered = SELECTED_USER
+        ? SNAPSHOT.transactions.filter((t) => (t.userId || t.uid) === SELECTED_USER)
+        : SNAPSHOT.transactions;
+      const rows = [...filtered]
         .sort((a, b) =>
           (b.userStatus === "disputed") - (a.userStatus === "disputed")
           || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
-        .slice(0, 30)
+        .slice(0, SELECTED_USER ? filtered.length : 30)
         .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${esc(t.createdDate || "-")}</td>
           <td>${esc(byUser.get(t.userId || t.uid) || t.userId || t.deviceId || "-")}</td>
@@ -247,9 +261,16 @@
             <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
           </td>
         </tr>`).join("");
+      const heading = SELECTED_USER
+        ? `<div class="section-head"><h2>Listings — ${esc(byUser.get(SELECTED_USER) || SELECTED_USER)}</h2>
+           <button id="txn-clear-filter">Show all users</button></div>`
+        : `<h2>Recent transactions</h2>`;
+      $("transaction-heading").innerHTML = heading;
+      const clearBtn = $("txn-clear-filter");
+      if (clearBtn) clearBtn.onclick = () => { SELECTED_USER = null; renderTransactions(); };
       $("transaction-list").innerHTML = `<table class="admin-table">
         <thead><tr><th>Day</th><th>User</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows || `<tr><td colspan="7" class="muted-small">No listings for this user yet.</td></tr>`}</tbody>
       </table>
       <p class="muted-small">Disputed listings (flagged with &#10005; by the customer) sort to the top —
       Approve keeps them and clears the flag, Change edits them, Void removes them from the tab.</p>`;
@@ -411,6 +432,18 @@
             row.querySelector('[data-f="vipStatus"]').value
           );
           await refresh();
+        } else if (act === "user-view") {
+          SELECTED_USER = row.dataset.user;
+          renderTransactions();
+          $("transaction-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (act === "user-delete") {
+          const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
+          const balance = row.children[5].textContent;
+          if (!confirm(`Delete ALL data for "${name}" (balance ${balance})?\n\nThis wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`)) return;
+          const removed = await FS.admin.deleteUserData(row.dataset.user);
+          if (SELECTED_USER === row.dataset.user) SELECTED_USER = null;
+          await refresh();
+          status("acct-status", `Deleted ${removed} record(s) for ${name}.`, true);
         } else if (act === "txn-approve") {
           await FS.admin.resolveTransaction(row.dataset.id);
           await refresh();
@@ -434,7 +467,10 @@
           await refresh();
         }
       } catch (e) {
-        status(act.startsWith("snack") ? "cat-status" : "login-status", e.message, false);
+        const target = act.startsWith("snack") ? "cat-status"
+          : act.startsWith("user") ? "acct-status"
+          : "login-status";
+        status(target, e.message, false);
       }
     });
 

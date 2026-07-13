@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Inventory</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Bin Inventory</h1>
+          <p>Record what you've stocked in each bin and see what's sold, remaining, and earned.</p>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Admin dashboard</a>
+          <a class="btn" href="bins.html">Customer bins page &#8599;</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="inventory-app" class="hidden">
+      <section class="brand-card">
+        <div class="brand-grid">
+          <div>
+            <div class="brand-title">Inventory</div>
+            <div class="brand-subtitle" id="inv-subtitle">Stock, sales, and what's left per bin</div>
+          </div>
+          <div class="brand-stats">
+            <div class="stat-box balance-stat">
+              <div class="stat-label">Total stocked</div>
+              <div class="stat-value warm" id="dash-stocked">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Total sold</div>
+              <div class="stat-value green" id="dash-sold">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Remaining</div>
+              <div class="stat-value blue" id="dash-remaining">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Resolved sales</div>
+              <div class="stat-value" id="dash-revenue">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Add stock to a bin</h2>
+        <p class="note">
+          This only records what you've physically put in the bin — it never adds anything to a
+          customer's tab. Customers add to their own tab from the
+          <a href="bins.html">bins page</a> when they take a snack.
+        </p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="inv-snack">Snack / bin</label>
+            <select id="inv-snack"></select>
+          </div>
+          <div class="field">
+            <label for="inv-qty">Quantity added</label>
+            <input id="inv-qty" type="number" min="1" step="1" value="1" />
+          </div>
+          <div class="field">
+            <label for="inv-note">Note (optional)</label>
+            <input id="inv-note" type="text" placeholder="e.g. Costco run 12 Jul" />
+          </div>
+          <button class="primary" id="inv-add">Add stock</button>
+        </div>
+        <div class="status" id="inv-status"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Bin totals</h2>
+        <div id="inv-table"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Recent stock entries</h2>
+        <div id="inv-entries"></div>
+      </section>
+    </section>
+
+    <footer>Inventory is admin-only and separate from customer snack logging.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/firebase-admin.js"></script>
+  <script>
+    let SNAPSHOT = null;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    function render() {
+      const cur = SNAPSHOT.settings.currency;
+
+      $("inv-snack").innerHTML = SNAPSHOT.rows
+        .map((r) => `<option value="${esc(r.snack.id)}">${esc(r.snack.name)}</option>`).join("");
+
+      $("dash-stocked").textContent = SNAPSHOT.totals.stocked;
+      $("dash-sold").textContent = SNAPSHOT.totals.sold;
+      $("dash-remaining").textContent = SNAPSHOT.totals.remaining;
+      $("dash-revenue").textContent = FS.money(SNAPSHOT.totals.revenue, cur);
+
+      $("inv-table").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Bin / Snack</th><th class="num">Stocked</th><th class="num">Sold</th><th class="num">Remaining</th><th class="num-money">Resolved sales</th></tr></thead>
+        <tbody>${SNAPSHOT.rows.map((r) => `<tr${r.remaining < 0 ? ' class="disputed"' : ""}>
+          <td>${esc(r.snack.name)}</td>
+          <td class="num">${r.stocked}</td>
+          <td class="num">${r.sold}</td>
+          <td class="num">${r.remaining}${r.remaining < 0 ? ' <span class="muted-small">(over-logged)</span>' : ""}</td>
+          <td class="num-money">${FS.money(r.revenue, cur)}</td>
+        </tr>`).join("")}
+        <tr class="month-line">
+          <td>All bins</td>
+          <td class="num">${SNAPSHOT.totals.stocked}</td>
+          <td class="num">${SNAPSHOT.totals.sold}</td>
+          <td class="num">${SNAPSHOT.totals.remaining}</td>
+          <td class="num-money">${FS.money(SNAPSHOT.totals.revenue, cur)}</td>
+        </tr>
+        </tbody>
+      </table>`;
+
+      const byId = new Map(SNAPSHOT.rows.map((r) => [r.snack.id, r.snack.name]));
+      $("inv-entries").innerHTML = SNAPSHOT.entries.length
+        ? `<table class="admin-table">
+            <thead><tr><th>When</th><th>Bin / Snack</th><th class="num">Qty added</th><th>Note</th></tr></thead>
+            <tbody>${SNAPSHOT.entries.slice(0, 30).map((e) => `<tr>
+              <td>${esc(FS.admin.dateFromRecord(e, "createdAt") || "-")}</td>
+              <td>${esc(byId.get(e.snackId) || e.snackId)}</td>
+              <td class="num">${e.quantity}</td>
+              <td>${esc(e.note || "")}</td>
+            </tr>`).join("")}</tbody>
+          </table>`
+        : `<p class="muted-small">No stock entries yet.</p>`;
+    }
+
+    async function refresh() {
+      SNAPSHOT = await FS.admin.getInventorySnapshot();
+      $("login-panel").classList.add("hidden");
+      $("inventory-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      render();
+    }
+
+    $("google-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithGoogle();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("microsoft-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithMicrosoft();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("email-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("inventory-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    $("inv-add").onclick = async () => {
+      const btn = $("inv-add");
+      btn.disabled = true;
+      try {
+        await FS.admin.addInventory({
+          snackId: $("inv-snack").value,
+          quantity: $("inv-qty").value,
+          note: $("inv-note").value,
+        });
+        $("inv-note").value = "";
+        await refresh();
+        status("inv-status", "Stock added.", true);
+      } catch (e) {
+        status("inv-status", e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((admin) => { if (admin) return refresh(); })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>

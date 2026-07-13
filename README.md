@@ -10,7 +10,8 @@ and admin accounting.
 | [`index.html`](index.html) | Current user's tab, balance, favorite snack, and recent activity. |
 | [`bins.html`](bins.html) | Frictionless snack logging. Users sign in anonymously through Firebase Auth. |
 | [`invoice.html`](invoice.html) | Printable invoice. Print / Save PDF appears only here. |
-| [`admin.html`](admin.html) | Admin accounting, payments, adjustments, users/devices, snack catalog, and the feedback inbox. |
+| [`admin.html`](admin.html) | Admin accounting, payments, adjustments, users/devices (view listings / delete data), snack catalog, and the feedback inbox. |
+| [`inventory.html`](inventory.html) | Admin-only bin stock-keeping — log what's been restocked and see stocked/sold/remaining/revenue per bin. Never adds to a customer's tab. |
 | [`feedback.html`](feedback.html) | Friendly "more features coming soon" page with a simple feedback form; offers to save a name as a profile after submitting. |
 | [`privacy.html`](privacy.html) | Plain-language privacy policy. |
 
@@ -35,6 +36,7 @@ Firestore holds the private records:
 /adjustments/{adjustmentId}
 /admins/{uid}
 /feedback/{feedbackId}
+/inventory/{entryId}
 ```
 
 Browse and edit the live data in the Firebase console:
