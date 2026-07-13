@@ -1151,12 +1151,15 @@ textarea:focus {
   height: auto;
 }
 
-/* sits in the gap between the baked-in chevron marks, right below the QR box */
+/* sits in the gap between the baked-in chevron marks, right below the QR box.
+   transform: translateY nudges the text down 2px in all these overlays —
+   percentage-based vertical centering left them sitting a touch too high. */
 .invite-card-name {
   position: absolute;
   left: 29.37%;
   width: 41.53%;
   top: 66.8%;
+  transform: translateY(2px);
   /* text-align (not flex) for centering: flex splits "For " and the
      <span> into separate anonymous items and collapses the space
      between them */
@@ -1179,6 +1182,7 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: translateY(2px);
   margin: 0;
   color: var(--muted);
   font-size: 2.9cqw;
@@ -1193,6 +1197,7 @@ textarea:focus {
   height: 6.56%;
   display: flex;
   align-items: center;
+  transform: translateY(2px);
   color: var(--green-dark);
   font-weight: 700;
   font-size: 3.4cqw;
@@ -1215,7 +1220,7 @@ textarea:focus {
   background: transparent;
   color: var(--green-dark);
   font-size: 3cqw;
-  padding: 0 8cqw 0 3cqw;
+  padding: 2px 8cqw 0 3cqw;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1226,7 +1231,7 @@ textarea:focus {
   position: absolute;
   right: 2%;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(calc(-50% + 2px));
   width: 6cqw;
   height: 6cqw;
   min-width: 20px;
@@ -1252,6 +1257,7 @@ textarea:focus {
   top: 88.61%;
   width: 19.34%;
   height: 6.9%;
+  transform: translateY(2px);
   border: none;
   background: transparent;
   color: var(--green-dark);
@@ -1269,6 +1275,7 @@ textarea:focus {
   top: 88.67%;
   width: 35.91%;
   height: 6.84%;
+  transform: translateY(2px);
   display: flex;
   align-items: center;
   justify-content: center;

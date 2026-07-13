@@ -182,7 +182,7 @@
         </button>
       </div>
 
-      <canvas id="invite-canvas" width="543" height="724" class="hidden" aria-hidden="true"></canvas>
+      <canvas id="invite-canvas" width="543" height="794" class="hidden" aria-hidden="true"></canvas>
 
       <div class="status" id="invite-modal-status"></div>
     </div>
@@ -283,9 +283,11 @@
       const canvas = $("invite-canvas");
       const ctx = canvas.getContext("2d");
       const W = canvas.width, H = canvas.height;
+      const FRAME_H = 724;
+      const NUDGE = 2; // small downward nudge so text doesn't sit too high in its panel
 
       ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(frameImg, 0, 0, W, H);
+      ctx.drawImage(frameImg, 0, 0, W, FRAME_H);
       ctx.textAlign = "center";
 
       // QR, centered in the frame's reserved box (kept visibly smaller than
@@ -303,21 +305,21 @@
       // space below the chevrons is tight (not meant to wrap).
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 16px Arial, Helvetica, sans-serif";
-      ctx.fillText(`For ${name}`, (NAME_ZONE.left + NAME_ZONE.right) / 2, (NAME_ZONE.top + NAME_ZONE.bottom) / 2 + 5);
+      ctx.fillText(`For ${name}`, (NAME_ZONE.left + NAME_ZONE.right) / 2, (NAME_ZONE.top + NAME_ZONE.bottom) / 2 + 5 + NUDGE);
       ctx.fillStyle = "#66736a";
       ctx.font = "400 11px Arial, Helvetica, sans-serif";
-      ctx.fillText("Up to 3 devices per tab", qrBoxCenterX, (NOTE_ZONE.top + NOTE_ZONE.bottom) / 2 + 4);
+      ctx.fillText("Up to 3 devices per tab", qrBoxCenterX, (NOTE_ZONE.top + NOTE_ZONE.bottom) / 2 + 4 + NUDGE);
 
       // "Invite link" label, left-aligned above the link field
       ctx.textAlign = "left";
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 13px Arial, Helvetica, sans-serif";
-      ctx.fillText("Invite link", LABEL_BAND.left + 4, (LABEL_BAND.top + LABEL_BAND.bottom) / 2 + 5);
+      ctx.fillText("Invite link", LABEL_BAND.left + 4, (LABEL_BAND.top + LABEL_BAND.bottom) / 2 + 5 + NUDGE);
 
       // link text (left-aligned, room reserved for the copy icon on the right)
       ctx.fillStyle = "#184f2a";
       ctx.font = "400 12px Arial, Helvetica, sans-serif";
-      const linkBoxCenterY = (LINK_BOX.top + LINK_BOX.bottom) / 2 + 4;
+      const linkBoxCenterY = (LINK_BOX.top + LINK_BOX.bottom) / 2 + 4 + NUDGE;
       const linkTextMaxWidth = (LINK_BOX.right - LINK_BOX.left) - 46;
       ctx.fillText(fitText(ctx, url, linkTextMaxWidth), LINK_BOX.left + 14, linkBoxCenterY);
       drawCopyIcon(ctx, LINK_BOX.right - 32, linkBoxCenterY - 12, 18, "#2f7a44");
@@ -327,7 +329,7 @@
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 15px Arial, Helvetica, sans-serif";
       const closeBoxCenterX = (CLOSE_BOX.left + CLOSE_BOX.right) / 2;
-      const closeBoxCenterY = (CLOSE_BOX.top + CLOSE_BOX.bottom) / 2 + 5;
+      const closeBoxCenterY = (CLOSE_BOX.top + CLOSE_BOX.bottom) / 2 + 5 + NUDGE;
       ctx.fillText("Close", closeBoxCenterX, closeBoxCenterY);
 
       // Copy to share button (dark box, white text + icon)
@@ -335,13 +337,37 @@
       ctx.font = "700 14px Arial, Helvetica, sans-serif";
       const btnLabel = "Copy to share";
       const copyBoxCenterX = (COPY_BOX.left + COPY_BOX.right) / 2;
-      const copyBoxCenterY = (COPY_BOX.top + COPY_BOX.bottom) / 2 + 5;
+      const copyBoxCenterY = (COPY_BOX.top + COPY_BOX.bottom) / 2 + 5 + NUDGE;
       const btnLabelWidth = ctx.measureText(btnLabel).width;
       const iconGap = 7, iconSize = 15;
       const groupWidth = btnLabelWidth + iconGap + iconSize;
       const textX = copyBoxCenterX - groupWidth / 2 + btnLabelWidth / 2;
       ctx.fillText(btnLabel, textX, copyBoxCenterY);
       drawCopyIcon(ctx, copyBoxCenterX + groupWidth / 2 - iconSize, copyBoxCenterY - iconSize + 3, iconSize, "#ffffff");
+
+      // Plain-text copy of the link below the card graphic, so whatever
+      // paste behavior a chat app uses, the raw URL is visibly readable
+      // as part of the same image (not just embedded in the QR/small field).
+      const bandY = FRAME_H;
+      const bandH = H - FRAME_H;
+      ctx.fillStyle = "#f4faf3";
+      ctx.fillRect(0, bandY, W, bandH);
+      ctx.strokeStyle = "rgba(24,79,42,0.14)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, bandY + 0.5);
+      ctx.lineTo(W, bandY + 0.5);
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#184f2a";
+      let urlFontSize = 15;
+      ctx.font = `600 ${urlFontSize}px Arial, Helvetica, sans-serif`;
+      while (ctx.measureText(url).width > W - 24 && urlFontSize > 9) {
+        urlFontSize -= 1;
+        ctx.font = `600 ${urlFontSize}px Arial, Helvetica, sans-serif`;
+      }
+      ctx.fillText(url, W / 2, bandY + bandH / 2 + 5 + NUDGE);
 
       inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     }
