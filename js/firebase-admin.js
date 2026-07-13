@@ -195,6 +195,35 @@ FS.admin.createLinkInvite = async (userId) => {
   return code;
 };
 
+/* Linked devices for a profile, with a friendly label/last-seen pulled from
+ * each device's own devices/{deviceId} doc (devices are keyed by deviceId,
+ * not uid, so this needs a small lookup per linked uid — capped at 3). */
+FS.admin.getLinkedDevicesInfo = async (userId) => {
+  await FS.admin.requireAdmin();
+  const userSnap = await FS._db.collection("users").doc(userId).get();
+  const linkedUids = userSnap.exists ? (userSnap.data().linkedUids || []) : [];
+  const info = await Promise.all(linkedUids.map(async (uid) => {
+    const snap = await FS._db.collection("devices").where("uid", "==", uid).limit(1).get();
+    const device = snap.empty ? null : snap.docs[0].data();
+    return {
+      uid,
+      deviceLabel: device?.deviceLabel || "Unknown device",
+      lastSeenDate: device ? FS.admin.dateFromRecord(device, "lastSeenAt") : "",
+    };
+  }));
+  return info;
+};
+
+/* Admin-side unlink: removes one device's uid from a profile's linkedUids.
+ * Useful for handing a profile off cleanly (e.g. removing the admin's own
+ * test device before sharing the invite with the real customer). */
+FS.admin.unlinkUserDevice = async (userId, deviceUid) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("users").doc(userId).update({
+    linkedUids: firebase.firestore.FieldValue.arrayRemove(deviceUid),
+  });
+};
+
 FS.admin.addPayment = async ({ userId, amount, note }) => {
   await FS.admin.requireAdmin();
   const paymentId = FS.uid("fs_pay");

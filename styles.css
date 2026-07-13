@@ -1098,6 +1098,64 @@ textarea:focus {
 .status.ok { color: var(--green); }
 .status.err { color: #8a2f2f; }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ---- invite card (compact, no-scroll, branded) ---- */
+
+.invite-modal {
+  width: min(320px, 100%);
+  padding: 18px;
+}
+
+.invite-card-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.invite-card-wrap canvas {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.invite-link-field {
+  margin-bottom: 4px;
+}
+
+.invite-link-field input {
+  font-size: 12px;
+}
+
+/* ---- linked devices list ---- */
+
+.device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--green-soft);
+  margin-bottom: 8px;
+}
+
+.device-row-label {
+  font-weight: 600;
+  color: var(--green-dark);
+  font-size: 14px;
+}
+
 .admin-table {
   width: 100%;
   border-collapse: separate;

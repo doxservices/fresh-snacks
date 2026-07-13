@@ -157,22 +157,33 @@
   </main>
 
   <div class="modal-backdrop" id="invite-modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+    <div class="modal invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
       <button type="button" class="modal-close" id="invite-modal-close" aria-label="Close">&times;</button>
-      <h2 id="invite-modal-title">Device-link invite</h2>
-      <p class="muted-small" style="margin-bottom:14px;">
-        Share this link or QR code with the customer. Anyone who opens it can link that browser as a
-        full member of this tab — up to 3 devices total.
-      </p>
-      <div id="invite-qr" style="display:flex; justify-content:center; margin-bottom:14px;"></div>
-      <div class="field wide">
+      <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
+      <div class="invite-card-wrap">
+        <canvas id="invite-canvas" width="480" height="500"></canvas>
+      </div>
+      <div class="field wide invite-link-field">
         <label for="invite-link-url">Invite link</label>
         <input id="invite-link-url" type="text" readonly />
       </div>
       <div class="status" id="invite-modal-status"></div>
       <div class="modal-actions">
-        <button type="button" id="invite-modal-done">Done</button>
-        <button type="button" class="primary" id="invite-copy-link">Copy link</button>
+        <button type="button" id="invite-modal-done">Close</button>
+        <button type="button" class="primary" id="invite-copy-link">Copy to share</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="devices-modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="devices-modal-title">
+      <button type="button" class="modal-close" id="devices-modal-close" aria-label="Close">&times;</button>
+      <h2 id="devices-modal-title">Linked devices</h2>
+      <p class="muted-small" id="devices-modal-sub" style="margin-bottom:14px;"></p>
+      <div id="devices-list"></div>
+      <div class="status" id="devices-modal-status"></div>
+      <div class="modal-actions">
+        <button type="button" id="devices-modal-done">Done</button>
       </div>
     </div>
   </div>
@@ -204,15 +215,151 @@
     $("invite-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
     });
+
+    /* Draws a small branded "invite card" (QR + wordmark + customer name)
+     * onto the modal's canvas — this is both what the admin sees and, via
+     * canvas.toBlob(), the exact image copied to the clipboard. */
+    async function drawInviteCard(url, name) {
+      const canvas = $("invite-canvas");
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width, H = canvas.height;
+
+      ctx.clearRect(0, 0, W, H);
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#184f2a");
+      bg.addColorStop(1, "#2f7a44");
+      ctx.fillStyle = bg;
+      roundRectPath(ctx, 0, 0, W, H, 22);
+      ctx.fill();
+
+      // inner white card
+      const pad = 22;
+      const cardY = 92, cardH = H - cardY - pad;
+      ctx.fillStyle = "rgba(255,255,255,0.96)";
+      roundRectPath(ctx, pad, cardY, W - pad * 2, cardH, 16);
+      ctx.fill();
+
+      // header wordmark
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "700 30px Arial, Helvetica, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("🥨 Fresh Snacks", W / 2, 46);
+      ctx.font = "400 16px Arial, Helvetica, sans-serif";
+      ctx.fillStyle = "rgba(255,255,255,0.88)";
+      ctx.fillText("Device-link invite", W / 2, 70);
+
+      // QR, drawn from the vendored qrcode-generator SVG onto the canvas
+      const qr = qrcode(0, "M");
+      qr.addData(url);
+      qr.make();
+      const svgMarkup = qr.createSvgTag({ cellSize: 6, margin: 0 });
+      const qrImg = await svgToImage(svgMarkup);
+      const qrSize = cardH - 96;
+      const qrX = (W - qrSize) / 2;
+      const qrY = cardY + 16;
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+      // customer name + footer note, inside the white card
+      ctx.fillStyle = "#184f2a";
+      ctx.font = "700 20px Arial, Helvetica, sans-serif";
+      ctx.fillText(`For ${name}`, W / 2, qrY + qrSize + 34);
+      ctx.fillStyle = "#66736a";
+      ctx.font = "400 14px Arial, Helvetica, sans-serif";
+      ctx.fillText("Scan to link this device — up to 3 devices per tab", W / 2, qrY + qrSize + 56);
+    }
+
+    function roundRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function svgToImage(svgMarkup) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = "data:image/svg+xml;base64," + btoa(svgMarkup);
+      });
+    }
+
     $("invite-copy-link").onclick = async () => {
+      const url = $("invite-link-url").value;
       try {
-        await navigator.clipboard.writeText($("invite-link-url").value);
-        status("invite-modal-status", "Link copied.", true);
+        if (window.ClipboardItem && navigator.clipboard.write) {
+          const blob = await new Promise((resolve) => $("invite-canvas").toBlob(resolve, "image/png"));
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "image/png": blob,
+              "text/plain": new Blob([url], { type: "text/plain" }),
+            }),
+          ]);
+          status("invite-modal-status", "Copied! Paste the card and link into your chat. 🎉", true);
+        } else {
+          await navigator.clipboard.writeText(url);
+          status("invite-modal-status", "Link copied (image copy isn't supported in this browser).", true);
+        }
       } catch (e) {
-        $("invite-link-url").select();
-        status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
+        try {
+          await navigator.clipboard.writeText(url);
+          status("invite-modal-status", "Link copied as text (image copy was blocked).", true);
+        } catch (e2) {
+          $("invite-link-url").select();
+          status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
+        }
       }
     };
+
+    const closeDevicesModal = () => $("devices-modal-backdrop").classList.remove("show");
+    $("devices-modal-close").onclick = closeDevicesModal;
+    $("devices-modal-done").onclick = closeDevicesModal;
+    $("devices-modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $("devices-modal-backdrop")) closeDevicesModal();
+    });
+
+    async function openDevicesModal(userId, name) {
+      $("devices-modal-title").textContent = `Linked devices — ${name}`;
+      $("devices-modal-status").textContent = "";
+      $("devices-list").innerHTML = `<p class="muted-small">Loading…</p>`;
+      $("devices-modal-backdrop").classList.add("show");
+      await renderDevicesList(userId, name);
+    }
+
+    async function renderDevicesList(userId, name) {
+      const devices = await FS.admin.getLinkedDevicesInfo(userId);
+      $("devices-modal-sub").textContent = `${devices.length}/3 devices linked to this tab.`;
+      if (!devices.length) {
+        $("devices-list").innerHTML = `<p class="muted-small">No devices linked yet — share an invite to link one.</p>`;
+        return;
+      }
+      $("devices-list").innerHTML = devices.map((d) => `
+        <div class="device-row" data-uid="${esc(d.uid)}">
+          <div>
+            <div class="device-row-label">${esc(d.deviceLabel)}</div>
+            <div class="muted-small">${d.lastSeenDate ? `Last seen ${esc(d.lastSeenDate)}` : "Last seen unknown"}</div>
+          </div>
+          <button class="danger" data-unlink="${esc(d.uid)}">Unlink</button>
+        </div>
+      `).join("");
+      $("devices-list").querySelectorAll("[data-unlink]").forEach((btn) => {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            await FS.admin.unlinkUserDevice(userId, btn.dataset.unlink);
+            await renderDevicesList(userId, name);
+            await refresh();
+            status("devices-modal-status", "Device unlinked.", true);
+          } catch (e) {
+            btn.disabled = false;
+            status("devices-modal-status", e.message, false);
+          }
+        };
+      });
+    }
 
     function userOptions() {
       return SNAPSHOT.accounting.map((r) =>
@@ -249,7 +396,8 @@
           <td style="white-space:nowrap;">
             <button data-act="user-save">Save</button>
             <button data-act="user-view" title="Show this user's listings below">View</button>
-            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
+            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite</button>
+            <button data-act="user-devices" title="View and unlink this profile's devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
             <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
           </td>
         </tr>`).join("")}</tbody>
@@ -480,17 +628,24 @@
         } else if (act === "user-invite") {
           btn.disabled = true;
           try {
+            const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
             const code = await FS.admin.createLinkInvite(row.dataset.user);
             const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
             $("invite-link-url").value = url;
             $("invite-modal-status").textContent = "";
-            const qr = qrcode(0, "M");
-            qr.addData(url);
-            qr.make();
-            $("invite-qr").innerHTML = qr.createSvgTag({ cellSize: 5, margin: 0, scalable: true });
+            await drawInviteCard(url, name);
             $("invite-modal-backdrop").classList.add("show");
           } catch (e) {
             alert("Could not create invite: " + e.message);
+          } finally {
+            btn.disabled = false;
+          }
+        } else if (act === "user-devices") {
+          btn.disabled = true;
+          try {
+            await openDevicesModal(row.dataset.user, row.querySelector('[data-f="displayName"]').value.trim() || "Guest");
+          } catch (e) {
+            alert("Could not load devices: " + e.message);
           } finally {
             btn.disabled = false;
           }
