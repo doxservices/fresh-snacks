@@ -71,6 +71,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/firebase-admin.js"></script>
+  <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -217,13 +218,16 @@
           await FS.admin.resolveTransaction(row.dataset.id);
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
-          if (qty === null) return;
-          const total = prompt("Total value:", t ? t.total || 0 : 0);
-          if (total === null) return;
-          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
+          const result = await AdminModals.editListing({ quantity: t ? t.quantity || 1 : 1, total: t ? t.total || 0 : 0 });
+          if (!result) return;
+          await FS.admin.updateTransaction(row.dataset.id, result);
         } else if (act === "txn-void") {
-          if (!confirm("Void this listing? It disappears from the customer's tab and totals.")) return;
+          const ok = await AdminModals.confirm(
+            "Void this listing?",
+            "It disappears from the customer's tab and totals.",
+            { confirmText: "Void", danger: true }
+          );
+          if (!ok) return;
           await FS.admin.voidTransaction(row.dataset.id);
         } else {
           return;
@@ -233,7 +237,7 @@
         document.querySelectorAll("#txn-groups details").forEach((d) =>
           d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
       } catch (e) {
-        alert(e.message);
+        await AdminModals.alert("Something went wrong", e.message);
       }
     });
 

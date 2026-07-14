@@ -91,7 +91,6 @@
               <option value="named">named</option>
               <option value="vip">vip</option>
               <option value="legacy">legacy</option>
-              <option value="blocked">blocked</option>
             </select>
           </div>
           <button class="primary" id="profile-save">Save profile</button>
@@ -179,7 +178,7 @@
         <div class="invite-card-gap">
           <p class="invite-card-name" data-diag="name">
             <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
-            For <span id="invite-card-person">Guest</span>
+            Invite for '<span id="invite-card-person">Guest</span>'
             <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
           </p>
           <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
@@ -228,6 +227,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/firebase-admin.js"></script>
+  <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
     const picked = new Map();
@@ -289,11 +289,10 @@
       return whiskerImgCache[src];
     }
 
-    async function drawInviteCard(url, name, vipStatus) {
+    async function drawInviteCard(url, name) {
       inviteCardBlob = null;
       inviteCardDataUrl = null;
-      const personLabel = vipStatus === "vip" && !/^vip\b/i.test(name) ? `VIP ${name}` : name;
-      $("invite-card-person").textContent = personLabel;
+      $("invite-card-person").textContent = name;
 
       const qr = qrcode(0, "M");
       qr.addData(url);
@@ -328,7 +327,7 @@
 
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      const nameLabel = `For ${personLabel}`;
+      const nameLabel = `Invite for '${name}'`;
       const nameWidth = ctx.measureText(nameLabel).width;
       const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
       const whiskerGap = 8;
@@ -544,15 +543,14 @@
       btn.disabled = true;
       try {
         const name = $("profile-name").value.trim() || "Guest";
-        const vipStatus = $("profile-vip").value;
         const code = await FS.admin.createLinkInvite(TARGET_USER_ID);
         const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
         $("invite-link-url").value = url;
         $("invite-modal-status").textContent = "";
-        await drawInviteCard(url, name, vipStatus);
+        await drawInviteCard(url, name);
         $("invite-modal-backdrop").classList.add("show");
       } catch (e) {
-        alert("Could not create invite: " + e.message);
+        await AdminModals.alert("Could not create invite", e.message);
       } finally {
         btn.disabled = false;
       }
@@ -564,7 +562,7 @@
       try {
         await openDevicesModal(TARGET_USER_ID, $("profile-name").value.trim() || "Guest");
       } catch (e) {
-        alert("Could not load devices: " + e.message);
+        await AdminModals.alert("Could not load devices", e.message);
       } finally {
         btn.disabled = false;
       }
@@ -632,7 +630,8 @@
       if (!items.length) return;
 
       const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
-      if (!confirm(`Add ${summary} (${FS.money(binsTotal(), cur)}) to this tab?`)) return;
+      const ok = await AdminModals.confirm("Add to this tab?", `${summary} — ${FS.money(binsTotal(), cur)}`, { confirmText: "Add" });
+      if (!ok) return;
 
       $("bins-submit").disabled = true;
       status("bins-status", "Adding...", true);
@@ -720,6 +719,21 @@
       }
     };
 
+    // "Guest XXXX" (FS.randomCode's format) or blank counts as never having
+    // been given a real name - only then does picking VIP auto-fill the
+    // standard "VIP Customer" label; an intentionally-named customer keeps
+    // their own name.
+    function isDefaultGuestName(name) {
+      const n = (name || "").trim();
+      return !n || /^guest\s+[a-z0-9]{4}$/i.test(n) || n.toLowerCase() === "new guest";
+    }
+
+    $("profile-vip").addEventListener("change", () => {
+      if ($("profile-vip").value === "vip" && isDefaultGuestName($("profile-name").value)) {
+        $("profile-name").value = "VIP Customer";
+      }
+    });
+
     $("payment-add").onclick = async () => {
       try {
         await FS.admin.addPayment({
@@ -763,19 +777,22 @@
           await refresh();
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
-          if (qty === null) return;
-          const total = prompt("Total value:", t ? t.total || 0 : 0);
-          if (total === null) return;
-          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
+          const result = await AdminModals.editListing({ quantity: t ? t.quantity || 1 : 1, total: t ? t.total || 0 : 0 });
+          if (!result) return;
+          await FS.admin.updateTransaction(row.dataset.id, result);
           await refresh();
         } else if (act === "txn-void") {
-          if (!confirm("Void this listing? It disappears from the tab and totals.")) return;
+          const ok = await AdminModals.confirm(
+            "Void this listing?",
+            "It disappears from the tab and totals.",
+            { confirmText: "Void", danger: true }
+          );
+          if (!ok) return;
           await FS.admin.voidTransaction(row.dataset.id);
           await refresh();
         }
       } catch (e) {
-        alert(e.message);
+        await AdminModals.alert("Something went wrong", e.message);
       }
     });
 

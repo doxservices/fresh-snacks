@@ -25,6 +25,7 @@
       <div class="status" id="link-invite-status"></div>
     </section>
 
+    <div id="page-body">
     <section class="brand-card">
       <div class="brand-grid">
         <div class="avatar" aria-hidden="true">
@@ -194,6 +195,7 @@
     <footer>
       Thank you.
     </footer>
+    </div>
   </main>
 
   <div class="modal-backdrop" id="device-start-backdrop">
@@ -633,11 +635,6 @@
 
     const linkCode = FS.getLinkCode();
     const alreadyLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
-    if (linkCode && !alreadyLinkedTo) {
-      $id("link-invite-card").classList.remove("hidden");
-    } else if (linkCode && alreadyLinkedTo) {
-      FS.clearLinkCode();
-    }
 
     // First-run gate for a brand-new device with no invite code (e.g. the
     // "Tell a Friend" QR): require a deliberate tap before the tab UI
@@ -680,6 +677,8 @@
     $id("link-invite-no").onclick = () => {
       FS.clearLinkCode();
       $id("link-invite-card").classList.add("hidden");
+      $id("page-body").classList.remove("hidden");
+      startTabFlow();
     };
 
     $id("us-save").onclick = async () => {
@@ -702,29 +701,48 @@
       }
     };
 
-    FS.loadData()
-      .then((data) => {
-        CLAIM = data.claim || null;
-        LAST_DATA = data;
+    // Loads/renders this browser's own effective tab. Deferred until any
+    // pending invite decision is resolved (see below) - calling
+    // FS.loadData() unconditionally used to silently sign this browser in
+    // anonymously and provision its OWN separate guest device/profile the
+    // instant the page loaded, even before the visitor chose to link to the
+    // shared tab the invite actually pointed at.
+    function startTabFlow() {
+      FS.loadData()
+        .then((data) => {
+          CLAIM = data.claim || null;
+          LAST_DATA = data;
 
-        if (data.entries.length > 0 && !deviceStarted()) markDeviceStarted();
-        if (!linkCode && !deviceStarted()) {
-          $id("device-start-backdrop").classList.add("show");
-        }
+          if (data.entries.length > 0 && !deviceStarted()) markDeviceStarted();
+          if (!linkCode && !deviceStarted()) {
+            $id("device-start-backdrop").classList.add("show");
+          }
 
-        render(data);
-        return FS.getMyProfile();
-      })
-      .then(renderUserSettings)
-      .catch((e) => {
-        if (String(e.message).includes("Firebase is not configured")) {
-          FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
-          document.getElementById("log").innerHTML = "";
-        } else {
-          document.getElementById("log").innerHTML =
-            `<p class="status err">Could not load snack data: ${esc(e.message)}</p>`;
-        }
-      });
+          render(data);
+          return FS.getMyProfile();
+        })
+        .then(renderUserSettings)
+        .catch((e) => {
+          if (String(e.message).includes("Firebase is not configured")) {
+            FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
+            document.getElementById("log").innerHTML = "";
+          } else {
+            document.getElementById("log").innerHTML =
+              `<p class="status err">Could not load snack data: ${esc(e.message)}</p>`;
+          }
+        });
+    }
+
+    if (linkCode && !alreadyLinkedTo) {
+      // Hold everything else back - no anonymous sign-in, no device/guest
+      // profile created - until the visitor actually decides whether to
+      // link this browser to the shared tab the invite points at.
+      $id("link-invite-card").classList.remove("hidden");
+      $id("page-body").classList.add("hidden");
+    } else {
+      if (linkCode && alreadyLinkedTo) FS.clearLinkCode();
+      startTabFlow();
+    }
   </script>
 </body>
 </html>

@@ -82,7 +82,7 @@
         <div class="invite-card-gap">
           <p class="invite-card-name" data-diag="name">
             <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
-            For <span id="invite-card-person">Guest</span>
+            Invite for '<span id="invite-card-person">Guest</span>'
             <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
           </p>
           <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
@@ -131,6 +131,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/firebase-admin.js"></script>
+  <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -215,11 +216,10 @@
      * a hidden export canvas — that's what canvas.toBlob() copies to the
      * clipboard, since there's no dependency-free way to rasterize the
      * live DOM card. */
-    async function drawInviteCard(url, name, vipStatus) {
+    async function drawInviteCard(url, name) {
       inviteCardBlob = null;
       inviteCardDataUrl = null;
-      const personLabel = vipStatus === "vip" && !/^vip\b/i.test(name) ? `VIP ${name}` : name;
-      $("invite-card-person").textContent = personLabel;
+      $("invite-card-person").textContent = name;
 
       const qr = qrcode(0, "M");
       qr.addData(url);
@@ -260,7 +260,7 @@
       // percentage layout as the on-screen CSS.
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      const nameLabel = `For ${personLabel}`;
+      const nameLabel = `Invite for '${name}'`;
       const nameWidth = ctx.measureText(nameLabel).width;
       const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
       const whiskerGap = 8;
@@ -499,7 +499,7 @@
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
           <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
           <td><select data-f="vipStatus">
-            ${["anonymous", "vip", "legacy", "blocked"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
+            ${["anonymous", "vip", "legacy"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
           </select></td>
           <td class="num">${FS.money(r.snackTotal, cur)}</td>
           <td class="num">${FS.money(r.paidTotal, cur)}</td>
@@ -584,6 +584,22 @@
       }
     };
 
+    // "Guest XXXX" (FS.randomCode's format) or blank counts as never having
+    // been given a real name - only then does picking VIP auto-fill the
+    // standard "VIP Customer" label; an intentionally-named customer keeps
+    // their own name.
+    function isDefaultGuestName(name) {
+      const n = (name || "").trim();
+      return !n || /^guest\s+[a-z0-9]{4}$/i.test(n) || n.toLowerCase() === "new guest";
+    }
+
+    document.body.addEventListener("change", (ev) => {
+      const sel = ev.target.closest('select[data-f="vipStatus"]');
+      if (!sel || sel.value !== "vip") return;
+      const nameInput = sel.closest("tr").querySelector('[data-f="displayName"]');
+      if (isDefaultGuestName(nameInput.value)) nameInput.value = "VIP Customer";
+    });
+
     document.body.addEventListener("click", (ev) => {
       const toggle = ev.target.closest("[data-menu-toggle]");
       if (toggle) {
@@ -625,15 +641,14 @@
           btn.disabled = true;
           try {
             const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
-            const vipStatus = row.querySelector('[data-f="vipStatus"]').value;
             const code = await FS.admin.createLinkInvite(row.dataset.user);
             const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
             $("invite-link-url").value = url;
             $("invite-modal-status").textContent = "";
-            await drawInviteCard(url, name, vipStatus);
+            await drawInviteCard(url, name);
             $("invite-modal-backdrop").classList.add("show");
           } catch (e) {
-            alert("Could not create invite: " + e.message);
+            await AdminModals.alert("Could not create invite", e.message);
           } finally {
             btn.disabled = false;
           }
@@ -642,14 +657,19 @@
           try {
             await openDevicesModal(row.dataset.user, row.querySelector('[data-f="displayName"]').value.trim() || "Guest");
           } catch (e) {
-            alert("Could not load devices: " + e.message);
+            await AdminModals.alert("Could not load devices", e.message);
           } finally {
             btn.disabled = false;
           }
         } else if (act === "user-delete") {
           const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
           const balance = row.children[5].textContent;
-          if (!confirm(`Delete ALL data for "${name}" (balance ${balance})?\n\nThis wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`)) return;
+          const ok = await AdminModals.confirm(
+            `Delete all data for "${name}"?`,
+            `Balance ${balance}. This wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`,
+            { confirmText: "Delete", danger: true }
+          );
+          if (!ok) return;
           const removed = await FS.admin.deleteUserData(row.dataset.user);
           await refresh();
           status("acct-status", `Deleted ${removed} record(s) for ${name}.`, true);
