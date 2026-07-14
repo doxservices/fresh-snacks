@@ -13,16 +13,15 @@
     <div id="firebase-auth-prompt"></div>
 
     <section class="card section-card link-invite-card hidden" id="link-invite-card">
-      <h2>Link this browser?</h2>
-      <p class="muted-small" style="margin-bottom:12px;">
-        Someone shared a tab invite with this browser. Linking makes this device a full member of that
-        tab (up to 3 devices can share one tab) — you'll see and log snacks here just like the original device.
+      <h2 id="link-invite-title">Connecting your tab…</h2>
+      <p class="muted-small" id="link-invite-note" style="margin-bottom:12px;">
+        This invite links your device to that snack tab (up to 3 devices can share one tab) — you'll
+        see and log snacks here just like the original device.
       </p>
-      <div class="row">
-        <button class="primary" id="link-invite-yes">Link this device</button>
-        <button id="link-invite-no">Not now</button>
-      </div>
       <div class="status" id="link-invite-status"></div>
+      <div class="row hidden" id="link-invite-fallback-row">
+        <button id="link-invite-continue">Continue without linking</button>
+      </div>
     </section>
 
     <div id="page-body">
@@ -621,28 +620,33 @@
     const linkCode = FS.getLinkCode();
     const alreadyLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
 
-    $id("link-invite-yes").onclick = async () => {
-      const btn = $id("link-invite-yes");
-      btn.disabled = true;
-      const st = $id("link-invite-status");
-      st.textContent = "Linking…";
-      st.className = "status ok";
-      try {
-        await FS.acceptLinkInvite();
-        st.textContent = "Linked! Reloading…";
-        location.reload();
-      } catch (e) {
-        st.textContent = e.message;
-        st.className = "status err";
-        btn.disabled = false;
-      }
-    };
-    $id("link-invite-no").onclick = () => {
+    $id("link-invite-continue").onclick = () => {
       FS.clearLinkCode();
       $id("link-invite-card").classList.add("hidden");
       $id("page-body").classList.remove("hidden");
       startTabFlow();
     };
+
+    // An invite link is a direct hand-off, not a public URL someone might
+    // stumble onto - so opening it links this device and shows that tab's
+    // data right away, with no separate confirmation click in between.
+    async function autoAcceptLink() {
+      const st = $id("link-invite-status");
+      st.textContent = "Linking your device…";
+      st.className = "status ok";
+      try {
+        await FS.acceptLinkInvite();
+        $id("link-invite-card").classList.add("hidden");
+        $id("page-body").classList.remove("hidden");
+        startTabFlow();
+      } catch (e) {
+        $id("link-invite-title").textContent = "Couldn't link this device";
+        $id("link-invite-note").textContent = "";
+        st.textContent = e.message;
+        st.className = "status err";
+        $id("link-invite-fallback-row").classList.remove("hidden");
+      }
+    }
 
     $id("us-save").onclick = async () => {
       const st = $id("us-status");
@@ -691,11 +695,12 @@
     }
 
     if (linkCode && !alreadyLinkedTo) {
-      // Hold everything else back - no anonymous sign-in, no device/guest
-      // profile created - until the visitor actually decides whether to
-      // link this browser to the shared tab the invite points at.
+      // Hold the tab UI back until linking finishes (or fails) - no
+      // separate confirmation click, the invite link itself is the
+      // deliberate hand-off.
       $id("link-invite-card").classList.remove("hidden");
       $id("page-body").classList.add("hidden");
+      autoAcceptLink();
     } else {
       if (linkCode && alreadyLinkedTo) FS.clearLinkCode();
       startTabFlow();
