@@ -201,6 +201,21 @@ button:disabled {
   border: 1px solid rgba(47, 122, 68, 0.2);
 }
 
+/* Fresh Snacks wordmark badge, linked back to the tab page from every
+   header — unlike .header-logo (a circular profile-icon crop), this is
+   the actual badge artwork so it must not be clipped to a circle. */
+.brand-logo-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.brand-logo {
+  width: 40px;
+  height: auto;
+  display: block;
+}
+
 /* ---- top banner ---- */
 
 header.banner {

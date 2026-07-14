@@ -57,6 +57,26 @@
       </div>
     </section>
 
+    <section class="card section-card">
+      <h2>Snack now, pay later</h2>
+      <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
+      <div class="bin-grid" id="bins">
+        <p>Loading snacks…</p>
+      </div>
+      <div class="bin-total">
+        <div>
+          <div class="stat-label">Adding to tab</div>
+          <div class="amount" id="bins-total">J$0</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="bins-reset">Clear</button>
+          <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+        </div>
+      </div>
+      <div class="status" id="bins-status"></div>
+    </section>
+
+    <div id="tab-activity" class="hidden">
     <section class="main-grid">
       <article class="snack-card">
         <div class="snack-image">
@@ -110,25 +130,6 @@
     </section>
 
     <section class="card section-card">
-      <h2>Log a snack</h2>
-      <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
-      <div class="bin-grid" id="bins">
-        <p>Loading snacks…</p>
-      </div>
-      <div class="bin-total">
-        <div>
-          <div class="stat-label">Adding to tab</div>
-          <div class="amount" id="bins-total">J$0</div>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button id="bins-reset">Clear</button>
-          <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-        </div>
-      </div>
-      <div class="status" id="bins-status"></div>
-    </section>
-
-    <section class="card section-card">
       <div class="section-head">
         <h2>Snack Log</h2>
         <div class="log-controls">
@@ -173,6 +174,7 @@
         </tbody>
       </table>
     </section>
+    </div>
 
     <section class="card section-card">
       <h2>Start Your Own Tab</h2>
@@ -193,6 +195,21 @@
       Thank you.
     </footer>
   </main>
+
+  <div class="modal-backdrop" id="device-start-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="device-start-title">
+      <h2 id="device-start-title">Start your tab?</h2>
+      <p class="muted-small" style="margin-bottom:14px;">
+        Tap <strong>Link this device</strong> to start your own private snack tab on this browser —
+        no sign-up required. You can add your name later from User Settings.
+      </p>
+      <div class="row">
+        <button class="primary" id="device-start-yes">Link this device</button>
+        <button id="device-start-no">Not now</button>
+      </div>
+      <div class="status" id="device-start-status"></div>
+    </div>
+  </div>
 
   <div class="drawer-backdrop" id="settings-backdrop"></div>
   <aside class="drawer right" id="settings-drawer" aria-label="User settings">
@@ -302,6 +319,12 @@
       const cur = data.profile.currency;
       const t = FS.totals(data);
       const fav = FS.snackById(data, data.profile.favoriteSnackId);
+
+      // Favorite Snack + Snack Log are meaningless noise for a guest who
+      // hasn't actually logged anything yet (a fresh device or an invitee
+      // who was linked but hasn't taken a snack) - keep the page to just
+      // the gallery + QR until there's a real tab to show.
+      $id("tab-activity").classList.toggle("hidden", data.entries.length === 0);
 
       const dated = data.entries.filter((e) => e.date);
       const snackDays = new Set(dated.map((e) => e.date)).size;
@@ -615,6 +638,29 @@
     } else if (linkCode && alreadyLinkedTo) {
       FS.clearLinkCode();
     }
+
+    // First-run gate for a brand-new device with no invite code (e.g. the
+    // "Start Your Own Tab" QR): require a deliberate tap before the tab UI
+    // appears, rather than silently auto-provisioning on page load. Not
+    // persisted on "Not now" - refreshing shows the gate again. Any device
+    // that already has real activity (or is linked) is grandfathered in
+    // and never sees it.
+    const DEVICE_STARTED_KEY = "fresh_snacks_device_started";
+    const deviceStarted = () =>
+      localStorage.getItem(DEVICE_STARTED_KEY) === "1" || !!alreadyLinkedTo;
+    const markDeviceStarted = () => localStorage.setItem(DEVICE_STARTED_KEY, "1");
+
+    $id("device-start-yes").onclick = () => {
+      markDeviceStarted();
+      location.reload();
+    };
+    $id("device-start-no").onclick = () => {
+      $id("device-start-backdrop").classList.remove("show");
+    };
+    $id("device-start-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("device-start-backdrop")) $id("device-start-no").click();
+    });
+
     $id("link-invite-yes").onclick = async () => {
       const btn = $id("link-invite-yes");
       btn.disabled = true;
@@ -660,6 +706,12 @@
       .then((data) => {
         CLAIM = data.claim || null;
         LAST_DATA = data;
+
+        if (data.entries.length > 0 && !deviceStarted()) markDeviceStarted();
+        if (!linkCode && !deviceStarted()) {
+          $id("device-start-backdrop").classList.add("show");
+        }
+
         render(data);
         return FS.getMyProfile();
       })

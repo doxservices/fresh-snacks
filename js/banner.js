@@ -46,7 +46,7 @@
       <button class="hamburger banner-menu" id="nav-toggle" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
       </button>
-      <img class="banner-badge" src="banner-logo.png" alt="Fresh Snacks" />
+      <a href="index.html" aria-label="Fresh Snacks home"><img class="banner-badge" src="banner-logo.png" alt="Fresh Snacks" /></a>
       <div class="banner-main">
         <div class="banner-tagline"><span class="tick">&#8779;</span> Snack smart, live fresh! <span class="tick">&#8779;</span></div>
         <div class="banner-subrow">

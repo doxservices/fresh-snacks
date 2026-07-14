@@ -4,14 +4,29 @@
  * its own URL (admin.html) for the snack keeper only. */
 (function () {
   const here = location.pathname.split("/").pop() || "index.html";
-  const items = [
-    { label: "My tab", href: "index.html" },
-    { label: "Log my snacks", href: "bins.html" },
-    { label: "Invoice Me", href: "invoice.html" },
-    { label: "User settings", href: "index.html#user-settings" },
-    { label: "Feedback", href: "feedback.html" },
-    { label: "Privacy Policy", href: "privacy.html" },
-  ];
+
+  // A brand-new device that hasn't gone through the "Start your tab?" gate
+  // (or an invite link) yet has no tab/history worth navigating to - only
+  // Feedback and Privacy Policy make sense until then. Read directly (no FS
+  // dependency) since nav.js runs on pages like privacy.html that don't
+  // load the Firebase/data layer at all.
+  const started =
+    localStorage.getItem("fresh_snacks_device_started") === "1" ||
+    !!localStorage.getItem("fresh_snacks_linked_to");
+
+  const items = started
+    ? [
+        { label: "My tab", href: "index.html" },
+        { label: "Log my snacks", href: "bins.html" },
+        { label: "Invoice Me", href: "invoice.html" },
+        { label: "User settings", href: "index.html#user-settings" },
+        { label: "Feedback", href: "feedback.html" },
+        { label: "Privacy Policy", href: "privacy.html" },
+      ]
+    : [
+        { label: "Feedback", href: "feedback.html" },
+        { label: "Privacy Policy", href: "privacy.html" },
+      ];
   if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
 
   const backdrop = document.createElement("div");
