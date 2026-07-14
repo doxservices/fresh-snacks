@@ -72,7 +72,10 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow create: if signedIn() && userId == request.auth.uid;
+      // isAdmin() lets the snack keeper pre-create a guest profile (a
+      // synthetic id, not tied to any device's own auth uid) before
+      // sharing an invite to it - the admin can build out the tab first.
+      allow create: if isAdmin() || (signedIn() && userId == request.auth.uid);
       allow read: if isAdmin()
         || (signedIn() && userId == request.auth.uid)
         || hasClaimOn(userId)
@@ -93,10 +96,15 @@ service cloud.firestore {
     }
 
     match /transactions/{transactionId} {
-      allow create: if signedIn()
-        && request.resource.data.userId == request.resource.data.uid
-        && (request.resource.data.uid == request.auth.uid || isLinkedMember(request.resource.data.uid))
-        && request.resource.data.status == "active";
+      // isAdmin() lets the snack keeper log a snack directly onto any
+      // customer's tab (e.g. building out a guest profile before sharing
+      // it, or adding on a regular's behalf) - not just their own uid or
+      // a tab they're a linked member of.
+      allow create: if isAdmin()
+        || (signedIn()
+            && request.resource.data.userId == request.resource.data.uid
+            && (request.resource.data.uid == request.auth.uid || isLinkedMember(request.resource.data.uid))
+            && request.resource.data.status == "active");
       // uid == userId is guaranteed on every transaction doc (enforced by
       // the create rule above); this branch checks userId, not uid, so it
       // aligns with the field getOwnTransactions() actually queries on —

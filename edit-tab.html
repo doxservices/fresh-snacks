@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fresh Snacks - Accounting</title>
+  <title>Fresh Snacks - Edit Tab</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,13 +13,13 @@
         <div class="header-lead">
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
-            <h1>User Accounting</h1>
-            <p>Manage customer profiles, invites, and linked devices.</p>
+            <h1>Edit Tab</h1>
+            <p>Build out a guest's tab before sharing it, or add straight to an existing customer's tab.</p>
           </div>
         </div>
         <div class="header-actions">
+          <a class="btn" href="accounting.html">User accounting</a>
           <a class="btn" href="admin.html">Admin dashboard</a>
-          <a class="btn" href="transactions.html">Transactions</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -44,20 +44,121 @@
       <div class="status" id="login-status"></div>
     </section>
 
-    <section id="accounting-app" class="hidden">
+    <section class="card section-card hidden" id="no-user-panel">
+      <h2>No tab selected</h2>
+      <p>Open this page with <code>?user=&lt;id&gt;</code>, or go to <a href="accounting.html">User accounting</a> and click "Edit tab" on a row — or use "Create new tab" there to start a brand-new guest profile.</p>
+    </section>
+
+    <section id="edit-tab-app" class="hidden">
+      <section class="brand-card">
+        <div class="brand-grid">
+          <div>
+            <div class="brand-title" id="profile-title">Guest</div>
+            <div class="brand-subtitle" id="profile-subtitle">Admin-managed tab</div>
+          </div>
+          <div class="brand-stats">
+            <div class="stat-box balance-stat">
+              <div class="stat-label">Current tab</div>
+              <div class="stat-value warm" id="dash-balance">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Snack value</div>
+              <div class="stat-value green" id="dash-snacks">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Paid</div>
+              <div class="stat-value blue" id="dash-paid">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Devices linked</div>
+              <div class="stat-value" id="dash-devices">-</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card section-card">
-        <h2>User accounting</h2>
+        <h2>Profile</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="profile-name">Display name</label>
+            <input id="profile-name" type="text" />
+          </div>
+          <div class="field">
+            <label for="profile-vip">VIP status</label>
+            <select id="profile-vip">
+              <option value="anonymous">anonymous</option>
+              <option value="named">named</option>
+              <option value="vip">vip</option>
+              <option value="legacy">legacy</option>
+              <option value="blocked">blocked</option>
+            </select>
+          </div>
+          <button class="primary" id="profile-save">Save profile</button>
+        </div>
+        <div class="status" id="profile-status"></div>
+        <div class="row" style="margin-top:14px;">
+          <button id="tab-invite" title="Copy a link/QR that links a new device to this profile">Invite</button>
+          <button id="tab-devices">Devices</button>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Add a snack to this tab</h2>
         <p class="muted-small" style="margin-bottom:10px;">
-          View opens that user's listings on the <a href="transactions.html">Transactions</a> page.
-          Edit tab opens <a href="edit-tab.html">Edit Tab</a>, where you can add snacks/payments
-          directly to that profile. Create new tab starts a brand-new guest profile you own and can
-          build out before sharing its invite. Delete wipes a user's data entirely (transactions,
-          payments, adjustments, devices, profile) so their browser starts completely fresh — use it
-          to clear test guests, not real customers you want to keep.
+          Tap what you want to add on this customer's behalf — it's logged with source "admin".
         </p>
-        <button class="primary" id="create-tab-btn" style="margin-bottom:12px;">Create new tab</button>
-        <div id="accounting-list"></div>
-        <div class="status" id="acct-status"></div>
+        <div class="bin-grid" id="bins">
+          <p>Loading snacks…</p>
+        </div>
+        <div class="bin-total">
+          <div>
+            <div class="stat-label">Adding to tab</div>
+            <div class="amount" id="bins-total">J$0</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button id="bins-reset">Clear</button>
+            <button class="primary" id="bins-submit" disabled>Add to tab</button>
+          </div>
+        </div>
+        <div class="status" id="bins-status"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Add payment</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="payment-amount">Amount</label>
+            <input id="payment-amount" type="number" min="1" step="1" />
+          </div>
+          <div class="field">
+            <label for="payment-note">Note</label>
+            <input id="payment-note" type="text" />
+          </div>
+          <button class="primary" id="payment-add">Add payment</button>
+        </div>
+        <div class="status" id="payment-status"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Add adjustment</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="adjust-amount">Amount</label>
+            <input id="adjust-amount" type="number" step="1" />
+          </div>
+          <div class="field">
+            <label for="adjust-reason">Reason</label>
+            <input id="adjust-reason" type="text" />
+          </div>
+          <button class="primary" id="adjust-add">Add adjustment</button>
+        </div>
+        <div class="status" id="adjust-status"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Recent transactions</h2>
+        <div id="transaction-list"></div>
       </section>
     </section>
 
@@ -69,16 +170,12 @@
       <div class="invite-card" id="invite-card">
         <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
 
-        <!-- classic rotate-on-hover close button, brought back per feedback -->
         <button type="button" class="modal-close invite-card-x-close" id="invite-modal-close" aria-label="Close">&times;</button>
 
         <div class="invite-card-qr-area" data-diag="QR area">
           <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
         </div>
 
-        <!-- everything between the QR box and the buttons is one flex column
-             so it self-distributes evenly instead of relying on hand-tuned
-             top percentages for each line -->
         <div class="invite-card-gap">
           <p class="invite-card-name" data-diag="name">
             <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
@@ -133,6 +230,9 @@
   <script src="js/firebase-admin.js"></script>
   <script>
     let SNAPSHOT = null;
+    const picked = new Map();
+    const TARGET_USER_ID = new URLSearchParams(location.search).get("user");
+
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -151,33 +251,13 @@
       if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
     });
 
-    // ?debug=1 in the URL outlines every overlay element on the invite card
-    // in dashed red, with a floating label — for diagnosing alignment only.
-    if (new URLSearchParams(location.search).get("debug") === "1") {
-      $("invite-card").classList.add("invite-card-debug");
-    }
-
-    // pre-rendered PNG blob + data URL of the current invite card, so the
-    // copy button's click handler can call clipboard.write() with no async
-    // gap beforehand — Chrome/Safari can drop the click's transient
-    // activation if a write is preceded by an await (e.g. canvas.toBlob()),
-    // silently failing. The data URL is what gets embedded in the text/html
-    // clipboard entry alongside the real, clickable link.
     let inviteCardBlob = null;
     let inviteCardDataUrl = null;
 
-    // bounds of the frame's reserved panels, measured directly from
-    // invite-card-frame.jpg (543x724): the QR box, the Close button, and
-    // the Copy button. The open gap between the QR box and the buttons has
-    // no baked-in guides, so name/note/label/link use the same percentage
-    // layout as the on-screen CSS rather than a measured pixel box.
     const CARD_W = 543, CARD_H = 724;
     const QR_BOX = { left: 102, top: 142, right: 438, bottom: 481 };
     const CLOSE_BOX = { left: 191, top: 648, right: 297, bottom: 699 };
     const COPY_BOX = { left: 299, top: 647, right: 497, bottom: 698 };
-    // approximates the on-screen flex column's space-evenly distribution
-    // across the open gap (QR_BOX.bottom to CLOSE_BOX.top) for the export
-    // canvas, which can't run actual flex layout
     const NAME_Y = 512;
     const NOTE_Y = 550;
     const LABEL_Y = 585;
@@ -209,12 +289,6 @@
       return whiskerImgCache[src];
     }
 
-    /* Renders the on-screen QR (into the small framed canvas in the HTML
-     * card, which sits over the invite-card-frame.jpg background) and,
-     * separately, draws that same frame image plus all the text/icons onto
-     * a hidden export canvas — that's what canvas.toBlob() copies to the
-     * clipboard, since there's no dependency-free way to rasterize the
-     * live DOM card. */
     async function drawInviteCard(url, name) {
       inviteCardBlob = null;
       inviteCardDataUrl = null;
@@ -238,15 +312,12 @@
       const ctx = canvas.getContext("2d");
       const W = canvas.width, H = canvas.height;
       const FRAME_H = 724;
-      const NUDGE = 2; // small downward nudge so text doesn't sit too high in its panel
+      const NUDGE = 2;
 
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(frameImg, 0, 0, W, FRAME_H);
       ctx.textAlign = "center";
 
-      // QR, centered in the frame's reserved box (kept visibly smaller than
-      // the box itself so there's real margin around it, matching the
-      // reference — not sized to nearly touch the panel)
       const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
       const qrBoxCenterY = (QR_BOX.top + QR_BOX.bottom) / 2;
       const qrSize = 195;
@@ -254,9 +325,6 @@
       const qrY = qrBoxCenterY - qrSize / 2;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
-      // "For {name}" and the note sit in the open gap below the QR box —
-      // the frame has no baked-in guides here, so this follows the same
-      // percentage layout as the on-screen CSS.
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 18px Arial, Helvetica, sans-serif";
       const nameLabel = `For ${name}`;
@@ -271,13 +339,11 @@
       ctx.font = "400 13px Arial, Helvetica, sans-serif";
       ctx.fillText("Up to 3 devices per tab", W / 2, NOTE_Y + 5 + NUDGE);
 
-      // "Invite link" label, left-aligned above the link field
       ctx.textAlign = "left";
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 14px Arial, Helvetica, sans-serif";
       ctx.fillText("Invite link", LINK_BOX.left + 2, LABEL_Y + 6 + NUDGE);
 
-      // link field outline + text (room reserved for the copy icon on the right)
       ctx.strokeStyle = "#2f7a44";
       ctx.lineWidth = 1.5;
       roundRectPath(ctx, LINK_BOX.left, LINK_BOX.top, LINK_BOX.right - LINK_BOX.left, LINK_BOX.bottom - LINK_BOX.top, 8);
@@ -289,7 +355,6 @@
       ctx.fillText(fitText(ctx, url, linkTextMaxWidth), LINK_BOX.left + 14, linkBoxCenterY);
       drawCopyIcon(ctx, LINK_BOX.right - 32, linkBoxCenterY - 12, 18, "#2f7a44");
 
-      // Close button (light box, dark text)
       ctx.textAlign = "center";
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 15px Arial, Helvetica, sans-serif";
@@ -297,7 +362,6 @@
       const closeBoxCenterY = (CLOSE_BOX.top + CLOSE_BOX.bottom) / 2 + 5 + NUDGE;
       ctx.fillText("Close", closeBoxCenterX, closeBoxCenterY);
 
-      // Copy to share button (dark box, white text + icon)
       ctx.fillStyle = "#ffffff";
       ctx.font = "700 14px Arial, Helvetica, sans-serif";
       const btnLabel = "Copy to share";
@@ -310,11 +374,6 @@
       ctx.fillText(btnLabel, textX, copyBoxCenterY);
       drawCopyIcon(ctx, copyBoxCenterX + groupWidth / 2 - iconSize, copyBoxCenterY - iconSize + 3, iconSize, "#ffffff");
 
-      // Footer band below the card frame with the link baked in as visible
-      // pixels: most chat apps (WhatsApp Web included) only keep ONE
-      // clipboard representation on paste and pick the image over the
-      // text/html link (see the copy button handler below), so the link
-      // has to be readable in the picture itself or it's lost entirely.
       const bandTop = FRAME_H;
       const bandH = H - FRAME_H;
       ctx.fillStyle = "#f4f8f3";
@@ -363,9 +422,6 @@
       return s + "…";
     }
 
-    // Largest font size (within [minSize, maxSize]) at which text fits
-    // maxWidth without truncation — used where the full URL must stay
-    // readable and copy-able-by-eye rather than being cut with an ellipsis.
     function fitFontSize(ctx, text, maxWidth, maxSize, minSize, fontFamily) {
       for (let size = maxSize; size > minSize; size--) {
         ctx.font = `400 ${size}px ${fontFamily}`;
@@ -397,13 +453,6 @@
       const url = $("invite-link-url").value;
       try {
         if (window.ClipboardItem && navigator.clipboard.write && inviteCardBlob && inviteCardDataUrl) {
-          // text/html embeds the card image AND a real, separate, clickable
-          // link below it — rich-text-aware targets (Gmail, Docs) render
-          // both from one paste. Targets that only keep one representation
-          // per paste (WhatsApp Web, Slack, Telegram) grab the image and
-          // drop text/html entirely, so the URL is also baked into the
-          // image's own pixels as a fallback (see the footer band in
-          // drawInviteCard). text/plain is the last-resort fallback.
           const escapedUrl = url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
           const html = `<div><img src="${inviteCardDataUrl}" alt="Fresh Snacks device-link invite"><div><a href="${escapedUrl}">${escapedUrl}</a></div></div>`;
           await navigator.clipboard.write([
@@ -429,8 +478,6 @@
       }
     };
 
-    // clicking the (truncated) link field selects its full value so Ctrl+C
-    // still works even though only part of the URL is visibly shown
     $("invite-link-url").onclick = () => $("invite-link-url").select();
 
     $("invite-copy-link-only").onclick = async () => {
@@ -491,88 +538,215 @@
       });
     }
 
-    function renderAccounting() {
+    $("tab-invite").onclick = async () => {
+      const btn = $("tab-invite");
+      btn.disabled = true;
+      try {
+        const name = $("profile-name").value.trim() || "Guest";
+        const code = await FS.admin.createLinkInvite(TARGET_USER_ID);
+        const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
+        $("invite-link-url").value = url;
+        $("invite-modal-status").textContent = "";
+        await drawInviteCard(url, name);
+        $("invite-modal-backdrop").classList.add("show");
+      } catch (e) {
+        alert("Could not create invite: " + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    $("tab-devices").onclick = async () => {
+      const btn = $("tab-devices");
+      btn.disabled = true;
+      try {
+        await openDevicesModal(TARGET_USER_ID, $("profile-name").value.trim() || "Guest");
+      } catch (e) {
+        alert("Could not load devices: " + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    function binsTotal() {
+      let t = 0;
+      for (const [id, qty] of picked) {
+        const s = FS.snackById(SNAPSHOT, id);
+        if (s) t += s.price * qty;
+      }
+      return t;
+    }
+
+    function syncBinsGallery() {
       const cur = SNAPSHOT.settings.currency;
-      $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
-        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
-          <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
-          <td><select data-f="vipStatus">
-            ${["anonymous", "vip", "legacy", "blocked"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
-          </select></td>
-          <td class="num">${FS.money(r.snackTotal, cur)}</td>
-          <td class="num">${FS.money(r.paidTotal, cur)}</td>
-          <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
-          <td class="num">${FS.money(r.balance, cur)}</td>
-          <td>${esc(r.lastActivity || "-")}</td>
+      for (const s of SNAPSHOT.catalog) {
+        const el = document.querySelector(`#bins .qty[data-id="${s.id}"]`);
+        if (el) el.textContent = picked.get(s.id) || 0;
+      }
+      $("bins-total").textContent = FS.money(binsTotal(), cur);
+      $("bins-submit").disabled = binsTotal() === 0;
+    }
+
+    function renderBinsGallery() {
+      if (!SNAPSHOT.catalog.length) {
+        $("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
+        return;
+      }
+      $("bins").innerHTML = SNAPSHOT.catalog.map((s) => `
+        <div class="bin-card">
+          <div class="bin-photo">${s.photo
+            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="bin-body">
+            <div class="bin-name">${esc(s.name)}</div>
+            <div class="bin-price">${FS.money(s.price, SNAPSHOT.settings.currency)} each</div>
+            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
+              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+              <span class="qty" data-id="${esc(s.id)}">0</span>
+              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+            </div>
+          </div>
+        </div>`).join("");
+      syncBinsGallery();
+    }
+
+    $("bins").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-id]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
+      if (next === 0) picked.delete(id); else picked.set(id, next);
+      syncBinsGallery();
+    });
+
+    $("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(); };
+
+    $("bins-submit").onclick = async () => {
+      const cur = SNAPSHOT.settings.currency;
+      const items = [...picked.entries()].map(([id, qty]) => {
+        const snack = FS.snackById(SNAPSHOT, id);
+        return { snack, qty };
+      }).filter((x) => x.snack);
+      if (!items.length) return;
+
+      const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
+      if (!confirm(`Add ${summary} (${FS.money(binsTotal(), cur)}) to this tab?`)) return;
+
+      $("bins-submit").disabled = true;
+      status("bins-status", "Adding...", true);
+      try {
+        await FS.admin.addTransactionFor(TARGET_USER_ID, items);
+        picked.clear();
+        status("bins-status", `Added ${summary}.`, true);
+        await refresh();
+      } catch (e) {
+        status("bins-status", e.message, false);
+      } finally {
+        $("bins-submit").disabled = binsTotal() === 0;
+      }
+    };
+
+    function renderTransactionTable() {
+      const cur = SNAPSHOT.settings.currency;
+      const badge = (t) => t.userStatus
+        ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
+        : "";
+      const rows = [...SNAPSHOT.transactions]
+        .sort((a, b) =>
+          (b.userStatus === "disputed") - (a.userStatus === "disputed")
+          || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+        .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
+          <td>${esc(t.createdDate || "-")}</td>
+          <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
+          <td class="num">${esc(t.quantity || 1)}</td>
+          <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+          <td>${esc(t.source || "self")} ${badge(t)}</td>
           <td style="white-space:nowrap;">
-            <button data-act="user-save">Save</button>
-            <button data-act="user-view" title="Open this user's listings on the Transactions page">View</button>
-            <button data-act="user-edit-tab" title="Add snacks/payments directly to this tab">Edit tab</button>
-            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite</button>
-            <button data-act="user-devices" title="View and unlink this profile's devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
-            <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
+            ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
+            <button data-act="txn-edit" title="Change quantity/value">Change</button>
+            <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
           </td>
-        </tr>`).join("")}</tbody>
+        </tr>`).join("");
+      $("transaction-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Day</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" class="muted-small">No listings yet.</td></tr>`}</tbody>
       </table>`;
     }
 
-    async function refresh() {
-      SNAPSHOT = await FS.admin.getSnapshot();
-      $("login-panel").classList.add("hidden");
-      $("accounting-app").classList.remove("hidden");
-      $("admin-sign-out").classList.remove("hidden");
-      renderAccounting();
+    function render() {
+      const cur = SNAPSHOT.settings.currency;
+      const snackTotal = SNAPSHOT.transactions.reduce((n, t) => n + Number(t.total || 0), 0);
+      const paidTotal = SNAPSHOT.payments.reduce((n, p) => n + Number(p.amount || 0), 0);
+      const balance = snackTotal - paidTotal;
+
+      $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
+      $("profile-subtitle").textContent = `Tab id: ${SNAPSHOT.profile.id}`;
+      $("dash-balance").textContent = FS.money(balance, cur);
+      $("dash-snacks").textContent = FS.money(snackTotal, cur);
+      $("dash-paid").textContent = FS.money(paidTotal, cur);
+      $("dash-devices").textContent = `${(SNAPSHOT.profile.linkedUids || []).length}/3`;
+      $("profile-name").value = SNAPSHOT.profile.displayName || "";
+      $("profile-vip").value = SNAPSHOT.profile.vipStatus || "anonymous";
+
+      renderBinsGallery();
+      renderTransactionTable();
     }
 
-    $("google-login").onclick = async () => {
+    async function refresh() {
+      const [settings, catalog, profile, transactions, payments] = await Promise.all([
+        FS.getSettings(),
+        FS.getCatalog(),
+        FS.admin.getUserProfile(TARGET_USER_ID),
+        FS.admin.getUserTransactionHistory(TARGET_USER_ID),
+        FS.getUserPayments(TARGET_USER_ID),
+      ]);
+      SNAPSHOT = { settings, catalog, profile, transactions, payments };
+      $("login-panel").classList.add("hidden");
+      $("no-user-panel").classList.add("hidden");
+      $("edit-tab-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      render();
+    }
+
+    $("profile-save").onclick = async () => {
       try {
-        status("login-status", "Signing in...", true);
-        await FS.admin.signInWithGoogle();
+        await FS.admin.renameUser(TARGET_USER_ID, $("profile-name").value.trim(), $("profile-vip").value);
+        status("profile-status", "Profile saved.", true);
         await refresh();
       } catch (e) {
-        status("login-status", e.message, false);
+        status("profile-status", e.message, false);
       }
     };
 
-    $("microsoft-login").onclick = async () => {
+    $("payment-add").onclick = async () => {
       try {
-        status("login-status", "Signing in...", true);
-        await FS.admin.signInWithMicrosoft();
+        await FS.admin.addPayment({
+          userId: TARGET_USER_ID,
+          amount: $("payment-amount").value,
+          note: $("payment-note").value,
+        });
+        $("payment-amount").value = "";
+        $("payment-note").value = "";
         await refresh();
+        status("payment-status", "Payment added.", true);
       } catch (e) {
-        status("login-status", e.message, false);
+        status("payment-status", e.message, false);
       }
     };
 
-    $("email-login").onclick = async () => {
+    $("adjust-add").onclick = async () => {
       try {
-        status("login-status", "Signing in...", true);
-        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await FS.admin.addAdjustment({
+          userId: TARGET_USER_ID,
+          amount: $("adjust-amount").value,
+          reason: $("adjust-reason").value,
+        });
+        $("adjust-amount").value = "";
+        $("adjust-reason").value = "";
         await refresh();
+        status("adjust-status", "Adjustment added.", true);
       } catch (e) {
-        status("login-status", e.message, false);
-      }
-    };
-
-    $("admin-sign-out").onclick = async () => {
-      await FS.admin.signOut();
-      $("accounting-app").classList.add("hidden");
-      $("admin-sign-out").classList.add("hidden");
-      $("login-panel").classList.remove("hidden");
-    };
-
-    $("create-tab-btn").onclick = async () => {
-      const btn = $("create-tab-btn");
-      const name = prompt("Display name for this guest (optional — leave blank for an anonymous tab):", "");
-      if (name === null) return;
-      btn.disabled = true;
-      try {
-        const userId = await FS.admin.createGuestTab(name);
-        location.href = `edit-tab.html?user=${encodeURIComponent(userId)}`;
-      } catch (e) {
-        btn.disabled = false;
-        status("acct-status", e.message, false);
+        status("adjust-status", e.message, false);
       }
     };
 
@@ -582,57 +756,83 @@
       const row = btn.closest("tr");
       const act = btn.dataset.act;
       try {
-        if (act === "user-save") {
-          await FS.admin.renameUser(
-            row.dataset.user,
-            row.querySelector('[data-f="displayName"]').value.trim(),
-            row.querySelector('[data-f="vipStatus"]').value
-          );
+        if (act === "txn-approve") {
+          await FS.admin.resolveTransaction(row.dataset.id);
           await refresh();
-        } else if (act === "user-view") {
-          location.href = `transactions.html?user=${encodeURIComponent(row.dataset.user)}`;
-        } else if (act === "user-edit-tab") {
-          location.href = `edit-tab.html?user=${encodeURIComponent(row.dataset.user)}`;
-        } else if (act === "user-invite") {
-          btn.disabled = true;
-          try {
-            const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
-            const code = await FS.admin.createLinkInvite(row.dataset.user);
-            const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
-            $("invite-link-url").value = url;
-            $("invite-modal-status").textContent = "";
-            await drawInviteCard(url, name);
-            $("invite-modal-backdrop").classList.add("show");
-          } catch (e) {
-            alert("Could not create invite: " + e.message);
-          } finally {
-            btn.disabled = false;
-          }
-        } else if (act === "user-devices") {
-          btn.disabled = true;
-          try {
-            await openDevicesModal(row.dataset.user, row.querySelector('[data-f="displayName"]').value.trim() || "Guest");
-          } catch (e) {
-            alert("Could not load devices: " + e.message);
-          } finally {
-            btn.disabled = false;
-          }
-        } else if (act === "user-delete") {
-          const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
-          const balance = row.children[5].textContent;
-          if (!confirm(`Delete ALL data for "${name}" (balance ${balance})?\n\nThis wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`)) return;
-          const removed = await FS.admin.deleteUserData(row.dataset.user);
+        } else if (act === "txn-edit") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
+          if (qty === null) return;
+          const total = prompt("Total value:", t ? t.total || 0 : 0);
+          if (total === null) return;
+          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
           await refresh();
-          status("acct-status", `Deleted ${removed} record(s) for ${name}.`, true);
+        } else if (act === "txn-void") {
+          if (!confirm("Void this listing? It disappears from the tab and totals.")) return;
+          await FS.admin.voidTransaction(row.dataset.id);
+          await refresh();
         }
       } catch (e) {
-        status("acct-status", e.message, false);
+        alert(e.message);
       }
     });
 
+    $("google-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithGoogle();
+        await afterLogin();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("microsoft-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithMicrosoft();
+        await afterLogin();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("email-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await afterLogin();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("edit-tab-app").classList.add("hidden");
+      $("no-user-panel").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    async function afterLogin() {
+      if (!TARGET_USER_ID) {
+        $("login-panel").classList.add("hidden");
+        $("no-user-panel").classList.remove("hidden");
+        return;
+      }
+      try {
+        await refresh();
+      } catch (e) {
+        $("login-panel").classList.add("hidden");
+        $("no-user-panel").classList.remove("hidden");
+        $("no-user-panel").querySelector("p").textContent = e.message;
+      }
+    }
+
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
-      .then((admin) => { if (admin) return refresh(); })
+      .then((admin) => { if (admin) return afterLogin(); })
       .catch((e) => {
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);

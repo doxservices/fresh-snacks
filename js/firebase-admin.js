@@ -419,3 +419,70 @@ FS.admin.renameUser = async (userId, displayName, vipStatus) => {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   }, { merge: true });
 };
+
+/* ---------- admin-owned tabs: pre-create a guest profile, build it out,
+ * and only share the invite once it's ready ---------- */
+
+FS.admin.getUserProfile = async (userId) => {
+  await FS.admin.requireAdmin();
+  const snap = await FS._db.collection("users").doc(userId).get();
+  if (!snap.exists) throw new Error("That tab no longer exists.");
+  return { id: snap.id, ...snap.data() };
+};
+
+FS.admin.createGuestTab = async (displayName) => {
+  await FS.admin.requireAdmin();
+  const userId = FS.uid("cust");
+  const name = (displayName || "").trim();
+  await FS._db.collection("users").doc(userId).set({
+    userId,
+    uid: userId,
+    displayName: name || "New Guest",
+    vipStatus: name ? "named" : "anonymous",
+    linkedUids: [],
+    createdByAdmin: FS.admin.user.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  return userId;
+};
+
+// Logs a snack directly onto a customer's tab as the admin - e.g. building
+// out a guest profile before sharing its invite, or adding on a regular's
+// behalf. Mirrors FS.addTransaction's record shape but isn't tied to the
+// admin's own device/uid.
+FS.admin.addTransactionFor = async (userId, items) => {
+  await FS.admin.requireAdmin();
+  const batch = FS._db.batch();
+  const today = FS.todayISO();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const saved = [];
+  for (const item of items) {
+    const snack = item.snack || item;
+    const quantity = Number(item.qty || item.quantity || 1);
+    if (!snack || !snack.id || quantity < 1) continue;
+    const transactionId = FS.uid("fs_txn");
+    const ref = FS._db.collection("transactions").doc(transactionId);
+    const record = {
+      transactionId,
+      uid: userId,
+      userId,
+      deviceId: "admin",
+      visitorId: null,
+      snackId: snack.id,
+      snackName: snack.name,
+      quantity,
+      unitPrice: Number(snack.price || 0),
+      total: Number(snack.price || 0) * quantity,
+      calories: snack.calories ?? null,
+      source: "admin",
+      createdAt: now,
+      createdDate: today,
+      status: "active",
+    };
+    batch.set(ref, record);
+    saved.push(record);
+  }
+  if (!saved.length) throw new Error("Choose at least one snack.");
+  await batch.commit();
+  return saved;
+};
