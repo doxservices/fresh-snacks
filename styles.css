@@ -1430,20 +1430,31 @@ textarea:focus {
   height: 132px;
   background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
   border-bottom: 1px solid var(--line);
-  display: grid;
-  place-items: center;
+  position: relative;
+  overflow: hidden;
 }
 
+/* absolute + inset so the photo always fills exactly this box regardless
+   of its own aspect ratio — a grid/flex child with center alignment sizes
+   itself to its own content instead of stretching, which let tall product
+   photos blow past the fixed-height box and overlap the name/price below */
 .bin-photo img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: #fff;
   padding: 6px;
+  box-sizing: border-box;
   display: block;
 }
 
 .bin-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
   font-size: 46px;
   opacity: 0.5;
 }
@@ -1452,10 +1463,20 @@ textarea:focus {
   padding: 12px 14px 16px;
 }
 
+/* two-line clamp keeps every card's name block the same height, so price
+   and the +/- stepper start at the same row across a grid line regardless
+   of whether a given snack's name is short ("Oreo") or long ("Butterkist
+   Sandwich Cookies - Chocolate") */
 .bin-card .bin-name {
-  font-size: 17px;
+  font-size: 15.5px;
   font-weight: 600;
+  line-height: 1.28;
   color: var(--green-dark);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.56em;
 }
 
 .bin-card .bin-price {
@@ -1866,6 +1887,30 @@ tr.disputed td {
   .summary-grid,
   .mini-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* two columns instead of one — the 220px minimum only ever fit a single
+     column on phone widths, making the gallery unnecessarily long to scroll */
+  .bin-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .bin-photo {
+    height: 104px;
+  }
+
+  .bin-body {
+    padding: 9px 10px 12px;
+  }
+
+  .bin-card .bin-name {
+    font-size: 13.5px;
+  }
+
+  .bin-card .bin-price {
+    font-size: 12px;
+    margin: 2px 0 8px;
   }
 
   /* header stays one row: menu + logo + title left, profile button right */
