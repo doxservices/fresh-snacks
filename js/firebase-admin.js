@@ -51,8 +51,25 @@ FS.admin.requireAdmin = async () => {
   return FS.admin.profile;
 };
 
+// Firebase Auth restores a persisted session asynchronously — right after
+// initFirebase() resolves, currentUser can still be null even when a real
+// session exists, because the SDK's own IndexedDB read hasn't finished.
+// Waiting for the first onAuthStateChanged firing (once, cached) avoids
+// bouncing a still-logged-in admin back to the login screen on a fresh
+// page load, e.g. navigating between admin.html/accounting.html/transactions.html.
+FS.admin._authRestored = null;
+FS.admin._waitForAuthRestore = () => {
+  if (!FS.admin._authRestored) {
+    FS.admin._authRestored = new Promise((resolve) => {
+      const unsub = FS._auth.onAuthStateChanged(() => { unsub(); resolve(); });
+    });
+  }
+  return FS.admin._authRestored;
+};
+
 FS.admin.currentAdmin = async () => {
   await FS.initFirebase();
+  await FS.admin._waitForAuthRestore();
   const user = FS._auth.currentUser;
   if (user && !user.isAnonymous) return FS.admin.requireAdmin();
   return null;

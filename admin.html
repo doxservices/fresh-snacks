@@ -17,6 +17,8 @@
         <div class="header-actions">
           <a class="btn" href="index.html">Profile page</a>
           <a class="btn" href="inventory.html">Inventory</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -70,14 +72,11 @@
       </section>
 
       <section class="card section-card">
-        <h2>User accounting</h2>
-        <p class="muted-small" style="margin-bottom:10px;">
-          View shows a user's own listings below for approval/edits. Delete wipes a user's data
-          entirely (transactions, payments, adjustments, devices, profile) so their browser starts
-          completely fresh — use it to clear test guests, not real customers you want to keep.
+        <p class="muted-small">
+          Per-user profiles, invites, and linked devices now live on the
+          <a href="accounting.html">Accounting</a> page; the full listings log (approve/edit/void)
+          moved to the <a href="transactions.html">Transactions</a> page.
         </p>
-        <div id="accounting-list"></div>
-        <div class="status" id="acct-status"></div>
       </section>
 
       <section class="card section-card">
@@ -143,11 +142,6 @@
       </section>
 
       <section class="card section-card">
-        <div id="transaction-heading"><h2>Recent transactions</h2></div>
-        <div id="transaction-list"></div>
-      </section>
-
-      <section class="card section-card">
         <h2>Customer Feedback</h2>
         <div id="feedback-list"></div>
       </section>
@@ -156,76 +150,14 @@
     <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
   </main>
 
-  <div class="modal-backdrop" id="invite-modal-backdrop">
-    <div class="modal invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
-      <div class="invite-card" id="invite-card">
-        <h2 id="invite-modal-title" class="sr-only">Device-link invite</h2>
-
-        <!-- classic rotate-on-hover close button, brought back per feedback -->
-        <button type="button" class="modal-close invite-card-x-close" id="invite-modal-close" aria-label="Close">&times;</button>
-
-        <div class="invite-card-qr-area" data-diag="QR area">
-          <canvas id="invite-qr-canvas" width="240" height="240"></canvas>
-        </div>
-
-        <!-- everything between the QR box and the buttons is one flex column
-             so it self-distributes evenly instead of relying on hand-tuned
-             top percentages for each line -->
-        <div class="invite-card-gap">
-          <p class="invite-card-name" data-diag="name">
-            <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
-            For <span id="invite-card-person">Guest</span>
-            <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
-          </p>
-          <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
-
-          <div class="invite-card-link-group">
-            <label class="invite-card-link-label" for="invite-link-url" data-diag="link label">Invite link</label>
-            <div class="invite-card-link-wrap" data-diag="link field">
-              <input id="invite-link-url" type="text" readonly aria-label="Invite link" />
-              <button type="button" class="invite-card-link-copy-icon" id="invite-copy-link-only" aria-label="Copy link" title="Copy link">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <button type="button" class="invite-card-close-btn" id="invite-modal-done" data-diag="Close btn">Close</button>
-        <button type="button" class="invite-card-copy-btn" id="invite-copy-link" data-diag="Copy btn">
-          Copy to share
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
-        </button>
-      </div>
-
-      <canvas id="invite-canvas" width="543" height="724" class="hidden" aria-hidden="true"></canvas>
-
-      <div class="status" id="invite-modal-status"></div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="devices-modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="devices-modal-title">
-      <button type="button" class="modal-close" id="devices-modal-close" aria-label="Close">&times;</button>
-      <h2 id="devices-modal-title">Linked devices</h2>
-      <p class="muted-small" id="devices-modal-sub" style="margin-bottom:14px;"></p>
-      <div id="devices-list"></div>
-      <div class="status" id="devices-modal-status"></div>
-      <div class="modal-actions">
-        <button type="button" id="devices-modal-done">Done</button>
-      </div>
-    </div>
-  </div>
-
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
-  <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
   <script src="js/firebase-admin.js"></script>
   <script>
     let SNAPSHOT = null;
-    let SELECTED_USER = null;
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -235,323 +167,6 @@
       el.textContent = msg;
       el.className = "status " + (ok ? "ok" : "err");
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
-    }
-
-    const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
-    $("invite-modal-done").onclick = closeInviteModal;
-    $("invite-modal-close").onclick = closeInviteModal;
-    $("invite-modal-backdrop").addEventListener("click", (ev) => {
-      if (ev.target === $("invite-modal-backdrop")) closeInviteModal();
-    });
-
-    // ?debug=1 in the URL outlines every overlay element on the invite card
-    // in dashed red, with a floating label — for diagnosing alignment only.
-    if (new URLSearchParams(location.search).get("debug") === "1") {
-      $("invite-card").classList.add("invite-card-debug");
-    }
-
-    // pre-rendered PNG blob + data URL of the current invite card, so the
-    // copy button's click handler can call clipboard.write() with no async
-    // gap beforehand — Chrome/Safari can drop the click's transient
-    // activation if a write is preceded by an await (e.g. canvas.toBlob()),
-    // silently failing. The data URL is what gets embedded in the text/html
-    // clipboard entry alongside the real, clickable link.
-    let inviteCardBlob = null;
-    let inviteCardDataUrl = null;
-
-    // bounds of the frame's reserved panels, measured directly from
-    // invite-card-frame.jpg (543x724): the QR box, the Close button, and
-    // the Copy button. The open gap between the QR box and the buttons has
-    // no baked-in guides, so name/note/label/link use the same percentage
-    // layout as the on-screen CSS rather than a measured pixel box.
-    const CARD_W = 543, CARD_H = 724;
-    const QR_BOX = { left: 102, top: 142, right: 438, bottom: 481 };
-    const CLOSE_BOX = { left: 191, top: 648, right: 297, bottom: 699 };
-    const COPY_BOX = { left: 299, top: 647, right: 497, bottom: 698 };
-    // approximates the on-screen flex column's space-evenly distribution
-    // across the open gap (QR_BOX.bottom to CLOSE_BOX.top) for the export
-    // canvas, which can't run actual flex layout
-    const NAME_Y = 512;
-    const NOTE_Y = 550;
-    const LABEL_Y = 585;
-    const LINK_BOX = { left: 0.12 * CARD_W, right: 0.88 * CARD_W, top: 598, bottom: 628 };
-
-    let frameImgPromise = null;
-    function loadFrameImage() {
-      if (!frameImgPromise) {
-        frameImgPromise = new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = "invite-card-frame.jpg";
-        });
-      }
-      return frameImgPromise;
-    }
-
-    const whiskerImgCache = {};
-    function loadWhisker(src) {
-      if (!whiskerImgCache[src]) {
-        whiskerImgCache[src] = new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = src;
-        });
-      }
-      return whiskerImgCache[src];
-    }
-
-    /* Renders the on-screen QR (into the small framed canvas in the HTML
-     * card, which sits over the invite-card-frame.jpg background) and,
-     * separately, draws that same frame image plus all the text/icons onto
-     * a hidden export canvas — that's what canvas.toBlob() copies to the
-     * clipboard, since there's no dependency-free way to rasterize the
-     * live DOM card. */
-    async function drawInviteCard(url, name) {
-      inviteCardBlob = null;
-      inviteCardDataUrl = null;
-      $("invite-card-person").textContent = name;
-
-      const qr = qrcode(0, "M");
-      qr.addData(url);
-      qr.make();
-      const svgMarkup = qr.createSvgTag({ cellSize: 6, margin: 0 });
-      const [qrImg, frameImg, whiskerL, whiskerR] = await Promise.all([
-        svgToImage(svgMarkup), loadFrameImage(),
-        loadWhisker("left-hand-whisker.svg"), loadWhisker("right-hand-whisker.svg"),
-      ]);
-
-      const qrCanvas = $("invite-qr-canvas");
-      const qrCtx = qrCanvas.getContext("2d");
-      qrCtx.clearRect(0, 0, qrCanvas.width, qrCanvas.height);
-      qrCtx.drawImage(qrImg, 0, 0, qrCanvas.width, qrCanvas.height);
-
-      const canvas = $("invite-canvas");
-      const ctx = canvas.getContext("2d");
-      const W = canvas.width, H = canvas.height;
-      const FRAME_H = 724;
-      const NUDGE = 2; // small downward nudge so text doesn't sit too high in its panel
-
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(frameImg, 0, 0, W, FRAME_H);
-      ctx.textAlign = "center";
-
-      // QR, centered in the frame's reserved box (kept visibly smaller than
-      // the box itself so there's real margin around it, matching the
-      // reference — not sized to nearly touch the panel)
-      const qrBoxCenterX = (QR_BOX.left + QR_BOX.right) / 2;
-      const qrBoxCenterY = (QR_BOX.top + QR_BOX.bottom) / 2;
-      const qrSize = 195;
-      const qrX = qrBoxCenterX - qrSize / 2;
-      const qrY = qrBoxCenterY - qrSize / 2;
-      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-
-      // "For {name}" and the note sit in the open gap below the QR box —
-      // the frame has no baked-in guides here, so this follows the same
-      // percentage layout as the on-screen CSS.
-      ctx.fillStyle = "#184f2a";
-      ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      const nameLabel = `For ${name}`;
-      const nameWidth = ctx.measureText(nameLabel).width;
-      const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
-      const whiskerGap = 8;
-      ctx.fillText(nameLabel, W / 2, NAME_Y + 6 + NUDGE);
-      const nameY = NAME_Y + 6 + NUDGE - whiskerH * 0.7;
-      ctx.drawImage(whiskerL, W / 2 - nameWidth / 2 - whiskerGap - whiskerW, nameY, whiskerW, whiskerH);
-      ctx.drawImage(whiskerR, W / 2 + nameWidth / 2 + whiskerGap, nameY, whiskerW, whiskerH);
-      ctx.fillStyle = "#66736a";
-      ctx.font = "400 13px Arial, Helvetica, sans-serif";
-      ctx.fillText("Up to 3 devices per tab", W / 2, NOTE_Y + 5 + NUDGE);
-
-      // "Invite link" label, left-aligned above the link field
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#184f2a";
-      ctx.font = "700 14px Arial, Helvetica, sans-serif";
-      ctx.fillText("Invite link", LINK_BOX.left + 2, LABEL_Y + 6 + NUDGE);
-
-      // link field outline + text (room reserved for the copy icon on the right)
-      ctx.strokeStyle = "#2f7a44";
-      ctx.lineWidth = 1.5;
-      roundRectPath(ctx, LINK_BOX.left, LINK_BOX.top, LINK_BOX.right - LINK_BOX.left, LINK_BOX.bottom - LINK_BOX.top, 8);
-      ctx.stroke();
-      ctx.fillStyle = "#184f2a";
-      ctx.font = "400 13px Arial, Helvetica, sans-serif";
-      const linkBoxCenterY = (LINK_BOX.top + LINK_BOX.bottom) / 2 + 4 + NUDGE;
-      const linkTextMaxWidth = (LINK_BOX.right - LINK_BOX.left) - 46;
-      ctx.fillText(fitText(ctx, url, linkTextMaxWidth), LINK_BOX.left + 14, linkBoxCenterY);
-      drawCopyIcon(ctx, LINK_BOX.right - 32, linkBoxCenterY - 12, 18, "#2f7a44");
-
-      // Close button (light box, dark text)
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#184f2a";
-      ctx.font = "700 15px Arial, Helvetica, sans-serif";
-      const closeBoxCenterX = (CLOSE_BOX.left + CLOSE_BOX.right) / 2;
-      const closeBoxCenterY = (CLOSE_BOX.top + CLOSE_BOX.bottom) / 2 + 5 + NUDGE;
-      ctx.fillText("Close", closeBoxCenterX, closeBoxCenterY);
-
-      // Copy to share button (dark box, white text + icon)
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "700 14px Arial, Helvetica, sans-serif";
-      const btnLabel = "Copy to share";
-      const copyBoxCenterX = (COPY_BOX.left + COPY_BOX.right) / 2;
-      const copyBoxCenterY = (COPY_BOX.top + COPY_BOX.bottom) / 2 + 5 + NUDGE;
-      const btnLabelWidth = ctx.measureText(btnLabel).width;
-      const iconGap = 7, iconSize = 15;
-      const groupWidth = btnLabelWidth + iconGap + iconSize;
-      const textX = copyBoxCenterX - groupWidth / 2 + btnLabelWidth / 2;
-      ctx.fillText(btnLabel, textX, copyBoxCenterY);
-      drawCopyIcon(ctx, copyBoxCenterX + groupWidth / 2 - iconSize, copyBoxCenterY - iconSize + 3, iconSize, "#ffffff");
-
-      // no text drawn onto the canvas below this point — the link is
-      // appended as a real, separate, clickable clipboard entry instead
-      // (see the copy button handler), not rasterized into the image
-      inviteCardDataUrl = canvas.toDataURL("image/png");
-      inviteCardBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    }
-
-    function drawCopyIcon(ctx, x, y, size, color) {
-      ctx.save();
-      ctx.strokeStyle = color || "#ffffff";
-      ctx.lineWidth = 1.6;
-      ctx.lineJoin = "round";
-      const s = size / 24;
-      roundRectPath(ctx, x + 9 * s, y + 9 * s, 12 * s, 12 * s, 2 * s);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x + 5 * s, y + 15 * s);
-      ctx.lineTo(x + 4 * s, y + 15 * s);
-      ctx.arcTo(x + 3 * s, y + 15 * s, x + 3 * s, y + 14 * s, 1 * s);
-      ctx.lineTo(x + 3 * s, y + 4 * s);
-      ctx.arcTo(x + 3 * s, y + 3 * s, x + 4 * s, y + 3 * s, 1 * s);
-      ctx.lineTo(x + 13 * s, y + 3 * s);
-      ctx.arcTo(x + 14 * s, y + 3 * s, x + 14 * s, y + 4 * s, 1 * s);
-      ctx.lineTo(x + 14 * s, y + 5 * s);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    function fitText(ctx, text, maxWidth) {
-      if (ctx.measureText(text).width <= maxWidth) return text;
-      let s = text;
-      while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
-      return s + "…";
-    }
-
-    function roundRectPath(ctx, x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.arcTo(x + w, y, x + w, y + h, r);
-      ctx.arcTo(x + w, y + h, x, y + h, r);
-      ctx.arcTo(x, y + h, x, y, r);
-      ctx.arcTo(x, y, x + w, y, r);
-      ctx.closePath();
-    }
-
-    function svgToImage(svgMarkup) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = "data:image/svg+xml;base64," + btoa(svgMarkup);
-      });
-    }
-
-    $("invite-copy-link").onclick = async () => {
-      const url = $("invite-link-url").value;
-      try {
-        if (window.ClipboardItem && navigator.clipboard.write && inviteCardBlob && inviteCardDataUrl) {
-          // text/html embeds the card image AND a real, separate, clickable
-          // link below it — pasting into any rich-text target (chat apps,
-          // email, docs) drops in both together as one paste, rather than
-          // baking the URL into the image's own pixels (which can't be
-          // clicked or re-copied as text). text/plain is a universal
-          // fallback for plain-text-only paste targets.
-          const escapedUrl = url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-          const html = `<div><img src="${inviteCardDataUrl}" alt="Fresh Snacks device-link invite"><div><a href="${escapedUrl}">${escapedUrl}</a></div></div>`;
-          await navigator.clipboard.write([
-            new ClipboardItem({
-              "text/html": new Blob([html], { type: "text/html" }),
-              "image/png": inviteCardBlob,
-              "text/plain": new Blob([url], { type: "text/plain" }),
-            }),
-          ]);
-          status("invite-modal-status", "Copied! Paste the card and link into your chat. 🎉", true);
-        } else {
-          await navigator.clipboard.writeText(url);
-          status("invite-modal-status", "Link copied (image copy isn't supported in this browser).", true);
-        }
-      } catch (e) {
-        try {
-          await navigator.clipboard.writeText(url);
-          status("invite-modal-status", "Link copied as text (image copy was blocked).", true);
-        } catch (e2) {
-          $("invite-link-url").select();
-          status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
-        }
-      }
-    };
-
-    // clicking the (truncated) link field selects its full value so Ctrl+C
-    // still works even though only part of the URL is visibly shown
-    $("invite-link-url").onclick = () => $("invite-link-url").select();
-
-    $("invite-copy-link-only").onclick = async () => {
-      const url = $("invite-link-url").value;
-      try {
-        await navigator.clipboard.writeText(url);
-        status("invite-modal-status", "Link copied.", true);
-      } catch (e) {
-        $("invite-link-url").select();
-        status("invite-modal-status", "Press Ctrl+C to copy (clipboard access was blocked).", false);
-      }
-    };
-
-    const closeDevicesModal = () => $("devices-modal-backdrop").classList.remove("show");
-    $("devices-modal-close").onclick = closeDevicesModal;
-    $("devices-modal-done").onclick = closeDevicesModal;
-    $("devices-modal-backdrop").addEventListener("click", (ev) => {
-      if (ev.target === $("devices-modal-backdrop")) closeDevicesModal();
-    });
-
-    async function openDevicesModal(userId, name) {
-      $("devices-modal-title").textContent = `Linked devices — ${name}`;
-      $("devices-modal-status").textContent = "";
-      $("devices-list").innerHTML = `<p class="muted-small">Loading…</p>`;
-      $("devices-modal-backdrop").classList.add("show");
-      await renderDevicesList(userId, name);
-    }
-
-    async function renderDevicesList(userId, name) {
-      const devices = await FS.admin.getLinkedDevicesInfo(userId);
-      $("devices-modal-sub").textContent = `${devices.length}/3 devices linked to this tab.`;
-      if (!devices.length) {
-        $("devices-list").innerHTML = `<p class="muted-small">No devices linked yet — share an invite to link one.</p>`;
-        return;
-      }
-      $("devices-list").innerHTML = devices.map((d) => `
-        <div class="device-row" data-uid="${esc(d.uid)}">
-          <div>
-            <div class="device-row-label">${esc(d.deviceLabel)}</div>
-            <div class="muted-small">${d.lastSeenDate ? `Last seen ${esc(d.lastSeenDate)}` : "Last seen unknown"}</div>
-          </div>
-          <button class="danger" data-unlink="${esc(d.uid)}">Unlink</button>
-        </div>
-      `).join("");
-      $("devices-list").querySelectorAll("[data-unlink]").forEach((btn) => {
-        btn.onclick = async () => {
-          btn.disabled = true;
-          try {
-            await FS.admin.unlinkUserDevice(userId, btn.dataset.unlink);
-            await renderDevicesList(userId, name);
-            await refresh();
-            status("devices-modal-status", "Device unlinked.", true);
-          } catch (e) {
-            btn.disabled = false;
-            status("devices-modal-status", e.message, false);
-          }
-        };
-      });
     }
 
     function userOptions() {
@@ -572,33 +187,6 @@
       $("admin-subtitle").textContent = `${SNAPSHOT.transactions.length} transactions, ${SNAPSHOT.payments.length} payments`;
     }
 
-    function renderAccounting() {
-      const cur = SNAPSHOT.settings.currency;
-      $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
-        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
-          <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
-          <td><select data-f="vipStatus">
-            ${["anonymous", "vip", "legacy", "blocked"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
-          </select></td>
-          <td class="num">${FS.money(r.snackTotal, cur)}</td>
-          <td class="num">${FS.money(r.paidTotal, cur)}</td>
-          <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
-          <td class="num">${FS.money(r.balance, cur)}</td>
-          <td>${esc(r.lastActivity || "-")}</td>
-          <td style="white-space:nowrap;">
-            <button data-act="user-save">Save</button>
-            <button data-act="user-view" title="Show this user's listings below">View</button>
-            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite</button>
-            <button data-act="user-devices" title="View and unlink this profile's devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
-            <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
-          </td>
-        </tr>`).join("")}</tbody>
-      </table>`;
-      $("payment-user").innerHTML = userOptions();
-      $("adjust-user").innerHTML = userOptions();
-    }
-
     function renderCatalog() {
       $("catalog-list").innerHTML = `<table class="admin-table">
         <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Photo</th><th>Active</th><th></th></tr></thead>
@@ -612,48 +200,6 @@
           <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
         </tr>`).join("")}</tbody>
       </table>`;
-    }
-
-    function renderTransactions() {
-      const byUser = new Map(SNAPSHOT.accounting.map((r) => [r.userId, r.displayName]));
-      const cur = SNAPSHOT.settings.currency;
-      const badge = (t) => t.userStatus
-        ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
-        : "";
-      const filtered = SELECTED_USER
-        ? SNAPSHOT.transactions.filter((t) => (t.userId || t.uid) === SELECTED_USER)
-        : SNAPSHOT.transactions;
-      const rows = [...filtered]
-        .sort((a, b) =>
-          (b.userStatus === "disputed") - (a.userStatus === "disputed")
-          || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
-        .slice(0, SELECTED_USER ? filtered.length : 30)
-        .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
-          <td>${esc(t.createdDate || "-")}</td>
-          <td>${esc(byUser.get(t.userId || t.uid) || t.userId || t.deviceId || "-")}</td>
-          <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
-          <td class="num">${esc(t.quantity || 1)}</td>
-          <td class="num-money">${FS.money(t.total || 0, cur)}</td>
-          <td>${esc(t.source || "self")} ${badge(t)}</td>
-          <td style="white-space:nowrap;">
-            ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
-            <button data-act="txn-edit" title="Change quantity/value">Change</button>
-            <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
-          </td>
-        </tr>`).join("");
-      const heading = SELECTED_USER
-        ? `<div class="section-head"><h2>Listings — ${esc(byUser.get(SELECTED_USER) || SELECTED_USER)}</h2>
-           <button id="txn-clear-filter">Show all users</button></div>`
-        : `<h2>Recent transactions</h2>`;
-      $("transaction-heading").innerHTML = heading;
-      const clearBtn = $("txn-clear-filter");
-      if (clearBtn) clearBtn.onclick = () => { SELECTED_USER = null; renderTransactions(); };
-      $("transaction-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Day</th><th>User</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="7" class="muted-small">No listings for this user yet.</td></tr>`}</tbody>
-      </table>
-      <p class="muted-small">Disputed listings (flagged with &#10005; by the customer) sort to the top —
-      Approve keeps them and clears the flag, Change edits them, Void removes them from the tab.</p>`;
     }
 
     function renderFeedback() {
@@ -691,10 +237,10 @@
       $("admin-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
       renderDashboard();
-      renderAccounting();
       renderCatalog();
-      renderTransactions();
       renderFeedback();
+      $("payment-user").innerHTML = userOptions();
+      $("adjust-user").innerHTML = userOptions();
     }
 
     $("google-login").onclick = async () => {
@@ -807,64 +353,6 @@
           await FS.admin.deactivateSnack(row.dataset.id);
           await refresh();
           status("cat-status", "Snack deactivated.", true);
-        } else if (act === "user-save") {
-          await FS.admin.renameUser(
-            row.dataset.user,
-            row.querySelector('[data-f="displayName"]').value.trim(),
-            row.querySelector('[data-f="vipStatus"]').value
-          );
-          await refresh();
-        } else if (act === "user-view") {
-          SELECTED_USER = row.dataset.user;
-          renderTransactions();
-          $("transaction-heading").scrollIntoView({ behavior: "smooth", block: "start" });
-        } else if (act === "user-invite") {
-          btn.disabled = true;
-          try {
-            const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
-            const code = await FS.admin.createLinkInvite(row.dataset.user);
-            const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
-            $("invite-link-url").value = url;
-            $("invite-modal-status").textContent = "";
-            await drawInviteCard(url, name);
-            $("invite-modal-backdrop").classList.add("show");
-          } catch (e) {
-            alert("Could not create invite: " + e.message);
-          } finally {
-            btn.disabled = false;
-          }
-        } else if (act === "user-devices") {
-          btn.disabled = true;
-          try {
-            await openDevicesModal(row.dataset.user, row.querySelector('[data-f="displayName"]').value.trim() || "Guest");
-          } catch (e) {
-            alert("Could not load devices: " + e.message);
-          } finally {
-            btn.disabled = false;
-          }
-        } else if (act === "user-delete") {
-          const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
-          const balance = row.children[5].textContent;
-          if (!confirm(`Delete ALL data for "${name}" (balance ${balance})?\n\nThis wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`)) return;
-          const removed = await FS.admin.deleteUserData(row.dataset.user);
-          if (SELECTED_USER === row.dataset.user) SELECTED_USER = null;
-          await refresh();
-          status("acct-status", `Deleted ${removed} record(s) for ${name}.`, true);
-        } else if (act === "txn-approve") {
-          await FS.admin.resolveTransaction(row.dataset.id);
-          await refresh();
-        } else if (act === "txn-edit") {
-          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
-          if (qty === null) return;
-          const total = prompt("Total value:", t ? t.total || 0 : 0);
-          if (total === null) return;
-          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
-          await refresh();
-        } else if (act === "txn-void") {
-          if (!confirm("Void this listing? It disappears from the customer's tab and totals.")) return;
-          await FS.admin.voidTransaction(row.dataset.id);
-          await refresh();
         } else if (act === "fb-read") {
           await FS.admin.setFeedbackStatus(row.dataset.id, "read");
           await refresh();
@@ -873,9 +361,7 @@
           await refresh();
         }
       } catch (e) {
-        const target = act.startsWith("snack") ? "cat-status"
-          : act.startsWith("user") ? "acct-status"
-          : "login-status";
+        const target = act.startsWith("snack") ? "cat-status" : "login-status";
         status(target, e.message, false);
       }
     });

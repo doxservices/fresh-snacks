@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Transactions</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Transactions</h1>
+          <p>Approve, edit, or void customer listings — grouped by user.</p>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Admin dashboard</a>
+          <a class="btn" href="accounting.html">User accounting</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="transactions-app" class="hidden">
+      <section class="card section-card">
+        <div class="section-head">
+          <h2>All transactions</h2>
+          <div>
+            <button id="expand-all">Expand all</button>
+            <button id="collapse-all">Collapse all</button>
+          </div>
+        </div>
+        <p class="muted-small" style="margin-bottom:10px;">
+          Each user's listings collapse into their own section — flagged (disputed) sections open
+          automatically. Disputed listings sort to the top within a section: Approve keeps them and
+          clears the flag, Change edits them, Void removes them from the tab.
+        </p>
+        <div id="txn-groups"></div>
+      </section>
+    </section>
+
+    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/firebase-admin.js"></script>
+  <script>
+    let SNAPSHOT = null;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    const badge = (t) => t.userStatus
+      ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
+      : "";
+
+    function renderTransactions() {
+      const cur = SNAPSHOT.settings.currency;
+      const byUser = new Map(SNAPSHOT.accounting.map((r) => [r.userId, r]));
+
+      const groups = new Map();
+      for (const t of SNAPSHOT.transactions) {
+        const key = t.userId || t.uid || t.deviceId || "unassigned";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(t);
+      }
+
+      const requestedUser = new URLSearchParams(location.search).get("user");
+      const sorted = [...groups.entries()].sort(([keyA, txA], [keyB, txB]) => {
+        const disputedA = txA.some((t) => t.userStatus === "disputed");
+        const disputedB = txB.some((t) => t.userStatus === "disputed");
+        if (disputedA !== disputedB) return disputedA ? -1 : 1;
+        const nameA = byUser.get(keyA)?.displayName || keyA;
+        const nameB = byUser.get(keyB)?.displayName || keyB;
+        return String(nameA).localeCompare(String(nameB));
+      });
+
+      $("txn-groups").innerHTML = sorted.length
+        ? sorted.map(([userId, txns]) => {
+            const info = byUser.get(userId);
+            const name = info?.displayName || userId;
+            const total = txns.reduce((n, t) => n + Number(t.total || 0), 0);
+            const flagged = txns.some((t) => t.userStatus === "disputed");
+            const shouldOpen = flagged || userId === requestedUser;
+            const rows = [...txns]
+              .sort((a, b) =>
+                (b.userStatus === "disputed") - (a.userStatus === "disputed")
+                || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+              .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
+                <td>${esc(t.createdDate || "-")}</td>
+                <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
+                <td class="num">${esc(t.quantity || 1)}</td>
+                <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+                <td>${esc(t.source || "self")} ${badge(t)}</td>
+                <td style="white-space:nowrap;">
+                  ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
+                  <button data-act="txn-edit" title="Change quantity/value">Change</button>
+                  <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
+                </td>
+              </tr>`).join("");
+            return `<details data-user="${esc(userId)}"${shouldOpen ? " open" : ""}>
+              <summary>
+                <span class="toggle"></span>
+                <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(name)}</span> <span class="month-note">${txns.length} listing(s)</span></span>
+                <span class="month-total num-money">${FS.money(total, cur)}</span>
+              </summary>
+              <table class="admin-table">
+                <thead><tr><th>Day</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </details>`;
+          }).join("")
+        : `<p class="muted-small">No transactions yet.</p>`;
+
+      if (requestedUser) {
+        const target = document.querySelector(`#txn-groups details[data-user="${CSS.escape(requestedUser)}"]`);
+        if (target) {
+          target.setAttribute("open", "");
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+
+    $("expand-all").onclick = () =>
+      document.querySelectorAll("#txn-groups details").forEach((d) => d.setAttribute("open", ""));
+    $("collapse-all").onclick = () =>
+      document.querySelectorAll("#txn-groups details").forEach((d) => d.removeAttribute("open"));
+
+    async function refresh() {
+      SNAPSHOT = await FS.admin.getSnapshot();
+      $("login-panel").classList.add("hidden");
+      $("transactions-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      renderTransactions();
+    }
+
+    $("google-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithGoogle();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("microsoft-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithMicrosoft();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("email-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("transactions-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    document.body.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const row = btn.closest("tr");
+      const act = btn.dataset.act;
+      // open sections stay open across the re-render each action triggers
+      const openKeys = [...document.querySelectorAll("#txn-groups details[open]")].map((d) => d.dataset.user);
+      try {
+        if (act === "txn-approve") {
+          await FS.admin.resolveTransaction(row.dataset.id);
+        } else if (act === "txn-edit") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          const qty = prompt("Quantity:", t ? t.quantity || 1 : 1);
+          if (qty === null) return;
+          const total = prompt("Total value:", t ? t.total || 0 : 0);
+          if (total === null) return;
+          await FS.admin.updateTransaction(row.dataset.id, { quantity: qty, total });
+        } else if (act === "txn-void") {
+          if (!confirm("Void this listing? It disappears from the customer's tab and totals.")) return;
+          await FS.admin.voidTransaction(row.dataset.id);
+        } else {
+          return;
+        }
+        SNAPSHOT = await FS.admin.getSnapshot();
+        renderTransactions();
+        document.querySelectorAll("#txn-groups details").forEach((d) =>
+          d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((admin) => { if (admin) return refresh(); })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>

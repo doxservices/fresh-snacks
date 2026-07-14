@@ -75,7 +75,8 @@ service cloud.firestore {
       allow create: if signedIn() && userId == request.auth.uid;
       allow read: if isAdmin()
         || (signedIn() && userId == request.auth.uid)
-        || hasClaimOn(userId);
+        || hasClaimOn(userId)
+        || isLinkedMember(userId);
       allow update: if isAdmin()
         || (signedIn() && userId == request.auth.uid)
         || (signedIn() && request.auth.uid in resource.data.get('linkedUids', []))
@@ -98,7 +99,8 @@ service cloud.firestore {
         && request.resource.data.status == "active";
       allow read: if isAdmin()
         || (signedIn() && resource.data.uid == request.auth.uid)
-        || hasClaimOn(resource.data.userId);
+        || hasClaimOn(resource.data.userId)
+        || isLinkedMember(resource.data.userId);
       // owners/claim-holders may only set their agree/disagree verdict;
       // everything else on a transaction stays admin-only
       allow update: if isAdmin()
@@ -112,7 +114,8 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isAdmin()
         || (signedIn() && resource.data.userId == request.auth.uid)
-        || hasClaimOn(resource.data.userId);
+        || hasClaimOn(resource.data.userId)
+        || isLinkedMember(resource.data.userId);
       allow create, update, delete: if isAdmin();
     }
 
