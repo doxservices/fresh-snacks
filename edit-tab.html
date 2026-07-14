@@ -178,7 +178,7 @@
         <div class="invite-card-gap">
           <p class="invite-card-name" data-diag="name">
             <img class="whisker" src="left-hand-whisker.svg" alt="" aria-hidden="true">
-            Invite for '<span id="invite-card-person">Guest</span>'
+            Invite for <span id="invite-card-q1">'</span><span id="invite-card-person">Guest</span><span id="invite-card-q2">'</span>
             <img class="whisker" src="right-hand-whisker.svg" alt="" aria-hidden="true">
           </p>
           <p class="invite-card-note" data-diag="note">Up to 3 devices per tab</p>
@@ -292,7 +292,12 @@
     async function drawInviteCard(url, name) {
       inviteCardBlob = null;
       inviteCardDataUrl = null;
+      // A generic role label like "VIP Customer" reads oddly in quotes; only
+      // an actual person's name gets the quote-marks treatment.
+      const quote = name === "VIP Customer" ? "" : "'";
       $("invite-card-person").textContent = name;
+      $("invite-card-q1").textContent = quote;
+      $("invite-card-q2").textContent = quote;
 
       const qr = qrcode(0, "M");
       qr.addData(url);
@@ -327,7 +332,7 @@
 
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      const nameLabel = `Invite for '${name}'`;
+      const nameLabel = `Invite for ${quote}${name}${quote}`;
       const nameWidth = ctx.measureText(nameLabel).width;
       const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
       const whiskerGap = 8;
