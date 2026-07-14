@@ -434,10 +434,14 @@ FS.admin.createGuestTab = async (displayName) => {
   await FS.admin.requireAdmin();
   const userId = FS.uid("cust");
   const name = (displayName || "").trim();
+  // Same "Guest XXXX" pattern a real anonymous customer gets on first visit
+  // (see FS.getOrCreateDevice) — not a "New Guest" placeholder, so an
+  // admin-created tab looks identical to an organic one until it's named.
+  const finalName = name || `${FS.appConfig.anonUserPrefix || "Guest"} ${FS.randomCode(4)}`;
   await FS._db.collection("users").doc(userId).set({
     userId,
     uid: userId,
-    displayName: name || "New Guest",
+    displayName: finalName,
     vipStatus: name ? "named" : "anonymous",
     linkedUids: [],
     createdByAdmin: FS.admin.user.uid,

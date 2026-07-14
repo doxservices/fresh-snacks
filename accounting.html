@@ -504,14 +504,20 @@
           <td class="num">${FS.money(r.paidTotal, cur)}</td>
           <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
           <td class="num">${FS.money(r.balance, cur)}</td>
-          <td>${esc(r.lastActivity || "-")}</td>
-          <td style="white-space:nowrap;">
-            <button data-act="user-save">Save</button>
-            <button data-act="user-view" title="Open this user's listings on the Transactions page">View</button>
-            <button data-act="user-edit-tab" title="Add snacks/payments directly to this tab">Edit tab</button>
-            <button data-act="user-invite" title="Copy a link/QR that links a new device to this profile">Invite</button>
-            <button data-act="user-devices" title="View and unlink this profile's devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
-            <button class="danger" data-act="user-delete" title="Wipe this identity's data entirely">Delete</button>
+          <td class="nowrap">${esc(r.lastActivity || "-")}</td>
+          <td class="nowrap">
+            <div class="row-menu">
+              <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="Actions for ${esc(r.displayName)}" aria-haspopup="true">&#8942;</button>
+              <div class="row-menu-dropdown">
+                <button data-act="user-save">Save changes</button>
+                <button data-act="user-view">View listings</button>
+                <button data-act="user-edit-tab">Edit tab</button>
+                <button data-act="user-invite">Invite device</button>
+                <button data-act="user-devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
+                <div class="row-menu-divider"></div>
+                <button class="danger" data-act="user-delete">Delete</button>
+              </div>
+            </div>
           </td>
         </tr>`).join("")}</tbody>
       </table>`;
@@ -564,11 +570,12 @@
 
     $("create-tab-btn").onclick = async () => {
       const btn = $("create-tab-btn");
-      const name = prompt("Display name for this guest (optional — leave blank for an anonymous tab):", "");
-      if (name === null) return;
       btn.disabled = true;
       try {
-        const userId = await FS.admin.createGuestTab(name);
+        // Same default a real anonymous customer gets (Guest XXXX) - no
+        // naming prompt; rename it from the Profile section on Edit Tab
+        // once you're ready.
+        const userId = await FS.admin.createGuestTab();
         location.href = `edit-tab.html?user=${encodeURIComponent(userId)}`;
       } catch (e) {
         btn.disabled = false;
@@ -576,11 +583,31 @@
       }
     };
 
+    document.body.addEventListener("click", (ev) => {
+      const toggle = ev.target.closest("[data-menu-toggle]");
+      if (toggle) {
+        const menu = toggle.closest(".row-menu");
+        const wasOpen = menu.classList.contains("open");
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+        if (!wasOpen) menu.classList.add("open");
+        ev.stopPropagation();
+        return;
+      }
+      if (!ev.target.closest(".row-menu-dropdown")) {
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+      }
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+    });
+
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
       const row = btn.closest("tr");
       const act = btn.dataset.act;
+      const menu = btn.closest(".row-menu");
+      if (menu) menu.classList.remove("open");
       try {
         if (act === "user-save") {
           await FS.admin.renameUser(
