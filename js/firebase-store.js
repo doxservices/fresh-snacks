@@ -328,11 +328,32 @@ FS.clearLinkCode = () => localStorage.removeItem(FS.linkCodeKey);
 /* This browser's "effective" identity: its own uid normally, or the primary
  * profile's uid once this browser has joined via an invite link. Cached in
  * localStorage after joining, so this is a plain read with no extra
- * round-trip once linked. */
+ * round-trip once linked.
+ *
+ * Self-heals if the admin has since removed this device from the target's
+ * linkedUids (the Devices panel's "remove" action only ever touches the
+ * server - it has no way to reach into this browser's own localStorage - so
+ * without this check a removed device would keep treating itself as linked
+ * forever). Verified once per page load and cached for the rest of it. */
+FS._linkVerifyPromise = null;
+
 FS.getEffectiveUser = async () => {
   const user = await FS.signInAnonymous();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
   if (!linkedTo || linkedTo === user.uid) return { uid: user.uid, effectiveUid: user.uid, linked: false };
+
+  if (!FS._linkVerifyPromise) {
+    FS._linkVerifyPromise = FS._db.collection("users").doc(linkedTo).get()
+      .then((snap) => snap.exists && (snap.data().linkedUids || []).includes(user.uid))
+      // a genuine removal surfaces as permission-denied (isLinkedMember no
+      // longer holds); anything else (offline, a transient blip) fails open
+      // so a network hiccup can never silently kick a device off its tab
+      .catch((e) => !(e && e.code === "permission-denied"));
+  }
+  if (!(await FS._linkVerifyPromise)) {
+    localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
+    return { uid: user.uid, effectiveUid: user.uid, linked: false };
+  }
   return { uid: user.uid, effectiveUid: linkedTo, linked: true };
 };
 
