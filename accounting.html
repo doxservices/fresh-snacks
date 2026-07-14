@@ -640,7 +640,18 @@
         } else if (act === "user-invite") {
           btn.disabled = true;
           try {
-            const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
+            const nameInput = row.querySelector('[data-f="displayName"]');
+            // A brand-new tab (still on its auto-generated "Guest XXXX" name)
+            // is being handed off to a real person the moment an invite goes
+            // out - promote it to "VIP Customer" now instead of leaving it
+            // looking like an anonymous walk-in guest.
+            let name = nameInput.value.trim();
+            if (isDefaultGuestName(name)) {
+              name = "VIP Customer";
+              await FS.admin.renameUser(row.dataset.user, name, "vip");
+              nameInput.value = name;
+              row.querySelector('[data-f="vipStatus"]').value = "vip";
+            }
             const code = await FS.admin.createLinkInvite(row.dataset.user);
             const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
             $("invite-link-url").value = url;
