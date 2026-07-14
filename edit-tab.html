@@ -542,6 +542,18 @@
       const btn = $("tab-invite");
       btn.disabled = true;
       try {
+        // Any snacks the admin already picked in the bins for this customer
+        // ride along onto the tab instead of being silently dropped just
+        // because Invite was clicked before Add to tab.
+        const items = [...picked.entries()].map(([id, qty]) => {
+          const snack = FS.snackById(SNAPSHOT, id);
+          return { snack, qty };
+        }).filter((x) => x.snack);
+        if (items.length) {
+          await FS.admin.addTransactionFor(TARGET_USER_ID, items);
+          picked.clear();
+          await refresh();
+        }
         const name = $("profile-name").value.trim() || "Guest";
         const code = await FS.admin.createLinkInvite(TARGET_USER_ID);
         const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;

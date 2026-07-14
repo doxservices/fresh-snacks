@@ -582,7 +582,13 @@ FS.toPayment = (p) => ({
 });
 
 FS.loadData = async () => {
-  await FS.getOrCreateDevice();
+  // Just viewing the page must not create a devices/{id} + users/{uid}
+  // record - that's how every passing visitor used to end up as a junk
+  // "Guest XXXX" row in the admin accounting list. Only sign in anonymously
+  // (Auth-only, no Firestore write) so we can read this browser's existing
+  // data if any; FS.addTransaction is what actually provisions the account,
+  // triggered by a real "add to tab" action.
+  await FS.signInAnonymous();
   const claim = await FS.resolveClaim().catch(() => null);
   const [profile, catalog, transactions, payments] = await Promise.all([
     FS.getSettings(),

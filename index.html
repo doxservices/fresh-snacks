@@ -198,21 +198,6 @@
     </div>
   </main>
 
-  <div class="modal-backdrop" id="device-start-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="device-start-title">
-      <h2 id="device-start-title">Start your tab?</h2>
-      <p class="muted-small" style="margin-bottom:14px;">
-        Tap <strong>Link this device</strong> to start your own private snack tab on this browser —
-        no sign-up required. You can add your name later from User Settings.
-      </p>
-      <div class="row">
-        <button class="primary" id="device-start-yes">Link this device</button>
-        <button id="device-start-no">Not now</button>
-      </div>
-      <div class="status" id="device-start-status"></div>
-    </div>
-  </div>
-
   <div class="drawer-backdrop" id="settings-backdrop"></div>
   <aside class="drawer right" id="settings-drawer" aria-label="User settings">
     <div class="drawer-brand">User Settings</div>
@@ -636,28 +621,6 @@
     const linkCode = FS.getLinkCode();
     const alreadyLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
 
-    // First-run gate for a brand-new device with no invite code (e.g. the
-    // "Tell a Friend" QR): require a deliberate tap before the tab UI
-    // appears, rather than silently auto-provisioning on page load. Not
-    // persisted on "Not now" - refreshing shows the gate again. Any device
-    // that already has real activity (or is linked) is grandfathered in
-    // and never sees it.
-    const DEVICE_STARTED_KEY = "fresh_snacks_device_started";
-    const deviceStarted = () =>
-      localStorage.getItem(DEVICE_STARTED_KEY) === "1" || !!alreadyLinkedTo;
-    const markDeviceStarted = () => localStorage.setItem(DEVICE_STARTED_KEY, "1");
-
-    $id("device-start-yes").onclick = () => {
-      markDeviceStarted();
-      location.reload();
-    };
-    $id("device-start-no").onclick = () => {
-      $id("device-start-backdrop").classList.remove("show");
-    };
-    $id("device-start-backdrop").addEventListener("click", (ev) => {
-      if (ev.target === $id("device-start-backdrop")) $id("device-start-no").click();
-    });
-
     $id("link-invite-yes").onclick = async () => {
       const btn = $id("link-invite-yes");
       btn.disabled = true;
@@ -712,12 +675,6 @@
         .then((data) => {
           CLAIM = data.claim || null;
           LAST_DATA = data;
-
-          if (data.entries.length > 0 && !deviceStarted()) markDeviceStarted();
-          if (!linkCode && !deviceStarted()) {
-            $id("device-start-backdrop").classList.add("show");
-          }
-
           render(data);
           return FS.getMyProfile();
         })
