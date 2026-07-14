@@ -110,8 +110,22 @@
     </section>
 
     <section class="card section-card">
-      <h2>Snacks Taken</h2>
-      <div class="macro-chips" id="macro"></div>
+      <h2>Log a snack</h2>
+      <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
+      <div class="bin-grid" id="bins">
+        <p>Loading snacks…</p>
+      </div>
+      <div class="bin-total">
+        <div>
+          <div class="stat-label">Adding to tab</div>
+          <div class="amount" id="bins-total">J$0</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button id="bins-reset">Clear</button>
+          <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+        </div>
+      </div>
+      <div class="status" id="bins-status"></div>
     </section>
 
     <section class="card section-card">
@@ -227,6 +241,7 @@
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const $id = (id) => document.getElementById(id);
 
     function trackerTable(data, group, cur) {
       const opening = group.key === "opening";
@@ -346,26 +361,9 @@
       set("bottom-paid", FS.money(t.paid, cur));
       set("bottom-balance", FS.money(t.balance, cur));
 
-      // macro: per-snack tally of everything taken
-      const tally = new Map();
-      for (const e of data.entries) {
-        const name = FS.entryName(data, e);
-        const t = tally.get(name) || { count: 0, value: 0 };
-        t.count += Number(e.count || 0);
-        t.value += Number(e.value || 0);
-        tally.set(name, t);
-      }
-      document.getElementById("macro").innerHTML = tally.size
-        ? [...tally.entries()]
-            .sort((a, b) => b[1].value - a[1].value)
-            .map(([name, t]) =>
-              `<span class="macro-chip"><strong>${esc(name)}</strong>
-                <span class="macro-meta">&times; ${t.count} &middot; ${FS.money(t.value, cur)}</span></span>`)
-            .join("")
-        : `<p class="muted-small">Nothing on the tab yet — grab something from the bins.</p>`;
+      renderBinsGallery(data);
 
       const groups = FS.groups(data);
-      const latestKey = groups.length ? groups[groups.length - 1].key : null;
       const head = `<div class="log-head" aria-hidden="true">
         <span></span>
         <span>Period</span>
@@ -380,7 +378,9 @@
           ? data.profile.openingNote
           : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
         const flagged = g.entries.some((e) => e.userStatus === "disputed");
-        return `<details data-key="${esc(g.key)}"${g.key === latestKey ? " open" : ""}>
+        // collapsed by default, including the current month — the reader
+        // opens whichever period(s) they actually want to review
+        return `<details data-key="${esc(g.key)}">
           <summary>
             <span class="toggle"></span>
             <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>
@@ -392,6 +392,105 @@
         </details>`;
       }).join("");
     }
+
+    const picked = new Map();
+
+    function binsTotal(data) {
+      let t = 0;
+      for (const [id, qty] of picked) {
+        const s = FS.snackById(data, id);
+        if (s) t += s.price * qty;
+      }
+      return t;
+    }
+
+    function syncBinsGallery(data) {
+      const cur = data.profile.currency;
+      for (const s of data.catalog) {
+        const el = document.querySelector(`#bins .qty[data-id="${s.id}"]`);
+        if (el) el.textContent = picked.get(s.id) || 0;
+      }
+      $id("bins-total").textContent = FS.money(binsTotal(data), cur);
+      $id("bins-submit").disabled = binsTotal(data) === 0;
+    }
+
+    function renderBinsGallery(data) {
+      if (!data.catalog.length) {
+        $id("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
+        return;
+      }
+      $id("bins").innerHTML = data.catalog.map((s) => `
+        <div class="bin-card">
+          <div class="bin-photo">${s.photo
+            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="bin-body">
+            <div class="bin-name">${esc(s.name)}</div>
+            <div class="bin-price">${FS.money(s.price, data.profile.currency)} each</div>
+            ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
+            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
+              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+              <span class="qty" data-id="${esc(s.id)}">0</span>
+              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+            </div>
+          </div>
+        </div>`).join("");
+      syncBinsGallery(data);
+    }
+
+    function binsStatus(msg, ok) {
+      const el = $id("bins-status");
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+    }
+
+    $id("bins").addEventListener("click", (ev) => {
+      const facts = ev.target.closest("a[data-facts]");
+      if (facts) {
+        ev.preventDefault();
+        FS.showFacts(facts.dataset.facts, facts.dataset.name);
+        return;
+      }
+      const btn = ev.target.closest("button[data-id]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
+      if (next === 0) picked.delete(id); else picked.set(id, next);
+      syncBinsGallery(LAST_DATA);
+    });
+
+    $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
+
+    $id("bins-submit").onclick = async () => {
+      const cur = LAST_DATA.profile.currency;
+      const items = [...picked.entries()].map(([id, qty]) => {
+        const snack = FS.snackById(LAST_DATA, id);
+        return { snack, qty };
+      }).filter((x) => x.snack);
+      if (!items.length) return;
+
+      const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
+      if (!confirm(`Add ${summary} (${FS.money(binsTotal(LAST_DATA), cur)}) to your tab?`)) return;
+
+      $id("bins-submit").disabled = true;
+      binsStatus("Adding to your tab...", true);
+      try {
+        await FS.addTransaction(items);
+        picked.clear();
+        binsStatus(`Added ${summary} to your tab.`, true);
+        const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
+        LAST_DATA = await FS.loadData();
+        CLAIM = LAST_DATA.claim || null;
+        render(LAST_DATA);
+        document.querySelectorAll("#log details").forEach((d) =>
+          d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
+      } catch (e) {
+        binsStatus(e.message, false);
+        syncBinsGallery(LAST_DATA);
+      } finally {
+        $id("bins-submit").disabled = binsTotal(LAST_DATA) === 0;
+      }
+    };
 
     let LAST_DATA = null;
 
@@ -437,7 +536,6 @@
 
     /* ---------- user settings right well (anonymous by default, identity opt-in) ---------- */
 
-    const $id = (id) => document.getElementById(id);
     let CLAIM = null;
 
     const settingsDrawer = $id("settings-drawer");
