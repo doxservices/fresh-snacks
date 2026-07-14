@@ -97,8 +97,14 @@ service cloud.firestore {
         && request.resource.data.userId == request.resource.data.uid
         && (request.resource.data.uid == request.auth.uid || isLinkedMember(request.resource.data.uid))
         && request.resource.data.status == "active";
+      // uid == userId is guaranteed on every transaction doc (enforced by
+      // the create rule above); this branch checks userId, not uid, so it
+      // aligns with the field getOwnTransactions() actually queries on —
+      // a list query is rejected outright if the rule can't be satisfied
+      // using the same field the query filters by, even when zero
+      // documents would actually match (e.g. a brand-new customer).
       allow read: if isAdmin()
-        || (signedIn() && resource.data.uid == request.auth.uid)
+        || (signedIn() && resource.data.userId == request.auth.uid)
         || hasClaimOn(resource.data.userId)
         || isLinkedMember(resource.data.userId);
       // owners/claim-holders may only set their agree/disagree verdict;
