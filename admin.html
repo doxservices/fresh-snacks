@@ -191,7 +191,11 @@
     }
 
     function renderCatalog() {
-      $("catalog-list").innerHTML = `<table class="admin-table">
+      $("catalog-list").innerHTML = `<table class="admin-table catalog-table">
+        <colgroup>
+          <col class="cc-name"><col class="cc-price"><col class="cc-cal">
+          <col class="cc-facts"><col class="cc-photo"><col class="cc-active"><col class="cc-actions">
+        </colgroup>
         <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Photo</th><th>Active</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
           <td><input data-f="name" value="${esc(s.name)}" /></td>

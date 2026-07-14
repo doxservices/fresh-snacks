@@ -1426,6 +1426,42 @@ textarea:focus {
   font-size: 13px;
 }
 
+/* Snack catalog: fixed column widths so Name/Photo (the long free-text
+   fields) get real room instead of being squeezed to the same width as
+   short fields like Price/Calories/Facts ID. */
+.catalog-table {
+  table-layout: fixed;
+}
+.cc-name { width: 20%; }
+.cc-price { width: 9%; }
+.cc-cal { width: 10%; }
+.cc-facts { width: 10%; }
+.cc-photo { width: 20%; }
+.cc-active { width: 11%; }
+.cc-actions { width: 20%; }
+
+.catalog-table td input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Native number-input spinner arrows eat into the visible text area, which
+   in a narrow Price/Calories column clips the digits themselves. */
+.catalog-table input[type="number"] {
+  -moz-appearance: textfield;
+}
+.catalog-table input[type="number"]::-webkit-inner-spin-button,
+.catalog-table input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.catalog-table td:last-child button {
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+
 .nowrap {
   white-space: nowrap;
 }
