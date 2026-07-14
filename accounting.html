@@ -215,10 +215,11 @@
      * a hidden export canvas — that's what canvas.toBlob() copies to the
      * clipboard, since there's no dependency-free way to rasterize the
      * live DOM card. */
-    async function drawInviteCard(url, name) {
+    async function drawInviteCard(url, name, vipStatus) {
       inviteCardBlob = null;
       inviteCardDataUrl = null;
-      $("invite-card-person").textContent = name;
+      const personLabel = vipStatus === "vip" && !/^vip\b/i.test(name) ? `VIP ${name}` : name;
+      $("invite-card-person").textContent = personLabel;
 
       const qr = qrcode(0, "M");
       qr.addData(url);
@@ -259,7 +260,7 @@
       // percentage layout as the on-screen CSS.
       ctx.fillStyle = "#184f2a";
       ctx.font = "700 18px Arial, Helvetica, sans-serif";
-      const nameLabel = `For ${name}`;
+      const nameLabel = `For ${personLabel}`;
       const nameWidth = ctx.measureText(nameLabel).width;
       const whiskerH = 15, whiskerW = whiskerH * (512 / 512);
       const whiskerGap = 8;
@@ -624,11 +625,12 @@
           btn.disabled = true;
           try {
             const name = row.querySelector('[data-f="displayName"]').value.trim() || "Guest";
+            const vipStatus = row.querySelector('[data-f="vipStatus"]').value;
             const code = await FS.admin.createLinkInvite(row.dataset.user);
             const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
             $("invite-link-url").value = url;
             $("invite-modal-status").textContent = "";
-            await drawInviteCard(url, name);
+            await drawInviteCard(url, name, vipStatus);
             $("invite-modal-backdrop").classList.add("show");
           } catch (e) {
             alert("Could not create invite: " + e.message);
