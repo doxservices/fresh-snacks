@@ -509,11 +509,11 @@
             <div class="row-menu">
               <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="Actions for ${esc(r.displayName)}" aria-haspopup="true">&#8942;</button>
               <div class="row-menu-dropdown">
-                <button data-act="user-save">Save changes</button>
-                <button data-act="user-view">View listings</button>
                 <button data-act="user-edit-tab">Edit tab</button>
-                <button data-act="user-invite">Invite device</button>
+                <button data-act="user-view">View transactions</button>
+                <button data-act="user-invite">Generate Invite</button>
                 <button data-act="user-devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
+                <button data-act="user-save">Save changes</button>
                 <div class="row-menu-divider"></div>
                 <button class="danger" data-act="user-delete">Delete</button>
               </div>
