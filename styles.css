@@ -1184,6 +1184,27 @@ textarea:focus {
   flex-wrap: nowrap;
 }
 
+.request-modal-technology {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(47, 122, 68, 0.12);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.request-modal-technology a {
+  color: var(--green-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.request-modal-technology a:hover,
+.request-modal-technology a:focus-visible {
+  text-decoration: underline;
+}
+
 .request-contact-consent {
   margin: 0;
   padding: 10px 14px;
