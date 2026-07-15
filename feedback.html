@@ -73,10 +73,6 @@
           <label for="rq-last">Last name</label>
           <input id="rq-last" type="text" autocomplete="family-name" />
         </div>
-        <div class="field">
-          <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
-          <input id="rq-email" type="email" autocomplete="email" />
-        </div>
         <div class="field hidden" id="rq-phone-field">
           <label for="rq-phone-number">Cell number<span class="req-mark hidden" id="rq-phone-req"> *</span></label>
           <div class="phone-row">
@@ -86,10 +82,10 @@
             </select>
             <input id="rq-phone-number" type="tel" placeholder="123-4567" maxlength="8" autocomplete="tel-national" />
           </div>
-          <label class="checkbox-row">
-            <input id="rq-contact-consent" type="checkbox" />
-            Allow Fresh Snacks to contact me about this request
-          </label>
+        </div>
+        <div class="field">
+          <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
+          <input id="rq-email" type="email" autocomplete="email" />
         </div>
         <div class="field hidden" id="rq-category-field">
           <label for="rq-category">This is about...</label>
@@ -113,6 +109,10 @@
           <textarea id="rq-message" placeholder="Tell us more..."></textarea>
         </div>
       </div>
+      <label class="checkbox-row request-contact-consent" id="rq-contact-consent-field">
+        <input id="rq-contact-consent" type="checkbox" checked />
+        Allow Fresh Snacks to contact me about this request
+      </label>
       <div class="status" id="rq-status"></div>
       <div class="modal-actions">
         <button type="button" id="rq-cancel">Cancel</button>
@@ -208,11 +208,12 @@
       $("rq-amount").value = "";
       $("rq-snackname").value = "";
       $("rq-message").value = "";
-      $("rq-contact-consent").checked = false;
+      $("rq-contact-consent").checked = true;
       status("rq-status", "", true);
 
       $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
       $("rq-phone-field").classList.toggle("hidden", !info.showPhone);
+      $("rq-contact-consent-field").classList.toggle("hidden", !info.showPhone);
       $("rq-amount-field").classList.toggle("hidden", !info.showAmount);
       $("rq-snackname-field").classList.toggle("hidden", !info.showSnackName);
       $("rq-message-field").classList.toggle("hidden", !info.showMessageBox);
