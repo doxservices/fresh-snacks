@@ -144,6 +144,7 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
     row.vipStatus = user.vipStatus || row.vipStatus;
     row.email = user.email || "";
     row.linkedUids = user.linkedUids || [];
+    row.createdByAdmin = user.createdByAdmin || null;
   }
   for (const device of devices) {
     const row = ensure(device.userId || device.uid || device.deviceId || device.id);
@@ -169,7 +170,13 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
   return [...rows.values()].map((row) => ({
     ...row,
     balance: row.snackTotal + row.adjustmentTotal - row.paidTotal,
-  })).sort((a, b) => b.balance - a.balance || String(a.displayName).localeCompare(String(b.displayName)));
+  })).filter((row) =>
+    row.snackTotal !== 0 ||
+    row.paidTotal !== 0 ||
+    row.adjustmentTotal !== 0 ||
+    row.vipStatus !== "anonymous" ||
+    !!row.createdByAdmin
+  ).sort((a, b) => b.balance - a.balance || String(a.displayName).localeCompare(String(b.displayName)));
 };
 
 FS.admin.dateFromRecord = (record, field) => {

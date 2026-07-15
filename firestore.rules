@@ -12,17 +12,17 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
 
-    // Share-code capability: a visitor who stores a valid claim code on their
-    // own user doc may read the tab (transactions/payments/profile) of the
-    // user that codes/{code} points at. The 8-char code is the secret; codes
-    // cannot be listed, only fetched by exact id.
+    // Share-code capability: a visitor who stores a valid claim code in the
+    // authorization-only claims collection may read the tab that codes/{code}
+    // points at. Claims never appear as customer profiles in admin accounting.
+    // The code is the secret; codes cannot be listed, only fetched by exact id.
     function myClaimedCode() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('claimedCode', '');
+      return get(/databases/$(database)/documents/claims/$(request.auth.uid)).data.get('code', '');
     }
 
     function hasClaimOn(ownerId) {
       return signedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/claims/$(request.auth.uid))
         && myClaimedCode() != ''
         && get(/databases/$(database)/documents/codes/$(myClaimedCode())).data.userId == ownerId;
     }
@@ -49,13 +49,23 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
-      allow read: if signedIn();
+      allow read: if settingId == 'app' || isAdmin();
       allow write: if isAdmin();
     }
 
     match /snacks/{snackId} {
-      allow read: if signedIn() && (resource.data.active == true || isAdmin());
+      allow read: if resource.data.active == true || isAdmin();
       allow create, update, delete: if isAdmin();
+    }
+
+    match /claims/{uid} {
+      allow create, update: if signedIn()
+        && uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.code is string
+        && request.resource.data.code.size() >= 4
+        && request.resource.data.code.size() <= 16;
+      allow read, delete: if isAdmin() || (signedIn() && uid == request.auth.uid);
     }
 
     match /devices/{deviceId} {
@@ -149,11 +159,15 @@ service cloud.firestore {
     }
 
     match /feedback/{feedbackId} {
+      // Feedback is a deliberate authenticated write, but never provisions a
+      // customer profile or device record.
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.message is string
         && request.resource.data.message.size() > 0
-        && request.resource.data.message.size() <= 2000;
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.status == 'new'
+        && request.resource.data.createdAt == request.time;
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
       allow update, delete: if isAdmin();
     }

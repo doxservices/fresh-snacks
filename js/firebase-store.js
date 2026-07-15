@@ -1,8 +1,8 @@
 /* Fresh Snacks Firebase data layer.
  *
  * This replaces browser-side GitHub Contents API writes. Regular snack users
- * sign in anonymously, receive a local browser/device ID, and write only their
- * own snack transactions to Firestore.
+ * browse without an account and only receive an anonymous identity when they
+ * deliberately start a tab or accept an invite.
  */
 
 const FS = window.FS || {};
@@ -92,30 +92,24 @@ FS.showFirebaseSetupPrompt = (target, message) => {
 FS.escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-FS.signInAnonymous = async () => {
+FS.restoreSession = async () => {
   await FS.initFirebase();
   if (!FS._sessionReady) {
-    FS._sessionReady = (async () => {
-      // wait for the persisted session (if any) to finish restoring
-      await new Promise((resolve) => {
-        const unsub = FS._auth.onAuthStateChanged(() => { unsub(); resolve(); });
-      });
-      const existing = FS._auth.currentUser;
-      if (existing) {
-        try {
-          // force a token refresh: detects sessions whose account was
-          // deleted/disabled server-side, which would otherwise poison
-          // every Firestore call with permission errors
-          await existing.getIdToken(true);
-        } catch (e) {
-          await FS._auth.signOut().catch(() => {});
-        }
-      }
-      if (!FS._auth.currentUser) await FS._auth.signInAnonymously();
-    })();
+    FS._sessionReady = new Promise((resolve) => {
+      const unsub = FS._auth.onAuthStateChanged((user) => { unsub(); resolve(user || null); });
+    });
   }
-  await FS._sessionReady;
-  FS.currentUser = FS._auth.currentUser;
+  const restored = await FS._sessionReady;
+  FS.currentUser = FS._auth.currentUser || restored;
+  return FS.currentUser;
+};
+
+FS.signInAnonymous = async () => {
+  const restored = await FS.restoreSession();
+  if (!restored) {
+    const credential = await FS._auth.signInAnonymously();
+    FS.currentUser = credential.user;
+  }
   localStorage.setItem(FS.appConfig.storageKeys.uid, FS.currentUser.uid);
   return FS.currentUser;
 };
@@ -211,64 +205,9 @@ FS.ensureLocalId = (key, prefix) => {
   return id;
 };
 
-FS.getOrCreateDevice = async () => {
-  const user = await FS.signInAnonymous();
-  const keys = FS.appConfig.storageKeys;
-  let deviceId = FS.ensureLocalId(keys.deviceId, FS.appConfig.devicePrefix || "fs_dev");
-  const visitorId = FS.ensureLocalId(keys.visitorId, FS.appConfig.visitorPrefix || "fs_guest");
-  const now = firebase.firestore.FieldValue.serverTimestamp();
-  let deviceRef = FS._db.collection("devices").doc(deviceId);
-  let deviceSnap;
-  try {
-    deviceSnap = await deviceRef.get();
-  } catch (e) {
-    // the stored device id belongs to a previous identity (e.g. the account
-    // was recreated) so its doc is unreadable — rotate to a fresh device id
-    deviceId = FS.uid(FS.appConfig.devicePrefix || "fs_dev");
-    localStorage.setItem(keys.deviceId, deviceId);
-    deviceRef = FS._db.collection("devices").doc(deviceId);
-    deviceSnap = await deviceRef.get();
-  }
-  const base = {
-    deviceId,
-    uid: user.uid,
-    visitorId,
-    userId: user.uid,
-    deviceLabel: FS.deviceLabel(),
-    status: "active",
-    lastSeenAt: now,
-    userAgentBrief: FS.userAgentBrief(),
-    source: "web",
-  };
-  if (deviceSnap.exists) {
-    await deviceRef.set(base, { merge: true });
-  } else {
-    await deviceRef.set({ ...base, firstSeenAt: now });
-  }
-
-  const userRef = FS._db.collection("users").doc(user.uid);
-  const userSnap = await userRef.get();
-  const displayName = `${FS.appConfig.anonUserPrefix || "Guest"} ${FS.randomCode(4)}`;
-  const userBase = {
-    userId: user.uid,
-    uid: user.uid,
-    vipStatus: "anonymous",
-    lastSeenAt: now,
-    linkedDevices: firebase.firestore.FieldValue.arrayUnion(deviceId),
-  };
-  if (userSnap.exists) {
-    await userRef.set(userBase, { merge: true });
-  } else {
-    await userRef.set({
-      ...userBase,
-      displayName,
-      email: null,
-      phone: null,
-      favoriteSnackId: null,
-      createdAt: now,
-    });
-  }
-
+FS.deviceIdentity = (user) => {
+  const deviceId = `${FS.appConfig.devicePrefix || "fs_dev"}-${user.uid}`;
+  const visitorId = `${FS.appConfig.visitorPrefix || "fs_guest"}-${user.uid}`;
   FS.currentDevice = { deviceId, visitorId, userId: user.uid };
   return FS.currentDevice;
 };
@@ -288,7 +227,8 @@ FS.getTabCode = () => {
 
 FS.clearTabCode = () => localStorage.removeItem(FS.tabCodeKey);
 
-/* Stores the code on the visitor's own user doc (the rules verify it against
+/* Stores the code in a short-lived authorization claim (not a customer profile;
+ * the rules verify it against
  * codes/{code} on every read) and resolves who the code points at. "link"-type
  * codes are handled by the device-linking flow below instead — this only
  * resolves the read-only "view" codes. */
@@ -296,10 +236,14 @@ FS.resolveClaim = async () => {
   const code = FS.getTabCode();
   if (!code) return null;
   const user = await FS.signInAnonymous();
-  await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
   const snap = await FS._db.collection("codes").doc(code).get();
   if (!snap.exists || snap.data().active === false || !snap.data().userId) return null;
   if (snap.data().type === "link") return null;
+  await FS._db.collection("claims").doc(user.uid).set({
+    uid: user.uid,
+    code,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
   const target = snap.data().userId;
   if (target === user.uid) return null;
   let displayName = null;
@@ -403,7 +347,11 @@ FS.acceptLinkInvite = async () => {
     }).catch(() => {});
   }
 
-  await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
+  await FS._db.collection("claims").doc(user.uid).set({
+    uid: user.uid,
+    code,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
   const targetRef = FS._db.collection("users").doc(targetUid);
   const targetSnap = await targetRef.get();
   if (!targetSnap.exists) throw new Error("That tab no longer exists.");
@@ -426,10 +374,7 @@ FS.unlinkDevice = async () => {
   await FS._db.collection("users").doc(linkedTo).update({
     linkedUids: firebase.firestore.FieldValue.arrayRemove(user.uid),
   });
-  await FS._db.collection("users").doc(user.uid).set(
-    { claimedCode: firebase.firestore.FieldValue.delete() },
-    { merge: true },
-  ).catch(() => {});
+  await FS._db.collection("claims").doc(user.uid).delete().catch(() => {});
   localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
   // also drop any invite code still sitting in the URL/localStorage - without
   // this, a reload right after de-linking (common if the invite link is
@@ -498,6 +443,8 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
 /* ---------- user identity (optional, anonymous by default) ---------- */
 
 FS.getMyProfile = async () => {
+  const restored = await FS.restoreSession();
+  if (!restored) return { userId: null, vipStatus: "anonymous" };
   const eff = await FS.getEffectiveUser();
   const snap = await FS._db.collection("users").doc(eff.effectiveUid).get();
   return { userId: eff.effectiveUid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) };
@@ -507,7 +454,11 @@ FS.getMyProfile = async () => {
  * email/phone) is opt-in; leaving the name blank keeps the guest identity.
  * Writes to the effective profile, so a linked device edits the shared tab. */
 FS.updateMyProfile = async (fields) => {
+  const restored = await FS.restoreSession();
+  if (!restored) throw new Error("Start a tab before saving a profile.");
   const eff = await FS.getEffectiveUser();
+  const existing = await FS._db.collection("users").doc(eff.effectiveUid).get();
+  if (!existing.exists) throw new Error("Start a tab before saving a profile.");
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
     return s || null;
@@ -667,20 +618,18 @@ FS.toPayment = (p) => ({
 });
 
 FS.loadData = async () => {
-  // Just viewing the page must not create a devices/{id} + users/{uid}
-  // record - that's how every passing visitor used to end up as a junk
-  // "Guest XXXX" row in the admin accounting list. Only sign in anonymously
-  // (Auth-only, no Firestore write) so we can read this browser's existing
-  // data if any; FS.addTransaction is what actually provisions the account,
-  // triggered by a real "add to tab" action.
-  await FS.signInAnonymous();
-  const claim = await FS.resolveClaim().catch(() => null);
-  const [profile, catalog, transactions, payments] = await Promise.all([
-    FS.getSettings(),
-    FS.getCatalog(),
-    FS.getOwnTransactions(),
-    FS.getOwnPayments(),
-  ]);
+  // Public browsing is account-free: restore an existing session if this
+  // browser already owns a tab, but never create Auth or Firestore records.
+  const user = await FS.restoreSession();
+  const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog()]);
+  if (!user && !FS.getTabCode()) {
+    return { profile, catalog, claim: null, entries: [], payments: [] };
+  }
+  const claim = FS.getTabCode() ? await FS.resolveClaim().catch(() => null) : null;
+  if (!user && !claim) {
+    return { profile, catalog, claim: null, entries: [], payments: [] };
+  }
+  const [transactions, payments] = await Promise.all([FS.getOwnTransactions(), FS.getOwnPayments()]);
   let entries = transactions.map(FS.toEntry);
   let pays = payments.map(FS.toPayment);
   if (claim) {
@@ -708,16 +657,55 @@ FS.loadData = async () => {
 };
 
 FS.addTransaction = async (items) => {
-  const device = await FS.getOrCreateDevice();
+  const validItems = (items || []).map((item) => {
+    const snack = item.snack || item;
+    const quantity = Number(item.qty || item.quantity || 1);
+    return { snack, quantity };
+  }).filter(({ snack, quantity }) => snack && snack.id && quantity > 0 && Number(snack.price || 0) > 0);
+  if (!validItems.length) throw new Error("Choose at least one priced snack.");
+
+  const user = await FS.signInAnonymous();
+  const device = FS.deviceIdentity(user);
   const eff = await FS.getEffectiveUser();
   const batch = FS._db.batch();
   const today = FS.todayISO();
   const now = firebase.firestore.FieldValue.serverTimestamp();
+  const deviceRef = FS._db.collection("devices").doc(device.deviceId);
+  batch.set(deviceRef, {
+    deviceId: device.deviceId,
+    uid: user.uid,
+    visitorId: device.visitorId,
+    userId: eff.effectiveUid,
+    deviceLabel: FS.deviceLabel(),
+    status: "active",
+    lastSeenAt: now,
+    userAgentBrief: FS.userAgentBrief(),
+    source: "web",
+  }, { merge: true });
+
+  const userRef = FS._db.collection("users").doc(eff.effectiveUid);
+  const userSnap = await userRef.get();
+  const userBase = {
+    userId: eff.effectiveUid,
+    uid: eff.effectiveUid,
+    lastSeenAt: now,
+    linkedDevices: firebase.firestore.FieldValue.arrayUnion(device.deviceId),
+  };
+  if (userSnap.exists) {
+    batch.set(userRef, userBase, { merge: true });
+  } else {
+    batch.set(userRef, {
+      ...userBase,
+      displayName: `${FS.appConfig.anonUserPrefix || "Guest"} ${FS.randomCode(4)}`,
+      vipStatus: "anonymous",
+      email: null,
+      phone: null,
+      favoriteSnackId: null,
+      createdAt: now,
+    });
+  }
   const saved = [];
-  for (const item of items) {
-    const snack = item.snack || item;
-    const quantity = Number(item.qty || item.quantity || 1);
-    if (!snack || !snack.id || quantity < 1) continue;
+  for (const { snack, quantity } of validItems) {
     const transactionId = FS.uid("fs_txn");
     const ref = FS._db.collection("transactions").doc(transactionId);
     const record = {
@@ -740,8 +728,10 @@ FS.addTransaction = async (items) => {
     batch.set(ref, record);
     saved.push(record);
   }
-  if (!saved.length) throw new Error("Choose at least one snack.");
   await batch.commit();
+  localStorage.setItem(FS.appConfig.storageKeys.deviceId, device.deviceId);
+  localStorage.setItem(FS.appConfig.storageKeys.visitorId, device.visitorId);
+  localStorage.setItem("fresh_snacks_device_started", "1");
   return saved;
 };
 
