@@ -505,7 +505,7 @@
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
           <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
           <td><select data-f="vipStatus">
-            ${["anonymous", "vip", "legacy"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
+            ${["anonymous", "feedback", "named", "vip", "legacy"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
           </select></td>
           <td class="num">${FS.money(r.snackTotal, cur)}</td>
           <td class="num">${FS.money(r.paidTotal, cur)}</td>

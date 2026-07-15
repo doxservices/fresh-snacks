@@ -421,6 +421,8 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
   const msg = clean(message);
   if (!msg) throw new Error("Please enter a message before sending.");
   const id = FS.uid("fs_fb");
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const feedbackName = [clean(firstName), clean(lastName)].filter(Boolean).join(" ") || "Feedback User";
   const payload = {
     feedbackId: id,
     uid: user.uid,
@@ -434,9 +436,30 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
     category: category || "other",
     message: msg,
     status: "new",
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: now,
   };
-  await FS._db.collection("feedback").doc(id).set(payload);
+
+  // Submitting feedback is a deliberate contact event. Create the minimal
+  // inviteable tab identity in the same batch as the feedback so neither can
+  // be orphaned. No device, transaction, payment, or balance record is made.
+  const userRef = FS._db.collection("users").doc(user.uid);
+  const userSnap = await userRef.get();
+  const batch = FS._db.batch();
+  batch.set(FS._db.collection("feedback").doc(id), payload);
+  batch.set(userRef, userSnap.exists ? {
+    tabId: user.uid,
+    lastFeedbackAt: now,
+  } : {
+    userId: user.uid,
+    uid: user.uid,
+    tabId: user.uid,
+    displayName: feedbackName,
+    vipStatus: "feedback",
+    profileSource: "feedback",
+    createdAt: now,
+    lastFeedbackAt: now,
+  }, { merge: true });
+  await batch.commit();
   return payload;
 };
 
