@@ -323,7 +323,19 @@ FS.getLinkCode = () => {
   return localStorage.getItem(FS.linkCodeKey) || null;
 };
 
-FS.clearLinkCode = () => localStorage.removeItem(FS.linkCodeKey);
+/* Also strips ?link= from the visible URL, not just localStorage - since
+ * getLinkCode() re-derives the code from the URL on every call, leaving the
+ * param in place meant a plain reload of this same tab (e.g. right after
+ * de-linking) would immediately re-discover the code and re-run the whole
+ * accept flow, silently linking the browser right back to the same tab. */
+FS.clearLinkCode = () => {
+  localStorage.removeItem(FS.linkCodeKey);
+  if (typeof history !== "undefined" && new URLSearchParams(location.search).has("link")) {
+    const url = new URL(location.href);
+    url.searchParams.delete("link");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+};
 
 /* This browser's "effective" identity: its own uid normally, or the primary
  * profile's uid once this browser has joined via an invite link. Cached in
@@ -379,6 +391,18 @@ FS.acceptLinkInvite = async () => {
     FS.clearLinkCode();
     return { alreadySelf: true };
   }
+
+  // Switching to a different tab than whatever this browser was already
+  // linked to (e.g. testing several invite links from one browser) - drop
+  // the old link first so this device doesn't linger as a phantom slot on
+  // it, taking up one of its 3 device slots forever.
+  const priorLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  if (priorLinkedTo && priorLinkedTo !== user.uid && priorLinkedTo !== targetUid) {
+    await FS._db.collection("users").doc(priorLinkedTo).update({
+      linkedUids: firebase.firestore.FieldValue.arrayRemove(user.uid),
+    }).catch(() => {});
+  }
+
   await FS._db.collection("users").doc(user.uid).set({ claimedCode: code }, { merge: true });
   const targetRef = FS._db.collection("users").doc(targetUid);
   const targetSnap = await targetRef.get();
@@ -407,6 +431,11 @@ FS.unlinkDevice = async () => {
     { merge: true },
   ).catch(() => {});
   localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
+  // also drop any invite code still sitting in the URL/localStorage - without
+  // this, a reload right after de-linking (common if the invite link is
+  // still the page's own address) would silently re-link this browser
+  // right back to the tab it just left.
+  FS.clearLinkCode();
 };
 
 FS.getUserTransactions = async (userId) => {

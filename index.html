@@ -618,7 +618,6 @@
     };
 
     const linkCode = FS.getLinkCode();
-    const alreadyLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
 
     $id("link-invite-continue").onclick = () => {
       FS.clearLinkCode();
@@ -694,15 +693,16 @@
         });
     }
 
-    if (linkCode && !alreadyLinkedTo) {
-      // Hold the tab UI back until linking finishes (or fails) - no
-      // separate confirmation click, the invite link itself is the
-      // deliberate hand-off.
+    if (linkCode) {
+      // Always process a freshly-presented invite link, even if this
+      // browser already happens to be linked elsewhere - acceptLinkInvite()
+      // switches the link over (dropping the old one) rather than this
+      // silently discarding the new invite and leaving the old tab showing,
+      // which is what used to happen whenever alreadyLinkedTo was set.
       $id("link-invite-card").classList.remove("hidden");
       $id("page-body").classList.add("hidden");
       autoAcceptLink();
     } else {
-      if (linkCode && alreadyLinkedTo) FS.clearLinkCode();
       startTabFlow();
     }
   </script>
