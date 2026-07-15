@@ -44,13 +44,6 @@
         </button>
       </div>
       <div class="status" id="fb-status" style="margin-top:14px;"></div>
-      <div class="profile-prompt hidden" id="profile-prompt">
-        <p id="profile-prompt-text"></p>
-        <div class="row">
-          <button class="primary" id="profile-prompt-yes">Yes, remember me</button>
-          <button id="profile-prompt-no">No thanks</button>
-        </div>
-      </div>
     </section>
 
     <footer class="feedback-footer">
@@ -60,10 +53,10 @@
   </main>
 
   <div class="modal-backdrop" id="request-modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
+    <div class="modal feedback-request-modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
       <button type="button" class="modal-close" id="request-modal-close" aria-label="Close">&times;</button>
       <h2 id="request-modal-title">Request</h2>
-      <p class="muted-small" id="request-modal-desc" style="margin-bottom:18px;"></p>
+      <p class="muted-small request-modal-desc" id="request-modal-desc"></p>
       <div class="form-grid request-form-grid">
         <div class="field">
           <label for="rq-first">First name<span class="req-mark hidden" id="rq-first-req"> *</span></label>
@@ -91,7 +84,7 @@
           <label for="rq-category">This is about...</label>
           <select id="rq-category"></select>
         </div>
-        <div class="field hidden" id="rq-amount-field">
+        <div class="field wide hidden" id="rq-amount-field">
           <label for="rq-amount">Amount<span class="req-mark hidden" id="rq-amount-req"> *</span></label>
           <div class="amount-row">
             <span class="amount-prefix" id="rq-amount-currency">J$</span>
@@ -139,30 +132,6 @@
       .filter((c) => !["change", "snack", "credit"].includes(c.id))
       .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
     $("rq-amount-currency").textContent = FS.appConfig.currency || "J$";
-
-    async function offerToSaveProfile(firstName, lastName) {
-      const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
-      if (!name) return;
-      const me = await FS.getMyProfile();
-      if (me.vipStatus !== "anonymous" && me.displayName === name) return;
-      $("profile-prompt-text").textContent = `Want us to remember you as ${name} next time you visit your tab?`;
-      $("profile-prompt").classList.remove("hidden");
-      $("profile-prompt-yes").classList.remove("hidden");
-      $("profile-prompt-no").classList.remove("hidden");
-      $("profile-prompt-yes").onclick = async () => {
-        $("profile-prompt-yes").disabled = true;
-        try {
-          await FS.updateMyProfile({ firstName, lastName, displayName: name });
-          $("profile-prompt-text").textContent = `You're all set, ${name} — we'll remember you next time.`;
-          $("profile-prompt-yes").classList.add("hidden");
-          $("profile-prompt-no").classList.add("hidden");
-        } catch (e) {
-          $("profile-prompt-yes").disabled = false;
-          status("fb-status", e.message, false);
-        }
-      };
-      $("profile-prompt-no").onclick = () => $("profile-prompt").classList.add("hidden");
-    }
 
     const REQUEST_INFO = {
       change: {
@@ -293,7 +262,6 @@
         });
         closeRequestModal();
         status("fb-status", "Thank you — your request has been sent! 🎉", true);
-        await offerToSaveProfile(firstName, lastName);
       } catch (e) {
         status("rq-status", e.message, false);
       } finally {
