@@ -856,6 +856,27 @@ textarea:focus {
 
 /* ---- feedback page ---- */
 
+.feedback-video-banner {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 60 / 13;
+  min-height: 150px;
+  max-height: 260px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: #1d5c31;
+  box-shadow: var(--shadow);
+}
+
+.feedback-video-banner video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .feedback-hero {
   display: block;
   overflow: hidden;
@@ -1038,6 +1059,12 @@ textarea:focus {
 }
 
 @media (max-width: 560px) {
+  .feedback-video-banner {
+    aspect-ratio: auto;
+    height: 112px;
+    min-height: 112px;
+  }
+
   .feedback-requests {
     padding: 20px 16px;
   }
