@@ -235,17 +235,21 @@
 
   <div class="modal-backdrop" id="snack-modal-backdrop">
     <div class="modal snack-modal" role="dialog" aria-modal="true" aria-labelledby="snack-modal-title">
-      <button type="button" class="modal-close" id="snack-modal-close" aria-label="Close">&times;</button>
-      <div class="snack-modal-photo" id="snack-modal-photo"></div>
-      <h2 id="snack-modal-title"></h2>
-      <p class="muted-small" id="snack-modal-price" style="margin-bottom:10px;"></p>
-      <div class="stepper snack-modal-stepper" role="group">
-        <button id="snack-modal-minus" aria-label="One less">&minus;</button>
-        <span class="qty" id="snack-modal-qty">0</span>
-        <button id="snack-modal-plus" aria-label="One more">+</button>
-      </div>
-      <div class="modal-actions">
-        <button class="primary" id="snack-modal-done">Done</button>
+      <button type="button" class="modal-close" id="snack-modal-close" aria-label="Close snack quantity dialog">&times;</button>
+      <div class="snack-modal-photo">
+        <div id="snack-modal-photo-inner"></div>
+        <div class="snack-modal-overlay">
+          <h2 id="snack-modal-title"></h2>
+          <p id="snack-modal-price"></p>
+          <div class="snack-modal-controls">
+            <div class="stepper snack-modal-stepper" role="group">
+              <button id="snack-modal-minus" aria-label="One less">&minus;</button>
+              <span class="qty" id="snack-modal-qty" aria-live="polite" aria-atomic="true">0</span>
+              <button id="snack-modal-plus" aria-label="One more">+</button>
+            </div>
+            <button class="primary" id="snack-modal-done">Done</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -501,6 +505,7 @@
      * +/- stepper as the gallery card - easier to hit precisely on a phone
      * than the small inline stepper, especially for adding several at once. */
     let modalSnackId = null;
+    let snackModalReturnFocus = null;
 
     function syncSnackModal() {
       $id("snack-modal-qty").textContent = picked.get(modalSnackId) || 0;
@@ -509,19 +514,26 @@
     function openSnackModal(id) {
       const s = FS.snackById(LAST_DATA, id);
       if (!s) return;
+      snackModalReturnFocus = document.activeElement;
       modalSnackId = id;
-      $id("snack-modal-photo").innerHTML = s.photo
+      $id("snack-modal-photo-inner").innerHTML = s.photo
         ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
         : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
       syncSnackModal();
       $id("snack-modal-backdrop").classList.add("show");
+      $id("snack-modal-minus").focus();
     }
 
     function closeSnackModal() {
+      if (!modalSnackId) return;
       $id("snack-modal-backdrop").classList.remove("show");
       modalSnackId = null;
+      if (snackModalReturnFocus && document.contains(snackModalReturnFocus)) {
+        snackModalReturnFocus.focus();
+      }
+      snackModalReturnFocus = null;
     }
 
     $id("snack-modal-minus").onclick = () => {
@@ -541,6 +553,24 @@
     $id("snack-modal-done").onclick = closeSnackModal;
     $id("snack-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("snack-modal-backdrop")) closeSnackModal();
+    });
+    $id("snack-modal-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeSnackModal();
+        return;
+      }
+      if (ev.key !== "Tab") return;
+      const controls = [...ev.currentTarget.querySelectorAll("button")];
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (ev.shiftKey && document.activeElement === first) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && document.activeElement === last) {
+        ev.preventDefault();
+        first.focus();
+      }
     });
 
     $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
