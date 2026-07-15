@@ -47,7 +47,7 @@
           <span class="request-desc">Not enough change at the bin</span>
           <span class="request-arrow" aria-hidden="true"></span>
         </button>
-        <button type="button" class="request-card" data-category="credit">
+        <button type="button" class="request-card" data-category="credit" disabled aria-disabled="true" title="Request Credit is coming soon">
           <span class="request-icon"><img src="assets/icons/icon-credit.svg" alt="" /></span>
           <span class="request-title">Request Credit</span>
           <span class="request-desc request-credit-live">Snack now, pay later</span>
@@ -222,17 +222,30 @@
     const modalBackdrop = $("request-modal-backdrop");
     let activeCard = null;
 
-    // Mobile pilot: credit requests remain visible as a roadmap item but are
-    // intentionally unavailable until the pilot is ready to accept them.
-    const creditPilotQuery = window.matchMedia("(max-width: 560px)");
+    // Pilot gate: credit requests are unavailable by default and become
+    // active only after an existing customer tab profile is verified. This
+    // read-only check never signs a visitor in or creates Firestore data.
     const creditCard = document.querySelector('.request-card[data-category="credit"]');
-    function syncCreditPilotState() {
-      creditCard.disabled = creditPilotQuery.matches;
-      creditCard.setAttribute("aria-disabled", String(creditPilotQuery.matches));
-      creditCard.title = creditPilotQuery.matches ? "Request Credit is coming soon" : "";
+    function setCreditAvailability(available) {
+      creditCard.disabled = !available;
+      creditCard.setAttribute("aria-disabled", String(!available));
+      creditCard.title = available ? "" : "Request Credit is coming soon";
     }
-    syncCreditPilotState();
-    creditPilotQuery.addEventListener("change", syncCreditPilotState);
+    FS.getMyProfile()
+      .then((profile) => {
+        const hasStartedTab =
+          localStorage.getItem("fresh_snacks_device_started") === "1" ||
+          !!localStorage.getItem("fresh_snacks_linked_to");
+        const activeProfile = !!(
+          profile &&
+          profile.userId &&
+          profile.displayName &&
+          profile.vipStatus !== "feedback" &&
+          (profile.vipStatus !== "anonymous" || hasStartedTab)
+        );
+        setCreditAvailability(activeProfile);
+      })
+      .catch(() => setCreditAvailability(false));
 
     function syncSnackRequestFields() {
       const showing = activeCard === "snack";
