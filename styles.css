@@ -1644,6 +1644,57 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
 }
 
+/* Tapping a bin's photo opens this bigger, easier-to-hit stepper instead of
+   the small inline one - same control, just given more room to tap on a phone. */
+.bin-photo {
+  cursor: pointer;
+}
+
+.snack-modal {
+  text-align: center;
+}
+
+.snack-modal-photo {
+  height: 180px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
+  position: relative;
+  overflow: hidden;
+}
+
+.snack-modal-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  padding: 10px;
+  box-sizing: border-box;
+  display: block;
+}
+
+.snack-modal-photo .bin-placeholder {
+  font-size: 60px;
+}
+
+.snack-modal-stepper {
+  margin: 0 auto;
+}
+
+.snack-modal-stepper button {
+  width: 54px;
+  height: 48px;
+  font-size: 22px;
+}
+
+.snack-modal-stepper .qty {
+  min-width: 60px;
+  font-size: 19px;
+}
+
 .bin-total {
   display: flex;
   justify-content: space-between;

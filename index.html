@@ -233,6 +233,23 @@
     </p>
   </aside>
 
+  <div class="modal-backdrop" id="snack-modal-backdrop">
+    <div class="modal snack-modal" role="dialog" aria-modal="true" aria-labelledby="snack-modal-title">
+      <button type="button" class="modal-close" id="snack-modal-close" aria-label="Close">&times;</button>
+      <div class="snack-modal-photo" id="snack-modal-photo"></div>
+      <h2 id="snack-modal-title"></h2>
+      <p class="muted-small" id="snack-modal-price" style="margin-bottom:16px;"></p>
+      <div class="stepper snack-modal-stepper" role="group">
+        <button id="snack-modal-minus" aria-label="One less">&minus;</button>
+        <span class="qty" id="snack-modal-qty">0</span>
+        <button id="snack-modal-plus" aria-label="One more">+</button>
+      </div>
+      <div class="modal-actions">
+        <button class="primary" id="snack-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -429,8 +446,8 @@
         return;
       }
       $id("bins").innerHTML = data.catalog.map((s) => `
-        <div class="bin-card">
-          <div class="bin-photo">${s.photo
+        <div class="bin-card" data-id="${esc(s.id)}">
+          <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="Adjust ${esc(s.name)} quantity">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
             : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
           <div class="bin-body">
@@ -461,11 +478,69 @@
         return;
       }
       const btn = ev.target.closest("button[data-id]");
-      if (!btn) return;
-      const id = btn.dataset.id;
-      const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
-      if (next === 0) picked.delete(id); else picked.set(id, next);
+      if (btn) {
+        const id = btn.dataset.id;
+        const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
+        if (next === 0) picked.delete(id); else picked.set(id, next);
+        syncBinsGallery(LAST_DATA);
+        return;
+      }
+      const photo = ev.target.closest(".bin-photo");
+      if (photo) openSnackModal(photo.dataset.id);
+    });
+
+    $id("bins").addEventListener("keydown", (ev) => {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      const photo = ev.target.closest(".bin-photo");
+      if (!photo) return;
+      ev.preventDefault();
+      openSnackModal(photo.dataset.id);
+    });
+
+    /* Tapping a snack's photo opens a bigger, focused modal with the same
+     * +/- stepper as the gallery card - easier to hit precisely on a phone
+     * than the small inline stepper, especially for adding several at once. */
+    let modalSnackId = null;
+
+    function syncSnackModal() {
+      $id("snack-modal-qty").textContent = picked.get(modalSnackId) || 0;
+    }
+
+    function openSnackModal(id) {
+      const s = FS.snackById(LAST_DATA, id);
+      if (!s) return;
+      modalSnackId = id;
+      $id("snack-modal-photo").innerHTML = s.photo
+        ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
+        : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
+      $id("snack-modal-title").textContent = s.name;
+      $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
+      syncSnackModal();
+      $id("snack-modal-backdrop").classList.add("show");
+    }
+
+    function closeSnackModal() {
+      $id("snack-modal-backdrop").classList.remove("show");
+      modalSnackId = null;
+    }
+
+    $id("snack-modal-minus").onclick = () => {
+      if (!modalSnackId) return;
+      const next = Math.max(0, (picked.get(modalSnackId) || 0) - 1);
+      if (next === 0) picked.delete(modalSnackId); else picked.set(modalSnackId, next);
       syncBinsGallery(LAST_DATA);
+      syncSnackModal();
+    };
+    $id("snack-modal-plus").onclick = () => {
+      if (!modalSnackId) return;
+      picked.set(modalSnackId, (picked.get(modalSnackId) || 0) + 1);
+      syncBinsGallery(LAST_DATA);
+      syncSnackModal();
+    };
+    $id("snack-modal-close").onclick = closeSnackModal;
+    $id("snack-modal-done").onclick = closeSnackModal;
+    $id("snack-modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("snack-modal-backdrop")) closeSnackModal();
     });
 
     $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
