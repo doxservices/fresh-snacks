@@ -8,42 +8,39 @@
 </head>
 <body>
   <main class="page">
-    <a class="feedback-hero" href="index.html" aria-label="Fresh Snacks home">
+    <div class="feedback-hero">
       <img src="assets/banner-coming-soon.png" alt="More features coming soon. We're just getting started! New snacks, rewards, and easier ways to track your tab are on the way. Tell us anything." />
-    </a>
+    </div>
 
     <div id="firebase-auth-prompt"></div>
 
     <section class="card section-card feedback-requests">
       <h2>Quick requests</h2>
-      <p class="note request-note">
-        <span class="request-note-icon" aria-hidden="true"></span>
-        <span>Tap one below and we'll ask for exactly what we need to follow up.</span>
-      </p>
+      <p class="request-note">Tap one below and we'll ask for exactly what we need to follow up.</p>
       <div class="request-cards" id="request-cards">
         <button type="button" class="request-card" data-category="change">
           <span class="request-icon"><img src="assets/icons/icon-change.svg" alt="" /></span>
           <span class="request-title">Request Change</span>
           <span class="request-desc">Not enough change at the bin</span>
-          <span class="request-arrow" aria-hidden="true">›</span>
+          <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="credit">
           <span class="request-icon"><img src="assets/icons/icon-credit.svg" alt="" /></span>
           <span class="request-title">Request Credit</span>
           <span class="request-desc">Snack now, pay later</span>
-          <span class="request-arrow" aria-hidden="true">›</span>
+          <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="snack">
           <span class="request-icon"><img src="assets/icons/icon-basket.svg" alt="" /></span>
           <span class="request-title">Request a Snack</span>
           <span class="request-desc">A bin's empty, or you've got a favorite to suggest</span>
-          <span class="request-arrow" aria-hidden="true">›</span>
+          <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="message">
           <span class="request-icon"><img src="assets/icons/icon-chat.svg" alt="" /></span>
           <span class="request-title">Send Us a Message</span>
           <span class="request-desc">A question, a concern, or just say hello</span>
-          <span class="request-arrow" aria-hidden="true">›</span>
+          <span class="request-arrow" aria-hidden="true"></span>
         </button>
       </div>
       <div class="status" id="fb-status" style="margin-top:14px;"></div>
@@ -56,8 +53,9 @@
       </div>
     </section>
 
-    <footer>
-      Thank you for helping us improve Fresh Snacks. Read our <a href="privacy.html">Privacy Policy</a>.
+    <footer class="feedback-footer">
+      <span>Thank you for helping us improve Fresh Snacks. Read our <a href="privacy.html">Privacy Policy</a>.</span>
+      <span>Technology by <a href="https://doxservices.com" target="_blank" rel="noopener noreferrer">Doxservices</a>.</span>
     </footer>
   </main>
 
