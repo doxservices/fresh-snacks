@@ -8,11 +8,22 @@
 </head>
 <body>
   <main class="page">
-    <div class="feedback-video-banner" aria-label="Fresh Snacks">
-      <video autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+    <header class="banner feedback-video-banner" aria-label="Fresh Snacks">
+      <video class="banner-bg banner-video" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
         <source src="fresh-snacks-banner.mp4" type="video/mp4" />
       </video>
-    </div>
+      <div class="banner-shade" aria-hidden="true"></div>
+      <div class="banner-inner feedback-banner-inner">
+        <button class="hamburger banner-menu" id="nav-toggle" type="button" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="4" y1="7" x2="20" y2="7"></line>
+            <line x1="4" y1="12" x2="20" y2="12"></line>
+            <line x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+        </button>
+        <img class="banner-badge" src="banner-logo.png" alt="Fresh Snacks" />
+      </div>
+    </header>
 
     <div class="feedback-hero">
       <img src="assets/banner-coming-soon.png" alt="More features coming soon. We're just getting started! New snacks, rewards, and easier ways to track your tab are on the way. Tell us anything." />
@@ -142,6 +153,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
+  <script src="js/nav.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
 
