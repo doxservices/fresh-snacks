@@ -963,6 +963,7 @@ textarea:focus {
   color: var(--green-dark);
   flex-shrink: 0;
   padding: 8px;
+  overflow: hidden;
   transition: background 0.18s ease;
 }
 
@@ -971,9 +972,18 @@ textarea:focus {
 }
 
 .request-icon img {
-  width: 100%;
-  height: 100%;
+  width: 120%;
+  height: auto;
+  aspect-ratio: 1;
+  max-width: none;
   object-fit: contain;
+  transition: transform 0.2s ease;
+  transform-origin: center;
+}
+
+.request-card:hover .request-icon img,
+.request-card:focus-visible .request-icon img {
+  transform: scale(1.2);
 }
 
 .request-title {
