@@ -1030,8 +1030,13 @@ textarea:focus {
 
 .phone-row {
   display: grid;
-  grid-template-columns: 84px 1fr;
+  grid-template-columns: 72px 1fr;
   gap: 8px;
+}
+
+.phone-row select {
+  padding-left: 8px;
+  padding-right: 4px;
 }
 
 .checkbox-row {
@@ -1084,7 +1089,7 @@ textarea:focus {
 
 .request-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
+  gap: 16px 14px;
   align-items: start;
 }
 
@@ -1093,7 +1098,7 @@ textarea:focus {
 }
 
 .request-contact-consent {
-  margin-top: 14px;
+  margin-top: 18px;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: var(--green-soft);
@@ -1170,7 +1175,7 @@ textarea:focus {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 18px;
 }
 
 @media (max-width: 620px) {
