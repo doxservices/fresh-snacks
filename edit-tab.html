@@ -690,8 +690,9 @@
           <td>${esc(t.source || "self")} ${badge(t)}</td>
           <td style="white-space:nowrap;">
             ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
-            <button data-act="txn-edit" title="Change quantity/value">Change</button>
+            <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
             <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
+            <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>
           </td>
         </tr>`).join("");
       $("transaction-list").innerHTML = `<table class="admin-table">
@@ -803,7 +804,11 @@
           await refresh();
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          const result = await AdminModals.editListing({ quantity: t ? t.quantity || 1 : 1, total: t ? t.total || 0 : 0 });
+          const result = await AdminModals.editListing({
+            quantity: t ? t.quantity || 1 : 1,
+            total: t ? t.total || 0 : 0,
+            createdDate: t ? t.createdDate || "" : "",
+          });
           if (!result) return;
           await FS.admin.updateTransaction(row.dataset.id, result);
           await refresh();
@@ -815,6 +820,15 @@
           );
           if (!ok) return;
           await FS.admin.voidTransaction(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-delete") {
+          const ok = await AdminModals.confirm(
+            "Delete this transaction permanently?",
+            "This cannot be undone. The transaction will be removed from Firestore.",
+            { confirmText: "Delete permanently", danger: true }
+          );
+          if (!ok) return;
+          await FS.admin.deleteTransaction(row.dataset.id);
           await refresh();
         }
       } catch (e) {

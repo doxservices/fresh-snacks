@@ -37,6 +37,10 @@
             <label for="am-edit-total">Total value</label>
             <input id="am-edit-total" type="number" min="0" step="1" />
           </div>
+          <div class="field">
+            <label for="am-edit-date">Date</label>
+            <input id="am-edit-date" type="date" />
+          </div>
         </div>
         <div class="modal-actions">
           <button type="button" id="am-edit-cancel">Cancel</button>
@@ -94,11 +98,12 @@
       });
     },
 
-    // Promise<{quantity, total}|null> - null if cancelled
+    // Promise<{quantity, total, createdDate}|null> - null if cancelled
     editListing(current) {
       return new Promise((resolve) => {
         $("am-edit-qty").value = current.quantity ?? 1;
         $("am-edit-total").value = current.total ?? 0;
+        $("am-edit-date").value = current.createdDate || "";
         const backdrop = $("am-edit-backdrop");
         const saveBtn = $("am-edit-save");
         const cancelBtn = $("am-edit-cancel");
@@ -109,7 +114,11 @@
           backdrop.onclick = null;
           resolve(result);
         };
-        saveBtn.onclick = () => cleanup({ quantity: $("am-edit-qty").value, total: $("am-edit-total").value });
+        saveBtn.onclick = () => cleanup({
+          quantity: $("am-edit-qty").value,
+          total: $("am-edit-total").value,
+          createdDate: $("am-edit-date").value,
+        });
         cancelBtn.onclick = () => cleanup(null);
         backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(null); };
         backdrop.classList.add("show");

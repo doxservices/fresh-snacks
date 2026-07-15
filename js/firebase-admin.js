@@ -284,11 +284,13 @@ FS.admin.resolveTransaction = async (id) => {
   });
 };
 
-FS.admin.updateTransaction = async (id, { quantity, total }) => {
+FS.admin.updateTransaction = async (id, { quantity, total, createdDate }) => {
   await FS.admin.requireAdmin();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw new Error("Choose a valid date.");
   await FS._db.collection("transactions").doc(id).update({
     quantity: Number(quantity),
     total: Number(total),
+    createdDate,
     userStatus: firebase.firestore.FieldValue.delete(),
     userStatusAt: firebase.firestore.FieldValue.delete(),
     editedBy: FS.admin.user.uid,
@@ -303,6 +305,11 @@ FS.admin.voidTransaction = async (id) => {
     voidedBy: FS.admin.user.uid,
     voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
+};
+
+FS.admin.deleteTransaction = async (id) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("transactions").doc(id).delete();
 };
 
 /* Wipes every trace of one identity (transactions/payments/adjustments/
