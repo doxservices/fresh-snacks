@@ -423,6 +423,21 @@ header.banner {
   overflow: hidden;
 }
 
+.favorite-section,
+.activity-summary {
+  margin-bottom: 14px;
+}
+
+.favorite-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.favorite-card .snack-image {
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+
 .snack-image {
   background: rgba(255, 255, 255, 0.68);
   padding: 14px;
@@ -2356,6 +2371,15 @@ tr.disputed td {
 }
 
 @media (max-width: 900px) {
+  .favorite-card {
+    grid-template-columns: 1fr;
+  }
+
+  .favorite-card .snack-image {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
   .brand-grid,
   .main-grid,
   .brand-stats,

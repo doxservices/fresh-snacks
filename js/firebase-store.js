@@ -570,6 +570,32 @@ FS.entryName = (data, entry) => {
   return entry.label || entry.snackName || "Item";
 };
 
+FS.favoriteSnack = (data) => {
+  const totals = new Map();
+  for (const entry of data.entries || []) {
+    if (!entry || entry.userStatus === "disputed") continue;
+    const name = FS.entryName(data, entry);
+    const key = entry.snackId || `name:${String(name).trim().toLowerCase()}`;
+    const current = totals.get(key) || {
+      snackId: entry.snackId || null,
+      name,
+      spend: 0,
+      count: 0,
+      lastDate: null,
+    };
+    current.spend += Number(entry.value || 0);
+    current.count += Number(entry.count || 0);
+    if (entry.date && (!current.lastDate || entry.date > current.lastDate)) current.lastDate = entry.date;
+    totals.set(key, current);
+  }
+
+  const favorite = [...totals.values()].sort((a, b) =>
+    b.spend - a.spend || b.count - a.count || String(a.name).localeCompare(String(b.name))
+  )[0] || null;
+  if (!favorite) return null;
+  return { ...favorite, snack: favorite.snackId ? FS.snackById(data, favorite.snackId) : null };
+};
+
 FS.entryPillClass = (data, entry) => {
   const s = entry.snackId ? FS.snackById(data, entry.snackId) : null;
   return s && s.style !== "other" ? "snack-pill" : "snack-pill other-pill";

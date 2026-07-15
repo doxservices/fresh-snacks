@@ -57,6 +57,31 @@
       </div>
     </section>
 
+    <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
+      <article class="snack-card favorite-card">
+        <div class="snack-image">
+          <img id="fav-photo" src="snack-photo.png" alt="Favorite snack" />
+          <div class="facts-door" id="facts-door" aria-hidden="true" title="Close nutrition facts"></div>
+        </div>
+        <div class="snack-body">
+          <div class="snack-label">Favorite Snack</div>
+          <div class="snack-name" id="fav-name">–</div>
+          <p id="fav-desc">Your top snack by total spend.</p>
+          <p class="muted-small" id="fav-facts"></p>
+          <div class="mini-grid">
+            <div class="mini-card">
+              <div class="stat-label">Total spent</div>
+              <div class="stat-value blue" id="mini-spent">–</div>
+            </div>
+            <div class="mini-card soft-blue">
+              <div class="stat-label">Last purchased</div>
+              <div class="stat-value" id="mini-last">–</div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section class="card section-card">
       <h2>Snack now, pay later</h2>
       <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
@@ -77,31 +102,7 @@
     </section>
 
     <div id="tab-activity" class="hidden">
-    <section class="main-grid">
-      <article class="snack-card">
-        <div class="snack-image">
-          <img src="snack-photo.png" alt="Snack photo" />
-          <div class="facts-door" id="facts-door" aria-hidden="true" title="Close nutrition facts"></div>
-        </div>
-        <div class="snack-body">
-          <div class="snack-label">Favorite Snack</div>
-          <div class="snack-name" id="fav-name">–</div>
-          <p id="fav-desc"></p>
-          <p class="muted-small" id="fav-facts"></p>
-
-          <div class="mini-grid">
-            <div class="mini-card">
-              <div class="stat-label">Price per bar</div>
-              <div class="stat-value blue" id="mini-price">–</div>
-            </div>
-            <div class="mini-card soft-blue">
-              <div class="stat-label">Last snack</div>
-              <div class="stat-value" id="mini-last">–</div>
-            </div>
-          </div>
-        </div>
-      </article>
-
+    <section class="activity-summary">
       <aside class="summary-grid">
         <div class="card">
           <div class="stat-label">Total snack value</div>
@@ -325,13 +326,15 @@
     function render(data) {
       const cur = data.profile.currency;
       const t = FS.totals(data);
-      const fav = FS.snackById(data, data.profile.favoriteSnackId);
+      const favorite = FS.favoriteSnack(data);
+      const fav = favorite && favorite.snack;
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
       // who was linked but hasn't taken a snack) - keep the page to just
       // the gallery + QR until there's a real tab to show.
       $id("tab-activity").classList.toggle("hidden", data.entries.length === 0);
+      $id("favorite-section").classList.toggle("hidden", !favorite);
 
       const dated = data.entries.filter((e) => e.date);
       const snackDays = new Set(dated.map((e) => e.date)).size;
@@ -341,8 +344,6 @@
       const monthTotal = dated
         .filter((e) => e.date.startsWith(monthKey))
         .reduce((n, e) => n + Number(e.value || 0), 0);
-      const lastDate = dated.map((e) => e.date).sort().pop();
-
       const set = (id, v) => (document.getElementById(id).textContent = v);
       set("brand-title", data.profile.brand);
       set("brand-subtitle", data.profile.subtitle);
@@ -350,10 +351,21 @@
       set("stat-avg", `${FS.money(avgPerDay, cur)}/day`);
       set("stat-paid", FS.money(t.paid, cur));
       set("stat-days", snackDays);
-      set("fav-name", data.profile.favoriteName);
-      set("fav-desc", data.profile.favoriteDescription);
+      set("fav-name", favorite ? favorite.name : "–");
+      set("fav-desc", favorite
+        ? `${favorite.count} snack${favorite.count === 1 ? "" : "s"} purchased.`
+        : "Your top snack by total spend.");
+
+      const favPhoto = document.getElementById("fav-photo");
+      favPhoto.src = (fav && fav.photo) || "snack-photo.png";
+      favPhoto.alt = favorite ? favorite.name : "Favorite snack";
 
       const door = document.getElementById("facts-door");
+      const factsLink = document.getElementById("fav-facts");
+      door.classList.remove("open");
+      door.replaceChildren();
+      door.onclick = null;
+      factsLink.replaceChildren();
       if (fav && fav.factsId) {
         const img = document.createElement("img");
         img.src = FS.factsPath(fav.factsId);
@@ -377,11 +389,11 @@
           syncLabel();
         };
         syncLabel();
-        document.getElementById("fav-facts").replaceChildren(a);
+        factsLink.replaceChildren(a);
       }
 
-      set("mini-price", fav ? FS.money(fav.price, cur) : "–");
-      set("mini-last", lastDate ? FS.fmtDay(lastDate) : "–");
+      set("mini-spent", favorite ? FS.money(favorite.spend, cur) : "–");
+      set("mini-last", favorite && favorite.lastDate ? FS.fmtDay(favorite.lastDate) : "–");
       set("sum-value", FS.money(t.value, cur));
       set("sum-paid", FS.money(t.paid, cur));
       set("sum-avg", FS.money(avgPerDay, cur));
