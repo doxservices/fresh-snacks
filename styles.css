@@ -1035,8 +1035,14 @@ textarea:focus {
 }
 
 .phone-row select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23184f2a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 43px center;
+  background-size: 10px 6px;
   padding-left: 8px;
-  padding-right: 4px;
+  padding-right: 18px;
 }
 
 .checkbox-row {
@@ -1089,12 +1095,16 @@ textarea:focus {
 
 .request-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 14px;
+  gap: 26px 14px;
   align-items: start;
 }
 
 .request-form-grid .field {
   min-width: 0;
+}
+
+.request-form-grid .field > label {
+  margin-bottom: 8px;
 }
 
 .request-contact-consent {
