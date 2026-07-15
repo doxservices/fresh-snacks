@@ -50,7 +50,8 @@
         <button type="button" class="request-card" data-category="credit">
           <span class="request-icon"><img src="assets/icons/icon-credit.svg" alt="" /></span>
           <span class="request-title">Request Credit</span>
-          <span class="request-desc">Snack now, pay later</span>
+          <span class="request-desc request-credit-live">Snack now, pay later</span>
+          <span class="request-desc request-credit-pilot">Coming Soon</span>
           <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="snack">
@@ -220,6 +221,18 @@
 
     const modalBackdrop = $("request-modal-backdrop");
     let activeCard = null;
+
+    // Mobile pilot: credit requests remain visible as a roadmap item but are
+    // intentionally unavailable until the pilot is ready to accept them.
+    const creditPilotQuery = window.matchMedia("(max-width: 560px)");
+    const creditCard = document.querySelector('.request-card[data-category="credit"]');
+    function syncCreditPilotState() {
+      creditCard.disabled = creditPilotQuery.matches;
+      creditCard.setAttribute("aria-disabled", String(creditPilotQuery.matches));
+      creditCard.title = creditPilotQuery.matches ? "Request Credit is coming soon" : "";
+    }
+    syncCreditPilotState();
+    creditPilotQuery.addEventListener("change", syncCreditPilotState);
 
     function syncSnackRequestFields() {
       const showing = activeCard === "snack";
