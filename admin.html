@@ -18,7 +18,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <a class="btn" href="index.html">Profile page</a>
+          <a class="btn" id="admin-profile-page" href="index.html">Profile page</a>
           <a class="btn" href="inventory.html">Inventory</a>
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="accounting.html">Accounting</a>
@@ -138,7 +138,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-admin.js?v=20260715-admin-profile"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -251,6 +251,22 @@
       $("admin-app").classList.add("hidden");
       $("admin-sign-out").classList.add("hidden");
       $("login-panel").classList.remove("hidden");
+    };
+
+    $("admin-profile-page").onclick = async (event) => {
+      event.preventDefault();
+      const link = event.currentTarget;
+      const originalLabel = link.textContent;
+      link.textContent = "Opening Admin tab...";
+      link.setAttribute("aria-disabled", "true");
+      try {
+        const url = await FS.admin.openAdminTestProfile("cust-d9zytpnw");
+        location.href = url;
+      } catch (e) {
+        link.textContent = originalLabel;
+        link.removeAttribute("aria-disabled");
+        status("login-status", e.message, false);
+      }
     };
 
     $("payment-add").onclick = async () => {

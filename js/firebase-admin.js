@@ -464,6 +464,94 @@ FS.admin.createGuestTab = async (displayName) => {
   return userId;
 };
 
+/* One reusable customer-shaped tab for the signed-in Admin to test the
+ * profile experience. The source customer's records are read and copied;
+ * they are never updated. A deterministic target id makes the operation
+ * idempotent, so the Admin menu cannot create duplicate test profiles. */
+FS.admin.openAdminTestProfile = async (sourceUserId) => {
+  await FS.admin.requireAdmin();
+  const targetUserId = "admin-test-profile";
+  const targetRef = FS._db.collection("users").doc(targetUserId);
+  const [sourceSnap, targetSnap] = await Promise.all([
+    FS._db.collection("users").doc(sourceUserId).get(),
+    targetRef.get(),
+  ]);
+  if (!sourceSnap.exists) throw new Error("The original VIP Customer tab was not found.");
+
+  let viewCode = targetSnap.exists ? targetSnap.data().adminViewCode : null;
+  if (!targetSnap.exists) {
+    const collections = ["transactions", "payments", "adjustments"];
+    const sourceRecords = await Promise.all(collections.map((name) =>
+      FS._db.collection(name).where("userId", "==", sourceUserId).get()
+    ));
+    const recordCount = sourceRecords.reduce((count, snap) => count + snap.size, 0);
+    if (recordCount + 2 > 490) throw new Error("The VIP tab is too large to clone in one operation.");
+
+    for (let attempt = 0; attempt < 6 && !viewCode; attempt++) {
+      const candidate = FS.randomCode(10);
+      const clash = await FS._db.collection("codes").doc(candidate).get();
+      if (!clash.exists) viewCode = candidate;
+    }
+    if (!viewCode) throw new Error("Could not create a private Admin profile code.");
+
+    const batch = FS._db.batch();
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    batch.set(targetRef, {
+      userId: targetUserId,
+      uid: targetUserId,
+      tabId: targetUserId,
+      displayName: "Admin",
+      vipStatus: "named",
+      profileSource: "admin-test",
+      clonedFrom: sourceUserId,
+      linkedUids: [],
+      adminViewCode: viewCode,
+      createdByAdmin: FS.admin.user.uid,
+      createdAt: now,
+    });
+    collections.forEach((name, index) => {
+      for (const sourceDoc of sourceRecords[index].docs) {
+        const source = sourceDoc.data();
+        const idField = name === "transactions" ? "transactionId"
+          : name === "payments" ? "paymentId" : "adjustmentId";
+        const clonedId = `admin-test-${name}-${sourceDoc.id}`;
+        batch.set(FS._db.collection(name).doc(clonedId), {
+          ...source,
+          [idField]: clonedId,
+          uid: targetUserId,
+          userId: targetUserId,
+          deviceId: "admin-test",
+          source: "admin-test-clone",
+          clonedFrom: sourceDoc.id,
+          clonedFromUserId: sourceUserId,
+          createdBy: FS.admin.user.uid,
+        });
+      }
+    });
+    batch.set(FS._db.collection("codes").doc(viewCode), {
+      code: viewCode,
+      userId: targetUserId,
+      type: "view",
+      active: true,
+      purpose: "admin-test-profile",
+      createdBy: FS.admin.user.uid,
+      createdAt: now,
+    });
+    await batch.commit();
+  } else if (!viewCode) {
+    viewCode = await FS.admin.createLinkInvite(targetUserId);
+  }
+
+  await FS._db.collection("claims").doc(FS.admin.user.uid).set({
+    uid: FS.admin.user.uid,
+    code: viewCode,
+    purpose: "admin-test-profile",
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  localStorage.setItem(FS.tabCodeKey, viewCode);
+  return `index.html?code=${encodeURIComponent(viewCode)}`;
+};
+
 // Logs a snack directly onto a customer's tab as the admin - e.g. building
 // out a guest profile before sharing its invite, or adding on a regular's
 // behalf. Mirrors FS.addTransaction's record shape but isn't tied to the
