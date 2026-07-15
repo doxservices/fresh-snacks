@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Snack Catalog</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div>
+            <h1>Snack Catalog</h1>
+            <p>Add snacks and manage their pricing, nutrition facts, photos, and availability.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Admin dashboard</a>
+          <a class="btn" href="inventory.html">Inventory</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="admin-app" class="hidden">
+      <section class="card section-card">
+        <h2>Catalog</h2>
+        <p class="muted-small" id="catalog-summary"></p>
+        <div id="catalog-list"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Add snack</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="cat-name">Name</label>
+            <input id="cat-name" type="text" />
+          </div>
+          <div class="field">
+            <label for="cat-price">Price</label>
+            <input id="cat-price" type="number" min="1" step="1" />
+          </div>
+          <div class="field">
+            <label for="cat-cal">Calories</label>
+            <input id="cat-cal" type="number" min="0" step="1" />
+          </div>
+          <button class="primary" id="cat-add">Add snack</button>
+        </div>
+        <div class="status" id="cat-status"></div>
+      </section>
+    </section>
+
+    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/firebase-admin.js"></script>
+  <script>
+    let SNAPSHOT = null;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    function renderCatalog() {
+      const active = SNAPSHOT.snacks.filter((s) => s.active !== false).length;
+      $("catalog-summary").textContent = `${active} active of ${SNAPSHOT.snacks.length} total snacks.`;
+      $("catalog-list").innerHTML = `<table class="admin-table catalog-table">
+        <colgroup>
+          <col class="cc-name"><col class="cc-price"><col class="cc-cal">
+          <col class="cc-facts"><col class="cc-photo"><col class="cc-active"><col class="cc-actions">
+        </colgroup>
+        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Photo</th><th>Active</th><th></th></tr></thead>
+        <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
+          <td><input data-f="name" value="${esc(s.name)}" /></td>
+          <td><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></td>
+          <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
+          <td><input data-f="factsId" value="${esc(s.factsId || "")}" placeholder="0001" /></td>
+          <td><input data-f="photo" value="${esc(s.photo || "")}" placeholder="snack-photo.png" /></td>
+          <td><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></td>
+          <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
+        </tr>`).join("")}</tbody>
+      </table>`;
+    }
+
+    async function refresh() {
+      SNAPSHOT = await FS.admin.getSnapshot();
+      $("login-panel").classList.add("hidden");
+      $("admin-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      renderCatalog();
+    }
+
+    $("google-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithGoogle();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("microsoft-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithMicrosoft();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("email-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("admin-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    $("cat-add").onclick = async () => {
+      try {
+        await FS.admin.saveSnack({
+          name: $("cat-name").value.trim(),
+          price: $("cat-price").value,
+          calories: $("cat-cal").value,
+          active: true,
+        });
+        $("cat-name").value = "";
+        $("cat-price").value = "";
+        $("cat-cal").value = "";
+        await refresh();
+        status("cat-status", "Snack added.", true);
+      } catch (e) {
+        status("cat-status", e.message, false);
+      }
+    };
+
+    $("catalog-list").addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const row = btn.closest("tr");
+      const get = (f) => row.querySelector(`[data-f="${f}"]`).value;
+      try {
+        if (btn.dataset.act === "snack-save") {
+          await FS.admin.saveSnack({
+            id: row.dataset.id,
+            name: get("name").trim(),
+            price: get("price"),
+            calories: get("calories"),
+            factsId: get("factsId").trim(),
+            photo: get("photo").trim(),
+            active: get("active") === "true",
+          });
+          await refresh();
+          status("cat-status", "Snack saved.", true);
+        } else if (btn.dataset.act === "snack-off") {
+          await FS.admin.deactivateSnack(row.dataset.id);
+          await refresh();
+          status("cat-status", "Snack deactivated.", true);
+        }
+      } catch (e) {
+        status("cat-status", e.message, false);
+      }
+    });
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((admin) => { if (admin) return refresh(); })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>
