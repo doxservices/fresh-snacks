@@ -163,9 +163,8 @@ service cloud.firestore {
       // customer profile or device record.
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.message is string
-        && request.resource.data.message.size() > 0
-        && request.resource.data.message.size() <= 2000
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 2000
         && request.resource.data.status == 'new'
         && request.resource.data.createdAt == request.time;
       allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);

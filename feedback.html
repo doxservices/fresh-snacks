@@ -91,15 +91,26 @@
             <input id="rq-amount" type="number" min="1" step="1" placeholder="e.g. 200" />
           </div>
         </div>
-        <!-- Short text for now; swap for a <select> of catalog snacks once
-             the full snack list is ready (see FS.getCatalog). -->
+        <div class="field wide hidden" id="rq-snack-request-type-field">
+          <label for="rq-snack-request-type">Snack request</label>
+          <select id="rq-snack-request-type">
+            <option value="missing-favorite">I don't see my favorite snack</option>
+            <option value="different-snack">I want to see different snacks</option>
+          </select>
+        </div>
+        <div class="field wide hidden" id="rq-snack-catalog-field">
+          <label for="rq-snack-catalog">What is the name of your favorite snack?</label>
+          <select id="rq-snack-catalog">
+            <option value="">Loading snack catalogue…</option>
+          </select>
+        </div>
         <div class="field wide hidden" id="rq-snackname-field">
-          <label for="rq-snackname">Which snack?</label>
+          <label for="rq-snackname">What is the name of your favorite snack?</label>
           <input id="rq-snackname" type="text" maxlength="40" placeholder="e.g. Cheese puffs" />
         </div>
-        <div class="field wide hidden" id="rq-message-field">
-          <label for="rq-message">Details</label>
-          <textarea id="rq-message" placeholder="Tell us more..."></textarea>
+        <div class="field wide" id="rq-details-field">
+          <label for="rq-details" id="rq-details-label">Additional Details</label>
+          <textarea id="rq-details" placeholder="Add anything else that would help us respond."></textarea>
         </div>
       </div>
       <div class="status" id="rq-status"></div>
@@ -133,39 +144,61 @@
       .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
     $("rq-amount-currency").textContent = FS.appConfig.currency || "J$";
 
+    async function loadSnackCatalogue() {
+      const select = $("rq-snack-catalog");
+      try {
+        const catalog = await FS.getCatalog();
+        select.replaceChildren(new Option("Select a snack", ""));
+        for (const snack of catalog) select.add(new Option(snack.name, snack.name));
+      } catch (e) {
+        select.replaceChildren(new Option("Catalogue unavailable", ""));
+        select.disabled = true;
+      }
+    }
+    loadSnackCatalogue();
+
     const REQUEST_INFO = {
       change: {
         title: "Request Change",
         desc: "Didn't get enough change back at the bin? Enter how much you're still owed so we can pay you back.",
         showAmount: true, requireAmount: true,
-        showPhone: true, requireContact: true, showSnackName: false,
-        showMessageBox: false, showCategoryPicker: false,
+        showPhone: true, requireContact: true,
+        showSnackRequest: false, requireDetails: false, showCategoryPicker: false,
       },
       credit: {
         title: "Request Credit",
         desc: "Snack now, pay later — enter how much credit you need and we'll open or extend your tab.",
         showAmount: true, requireAmount: true,
-        showPhone: true, requireContact: true, showSnackName: false,
-        showMessageBox: false, showCategoryPicker: false,
+        showPhone: true, requireContact: true,
+        showSnackRequest: false, requireDetails: false, showCategoryPicker: false,
       },
       snack: {
         title: "Request a Snack",
         desc: "A bin's run out, or there's a snack you wish we carried — tell us which one.",
         showAmount: false, requireAmount: false,
-        showPhone: true, requireContact: false, showSnackName: true,
-        showMessageBox: false, showCategoryPicker: false,
+        showPhone: true, requireContact: false,
+        showSnackRequest: true, requireDetails: false, showCategoryPicker: false,
       },
       message: {
         title: "Send Us a Message",
         desc: "A name is only required for change or credit requests — questions, concerns, and snack requests can stay anonymous.",
         showAmount: false, requireAmount: false,
-        showPhone: true, requireContact: false, showSnackName: false,
-        showMessageBox: true, showCategoryPicker: true,
+        showPhone: true, requireContact: false,
+        showSnackRequest: false, requireDetails: true, showCategoryPicker: true,
       },
     };
 
     const modalBackdrop = $("request-modal-backdrop");
     let activeCard = null;
+
+    function syncSnackRequestFields() {
+      const showing = activeCard === "snack";
+      const useCatalog = showing && $("rq-snack-request-type").value === "missing-favorite";
+      $("rq-snack-catalog-field").classList.toggle("hidden", !useCatalog);
+      $("rq-snackname-field").classList.toggle("hidden", !showing || useCatalog);
+    }
+
+    $("rq-snack-request-type").addEventListener("change", syncSnackRequestFields);
 
     function openRequestModal(cardType) {
       activeCard = cardType;
@@ -175,8 +208,10 @@
       $("rq-email").value = "";
       $("rq-phone-number").value = "";
       $("rq-amount").value = "";
+      $("rq-snack-request-type").value = "missing-favorite";
+      $("rq-snack-catalog").value = "";
       $("rq-snackname").value = "";
-      $("rq-message").value = "";
+      $("rq-details").value = "";
       $("rq-contact-consent").checked = true;
       status("rq-status", "", true);
 
@@ -184,8 +219,12 @@
       $("rq-phone-field").classList.toggle("hidden", !info.showPhone);
       $("rq-contact-consent-field").classList.toggle("hidden", !info.showPhone);
       $("rq-amount-field").classList.toggle("hidden", !info.showAmount);
-      $("rq-snackname-field").classList.toggle("hidden", !info.showSnackName);
-      $("rq-message-field").classList.toggle("hidden", !info.showMessageBox);
+      $("rq-snack-request-type-field").classList.toggle("hidden", !info.showSnackRequest);
+      syncSnackRequestFields();
+      $("rq-details-label").textContent = info.requireDetails ? "Details" : "Additional Details";
+      $("rq-details").placeholder = info.requireDetails
+        ? "Tell us more..."
+        : "Add anything else that would help us respond.";
       ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !info.requireContact));
       $("rq-amount-req").classList.toggle("hidden", !info.requireAmount);
 
@@ -224,8 +263,11 @@
       const category = info.showCategoryPicker ? $("rq-category").value : activeCard;
       const amountRaw = $("rq-amount").value;
       const amount = info.showAmount && amountRaw ? Number(amountRaw) : null;
-      const snackName = $("rq-snackname").value.trim();
-      const messageBox = $("rq-message").value;
+      const snackRequestType = info.showSnackRequest ? $("rq-snack-request-type").value : null;
+      const snackName = !info.showSnackRequest ? "" : snackRequestType === "missing-favorite"
+        ? $("rq-snack-catalog").value
+        : $("rq-snackname").value.trim();
+      const details = $("rq-details").value.trim();
       const contactConsent = info.showPhone && phoneNumber ? $("rq-contact-consent").checked : false;
 
       if (info.requireAmount && !(amount > 0)) {
@@ -236,18 +278,11 @@
         if (!email.trim()) return status("rq-status", "Please add a work email so we can follow up.", false);
         if (phoneNumber.replace(/\D/g, "").length < 7) return status("rq-status", "Please add a complete cell number so we can reach you.", false);
       }
-      if (info.showSnackName && !snackName) {
-        return status("rq-status", "Please tell us which snack.", false);
+      if (info.showSnackRequest && !snackName) {
+        return status("rq-status", "Please tell us the name of your favorite snack.", false);
       }
-      if (info.showMessageBox && !messageBox.trim()) {
+      if (info.requireDetails && !details) {
         return status("rq-status", "Please add a few details so we know what to do.", false);
-      }
-
-      let message = messageBox;
-      if (info.requireAmount) {
-        message = `${info.title}: ${FS.money(amount, FS.appConfig.currency)}`;
-      } else if (info.showSnackName) {
-        message = `Snack request: ${snackName}`;
       }
 
       const btn = $("rq-send");
@@ -256,9 +291,10 @@
       try {
         await FS.submitFeedback({
           firstName, lastName, email, phone, category, amount,
-          requestedSnack: info.showSnackName ? snackName : null,
+          requestType: snackRequestType,
+          requestedSnack: info.showSnackRequest ? snackName : null,
           contactConsent,
-          message,
+          details,
         });
         closeRequestModal();
         status("fb-status", "Thank you — your request has been sent! 🎉", true);

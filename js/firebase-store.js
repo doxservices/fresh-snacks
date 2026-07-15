@@ -412,14 +412,13 @@ FS.feedbackCategories = [
   { id: "other", label: "Something else" },
 ];
 
-FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, requestedSnack, contactConsent, message }) => {
+FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, requestType, requestedSnack, contactConsent, details }) => {
   const user = await FS.signInAnonymous();
   const clean = (v) => {
     const s = (v ?? "").toString().trim();
     return s || null;
   };
-  const msg = clean(message);
-  if (!msg) throw new Error("Please enter a message before sending.");
+  const detailsText = clean(details) || "";
   const id = FS.uid("fs_fb");
   const now = firebase.firestore.FieldValue.serverTimestamp();
   const feedbackName = [clean(firstName), clean(lastName)].filter(Boolean).join(" ") || "Feedback User";
@@ -432,9 +431,10 @@ FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount
     phone: clean(phone),
     contactConsent: !!phone && !!contactConsent,
     amount: amount > 0 ? Number(amount) : null,
+    requestType: clean(requestType),
     requestedSnack: clean(requestedSnack),
     category: category || "other",
-    message: msg,
+    details: detailsText,
     status: "new",
     createdAt: now,
   };
