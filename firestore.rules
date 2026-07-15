@@ -115,13 +115,18 @@ service cloud.firestore {
         || (signedIn() && resource.data.userId == request.auth.uid)
         || hasClaimOn(resource.data.userId)
         || isLinkedMember(resource.data.userId);
-      // owners/claim-holders may only set their agree/disagree verdict;
-      // everything else on a transaction stays admin-only
+      // Customers attached to a tab may set their verdict or correct the
+      // transaction date; everything else stays admin-only.
       allow update: if isAdmin()
-        || ((signedIn() && resource.data.uid == request.auth.uid || hasClaimOn(resource.data.userId))
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userStatus', 'userStatusAt'])
+        || ((signedIn() && resource.data.uid == request.auth.uid
+              || hasClaimOn(resource.data.userId)
+              || isLinkedMember(resource.data.userId))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userStatus', 'userStatusAt', 'createdDate', 'dateEditedAt'])
             && (!('userStatus' in request.resource.data)
-                || request.resource.data.userStatus in ['agreed', 'disputed']));
+                || request.resource.data.userStatus in ['agreed', 'disputed'])
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['createdDate'])
+                || (request.resource.data.createdDate is string
+                    && request.resource.data.createdDate.matches('^\\d{4}-\\d{2}-\\d{2}$'))));
       allow delete: if isAdmin();
     }
 

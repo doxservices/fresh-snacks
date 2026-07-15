@@ -281,8 +281,8 @@
             <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
             <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
           </span>` : "";
-        rows.push(`<tr${e.userStatus === "disputed" ? ' class="disputed"' : ""}>
-          <td>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</td>
+        rows.push(`<tr>
+          <td><span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span></td>
           <td><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
           <td class="num">${esc(e.count ?? "—")}</td>
           <td class="num-money"><span class="mv">${FS.money(e.value, cur)}</span></td>
@@ -623,7 +623,11 @@
         const next = entry0 && entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
         FS.setEntryStatus(vb.dataset.id, next)
           .then(() => {
-            if (entry0) entry0.userStatus = next;
+            if (next === "disputed") {
+              LAST_DATA.entries = LAST_DATA.entries.filter((entry) => entry.id !== vb.dataset.id);
+            } else if (entry0) {
+              entry0.userStatus = next;
+            }
             const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
             render(LAST_DATA);
             document.querySelectorAll("#log details").forEach((d) =>
@@ -637,6 +641,28 @@
       }
       const el = ev.target.closest("[data-facts]");
       if (el) FS.showFacts(el.dataset.facts, el.dataset.name);
+    });
+
+    document.getElementById("log").addEventListener("change", (ev) => {
+      const input = ev.target.closest("input[data-entry-date]");
+      if (!input) return;
+      const entry = LAST_DATA && LAST_DATA.entries.find((item) => item.id === input.dataset.id);
+      const previous = entry ? entry.date : "";
+      const openKeys = [...document.querySelectorAll("#log details[open]")].map((detail) => detail.dataset.key);
+      const nextKey = input.value ? input.value.slice(0, 7) : "opening";
+      input.disabled = true;
+      FS.setEntryDate(input.dataset.id, input.value)
+        .then(() => {
+          if (entry) entry.date = input.value;
+          render(LAST_DATA);
+          document.querySelectorAll("#log details").forEach((detail) =>
+            detail.toggleAttribute("open", openKeys.includes(detail.dataset.key) || detail.dataset.key === nextKey));
+        })
+        .catch((e) => {
+          input.value = previous || "";
+          input.disabled = false;
+          alert("Could not save date: " + e.message);
+        });
     });
 
     // QR to start a fresh tab (plain site URL — never includes a tab code)

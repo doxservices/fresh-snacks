@@ -608,8 +608,8 @@ FS.toEntry = (t) => ({
   userStatus: t.userStatus || null,
 });
 
-/* Owner/claim-holder verdict on a listing: "agreed", "disputed", or null to
- * clear back to neutral. Rules restrict the write to exactly these fields. */
+/* Tab-member verdict on a listing: "agreed", "disputed", or null to clear
+ * back to neutral. Rules restrict customer writes to verdict/date fields. */
 FS.setEntryStatus = async (transactionId, verdict) => {
   await FS.signInAnonymous();
   const payload = verdict
@@ -622,6 +622,15 @@ FS.setEntryStatus = async (transactionId, verdict) => {
         userStatusAt: firebase.firestore.FieldValue.delete(),
       };
   await FS._db.collection("transactions").doc(transactionId).update(payload);
+};
+
+FS.setEntryDate = async (transactionId, createdDate) => {
+  await FS.signInAnonymous();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw new Error("Choose a valid date.");
+  await FS._db.collection("transactions").doc(transactionId).update({
+    createdDate,
+    dateEditedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
 };
 
 FS.toPayment = (p) => ({
@@ -658,6 +667,10 @@ FS.loadData = async () => {
     entries = entries.concat(ct.map(FS.toEntry));
     pays = pays.concat(cp.map(FS.toPayment));
   }
+  // A customer dispute removes the listing from that customer's history and
+  // balance immediately. The document remains active so admins can review,
+  // correct, approve, void, or permanently delete it.
+  entries = entries.filter((entry) => entry.userStatus !== "disputed");
   const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
   return {
     profile,
