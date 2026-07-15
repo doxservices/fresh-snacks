@@ -1652,11 +1652,12 @@ textarea:focus {
 
 .snack-modal {
   text-align: center;
+  padding: 18px 18px 24px;
 }
 
 .snack-modal-photo {
-  height: 180px;
-  margin-bottom: 16px;
+  height: 280px;
+  margin-bottom: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
@@ -1671,13 +1672,17 @@ textarea:focus {
   height: 100%;
   object-fit: contain;
   background: #fff;
-  padding: 10px;
+  padding: 6px;
   box-sizing: border-box;
   display: block;
 }
 
 .snack-modal-photo .bin-placeholder {
-  font-size: 60px;
+  font-size: 88px;
+}
+
+.snack-modal h2 {
+  margin-bottom: 3px;
 }
 
 .snack-modal-stepper {
