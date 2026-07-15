@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks — Feedback</title>
+  <link rel="stylesheet" href="feedback_old.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="banner" id="site-banner"></header>
+
+    <section class="coming-soon">
+      <span class="kicker">More features coming soon</span>
+      <h2>We're just getting started!</h2>
+      <p>
+        New snacks, rewards for regulars, and easier ways to track your tab are all on the way.
+        Got a question, a concern, or a favorite snack you'd love to see in the bins? This is the place — tell us anything.
+      </p>
+    </section>
+
+    <div id="firebase-auth-prompt"></div>
+
+    <section class="card section-card">
+      <h2>Quick requests</h2>
+      <p class="note">
+        Tap one below and we'll ask for exactly what we need to follow up.
+      </p>
+      <div class="request-cards" id="request-cards">
+        <button type="button" class="request-card" data-category="change">
+          <span class="request-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="6" rx="7" ry="3"/>
+              <path d="M5 6v5c0 1.66 3.13 3 7 3s7-1.34 7-3V6"/>
+              <path d="M5 11v5c0 1.66 3.13 3 7 3s7-1.34 7-3v-5"/>
+            </svg>
+          </span>
+          <span class="request-title">Request Change</span>
+          <span class="request-desc">Not enough change at the bin</span>
+        </button>
+        <button type="button" class="request-card" data-category="credit">
+          <span class="request-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 7v5l3.5 2"/>
+            </svg>
+          </span>
+          <span class="request-title">Request Credit</span>
+          <span class="request-desc">Snack now, pay later</span>
+        </button>
+        <button type="button" class="request-card" data-category="snack">
+          <span class="request-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="8" width="18" height="8" rx="2.2"/>
+              <line x1="8.5" y1="8" x2="8.5" y2="16"/>
+              <line x1="13" y1="8" x2="13" y2="16"/>
+              <line x1="17.5" y1="8" x2="17.5" y2="16"/>
+            </svg>
+          </span>
+          <span class="request-title">Request a Snack</span>
+          <span class="request-desc">A bin's empty, or you've got a favorite to suggest</span>
+        </button>
+        <button type="button" class="request-card" data-category="message">
+          <span class="request-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4.5 4V17H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/>
+            </svg>
+          </span>
+          <span class="request-title">Send Us a Message</span>
+          <span class="request-desc">A question, a concern, or just say hello</span>
+        </button>
+      </div>
+      <div class="status" id="fb-status" style="margin-top:14px;"></div>
+      <div class="profile-prompt hidden" id="profile-prompt">
+        <p id="profile-prompt-text"></p>
+        <div class="row">
+          <button class="primary" id="profile-prompt-yes">Yes, remember me</button>
+          <button id="profile-prompt-no">No thanks</button>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Thank you for helping us improve Fresh Snacks. Read our <a href="privacy.html">Privacy Policy</a>.
+    </footer>
+  </main>
+
+  <div class="modal-backdrop" id="request-modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title">
+      <button type="button" class="modal-close" id="request-modal-close" aria-label="Close">&times;</button>
+      <h2 id="request-modal-title">Request</h2>
+      <p class="muted-small" id="request-modal-desc" style="margin-bottom:14px;"></p>
+      <div class="form-grid">
+        <div class="field hidden" id="rq-category-field">
+          <label for="rq-category">This is about...</label>
+          <select id="rq-category"></select>
+        </div>
+        <div class="field">
+          <label for="rq-first">First name<span class="req-mark hidden" id="rq-first-req"> *</span></label>
+          <input id="rq-first" type="text" autocomplete="given-name" />
+        </div>
+        <div class="field">
+          <label for="rq-last">Last name</label>
+          <input id="rq-last" type="text" autocomplete="family-name" />
+        </div>
+        <div class="field wide">
+          <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
+          <input id="rq-email" type="email" autocomplete="email" />
+        </div>
+        <div class="field wide hidden" id="rq-amount-field">
+          <label for="rq-amount">Amount<span class="req-mark hidden" id="rq-amount-req"> *</span></label>
+          <div class="amount-row">
+            <span class="amount-prefix" id="rq-amount-currency">J$</span>
+            <input id="rq-amount" type="number" min="1" step="1" placeholder="e.g. 200" />
+          </div>
+        </div>
+        <div class="field wide hidden" id="rq-phone-field">
+          <label for="rq-phone-number">Cell number<span class="req-mark hidden" id="rq-phone-req"> *</span></label>
+          <div class="phone-row">
+            <select id="rq-phone-area" aria-label="Area code">
+              <option value="876">876</option>
+              <option value="658">658</option>
+            </select>
+            <input id="rq-phone-number" type="tel" placeholder="123-4567" maxlength="8" autocomplete="tel-national" />
+          </div>
+          <label class="checkbox-row">
+            <input id="rq-whatsapp" type="checkbox" />
+            Contact me on WhatsApp
+          </label>
+        </div>
+        <!-- Short text for now; swap for a <select> of catalog snacks once
+             the full snack list is ready (see FS.getCatalog). -->
+        <div class="field wide hidden" id="rq-snackname-field">
+          <label for="rq-snackname">Which snack?</label>
+          <input id="rq-snackname" type="text" maxlength="40" placeholder="e.g. Cheese puffs" />
+        </div>
+        <div class="field wide hidden" id="rq-message-field">
+          <label for="rq-message">Details</label>
+          <textarea id="rq-message" placeholder="Tell us more..."></textarea>
+        </div>
+      </div>
+      <div class="status" id="rq-status"></div>
+      <div class="modal-actions">
+        <button type="button" id="rq-cancel">Cancel</button>
+        <button type="button" class="primary" id="rq-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/banner.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+    }
+
+    $("rq-category").innerHTML = FS.feedbackCategories
+      .filter((c) => !["change", "snack", "credit"].includes(c.id))
+      .map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
+    $("rq-amount-currency").textContent = FS.appConfig.currency || "J$";
+
+    async function offerToSaveProfile(firstName, lastName) {
+      const name = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+      if (!name) return;
+      const me = await FS.getMyProfile();
+      if (me.vipStatus !== "anonymous" && me.displayName === name) return;
+      $("profile-prompt-text").textContent = `Want us to remember you as ${name} next time you visit your tab?`;
+      $("profile-prompt").classList.remove("hidden");
+      $("profile-prompt-yes").classList.remove("hidden");
+      $("profile-prompt-no").classList.remove("hidden");
+      $("profile-prompt-yes").onclick = async () => {
+        $("profile-prompt-yes").disabled = true;
+        try {
+          await FS.updateMyProfile({ firstName, lastName, displayName: name });
+          $("profile-prompt-text").textContent = `You're all set, ${name} — we'll remember you next time.`;
+          $("profile-prompt-yes").classList.add("hidden");
+          $("profile-prompt-no").classList.add("hidden");
+        } catch (e) {
+          $("profile-prompt-yes").disabled = false;
+          status("fb-status", e.message, false);
+        }
+      };
+      $("profile-prompt-no").onclick = () => $("profile-prompt").classList.add("hidden");
+    }
+
+    const REQUEST_INFO = {
+      change: {
+        title: "Request Change",
+        desc: "Didn't get enough change back at the bin? Enter how much you're still owed so we can pay you back.",
+        showAmount: true, requireAmount: true,
+        showPhone: true, requireContact: true, showSnackName: false,
+        showMessageBox: false, showCategoryPicker: false,
+      },
+      credit: {
+        title: "Request Credit",
+        desc: "Snack now, pay later — enter how much credit you need and we'll open or extend your tab.",
+        showAmount: true, requireAmount: true,
+        showPhone: true, requireContact: true, showSnackName: false,
+        showMessageBox: false, showCategoryPicker: false,
+      },
+      snack: {
+        title: "Request a Snack",
+        desc: "A bin's run out, or there's a snack you wish we carried — tell us which one.",
+        showAmount: false, requireAmount: false,
+        showPhone: true, requireContact: false, showSnackName: true,
+        showMessageBox: false, showCategoryPicker: false,
+      },
+      message: {
+        title: "Send Us a Message",
+        desc: "A name is only required for change or credit requests — questions, concerns, and snack requests can stay anonymous.",
+        showAmount: false, requireAmount: false,
+        showPhone: true, requireContact: false, showSnackName: false,
+        showMessageBox: true, showCategoryPicker: true,
+      },
+    };
+
+    const modalBackdrop = $("request-modal-backdrop");
+    let activeCard = null;
+
+    function openRequestModal(cardType) {
+      activeCard = cardType;
+      const info = REQUEST_INFO[cardType];
+      $("rq-first").value = "";
+      $("rq-last").value = "";
+      $("rq-email").value = "";
+      $("rq-phone-number").value = "";
+      $("rq-amount").value = "";
+      $("rq-snackname").value = "";
+      $("rq-message").value = "";
+      $("rq-whatsapp").checked = false;
+      status("rq-status", "", true);
+
+      $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
+      $("rq-phone-field").classList.toggle("hidden", !info.showPhone);
+      $("rq-amount-field").classList.toggle("hidden", !info.showAmount);
+      $("rq-snackname-field").classList.toggle("hidden", !info.showSnackName);
+      $("rq-message-field").classList.toggle("hidden", !info.showMessageBox);
+      ["rq-first-req", "rq-email-req", "rq-phone-req"].forEach((id) => $(id).classList.toggle("hidden", !info.requireContact));
+      $("rq-amount-req").classList.toggle("hidden", !info.requireAmount);
+
+      $("request-modal-title").textContent = info.title;
+      $("request-modal-desc").textContent = info.desc;
+
+      modalBackdrop.classList.add("show");
+      $("rq-first").focus();
+    }
+
+    function closeRequestModal() {
+      modalBackdrop.classList.remove("show");
+      activeCard = null;
+    }
+
+    $("request-cards").addEventListener("click", (ev) => {
+      const card = ev.target.closest(".request-card");
+      if (!card) return;
+      openRequestModal(card.dataset.category);
+    });
+
+    $("request-modal-close").onclick = closeRequestModal;
+    $("rq-cancel").onclick = closeRequestModal;
+    modalBackdrop.addEventListener("click", (ev) => { if (ev.target === modalBackdrop) closeRequestModal(); });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && modalBackdrop.classList.contains("show")) closeRequestModal();
+    });
+
+    $("rq-send").onclick = async () => {
+      const info = REQUEST_INFO[activeCard];
+      const firstName = $("rq-first").value;
+      const lastName = $("rq-last").value;
+      const email = $("rq-email").value;
+      const phoneNumber = $("rq-phone-number").value.trim();
+      const phone = info.showPhone && phoneNumber ? `${$("rq-phone-area").value}-${phoneNumber}` : "";
+      const category = info.showCategoryPicker ? $("rq-category").value : activeCard;
+      const amountRaw = $("rq-amount").value;
+      const amount = info.showAmount && amountRaw ? Number(amountRaw) : null;
+      const snackName = $("rq-snackname").value.trim();
+      const messageBox = $("rq-message").value;
+      const contactWhatsapp = info.showPhone && phoneNumber ? $("rq-whatsapp").checked : false;
+
+      if (info.requireAmount && !(amount > 0)) {
+        return status("rq-status", "Please enter the amount.", false);
+      }
+      if (info.requireContact) {
+        if (!firstName.trim()) return status("rq-status", "Please add your first name so we know who this is for.", false);
+        if (!email.trim()) return status("rq-status", "Please add a work email so we can follow up.", false);
+        if (phoneNumber.replace(/\D/g, "").length < 7) return status("rq-status", "Please add a complete cell number so we can reach you.", false);
+      }
+      if (info.showSnackName && !snackName) {
+        return status("rq-status", "Please tell us which snack.", false);
+      }
+      if (info.showMessageBox && !messageBox.trim()) {
+        return status("rq-status", "Please add a few details so we know what to do.", false);
+      }
+
+      let message = messageBox;
+      if (info.requireAmount) {
+        message = `${info.title}: ${FS.money(amount, FS.appConfig.currency)}`;
+      } else if (info.showSnackName) {
+        message = `Snack request: ${snackName}`;
+      }
+
+      const btn = $("rq-send");
+      btn.disabled = true;
+      status("rq-status", "Sending…", true);
+      try {
+        await FS.submitFeedback({
+          firstName, lastName, email, phone, category, amount,
+          requestedSnack: info.showSnackName ? snackName : null,
+          contactWhatsapp,
+          message,
+        });
+        closeRequestModal();
+        status("fb-status", "Thank you — your request has been sent! 🎉", true);
+        await offerToSaveProfile(firstName, lastName);
+      } catch (e) {
+        status("rq-status", e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>
+
