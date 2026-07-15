@@ -48,8 +48,16 @@
 
     <section id="admin-app" class="hidden">
       <section class="card section-card">
-        <h2>Catalog</h2>
-        <p class="muted-small" id="catalog-summary"></p>
+        <div class="catalog-toolbar">
+          <div>
+            <h2>Catalog</h2>
+            <p class="muted-small" id="catalog-summary"></p>
+          </div>
+          <div class="catalog-view-toggle" role="group" aria-label="Catalog view">
+            <button type="button" id="catalog-row-view" data-view="row">Rows</button>
+            <button type="button" id="catalog-gallery-view" data-view="gallery">Gallery</button>
+          </div>
+        </div>
         <div id="catalog-list"></div>
       </section>
 
@@ -85,6 +93,7 @@
   <script src="js/firebase-admin.js"></script>
   <script>
     let SNAPSHOT = null;
+    let CATALOG_VIEW = localStorage.getItem("fresh_snacks_catalog_view") === "gallery" ? "gallery" : "row";
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -99,18 +108,45 @@
     function renderCatalog() {
       const active = SNAPSHOT.snacks.filter((s) => s.active !== false).length;
       $("catalog-summary").textContent = `${active} active of ${SNAPSHOT.snacks.length} total snacks.`;
+      $("catalog-row-view").setAttribute("aria-pressed", CATALOG_VIEW === "row");
+      $("catalog-gallery-view").setAttribute("aria-pressed", CATALOG_VIEW === "gallery");
+
+      if (CATALOG_VIEW === "gallery") {
+        $("catalog-list").innerHTML = `<div class="catalog-gallery">${SNAPSHOT.snacks.map((s) => `
+          <article class="catalog-card" data-id="${esc(s.id)}">
+            <div class="catalog-card-photo">${s.photo
+              ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
+              : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+            <div class="catalog-card-body">
+              <input type="hidden" data-f="factsId" value="${esc(s.factsId || "")}" />
+              <input type="hidden" data-f="photo" value="${esc(s.photo || "")}" />
+              <div class="field catalog-card-name">
+                <label>Name</label>
+                <input data-f="name" value="${esc(s.name)}" />
+              </div>
+              <div class="catalog-card-fields">
+                <div class="field"><label>Price</label><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></div>
+                <div class="field"><label>Calories</label><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></div>
+                <div class="field"><label>Status</label><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></div>
+              </div>
+              <div class="catalog-card-actions">
+                <button class="primary" data-act="snack-save">Save</button>
+                <button class="danger" data-act="snack-off">Deactivate</button>
+              </div>
+            </div>
+          </article>`).join("")}</div>`;
+        return;
+      }
+
       $("catalog-list").innerHTML = `<table class="admin-table catalog-table">
         <colgroup>
-          <col class="cc-name"><col class="cc-price"><col class="cc-cal">
-          <col class="cc-facts"><col class="cc-photo"><col class="cc-active"><col class="cc-actions">
+          <col class="cc-name"><col class="cc-price"><col class="cc-cal"><col class="cc-active"><col class="cc-actions">
         </colgroup>
-        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Facts ID</th><th>Photo</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Status</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
-          <td><input data-f="name" value="${esc(s.name)}" /></td>
+          <td><input data-f="name" value="${esc(s.name)}" /><input type="hidden" data-f="factsId" value="${esc(s.factsId || "")}" /><input type="hidden" data-f="photo" value="${esc(s.photo || "")}" /></td>
           <td><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></td>
           <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
-          <td><input data-f="factsId" value="${esc(s.factsId || "")}" placeholder="0001" /></td>
-          <td><input data-f="photo" value="${esc(s.photo || "")}" placeholder="snack-photo.png" /></td>
           <td><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></td>
           <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
         </tr>`).join("")}</tbody>
@@ -180,15 +216,27 @@
       }
     };
 
+    $("catalog-row-view").onclick = () => {
+      CATALOG_VIEW = "row";
+      localStorage.setItem("fresh_snacks_catalog_view", CATALOG_VIEW);
+      renderCatalog();
+    };
+
+    $("catalog-gallery-view").onclick = () => {
+      CATALOG_VIEW = "gallery";
+      localStorage.setItem("fresh_snacks_catalog_view", CATALOG_VIEW);
+      renderCatalog();
+    };
+
     $("catalog-list").addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
-      const row = btn.closest("tr");
-      const get = (f) => row.querySelector(`[data-f="${f}"]`).value;
+      const item = btn.closest("[data-id]");
+      const get = (f) => item.querySelector(`[data-f="${f}"]`).value;
       try {
         if (btn.dataset.act === "snack-save") {
           await FS.admin.saveSnack({
-            id: row.dataset.id,
+            id: item.dataset.id,
             name: get("name").trim(),
             price: get("price"),
             calories: get("calories"),
@@ -199,7 +247,7 @@
           await refresh();
           status("cat-status", "Snack saved.", true);
         } else if (btn.dataset.act === "snack-off") {
-          await FS.admin.deactivateSnack(row.dataset.id);
+          await FS.admin.deactivateSnack(item.dataset.id);
           await refresh();
           status("cat-status", "Snack deactivated.", true);
         }

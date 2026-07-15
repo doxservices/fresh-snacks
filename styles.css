@@ -1426,19 +1426,17 @@ textarea:focus {
   font-size: 13px;
 }
 
-/* Snack catalog: fixed column widths so Name/Photo (the long free-text
-   fields) get real room instead of being squeezed to the same width as
-   short fields like Price/Calories/Facts ID. */
+/* Snack catalog row view keeps only the fields used during routine edits.
+   Photo and facts IDs are preserved as hidden values so the useful columns
+   can take the full width. */
 .catalog-table {
   table-layout: fixed;
 }
-.cc-name { width: 20%; }
-.cc-price { width: 9%; }
-.cc-cal { width: 10%; }
-.cc-facts { width: 10%; }
-.cc-photo { width: 20%; }
-.cc-active { width: 11%; }
-.cc-actions { width: 20%; }
+.cc-name { width: 36%; }
+.cc-price { width: 14%; }
+.cc-cal { width: 14%; }
+.cc-active { width: 14%; }
+.cc-actions { width: 22%; }
 
 .catalog-table td input {
   width: 100%;
@@ -1460,6 +1458,113 @@ textarea:focus {
 .catalog-table td:last-child button {
   padding: 6px 8px;
   font-size: 12.5px;
+}
+
+.catalog-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.catalog-toolbar h2,
+.catalog-toolbar p {
+  margin-bottom: 0;
+}
+
+.catalog-view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.catalog-view-toggle button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.catalog-view-toggle button[aria-pressed="true"] {
+  background: var(--green);
+  color: #fff;
+}
+
+.catalog-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.catalog-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.catalog-card-photo {
+  position: relative;
+  height: 190px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
+  border-bottom: 1px solid var(--line);
+}
+
+.catalog-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.catalog-card-body {
+  padding: 14px;
+}
+
+.catalog-card-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.catalog-card input,
+.catalog-card select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.catalog-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.catalog-card-actions button {
+  flex: 1;
+}
+
+@media (max-width: 560px) {
+  .catalog-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .catalog-view-toggle {
+    align-self: flex-start;
+  }
+
+  .catalog-gallery {
+    grid-template-columns: 1fr;
+  }
 }
 
 .nowrap {
