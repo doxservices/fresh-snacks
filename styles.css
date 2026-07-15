@@ -1159,14 +1159,23 @@ textarea:focus {
   margin-top: 20px;
 }
 
-.feedback-request-modal .modal-actions {
+.request-modal-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
 
+.feedback-request-modal .modal-actions {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
 .request-contact-consent {
-  margin-top: 12px;
+  margin: 0;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   background: var(--green-soft);
@@ -1272,8 +1281,13 @@ textarea:focus {
     gap: 18px;
   }
 
-  .feedback-request-modal .modal-actions {
-    margin-top: 22px;
+  .request-modal-footer {
+    gap: 10px;
+  }
+
+  .request-contact-consent {
+    padding-inline: 10px;
+    font-size: 13px;
   }
 }
 
