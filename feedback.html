@@ -64,11 +64,7 @@
       <button type="button" class="modal-close" id="request-modal-close" aria-label="Close">&times;</button>
       <h2 id="request-modal-title">Request</h2>
       <p class="muted-small" id="request-modal-desc" style="margin-bottom:14px;"></p>
-      <div class="form-grid">
-        <div class="field hidden" id="rq-category-field">
-          <label for="rq-category">This is about...</label>
-          <select id="rq-category"></select>
-        </div>
+      <div class="form-grid request-form-grid">
         <div class="field">
           <label for="rq-first">First name<span class="req-mark hidden" id="rq-first-req"> *</span></label>
           <input id="rq-first" type="text" autocomplete="given-name" />
@@ -77,18 +73,11 @@
           <label for="rq-last">Last name</label>
           <input id="rq-last" type="text" autocomplete="family-name" />
         </div>
-        <div class="field wide">
+        <div class="field">
           <label for="rq-email">Work email<span class="req-mark hidden" id="rq-email-req"> *</span></label>
           <input id="rq-email" type="email" autocomplete="email" />
         </div>
-        <div class="field wide hidden" id="rq-amount-field">
-          <label for="rq-amount">Amount<span class="req-mark hidden" id="rq-amount-req"> *</span></label>
-          <div class="amount-row">
-            <span class="amount-prefix" id="rq-amount-currency">J$</span>
-            <input id="rq-amount" type="number" min="1" step="1" placeholder="e.g. 200" />
-          </div>
-        </div>
-        <div class="field wide hidden" id="rq-phone-field">
+        <div class="field hidden" id="rq-phone-field">
           <label for="rq-phone-number">Cell number<span class="req-mark hidden" id="rq-phone-req"> *</span></label>
           <div class="phone-row">
             <select id="rq-phone-area" aria-label="Area code">
@@ -98,9 +87,20 @@
             <input id="rq-phone-number" type="tel" placeholder="123-4567" maxlength="8" autocomplete="tel-national" />
           </div>
           <label class="checkbox-row">
-            <input id="rq-whatsapp" type="checkbox" />
-            Contact me on WhatsApp
+            <input id="rq-contact-consent" type="checkbox" />
+            Allow Fresh Snacks to contact me about this request
           </label>
+        </div>
+        <div class="field hidden" id="rq-category-field">
+          <label for="rq-category">This is about...</label>
+          <select id="rq-category"></select>
+        </div>
+        <div class="field hidden" id="rq-amount-field">
+          <label for="rq-amount">Amount<span class="req-mark hidden" id="rq-amount-req"> *</span></label>
+          <div class="amount-row">
+            <span class="amount-prefix" id="rq-amount-currency">J$</span>
+            <input id="rq-amount" type="number" min="1" step="1" placeholder="e.g. 200" />
+          </div>
         </div>
         <!-- Short text for now; swap for a <select> of catalog snacks once
              the full snack list is ready (see FS.getCatalog). -->
@@ -208,7 +208,7 @@
       $("rq-amount").value = "";
       $("rq-snackname").value = "";
       $("rq-message").value = "";
-      $("rq-whatsapp").checked = false;
+      $("rq-contact-consent").checked = false;
       status("rq-status", "", true);
 
       $("rq-category-field").classList.toggle("hidden", !info.showCategoryPicker);
@@ -256,7 +256,7 @@
       const amount = info.showAmount && amountRaw ? Number(amountRaw) : null;
       const snackName = $("rq-snackname").value.trim();
       const messageBox = $("rq-message").value;
-      const contactWhatsapp = info.showPhone && phoneNumber ? $("rq-whatsapp").checked : false;
+      const contactConsent = info.showPhone && phoneNumber ? $("rq-contact-consent").checked : false;
 
       if (info.requireAmount && !(amount > 0)) {
         return status("rq-status", "Please enter the amount.", false);
@@ -287,7 +287,7 @@
         await FS.submitFeedback({
           firstName, lastName, email, phone, category, amount,
           requestedSnack: info.showSnackName ? snackName : null,
-          contactWhatsapp,
+          contactConsent,
           message,
         });
         closeRequestModal();

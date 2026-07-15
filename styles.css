@@ -1082,6 +1082,26 @@ textarea:focus {
 
 /* ---- quick-request modal ---- */
 
+.request-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  align-items: start;
+}
+
+.request-form-grid .field {
+  min-width: 0;
+}
+
+.request-form-grid .checkbox-row {
+  align-items: flex-start;
+  line-height: 1.3;
+}
+
+.request-form-grid .checkbox-row input {
+  flex: 0 0 16px;
+  margin-top: 1px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1106,7 +1126,7 @@ textarea:focus {
 
 .modal {
   position: relative;
-  width: min(560px, 100%);
+  width: min(640px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   background: var(--white);
@@ -1148,6 +1168,20 @@ textarea:focus {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+@media (max-width: 620px) {
+  .request-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .request-form-grid .field.wide {
+    grid-column: auto;
+  }
+
+  .modal {
+    padding: 20px 16px;
+  }
 }
 
 .status {

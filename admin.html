@@ -182,7 +182,7 @@
         const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous";
         return `<tr data-id="${esc(f.feedbackId || f.id)}"${f.status === "new" ? ' class="disputed"' : ""}>
           <td>${esc(fmtWhen(f))}</td>
-          <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}${f.contactWhatsapp ? " · WhatsApp OK" : ""}</span>` : ""}</td>
+          <td>${esc(name)}${f.email ? `<br><span class="muted-small">${esc(f.email)}</span>` : ""}${f.phone ? `<br><span class="muted-small">${esc(f.phone)}${(f.contactConsent || f.contactWhatsapp) ? " · Contact permitted" : ""}</span>` : ""}</td>
           <td>${esc(catLabel(f.category))}</td>
           <td class="num-money">${f.amount ? FS.money(f.amount, cur) : "-"}</td>
           <td style="white-space:pre-wrap;">${esc(f.message)}${f.requestedSnack ? `<br><span class="muted-small">Snack: ${esc(f.requestedSnack)}</span>` : ""}</td>
