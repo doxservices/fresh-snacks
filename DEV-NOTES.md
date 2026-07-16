@@ -39,8 +39,12 @@
   bin position; two-column gallery dragging accounts for horizontal placement.
 - Drag-to-copy has a pointer fallback in addition to native HTML drag/drop, so a
   mouse, touch pointer, or automation drag released on Add Bin uses the same
-  duplicate operation reliably. Add Bin is explicitly ordered after every bin
-  card so it cannot displace a saved bin in the two-column gallery.
+  duplicate operation reliably. Add Bin remains outside the ordered card list,
+  so it cannot displace a saved bin in the two-column gallery.
+- Each floor's Add Bin target is now a compact card outside the gallery grid. On
+  wide screens it floats in the unused right margin; at narrower widths it sits
+  below the gallery aligned right. Dropping a bin there copies it to that
+  target's floor without changing the existing card widths.
 
 ## Navigation QR copy controls (2026-07-16)
 

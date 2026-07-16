@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260716-floating-add-bin" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -282,7 +282,8 @@
               <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
               <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">&#10697;</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">&#9998;</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">&#128465;</button></div>
             </article>`;
-          }).join("")}<button type="button" class="bin-add-cutout" data-action="open-copy-bin" data-floor="${esc(floor)}" aria-label="Add a bin to ${esc(floor)}"><span>+</span><strong>Add bin</strong><small>Copy an existing bin</small></button></div>
+          }).join("")}</div>
+          <button type="button" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="${esc(floor)}" aria-label="Add or drop a bin to ${esc(floor)}"><span>+</span><strong>Add bin</strong><small>Drop to copy on ${esc(floor)}</small></button>
         </section>`;
       }).join("") : `<p class="muted-small">No bins configured.</p>`;
     }

@@ -2400,6 +2400,8 @@ textarea:focus {
   margin-top: 28px;
 }
 
+.bin-floor-group { position: relative; }
+
 .bin-floor-group h3 {
   display: flex;
   align-items: baseline;
@@ -2600,16 +2602,19 @@ textarea:focus {
 }
 
 .bin-add-cutout {
-  order: 9999;
-  min-height: 300px;
+  width: 132px;
+  min-height: 108px;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 8px;
+  gap: 5px;
+  margin: 12px 0 0 auto;
+  padding: 12px 9px;
   border: 2px dashed #9bbda5;
-  border-radius: 16px;
+  border-radius: 10px;
   background: rgba(244, 249, 245, .7);
   color: #0b633c;
+  text-align: center;
 }
 
 .bin-add-cutout:hover,
@@ -2627,23 +2632,35 @@ textarea:focus {
 }
 
 .bin-add-cutout span {
-  width: 58px;
-  height: 58px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #087a46;
   color: #fff;
-  font-size: 2.2rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 
 .bin-add-cutout strong {
-  font-size: 1.08rem;
+  font-size: .92rem;
 }
 
 .bin-add-cutout small {
   color: #637268;
+  font-size: .7rem;
+  line-height: 1.25;
+}
+
+@media (min-width: 1340px) {
+  .bin-add-floating {
+    position: absolute;
+    z-index: 5;
+    top: 76px;
+    right: -146px;
+    margin: 0;
+  }
 }
 
 .bin-copy-dialog {
