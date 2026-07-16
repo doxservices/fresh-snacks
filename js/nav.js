@@ -5,6 +5,8 @@
 (function () {
   const here = location.pathname.split("/").pop() || "index.html";
   const activeProfileKey = "fresh_snacks_profile_active";
+  let activeProfileState = false;
+  let activeAdminState = false;
 
   // These synchronous markers keep the full profile menu stable while a new
   // page restores Firebase. The verified marker below also covers older
@@ -50,9 +52,12 @@
     backdrop.classList.add("show");
   };
 
-  const renderItems = (activeProfile) => {
+  const renderItems = (activeProfile, activeAdmin = activeAdminState) => {
+    activeProfileState = activeProfile;
+    activeAdminState = activeAdmin;
     drawer.querySelectorAll(".drawer-link").forEach((el) => el.remove());
     const items = [...(activeProfile ? profileItems : guestItems)];
+    if (activeAdmin) items.unshift({ label: "Admin dashboard", href: "admin.html" });
     if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
 
     for (const it of items) {
@@ -81,7 +86,7 @@
     document.body.dataset.profileNavigation = activeProfile ? "active" : "guest";
   };
 
-  renderItems(hasLocalProfileMarker());
+  renderItems(hasLocalProfileMarker(), false);
 
   backdrop.addEventListener("click", close);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -117,11 +122,26 @@
         // Keep the synchronous state when Firebase is unavailable; this lets
         // a previously verified profile retain navigation across page tabs.
       });
+
+    // This is a read-only verification. It never creates an Auth user,
+    // customer profile, or Firestore document.
+    window.FS.restoreSession()
+      .then(async (user) => {
+        if (!user || user.isAnonymous) return false;
+        const admin = await window.FS._db.collection("admins").doc(user.uid).get();
+        return admin.exists && admin.data().active === true;
+      })
+      .then((activeAdmin) => {
+        if (activeAdmin) renderItems(activeProfileState, true);
+      })
+      .catch(() => {
+        // Keep customer navigation available if admin verification fails.
+      });
   }
 
   window.addEventListener("storage", (event) => {
     if ([activeProfileKey, "fresh_snacks_device_started", "fresh_snacks_linked_to"].includes(event.key)) {
-      renderItems(hasLocalProfileMarker());
+      renderItems(hasLocalProfileMarker(), activeAdminState);
     }
   });
 })();
