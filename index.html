@@ -466,7 +466,11 @@
         $id("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
-      $id("bins").innerHTML = data.catalog.map((s) => `
+      const snacksByPrice = [...data.catalog].sort((a, b) =>
+        Number(b.price || 0) - Number(a.price || 0)
+        || String(a.name || "").localeCompare(String(b.name || ""))
+      );
+      $id("bins").innerHTML = snacksByPrice.map((s) => `
         <div class="bin-card" data-id="${esc(s.id)}">
           <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="Adjust ${esc(s.name)} quantity">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
