@@ -70,13 +70,12 @@
           <div class="field"><label for="bin-name">Location name</label><input id="bin-name" type="text" placeholder="e.g. Kitchen" /></div>
           <div class="field">
             <label for="bin-template">Starting template</label>
-            <select id="bin-template">
-              <option value="standard">Standard seasonal bin</option>
-              <option value="hundred">J$100 bin</option>
-              <option value="large">Large seasonal bin</option>
-              <option value="custom">Custom bin</option>
-            </select>
+            <select id="bin-template"></select>
           </div>
+        </div>
+        <div class="field bin-snack-search">
+          <label for="bin-snack-search">Search snacks</label>
+          <input id="bin-snack-search" type="search" placeholder="Type a snack name to reduce the list" autocomplete="off" />
         </div>
         <div class="bin-item-editor" id="bin-item-editor"></div>
         <div class="bin-editor-actions">
@@ -121,7 +120,21 @@
     }
 
     const snackById = (id) => SNAPSHOT.snacks.find((snack) => snack.id === id);
-    const templateLabel = (id) => FS.admin.binTemplates[id]?.label || "Custom bin";
+    const templateLabel = (id, sourceId) => sourceId
+      ? `Copied from ${SNAPSHOT.bins.find((bin) => bin.id === sourceId)?.name || "saved bin"}`
+      : FS.admin.binTemplates[id]?.label || "Custom bin";
+
+    function renderTemplateOptions(selected = "standard") {
+      $("bin-template").innerHTML = `
+        <optgroup label="Built-in templates">
+          ${Object.entries(FS.admin.binTemplates).map(([id, template]) =>
+            `<option value="${esc(id)}"${selected === id ? " selected" : ""}>${esc(template.label)}</option>`
+          ).join("")}
+        </optgroup>
+        <optgroup label="Build from an existing bin">
+          ${SNAPSHOT.bins.map((bin) => `<option value="bin:${esc(bin.id)}"${selected === `bin:${bin.id}` ? " selected" : ""}>${esc(bin.floor)} — ${esc(bin.name)}</option>`).join("")}
+        </optgroup>`;
+    }
 
     function currentEditorItems() {
       return [...$("bin-item-editor").querySelectorAll("input[data-snack-id]")].map((input) => ({
@@ -140,22 +153,30 @@
       const quantityBySnack = new Map(items.map((item) => [item.snackId, Number(item.quantity || 0)]));
       $("bin-item-editor").innerHTML = `<table class="admin-table bin-quantity-table">
         <thead><tr><th>Snack</th><th class="num-money">Unit price</th><th class="num">Quantity in bin</th></tr></thead>
-        <tbody>${SNAPSHOT.snacks.filter((snack) => snack.active !== false).map((snack) => `<tr>
+        <tbody>${SNAPSHOT.snacks.filter((snack) => snack.active !== false).map((snack) => `<tr data-snack-search="${esc(String(snack.name || "").toLowerCase())}">
           <td>${esc(snack.name)}</td>
           <td class="num-money">${FS.money(snack.price, SNAPSHOT.settings.currency)}</td>
           <td class="num"><input data-snack-id="${esc(snack.id)}" type="number" min="0" step="1" value="${quantityBySnack.get(snack.id) || 0}" aria-label="${esc(snack.name)} quantity" /></td>
         </tr>`).join("")}</tbody>
       </table>`;
+      $("bin-snack-search").value = "";
       updateEditorValue();
+    }
+
+    function itemsForTemplate(value) {
+      if (value.startsWith("bin:")) {
+        return SNAPSHOT.bins.find((bin) => bin.id === value.slice(4))?.items || [];
+      }
+      return FS.admin.templateBinItems(value, SNAPSHOT.snacks);
     }
 
     function resetEditor(templateId = "custom") {
       $("bin-id").value = "";
       $("bin-floor").value = "";
       $("bin-name").value = "";
-      $("bin-template").value = templateId;
+      renderTemplateOptions(templateId);
       $("bin-form-title").textContent = "Add a bin";
-      renderItemEditor(FS.admin.templateBinItems(templateId, SNAPSHOT.snacks));
+      renderItemEditor(itemsForTemplate(templateId));
     }
 
     function editBin(id) {
@@ -164,7 +185,7 @@
       $("bin-id").value = bin.id;
       $("bin-floor").value = bin.floor;
       $("bin-name").value = bin.name;
-      $("bin-template").value = bin.templateId || "custom";
+      renderTemplateOptions(bin.templateSourceId ? `bin:${bin.templateSourceId}` : (bin.templateId || "custom"));
       $("bin-form-title").textContent = `Edit ${bin.name}`;
       renderItemEditor(bin.items);
       document.querySelector(".bin-editor-card").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -183,7 +204,13 @@
       $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group">
-          <h3>${esc(floor)} <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span></h3>
+          <div class="bin-floor-heading">
+            <h3>${esc(floor)} <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span></h3>
+            <div class="bin-floor-actions" data-floor="${esc(floor)}">
+              <button type="button" data-action="rename-floor">Rename floor</button>
+              <button type="button" data-action="duplicate-floor">Duplicate floor</button>
+            </div>
+          </div>
           <div class="bin-location-grid">${bins.map((bin) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
@@ -191,10 +218,10 @@
             }).join("");
             return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
               <div class="bin-location-heading">
-                <div><h4>${esc(bin.name)}</h4><div class="muted-small">${esc(templateLabel(bin.templateId))}</div></div>
+                <div><h4>${esc(bin.name)}</h4><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
               </div>
-              <table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table>
+              <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
               <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button data-action="edit-bin">Edit</button><button class="danger" data-action="delete-bin">Delete</button></div>
             </article>`;
           }).join("")}</div>
@@ -230,20 +257,28 @@
     };
 
     $("bin-template").addEventListener("change", () => {
-      renderItemEditor(FS.admin.templateBinItems($("bin-template").value, SNAPSHOT.snacks));
+      renderItemEditor(itemsForTemplate($("bin-template").value));
     });
     $("bin-item-editor").addEventListener("input", updateEditorValue);
+    $("bin-snack-search").addEventListener("input", () => {
+      const query = $("bin-snack-search").value.trim().toLowerCase();
+      $("bin-item-editor").querySelectorAll("tbody tr[data-snack-search]").forEach((row) => {
+        row.hidden = !!query && !row.dataset.snackSearch.includes(query);
+      });
+    });
     $("bin-new").onclick = () => resetEditor("custom");
     $("bin-cancel").onclick = () => resetEditor("custom");
     $("bin-save").onclick = async () => {
       const button = $("bin-save");
       button.disabled = true;
       try {
+        const selectedTemplate = $("bin-template").value;
         await FS.admin.saveBin({
           id: $("bin-id").value || null,
           floor: $("bin-floor").value,
           name: $("bin-name").value,
-          templateId: $("bin-template").value,
+          templateId: selectedTemplate.startsWith("bin:") ? "custom" : selectedTemplate,
+          templateSourceId: selectedTemplate.startsWith("bin:") ? selectedTemplate.slice(4) : null,
           items: currentEditorItems(),
         });
         await refresh();
@@ -256,7 +291,33 @@
     $("bin-locations").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
-      const id = button.closest("[data-bin-id]").dataset.binId;
+      const floorActions = button.closest("[data-floor]");
+      if (floorActions) {
+        const floor = floorActions.dataset.floor;
+        if (button.dataset.action === "rename-floor") {
+          const nextFloor = prompt(`Rename ${floor} to:`, floor);
+          if (!nextFloor || nextFloor.trim() === floor) return;
+          try {
+            const count = await FS.admin.renameBinFloor(floor, nextFloor);
+            await refresh();
+            status("bin-status", `${count} bins moved to ${nextFloor.trim()}.`, true);
+          } catch (error) { status("bin-status", error.message, false); }
+          return;
+        }
+        if (button.dataset.action === "duplicate-floor") {
+          const nextFloor = prompt(`Name for the copy of ${floor}:`, `${floor} Copy`);
+          if (!nextFloor) return;
+          try {
+            const count = await FS.admin.duplicateBinFloor(floor, nextFloor);
+            await refresh();
+            status("bin-status", `${count} bins duplicated to ${nextFloor.trim()}.`, true);
+          } catch (error) { status("bin-status", error.message, false); }
+          return;
+        }
+      }
+      const card = button.closest("[data-bin-id]");
+      if (!card) return;
+      const id = card.dataset.binId;
       if (button.dataset.action === "edit-bin") return editBin(id);
       const bin = SNAPSHOT.bins.find((record) => record.id === id);
       if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this bin"}?`)) return;

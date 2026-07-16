@@ -528,6 +528,7 @@ FS.admin.saveBin = async (bin) => {
     floor,
     name,
     templateId: FS.admin.binTemplates[bin.templateId] ? bin.templateId : "custom",
+    templateSourceId: bin.templateSourceId || null,
     items,
     active: bin.active !== false,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -544,6 +545,65 @@ FS.admin.deleteBin = async (id) => {
   await FS.admin.requireAdmin();
   if (!id) throw new Error("Choose a bin to delete.");
   await FS._db.collection("inventory").doc(id).delete();
+};
+
+FS.admin.renameBinFloor = async (currentFloor, nextFloor) => {
+  await FS.admin.requireAdmin();
+  const from = String(currentFloor || "").trim();
+  const to = String(nextFloor || "").trim();
+  if (!from || !to) throw new Error("Both floor names are required.");
+  const records = (await FS.admin.getCollection("inventory"))
+    .filter((record) => record.recordType === "bin" && record.floor === from);
+  if (!records.length) throw new Error("No bins were found on that floor.");
+  const batch = FS._db.batch();
+  records.forEach((record) => batch.set(FS._db.collection("inventory").doc(record.id), {
+    floor: to,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: FS.admin.user.uid,
+  }, { merge: true }));
+  await batch.commit();
+  return records.length;
+};
+
+FS.admin.duplicateBinFloor = async (sourceFloor, targetFloor) => {
+  await FS.admin.requireAdmin();
+  const from = String(sourceFloor || "").trim();
+  const to = String(targetFloor || "").trim();
+  if (!from || !to) throw new Error("Source and new floor names are required.");
+  const allBins = (await FS.admin.getCollection("inventory"))
+    .filter((record) => record.recordType === "bin");
+  const source = allBins.filter((record) => record.floor === from);
+  if (!source.length) throw new Error("No bins were found on that floor.");
+  if (allBins.some((record) => record.floor.toLowerCase() === to.toLowerCase())) {
+    throw new Error("A floor with that name already exists.");
+  }
+  const nextOrder = Math.max(-1, ...allBins.map((record) => Number(record.displayOrder ?? -1))) + 1;
+  const batch = FS._db.batch();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  source.forEach((record, index) => {
+    const id = FS.uid("bin");
+    batch.set(FS._db.collection("inventory").doc(id), {
+      id,
+      recordType: "bin",
+      floor: to,
+      name: record.name,
+      templateId: record.templateId || "custom",
+      templateSourceId: record.templateSourceId || null,
+      items: (record.items || []).map((item) => ({
+        snackId: item.snackId,
+        quantity: Math.max(0, Number(item.quantity || 0)),
+      })),
+      displayOrder: nextOrder + index,
+      active: record.active !== false,
+      duplicatedFromFloor: from,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: FS.admin.user.uid,
+      updatedBy: FS.admin.user.uid,
+    });
+  });
+  await batch.commit();
+  return source.length;
 };
 
 // Persists the bundled artwork map when an authorized Admin opens Catalog.

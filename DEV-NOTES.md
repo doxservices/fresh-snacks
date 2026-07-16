@@ -13,6 +13,11 @@
   Custom starts empty. Every quantity remains editable.
 - Inventory value is calculated from current catalog prices and is not stored
   as duplicated data on the bin document.
+- Existing bins appear as reusable templates in the add/edit form. Snack
+  searches filter the editor without clearing quantities, and editor/bin tables
+  stay inside six-row scroll frames.
+- Floor controls rename every bin on a floor or duplicate the full floor under
+  a new name. Individual floor and location names remain editable per bin.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
