@@ -45,6 +45,10 @@
   per floor. Dropping a bin copies it onto the dragged bin's existing floor.
   Clicking the target opens the source chooser and follows the selected bin's
   floor. The target stays fixed at the right edge without narrowing bin cards.
+- The global Add Bin target is mounted at the inventory-app level instead of
+  inside the rendered floor list. Its fixed, viewport-clamped position now
+  remains available as the user scrolls, and inventory-level event delegation
+  preserves click, desktop drag/drop, and pointer-based copy behavior.
 
 ## Navigation QR copy controls (2026-07-16)
 

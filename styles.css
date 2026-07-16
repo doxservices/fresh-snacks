@@ -2656,8 +2656,8 @@ textarea:focus {
 .bin-add-floating {
   position: fixed;
   z-index: 24;
-  top: 50%;
-  right: 18px;
+  top: clamp(170px, 50vh, calc(100vh - 170px));
+  right: 22px;
   transform: translateY(-50%);
   box-shadow: 0 10px 24px rgba(10, 70, 40, .12);
 }

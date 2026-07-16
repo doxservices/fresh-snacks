@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-single-add-bin" />
+  <link rel="stylesheet" href="styles.css?v=20260716-scroll-follow-add-bin" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -109,6 +109,7 @@
       </section>
         </div>
       </div>
+      <button type="button" id="global-add-bin" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="" aria-label="Add or drop a bin on its current floor"><span>+</span><strong>Add bin</strong><small>Drop to copy on the same floor</small></button>
     </section>
 
     <dialog id="copy-bin-dialog" class="bin-copy-dialog">
@@ -254,7 +255,7 @@
         </section>`;
       }).join("");
 
-      $("bin-locations").innerHTML = floors.length ? `${floors.map((floor) => {
+      $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group" data-floor-group="${esc(floor)}">
           <div class="bin-floor-heading" data-floor="${esc(floor)}" draggable="true" title="Drag header to reorder floor">
@@ -285,7 +286,7 @@
             </article>`;
           }).join("")}</div>
         </section>`;
-      }).join("")}<button type="button" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="" aria-label="Add or drop a bin on its current floor"><span>+</span><strong>Add bin</strong><small>Drop to copy on the same floor</small></button>` : `<p class="muted-small">No bins configured.</p>`;
+      }).join("") : `<p class="muted-small">No bins configured.</p>`;
     }
 
     async function refresh() {
@@ -377,7 +378,7 @@
       } catch (error) { status("bin-status", error.message, false); }
     });
 
-    $("bin-locations").addEventListener("change", async (event) => {
+    $("inventory-app").addEventListener("change", async (event) => {
       if (event.target.matches(".inline-floor-name")) {
         const from = event.target.dataset.originalFloor;
         const to = event.target.value.trim();
@@ -418,7 +419,7 @@
       }
     });
 
-    $("bin-locations").addEventListener("keydown", (event) => {
+    $("inventory-app").addEventListener("keydown", (event) => {
       if (event.key === "Enter" && event.target.matches(".inline-floor-name, .inline-bin-name")) {
         event.preventDefault();
         event.target.blur();
@@ -431,7 +432,7 @@
       }
     });
 
-    $("bin-locations").addEventListener("focusout", (event) => {
+    $("inventory-app").addEventListener("focusout", (event) => {
       if (!event.target.matches(".inline-floor-name, .inline-bin-name, .inline-qty-input")) return;
       setTimeout(() => {
         if (!event.target.isConnected || document.activeElement === event.target) return;
@@ -440,7 +441,7 @@
       }, 0);
     });
 
-    $("bin-locations").addEventListener("click", async (event) => {
+    $("inventory-app").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
       if (["edit-floor-name", "edit-bin-name", "edit-qty"].includes(button.dataset.action)) {
@@ -524,7 +525,7 @@
       status("bin-status", "Floor order saved.", true);
     }
 
-    $("bin-locations").addEventListener("dragstart", (event) => {
+    $("inventory-app").addEventListener("dragstart", (event) => {
       const floorGroup = event.target.closest(".bin-floor-group");
       const floorHeader = event.target.closest(".bin-floor-heading[draggable='true']");
       if (floorGroup && floorHeader && !event.target.closest("button, input, select, a")) {
@@ -548,7 +549,7 @@
       event.dataTransfer.setData("text/plain", draggedBinId);
     });
 
-    $("bin-locations").addEventListener("dragover", (event) => {
+    $("inventory-app").addEventListener("dragover", (event) => {
       if (draggedFloor) {
         const target = event.target.closest(".bin-floor-group");
         const dragged = $("bin-locations").querySelector(`.bin-floor-group[data-floor-group="${CSS.escape(draggedFloor)}"]`);
@@ -576,7 +577,7 @@
       target.parentElement.insertBefore(dragged, after ? target.nextSibling : target);
     });
 
-    $("bin-locations").addEventListener("drop", async (event) => {
+    $("inventory-app").addEventListener("drop", async (event) => {
       if (draggedFloor) {
         event.preventDefault();
         try {
@@ -609,7 +610,7 @@
       } catch (error) { status("bin-status", error.message, false); }
     });
 
-    $("bin-locations").addEventListener("dragend", async (event) => {
+    $("inventory-app").addEventListener("dragend", async (event) => {
       const sourceId = draggedBinId;
       const cutout = sourceId && document.elementFromPoint(event.clientX, event.clientY)?.closest(".bin-add-cutout");
       if (cutout) {
@@ -619,7 +620,7 @@
       }
       event.target.closest(".bin-floor-group")?.classList.remove("dragging-floor");
       event.target.closest(".bin-location-card")?.classList.remove("dragging");
-      $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
+      $("inventory-app").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
       draggedFloor = null;
     });
@@ -688,7 +689,7 @@
       }
       event.target.closest(".layout-floor")?.classList.remove("dragging-floor");
       event.target.closest(".layout-bin-item")?.classList.remove("dragging");
-      $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
+      $("inventory-app").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
       draggedFloor = null;
     });
