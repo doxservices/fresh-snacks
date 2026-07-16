@@ -247,7 +247,7 @@
           <div class="bin-location-grid">${bins.map((bin) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
-              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><div class="inline-qty"><button type="button" data-action="qty-down" data-snack-id="${esc(item.snackId)}" aria-label="Remove one ${esc(snack.name)}">&#9660;</button><span>${item.quantity}</span><button type="button" data-action="qty-up" data-snack-id="${esc(item.snackId)}" aria-label="Add one ${esc(snack.name)}">&#9650;</button></div></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
+              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><input class="inline-qty-input" data-snack-id="${esc(item.snackId)}" type="number" min="0" step="1" value="${item.quantity}" aria-label="${esc(snack.name)} quantity in ${esc(bin.name)}" /></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
             return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" draggable="true">
               <div class="bin-location-drag" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
@@ -360,6 +360,22 @@
           await refresh();
           status("bin-status", "Bin name updated.", true);
         } catch (error) { event.target.value = bin.name; status("bin-status", error.message, false); }
+        return;
+      }
+      if (event.target.matches(".inline-qty-input")) {
+        const card = event.target.closest("[data-bin-id]");
+        const bin = SNAPSHOT.bins.find((record) => record.id === card?.dataset.binId);
+        if (!bin) return;
+        const snackId = event.target.dataset.snackId;
+        const quantity = Math.max(0, Math.floor(Number(event.target.value || 0)));
+        const items = bin.items.map((item) => item.snackId === snackId
+          ? { ...item, quantity }
+          : item).filter((item) => item.quantity > 0);
+        try {
+          await FS.admin.saveBin(binPayload(bin, { items }));
+          await refresh();
+          status("bin-status", "Quantity updated.", true);
+        } catch (error) { event.target.value = bin.items.find((item) => item.snackId === snackId)?.quantity || 0; status("bin-status", error.message, false); }
       }
     });
 
@@ -411,19 +427,6 @@
           await FS.admin.duplicateBin(bin.id, bin.floor, `${bin.name} Copy`);
           await refresh();
           status("bin-status", `${bin.name} duplicated on ${bin.floor}.`, true);
-        } catch (error) { status("bin-status", error.message, false); }
-        return;
-      }
-      if (button.dataset.action === "qty-up" || button.dataset.action === "qty-down") {
-        const snackId = button.dataset.snackId;
-        const delta = button.dataset.action === "qty-up" ? 1 : -1;
-        const items = bin.items.map((item) => item.snackId === snackId
-          ? { ...item, quantity: Math.max(0, Number(item.quantity || 0) + delta) }
-          : item).filter((item) => item.quantity > 0);
-        try {
-          await FS.admin.saveBin(binPayload(bin, { items }));
-          await refresh();
-          status("bin-status", "Quantity updated.", true);
         } catch (error) { status("bin-status", error.message, false); }
         return;
       }

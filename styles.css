@@ -2241,21 +2241,12 @@ textarea:focus {
   font-size: 1.05rem;
 }
 
-.inline-qty {
-  display: inline-grid;
-  grid-template-columns: 28px 26px 28px;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-}
-
-.inline-qty button {
-  min-width: 28px;
-  min-height: 28px;
-  padding: 2px;
-  border-radius: 8px;
-  font-weight: 800;
-  line-height: 1;
+.inline-qty-input {
+  width: 70px;
+  min-height: 36px;
+  padding: 5px 6px;
+  text-align: center;
+  font-weight: 750;
 }
 
 .bin-add-cutout {
