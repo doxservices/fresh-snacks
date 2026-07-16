@@ -496,6 +496,7 @@
 
     let draggedBinId = null;
     let draggedFloor = null;
+    let pendingCopyDrag = null;
 
     async function saveFloorOrder(container, floorSelector, binSelector) {
       const ids = [...container.querySelectorAll(floorSelector)]
@@ -570,6 +571,7 @@
       const cutout = event.target.closest(".bin-add-cutout");
       if (cutout) {
         event.preventDefault();
+        pendingCopyDrag = null;
         const source = SNAPSHOT.bins.find((bin) => bin.id === draggedBinId);
         try {
           await FS.admin.duplicateBin(draggedBinId, cutout.dataset.floor, `${source?.name || "Bin"} Copy`);
@@ -658,6 +660,35 @@
       $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
       draggedFloor = null;
+    });
+
+    $("inventory-app").addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      const layoutItem = event.target.closest(".layout-bin-item");
+      const card = event.target.closest(".bin-location-card");
+      const cardHandle = event.target.closest(".bin-location-drag, .bin-location-heading");
+      if (!layoutItem && (!card || !cardHandle || event.target.closest("button, input, select, a"))) return;
+      pendingCopyDrag = {
+        binId: layoutItem?.dataset.layoutBinId || card.dataset.binId,
+        x: event.clientX,
+        y: event.clientY,
+      };
+    });
+
+    document.addEventListener("pointerup", async (event) => {
+      const pending = pendingCopyDrag;
+      pendingCopyDrag = null;
+      if (!pending || Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 24) return;
+      const cutout = document.elementFromPoint(event.clientX, event.clientY)?.closest(".bin-add-cutout");
+      if (!cutout) return;
+      const source = SNAPSHOT.bins.find((bin) => bin.id === pending.binId);
+      if (!source) return;
+      try {
+        status("bin-status", `Copying ${source.name}...`, true);
+        await FS.admin.duplicateBin(source.id, cutout.dataset.floor, `${source.name} Copy`);
+        await refresh();
+        status("bin-status", `${source.name} copied to ${cutout.dataset.floor}.`, true);
+      } catch (error) { status("bin-status", error.message, false); }
     });
 
     FS.initFirebase()

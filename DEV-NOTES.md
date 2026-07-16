@@ -37,6 +37,9 @@
   control. It overlays the page at every viewport and never narrows inventory
   cards or forms. Both the drawer list and gallery cards use the same persisted
   bin position; two-column gallery dragging accounts for horizontal placement.
+- Drag-to-copy has a pointer fallback in addition to native HTML drag/drop, so a
+  mouse, touch pointer, or automation drag released on Add Bin uses the same
+  duplicate operation reliably.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
