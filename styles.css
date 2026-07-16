@@ -100,18 +100,30 @@ header {
 .nav-qr-copy {
   min-width: 36px;
   padding: 7px;
-  border: 1px solid rgba(24, 79, 42, .2);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .9);
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: var(--green-dark);
   cursor: pointer;
+  box-shadow: none;
+  transition: background-color .12s ease, color .12s ease, transform .08s ease;
 }
 
 .nav-qr-copy:hover,
-.nav-qr-copy:focus-visible,
 .nav-qr-copy.copied {
-  border-color: var(--green);
   background: var(--green-light);
+}
+
+.nav-qr-copy:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 1px;
+  background: var(--green-light);
+}
+
+.nav-qr-copy:active {
+  background: #cfe5d3;
+  color: #0d3f22;
+  transform: translateY(2px) scale(.96);
 }
 
 .nav-qr-copy svg {

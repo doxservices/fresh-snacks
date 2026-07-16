@@ -49,6 +49,8 @@
 - `js/nav-qr.js` adds a QR icon beside customer drawer links and admin header
   links. Pressing it renders that link's absolute URL as PNG and copies the QR
   image to the clipboard, with an accessible status toast.
+- QR controls use a flat, borderless treatment with no resting shadow. The
+  active state moves down and contracts slightly to read as a physical press.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
