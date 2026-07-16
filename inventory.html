@@ -41,6 +41,15 @@
     </section>
 
     <section id="inventory-app" class="hidden">
+      <div class="bin-page-shell">
+        <aside class="bin-layout-well" aria-label="Floor and bin layout">
+          <div class="bin-layout-well-heading">
+            <strong>Layout</strong>
+            <span>Drag bins to arrange</span>
+          </div>
+          <div id="bin-layout-tree"></div>
+        </aside>
+        <div class="bin-page-content">
       <section class="brand-card">
         <div class="brand-grid">
           <div>
@@ -95,6 +104,8 @@
         </div>
         <div id="bin-locations"></div>
       </section>
+        </div>
+      </div>
     </section>
 
     <dialog id="copy-bin-dialog" class="bin-copy-dialog">
@@ -231,12 +242,21 @@
       $("dash-units").textContent = totalUnits;
       $("dash-value").textContent = FS.money(totalValue, currency);
 
+      $("bin-layout-tree").innerHTML = floors.map((floor) => {
+        const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        return `<section class="layout-floor" data-layout-floor="${esc(floor)}">
+          <div class="layout-floor-name">${esc(floor)}</div>
+          <div class="layout-bin-list">${bins.map((bin) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
+        </section>`;
+      }).join("");
+
       $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group">
           <div class="bin-floor-heading" data-floor="${esc(floor)}">
             <div class="inline-floor-wrap">
-              <input class="inline-floor-name" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" title="Click to rename floor" />
+              <button type="button" class="inline-name-display floor-name-display" data-action="edit-floor-name" title="Click to rename floor">${esc(floor)}</button>
+              <input class="inline-floor-name hidden" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" />
               <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span>
             </div>
             <div class="bin-floor-actions">
@@ -247,12 +267,12 @@
           <div class="bin-location-grid">${bins.map((bin) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
-              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><input class="inline-qty-input" data-snack-id="${esc(item.snackId)}" type="number" min="0" step="1" value="${item.quantity}" aria-label="${esc(snack.name)} quantity in ${esc(bin.name)}" /></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
+              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><button type="button" class="inline-value-display" data-action="edit-qty" data-snack-id="${esc(item.snackId)}" aria-label="Edit ${esc(snack.name)} quantity">${item.quantity}</button><input class="inline-qty-input hidden" data-snack-id="${esc(item.snackId)}" type="number" min="0" step="1" value="${item.quantity}" aria-label="${esc(snack.name)} quantity in ${esc(bin.name)}" /></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
-            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" draggable="true">
-              <div class="bin-location-drag" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
-              <div class="bin-location-heading">
-                <div><input class="inline-bin-name" value="${esc(bin.name)}" aria-label="Bin name" title="Click to rename bin" /><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
+            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
+              <div class="bin-location-drag" draggable="true" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
+              <div class="bin-location-heading" draggable="true" title="Drag header to reorder">
+                <div><button type="button" class="inline-name-display bin-name-display" data-action="edit-bin-name" title="Click to rename bin">${esc(bin.name)}</button><input class="inline-bin-name hidden" value="${esc(bin.name)}" aria-label="Bin name" /><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
               </div>
               <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
@@ -384,11 +404,35 @@
         event.preventDefault();
         event.target.blur();
       }
+      if (event.key === "Escape" && event.target.matches(".inline-floor-name, .inline-bin-name, .inline-qty-input")) {
+        event.preventDefault();
+        const container = event.target.parentElement;
+        event.target.classList.add("hidden");
+        container.querySelector(".inline-name-display, .inline-value-display")?.classList.remove("hidden");
+      }
+    });
+
+    $("bin-locations").addEventListener("focusout", (event) => {
+      if (!event.target.matches(".inline-floor-name, .inline-bin-name, .inline-qty-input")) return;
+      setTimeout(() => {
+        if (!event.target.isConnected || document.activeElement === event.target) return;
+        event.target.classList.add("hidden");
+        event.target.parentElement?.querySelector(".inline-name-display, .inline-value-display")?.classList.remove("hidden");
+      }, 0);
     });
 
     $("bin-locations").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
+      if (["edit-floor-name", "edit-bin-name", "edit-qty"].includes(button.dataset.action)) {
+        const editor = button.parentElement.querySelector(".inline-floor-name, .inline-bin-name, .inline-qty-input");
+        if (!editor) return;
+        button.classList.add("hidden");
+        editor.classList.remove("hidden");
+        editor.focus();
+        editor.select();
+        return;
+      }
       if (button.dataset.action === "open-copy-bin") {
         openCopyBinDialog(button.dataset.floor);
         return;
@@ -440,8 +484,11 @@
 
     let draggedBinId = null;
     $("bin-locations").addEventListener("dragstart", (event) => {
-      const card = event.target.closest(".bin-location-card[draggable='true']");
-      if (!card || !event.target.closest(".bin-location-drag")) {
+      const card = event.target.closest(".bin-location-card");
+      const onHandle = event.target.closest(".bin-location-drag");
+      const onHeader = event.target.closest(".bin-location-heading[draggable='true']");
+      const onInteractive = event.target.closest("button, input, select, a");
+      if (!card || (!onHandle && !onHeader) || (onInteractive && !onHandle)) {
         event.preventDefault();
         return;
       }
@@ -453,6 +500,13 @@
 
     $("bin-locations").addEventListener("dragover", (event) => {
       if (!draggedBinId) return;
+      const cutout = event.target.closest(".bin-add-cutout");
+      if (cutout) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        cutout.classList.add("drop-ready");
+        return;
+      }
       const target = event.target.closest(".bin-location-card");
       const dragged = $("bin-locations").querySelector(`.bin-location-card[data-bin-id="${CSS.escape(draggedBinId)}"]`);
       if (!target || !dragged || target === dragged || target.parentElement !== dragged.parentElement) return;
@@ -464,6 +518,17 @@
 
     $("bin-locations").addEventListener("drop", async (event) => {
       if (!draggedBinId) return;
+      const cutout = event.target.closest(".bin-add-cutout");
+      if (cutout) {
+        event.preventDefault();
+        const source = SNAPSHOT.bins.find((bin) => bin.id === draggedBinId);
+        try {
+          await FS.admin.duplicateBin(draggedBinId, cutout.dataset.floor, `${source?.name || "Bin"} Copy`);
+          await refresh();
+          status("bin-status", `Bin copied to ${cutout.dataset.floor}.`, true);
+        } catch (error) { status("bin-status", error.message, false); }
+        return;
+      }
       const grid = event.target.closest(".bin-location-grid");
       if (!grid || !grid.querySelector(`[data-bin-id="${CSS.escape(draggedBinId)}"]`)) return;
       event.preventDefault();
@@ -478,6 +543,43 @@
 
     $("bin-locations").addEventListener("dragend", (event) => {
       event.target.closest(".bin-location-card")?.classList.remove("dragging");
+      $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
+      draggedBinId = null;
+    });
+
+    $("bin-layout-tree").addEventListener("dragstart", (event) => {
+      const item = event.target.closest(".layout-bin-item[draggable='true']");
+      if (!item) return;
+      draggedBinId = item.dataset.layoutBinId;
+      item.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "copyMove";
+      event.dataTransfer.setData("text/plain", draggedBinId);
+    });
+
+    $("bin-layout-tree").addEventListener("dragover", (event) => {
+      if (!draggedBinId) return;
+      const target = event.target.closest(".layout-bin-item");
+      const dragged = $("bin-layout-tree").querySelector(`.layout-bin-item[data-layout-bin-id="${CSS.escape(draggedBinId)}"]`);
+      if (!target || !dragged || target === dragged || target.parentElement !== dragged.parentElement) return;
+      event.preventDefault();
+      const box = target.getBoundingClientRect();
+      target.parentElement.insertBefore(dragged, event.clientY > box.top + box.height / 2 ? target.nextSibling : target);
+    });
+
+    $("bin-layout-tree").addEventListener("drop", async (event) => {
+      if (!draggedBinId || !event.target.closest(".layout-bin-list")) return;
+      event.preventDefault();
+      const ids = [...$("bin-layout-tree").querySelectorAll(".layout-bin-item")].map((item) => item.dataset.layoutBinId);
+      try {
+        await FS.admin.saveBinOrder(ids);
+        await refresh();
+        status("bin-status", "Layout order saved.", true);
+      } catch (error) { status("bin-status", error.message, false); }
+    });
+
+    $("bin-layout-tree").addEventListener("dragend", (event) => {
+      event.target.closest(".layout-bin-item")?.classList.remove("dragging");
+      $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
     });
 

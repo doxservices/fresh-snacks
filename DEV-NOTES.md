@@ -22,10 +22,15 @@
   confirmation. Saved bins are the only reusable templates shown; built-in
   templates are hidden. Bins can be dragged within a floor and their global
   `displayOrder` is persisted.
-- Floor and bin names are inline inputs. Bin snack rows use compact numeric
+- Floor and bin names support inline editing. Bin snack rows use compact numeric
   inputs with native up/down spinner controls, and each card has icon actions including same-floor duplicate,
   and every floor ends with a dashed add-bin cutout. The cutout opens a chooser
   that copies a selected existing bin into the new floor spot.
+- Names and quantities now render as text controls until clicked, then reveal
+  the corresponding input. Card headers remain drag surfaces outside those
+  interactive labels. A sticky left layout well mirrors floors and bins; bin
+  rows dragged there persist the card order. Dropping a card or layout item on
+  a floor's add cutout duplicates it into that floor.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
