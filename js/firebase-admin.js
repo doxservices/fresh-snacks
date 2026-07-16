@@ -417,6 +417,33 @@ FS.admin.saveSnack = async (snack) => {
   }, { merge: true });
 };
 
+// Persists the bundled artwork map when an authorized Admin opens Catalog.
+// Reads first and writes only records whose paths are stale, so ordinary
+// catalog refreshes do not create repeated update noise.
+FS.admin.syncBundledSnackArtwork = async () => {
+  await FS.admin.requireAdmin();
+  const entries = Object.entries(FS.bundledSnackArtwork || {});
+  const snapshots = await Promise.all(entries.map(([id]) =>
+    FS._db.collection("snacks").doc(id).get()
+  ));
+  const batch = FS._db.batch();
+  let changed = 0;
+  entries.forEach(([id, artwork], index) => {
+    const snap = snapshots[index];
+    if (!snap.exists) return;
+    const current = snap.data();
+    if (current.photo === artwork.photo && current.favoritePhoto === artwork.favoritePhoto) return;
+    batch.set(snap.ref, {
+      photo: artwork.photo,
+      favoritePhoto: artwork.favoritePhoto,
+      artworkUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    changed++;
+  });
+  if (changed) await batch.commit();
+  return changed;
+};
+
 FS.admin.deactivateSnack = async (id) => {
   await FS.admin.requireAdmin();
   await FS._db.collection("snacks").doc(id).set({

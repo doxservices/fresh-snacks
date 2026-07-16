@@ -21,7 +21,8 @@
       "calories": 100,
       "style": "green",
       "factsId": "0001",
-      "photo": "snack-photo.png",
+      "photo": "assets/chewy.jpg",
+      "favoritePhoto": "assets/chewy-background.png",
       "active": true
     },
     "plantain-chips": {

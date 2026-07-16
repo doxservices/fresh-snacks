@@ -89,8 +89,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-store.js?v=20260715-snack-artwork"></script>
+  <script src="js/firebase-admin.js?v=20260715-snack-artwork"></script>
   <script>
     let SNAPSHOT = null;
     let CATALOG_VIEW = localStorage.getItem("fresh_snacks_catalog_view") === "gallery" ? "gallery" : "row";
@@ -154,6 +154,7 @@
     }
 
     async function refresh() {
+      await FS.admin.syncBundledSnackArtwork();
       SNAPSHOT = await FS.admin.getSnapshot();
       $("login-panel").classList.add("hidden");
       $("admin-app").classList.remove("hidden");

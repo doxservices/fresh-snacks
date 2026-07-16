@@ -16,7 +16,9 @@
       "price": 100,
       "calories": 100,
       "style": "green",
-      "factsId": "0001"
+      "factsId": "0001",
+      "photo": "assets/chewy.jpg",
+      "favoritePhoto": "assets/chewy-background.png"
     },
     {
       "id": "plantain-chips",

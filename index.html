@@ -60,7 +60,7 @@
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
       <article class="snack-card favorite-card">
         <div class="snack-image">
-          <img id="fav-photo" src="snack-photo.png" alt="Favorite snack" />
+          <img id="fav-photo" src="assets/chewy-background.png" alt="Favorite snack" />
           <div class="facts-door" id="facts-door" aria-hidden="true" title="Close nutrition facts"></div>
         </div>
         <div class="snack-body">
@@ -260,7 +260,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js"></script>
+  <script src="js/firebase-store.js?v=20260715-snack-artwork"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260715-profile-nav"></script>
   <script>
@@ -357,7 +357,12 @@
         : "Your top snack by total spend.");
 
       const favPhoto = document.getElementById("fav-photo");
-      favPhoto.src = (fav && fav.photo) || "snack-photo.png";
+      const regularFavPhoto = (fav && fav.photo) || "assets/chewy.jpg";
+      favPhoto.onerror = () => {
+        favPhoto.onerror = null;
+        favPhoto.src = regularFavPhoto;
+      };
+      favPhoto.src = (fav && fav.favoritePhoto) || regularFavPhoto;
       favPhoto.alt = favorite ? favorite.name : "Favorite snack";
 
       const door = document.getElementById("facts-door");

@@ -522,6 +522,33 @@ FS.getSettings = async () => {
   };
 };
 
+// Bundled artwork that supersedes older catalog paths. `photo` is the normal
+// bin/catalog image; `favoritePhoto` is the wider composition used only when
+// that snack becomes the customer's favorite.
+FS.bundledSnackArtwork = {
+  chewy: {
+    photo: "assets/chewy.jpg",
+    favoritePhoto: "assets/chewy-background.png",
+  },
+  "kiss-banana-bread": {
+    photo: "assets/kiss-banana-bread.png",
+    favoritePhoto: "assets/kiss-banana-bread-background.png",
+  },
+  "kiss-brownie-rich-dark-chocolate": {
+    photo: "assets/kiss-brownie.png",
+    favoritePhoto: "assets/kiss-brownie-background.png",
+  },
+  oreo: {
+    photo: "assets/oreo.png",
+    favoritePhoto: "assets/oreo-background.png",
+  },
+};
+
+FS.withBundledSnackArtwork = (snack) => ({
+  ...snack,
+  ...(FS.bundledSnackArtwork[snack.id] || {}),
+});
+
 FS.getCatalog = async (includeInactive = false) => {
   await FS.initFirebase();
   const ref = includeInactive
@@ -529,7 +556,7 @@ FS.getCatalog = async (includeInactive = false) => {
     : FS._db.collection("snacks").where("active", "==", true);
   const snap = await ref.get();
   return snap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .map((doc) => FS.withBundledSnackArtwork({ id: doc.id, ...doc.data() }))
     .filter((s) => includeInactive || s.active !== false)
     .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 };
