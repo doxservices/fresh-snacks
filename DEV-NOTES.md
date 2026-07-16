@@ -42,6 +42,14 @@
   duplicate operation reliably. Add Bin is explicitly ordered after every bin
   card so it cannot displace a saved bin in the two-column gallery.
 
+## Navigation QR copy controls (2026-07-16)
+
+- `js/qrcode.js` was already present in the stack. Navigation destinations are
+  generated on demand; no QR image files need to be prepared or stored.
+- `js/nav-qr.js` adds a QR icon beside customer drawer links and admin header
+  links. Pressing it renders that link's absolute URL as PNG and copies the QR
+  image to the clipboard, with an accessible status toast.
+
 ## Admin-managed snack gallery order (2026-07-16)
 
 - Customer snack catalogs use the Firestore `displayOrder` field.

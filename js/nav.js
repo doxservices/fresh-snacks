@@ -3,6 +3,12 @@
  * the drawer and backdrop. Admin is deliberately not listed — it lives at
  * its own URL (admin.html) for the snack keeper only. */
 (function () {
+  if (!document.getElementById("fresh-snacks-nav-qr")) {
+    const qrScript = document.createElement("script");
+    qrScript.id = "fresh-snacks-nav-qr";
+    qrScript.src = "js/nav-qr.js?v=20260716-nav-qr";
+    document.head.appendChild(qrScript);
+  }
   const here = location.pathname.split("/").pop() || "index.html";
   const activeProfileKey = "fresh_snacks_profile_active";
   let activeProfileState = false;
@@ -55,7 +61,7 @@
   const renderItems = (activeProfile, activeAdmin = activeAdminState) => {
     activeProfileState = activeProfile;
     activeAdminState = activeAdmin;
-    drawer.querySelectorAll(".drawer-link").forEach((el) => el.remove());
+    drawer.querySelectorAll(".nav-qr-row, .drawer-link").forEach((el) => el.remove());
     const items = [...(activeProfile ? profileItems : guestItems)];
     if (activeAdmin) items.unshift({ label: "Admin dashboard", href: "admin.html" });
     if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });

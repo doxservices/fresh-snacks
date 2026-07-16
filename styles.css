@@ -88,6 +88,72 @@ header {
   justify-content: flex-end;
 }
 
+.nav-qr-row {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+}
+
+.header-actions .nav-qr-row > a { flex: 1; }
+
+.nav-qr-copy {
+  min-width: 36px;
+  padding: 7px;
+  border: 1px solid rgba(24, 79, 42, .2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .9);
+  color: var(--green-dark);
+  cursor: pointer;
+}
+
+.nav-qr-copy:hover,
+.nav-qr-copy:focus-visible,
+.nav-qr-copy.copied {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+
+.nav-qr-copy svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.drawer .nav-qr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 4px;
+  width: 100%;
+}
+
+.drawer .nav-qr-row .drawer-link { width: auto; }
+
+#nav-qr-toast {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(360px, calc(100vw - 36px));
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: #123e24;
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .2);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+#nav-qr-toast.error { background: #7b2323; }
+
+#nav-qr-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 h1 {
   margin: 0 0 6px;
   font-size: 34px;
