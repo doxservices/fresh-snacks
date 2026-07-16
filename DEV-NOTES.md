@@ -39,7 +39,8 @@
   bin position; two-column gallery dragging accounts for horizontal placement.
 - Drag-to-copy has a pointer fallback in addition to native HTML drag/drop, so a
   mouse, touch pointer, or automation drag released on Add Bin uses the same
-  duplicate operation reliably.
+  duplicate operation reliably. Add Bin is explicitly ordered after every bin
+  card so it cannot displace a saved bin in the two-column gallery.
 
 ## Admin-managed snack gallery order (2026-07-16)
 

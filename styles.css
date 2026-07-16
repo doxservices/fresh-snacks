@@ -2426,6 +2426,7 @@ textarea:focus {
 }
 
 .bin-add-cutout {
+  order: 9999;
   min-height: 300px;
   display: grid;
   place-content: center;
