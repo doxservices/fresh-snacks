@@ -2602,14 +2602,14 @@ textarea:focus {
 }
 
 .bin-add-cutout {
-  width: 132px;
-  min-height: 108px;
+  width: 160px;
+  min-height: 132px;
   display: grid;
   place-content: center;
   justify-items: center;
   gap: 5px;
-  margin: 12px 0 0 auto;
-  padding: 12px 9px;
+  margin: 0;
+  padding: 16px 12px;
   border: 2px dashed #9bbda5;
   border-radius: 10px;
   background: rgba(244, 249, 245, .7);
@@ -2653,13 +2653,41 @@ textarea:focus {
   line-height: 1.25;
 }
 
-@media (min-width: 1340px) {
+.bin-add-floating {
+  position: fixed;
+  z-index: 24;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  box-shadow: 0 10px 24px rgba(10, 70, 40, .12);
+}
+
+.bin-add-floating:hover,
+.bin-add-floating:focus {
+  transform: translateY(calc(-50% - 2px));
+}
+
+.bin-add-floating.drop-ready {
+  transform: translateY(-50%) scale(1.03);
+}
+
+@media (max-width: 1180px) {
   .bin-add-floating {
-    position: absolute;
-    z-index: 5;
-    top: 76px;
-    right: -146px;
-    margin: 0;
+    top: auto;
+    right: 14px;
+    bottom: 14px;
+    width: 148px;
+    min-height: 116px;
+    transform: none;
+  }
+
+  .bin-add-floating:hover,
+  .bin-add-floating:focus {
+    transform: translateY(-2px);
+  }
+
+  .bin-add-floating.drop-ready {
+    transform: scale(1.03);
   }
 }
 

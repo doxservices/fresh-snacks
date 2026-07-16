@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-floating-add-bin" />
+  <link rel="stylesheet" href="styles.css?v=20260716-single-add-bin" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -225,12 +225,13 @@
     });
 
     function openCopyBinDialog(floor, sourceId = "") {
-      $("copy-bin-floor").value = floor;
-      $("copy-bin-floor-label").textContent = floor;
       $("copy-bin-source").innerHTML = SNAPSHOT.bins.map((bin) =>
         `<option value="${esc(bin.id)}"${bin.id === sourceId ? " selected" : ""}>${esc(bin.floor)} — ${esc(bin.name)}</option>`
       ).join("");
       const source = SNAPSHOT.bins.find((bin) => bin.id === $("copy-bin-source").value);
+      const targetFloor = floor || source?.floor || "";
+      $("copy-bin-floor").value = targetFloor;
+      $("copy-bin-floor-label").textContent = targetFloor;
       $("copy-bin-name").value = source ? `${source.name} Copy` : "";
       $("copy-bin-dialog").showModal();
     }
@@ -253,7 +254,7 @@
         </section>`;
       }).join("");
 
-      $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
+      $("bin-locations").innerHTML = floors.length ? `${floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group" data-floor-group="${esc(floor)}">
           <div class="bin-floor-heading" data-floor="${esc(floor)}" draggable="true" title="Drag header to reorder floor">
@@ -283,9 +284,8 @@
               <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">&#10697;</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">&#9998;</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">&#128465;</button></div>
             </article>`;
           }).join("")}</div>
-          <button type="button" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="${esc(floor)}" aria-label="Add or drop a bin to ${esc(floor)}"><span>+</span><strong>Add bin</strong><small>Drop to copy on ${esc(floor)}</small></button>
         </section>`;
-      }).join("") : `<p class="muted-small">No bins configured.</p>`;
+      }).join("")}<button type="button" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="" aria-label="Add or drop a bin on its current floor"><span>+</span><strong>Add bin</strong><small>Drop to copy on the same floor</small></button>` : `<p class="muted-small">No bins configured.</p>`;
     }
 
     async function refresh() {
@@ -359,7 +359,11 @@
 
     $("copy-bin-source").addEventListener("change", () => {
       const source = SNAPSHOT.bins.find((bin) => bin.id === $("copy-bin-source").value);
-      if (source) $("copy-bin-name").value = `${source.name} Copy`;
+      if (source) {
+        $("copy-bin-name").value = `${source.name} Copy`;
+        $("copy-bin-floor").value = source.floor;
+        $("copy-bin-floor-label").textContent = source.floor;
+      }
     });
     $("copy-bin-close").onclick = () => $("copy-bin-dialog").close();
     $("copy-bin-cancel").onclick = () => $("copy-bin-dialog").close();
@@ -504,10 +508,11 @@
     async function copyDraggedBinTo(binId, cutout) {
       const source = SNAPSHOT.bins.find((bin) => bin.id === binId);
       if (!source || !cutout) return false;
+      const targetFloor = cutout.dataset.floor || source.floor;
       status("bin-status", `Copying ${source.name}...`, true);
-      await FS.admin.duplicateBin(source.id, cutout.dataset.floor, `${source.name} Copy`);
+      await FS.admin.duplicateBin(source.id, targetFloor, `${source.name} Copy`);
       await refresh();
-      status("bin-status", `${source.name} copied to ${cutout.dataset.floor}.`, true);
+      status("bin-status", `${source.name} copied to ${targetFloor}.`, true);
       return true;
     }
 
