@@ -2615,6 +2615,12 @@ textarea:focus {
   margin-bottom: 10px;
 }
 
+.floor-analysis-title {
+  color: var(--green-dark);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .floor-analysis-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -2623,29 +2629,62 @@ textarea:focus {
 
 .floor-analysis-card {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3px 10px;
+  gap: 8px;
   padding: 11px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, .68);
 }
 
-.floor-analysis-card strong,
-.floor-analysis-card b {
+.floor-analysis-name {
   color: var(--green-dark);
+  font-size: .92rem;
+  font-weight: 600;
 }
 
-.floor-analysis-card span {
+.floor-analysis-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.floor-analysis-value span,
+.floor-analysis-meta {
   color: var(--muted);
   font-size: .76rem;
 }
 
-.floor-analysis-card b {
-  grid-column: 2;
-  grid-row: 2 / span 2;
-  align-self: center;
-  font-size: .9rem;
+.floor-analysis-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.floor-banner-totals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-left: auto;
+  color: var(--green-dark);
+}
+
+.floor-banner-totals > span {
+  display: grid;
+  gap: 1px;
+  min-width: 86px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.floor-banner-totals small {
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 400;
+  letter-spacing: .02em;
 }
 
 .bin-add-cutout {
@@ -2793,6 +2832,11 @@ textarea:focus {
   .bin-floor-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .floor-banner-totals {
+    justify-content: flex-start;
+    margin-left: 0;
   }
 
   .bin-floor-actions button {
