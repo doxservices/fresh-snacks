@@ -33,9 +33,10 @@
   a floor's add cutout duplicates it into that floor. Floors are also draggable
   from either the full page header or the left-well floor heading; their order is
   persisted by keeping each floor's bins together in global `displayOrder`.
-- On wide desktop viewports, the layout well sits in the unused left margin and
-  does not narrow the 1040px inventory content. At smaller widths it becomes a
-  contained panel above the inventory rather than compressing cards and forms.
+- The layout well is an off-canvas drawer opened from the fixed left-edge Layout
+  control. It overlays the page at every viewport and never narrows inventory
+  cards or forms. Both the drawer list and gallery cards use the same persisted
+  bin position; two-column gallery dragging accounts for horizontal placement.
 
 ## Admin-managed snack gallery order (2026-07-16)
 

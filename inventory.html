@@ -41,11 +41,12 @@
     </section>
 
     <section id="inventory-app" class="hidden">
+      <button type="button" id="bin-layout-toggle" class="bin-layout-toggle" aria-controls="bin-layout-well" aria-expanded="false"><span aria-hidden="true">&#9776;</span> Layout</button>
       <div class="bin-page-shell">
-        <aside class="bin-layout-well" aria-label="Floor and bin layout">
+        <aside id="bin-layout-well" class="bin-layout-well" aria-label="Floor and bin layout" aria-hidden="true">
           <div class="bin-layout-well-heading">
-            <strong>Layout</strong>
-            <span>Drag floors and bins to arrange</span>
+            <div><strong>Layout</strong><span>Drag floors and bins to arrange</span></div>
+            <button type="button" id="bin-layout-close" class="bin-layout-close" aria-label="Close layout sidebar">&times;</button>
           </div>
           <div id="bin-layout-tree"></div>
         </aside>
@@ -246,7 +247,7 @@
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="layout-floor" data-layout-floor="${esc(floor)}" draggable="true">
           <div class="layout-floor-name" title="Drag to reorder floor"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(floor)}</span></div>
-          <div class="layout-bin-list">${bins.map((bin) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
+          <div class="layout-bin-list">${bins.map((bin, index) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true" style="--bin-order:${index}"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
         </section>`;
       }).join("");
 
@@ -265,12 +266,12 @@
               <button type="button" class="danger icon-button" data-action="delete-floor" title="Delete floor and bins" aria-label="Delete ${esc(floor)}">&#128465;</button>
             </div>
           </div>
-          <div class="bin-location-grid">${bins.map((bin) => {
+          <div class="bin-location-grid">${bins.map((bin, index) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
               return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><button type="button" class="inline-value-display" data-action="edit-qty" data-snack-id="${esc(item.snackId)}" aria-label="Edit ${esc(snack.name)} quantity">${item.quantity}</button><input class="inline-qty-input hidden" data-snack-id="${esc(item.snackId)}" type="number" min="0" step="1" value="${item.quantity}" aria-label="${esc(snack.name)} quantity in ${esc(bin.name)}" /></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
-            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
+            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" style="--bin-order:${index}">
               <div class="bin-location-drag" draggable="true" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
               <div class="bin-location-heading" draggable="true" title="Drag header to reorder">
                 <div><button type="button" class="inline-name-display bin-name-display" data-action="edit-bin-name" title="Click to rename bin">${esc(bin.name)}</button><input class="inline-bin-name hidden" value="${esc(bin.name)}" aria-label="Bin name" /><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
@@ -310,6 +311,16 @@
       $("admin-sign-out").classList.add("hidden");
       $("login-panel").classList.remove("hidden");
     };
+
+    function setLayoutDrawer(open) {
+      $("bin-layout-well").classList.toggle("is-open", open);
+      $("bin-layout-well").setAttribute("aria-hidden", String(!open));
+      $("bin-layout-toggle").classList.toggle("drawer-open", open);
+      $("bin-layout-toggle").setAttribute("aria-expanded", String(open));
+    }
+    $("bin-layout-toggle").onclick = () => setLayoutDrawer(!$("bin-layout-well").classList.contains("is-open"));
+    $("bin-layout-close").onclick = () => setLayoutDrawer(false);
+    document.addEventListener("keydown", (event) => { if (event.key === "Escape") setLayoutDrawer(false); });
 
     $("bin-template").addEventListener("change", () => {
       renderItemEditor(itemsForTemplate($("bin-template").value));
@@ -541,7 +552,8 @@
       if (!target || !dragged || target === dragged || target.parentElement !== dragged.parentElement) return;
       event.preventDefault();
       const box = target.getBoundingClientRect();
-      const after = event.clientY > box.top + box.height / 2;
+      const sameRow = event.clientY >= box.top && event.clientY <= box.bottom;
+      const after = sameRow ? event.clientX > box.left + box.width / 2 : event.clientY > box.top + box.height / 2;
       target.parentElement.insertBefore(dragged, after ? target.nextSibling : target);
     });
 

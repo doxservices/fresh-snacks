@@ -2032,31 +2032,66 @@ textarea:focus {
 }
 
 .bin-layout-well {
-  max-height: 280px;
+  position: fixed;
+  z-index: 30;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(300px, calc(100vw - 54px));
   overflow: auto;
-  margin-bottom: 20px;
-  padding: 14px;
+  padding: 18px;
   border: 1px solid #cddfd2;
-  border-radius: 18px;
+  border-width: 0 1px 0 0;
+  border-radius: 0 18px 18px 0;
   background: #f4f9f5;
   box-shadow: 0 12px 30px rgba(10, 70, 40, .09);
+  transform: translateX(calc(-100% - 12px));
+  transition: transform .22s ease;
 }
 
-@media (min-width: 1520px) {
-  .bin-layout-well {
-    position: absolute;
-    top: 0;
-    right: calc(100% + 20px);
-    width: 220px;
-    max-height: calc(100vh - 32px);
-    margin-bottom: 0;
-  }
+.bin-layout-well.is-open {
+  transform: translateX(0);
+}
+
+.bin-layout-toggle {
+  position: fixed;
+  z-index: 31;
+  top: 104px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 13px;
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 8px 22px rgba(10, 70, 40, .16);
+  transition: left .22s ease;
+}
+
+.bin-layout-toggle.drawer-open {
+  left: min(300px, calc(100vw - 54px));
 }
 
 .bin-layout-well-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.bin-layout-well-heading > div {
   display: grid;
   gap: 2px;
-  margin-bottom: 14px;
+}
+
+.bin-layout-close {
+  min-width: 34px;
+  padding: 2px 8px;
+  border: 0;
+  background: transparent;
+  color: #075b35;
+  font-size: 1.7rem;
+  line-height: 1;
 }
 
 .bin-layout-well-heading strong {
@@ -2117,6 +2152,7 @@ textarea:focus {
   color: #294d38;
   cursor: grab;
   font-size: .86rem;
+  order: var(--bin-order);
 }
 
 .layout-bin-item.dragging {
@@ -2302,6 +2338,7 @@ textarea:focus {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(19, 69, 44, .07);
+  order: var(--bin-order);
 }
 
 .bin-location-card.dragging {
@@ -2475,21 +2512,6 @@ textarea:focus {
 }
 
 @media (max-width: 780px) {
-  .bin-layout-well {
-    position: static;
-    max-height: 250px;
-  }
-
-  #bin-layout-tree {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 12px;
-  }
-
-  .layout-floor + .layout-floor {
-    margin-top: 0;
-  }
-
   .bin-form-grid,
   .bin-location-grid {
     grid-template-columns: 1fr;
