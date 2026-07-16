@@ -1,12 +1,5 @@
 /* Fresh Snacks Firebase admin helpers. */
 
-if (!document.getElementById("fresh-snacks-nav-qr")) {
-  const qrScript = document.createElement("script");
-  qrScript.id = "fresh-snacks-nav-qr";
-  qrScript.src = "js/nav-qr.js?v=20260716-nav-qr";
-  document.head.appendChild(qrScript);
-}
-
 FS.admin = {
   user: null,
   profile: null,
