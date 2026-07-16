@@ -2295,3 +2295,8 @@ var qrcode = function() {
 }(function () {
     return qrcode;
 }));
+
+// Explicit browser export for deferred loading and modern isolated runtimes.
+if (typeof window !== 'undefined') {
+  window.qrcode = qrcode;
+}
