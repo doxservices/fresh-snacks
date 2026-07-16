@@ -49,6 +49,9 @@
   inside the rendered floor list. Its fixed, viewport-clamped position now
   remains available as the user scrolls, and inventory-level event delegation
   preserves click, desktop drag/drop, and pointer-based copy behavior.
+- On wide screens, the Add Bin target is horizontally centered in the unused
+  margin to the right of the 1040px page. A 22px minimum inset keeps the card
+  safely on-screen when that outside margin is narrower than the card.
 
 ## Navigation QR copy controls (2026-07-16)
 
