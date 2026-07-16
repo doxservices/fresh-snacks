@@ -404,7 +404,7 @@ FS.admin.saveSnack = async (snack) => {
   await FS.admin.requireAdmin();
   const id = snack.id || String(snack.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   if (!id) throw new Error("Snack name is required.");
-  await FS._db.collection("snacks").doc(id).set({
+  const payload = {
     id,
     name: snack.name,
     price: Number(snack.price || 0),
@@ -414,7 +414,11 @@ FS.admin.saveSnack = async (snack) => {
     photo: snack.photo || null,
     active: snack.active !== false,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
+  };
+  if (Object.prototype.hasOwnProperty.call(snack, "favoritePhoto")) {
+    payload.favoritePhoto = snack.favoritePhoto || null;
+  }
+  await FS._db.collection("snacks").doc(id).set(payload, { merge: true });
 };
 
 // Persists the bundled artwork map when an authorized Admin opens Catalog.
@@ -432,16 +436,66 @@ FS.admin.syncBundledSnackArtwork = async () => {
     const snap = snapshots[index];
     if (!snap.exists) return;
     const current = snap.data();
-    if (current.photo === artwork.photo && current.favoritePhoto === artwork.favoritePhoto) return;
+    const missing = {};
+    if (!current.photo) missing.photo = artwork.photo;
+    if (!current.favoritePhoto) missing.favoritePhoto = artwork.favoritePhoto;
+    if (!Object.keys(missing).length) return;
     batch.set(snap.ref, {
-      photo: artwork.photo,
-      favoritePhoto: artwork.favoritePhoto,
+      ...missing,
       artworkUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
     changed++;
   });
   if (changed) await batch.commit();
   return changed;
+};
+
+FS.admin.uploadSnackImage = async (snackId, file, kind = "photo", onProgress) => {
+  await FS.admin.requireAdmin();
+  if (!FS._storage) throw new Error("Firebase Storage SDK is unavailable.");
+  if (!snackId) throw new Error("Choose a snack first.");
+  if (!file) throw new Error("Choose an image to upload.");
+  if (!String(file.type || "").startsWith("image/")) throw new Error("Only image files can be uploaded.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Images must be 10 MB or smaller.");
+  if (!["photo", "favoritePhoto"].includes(kind)) throw new Error("Unknown artwork type.");
+
+  const docRef = FS._db.collection("snacks").doc(snackId);
+  const currentSnap = await docRef.get();
+  if (!currentSnap.exists) throw new Error("Snack record not found.");
+  const current = currentSnap.data();
+  const pathField = kind === "photo" ? "photoStoragePath" : "favoritePhotoStoragePath";
+  const safeName = String(file.name || "image")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "image";
+  const objectPath = `snacks/${snackId}/${kind}-${Date.now()}-${safeName}`;
+  const objectRef = FS._storage.ref(objectPath);
+  const task = objectRef.put(file, {
+    contentType: file.type,
+    cacheControl: "public,max-age=31536000,immutable",
+    customMetadata: { snackId, artworkKind: kind },
+  });
+  const snapshot = await new Promise((resolve, reject) => {
+    task.on("state_changed", (state) => {
+      const percent = state.totalBytes ? Math.round((state.bytesTransferred / state.totalBytes) * 100) : 0;
+      if (onProgress) onProgress(percent);
+    }, reject, () => resolve(task.snapshot));
+  });
+  const url = await snapshot.ref.getDownloadURL();
+  await docRef.set({
+    [kind]: url,
+    [pathField]: objectPath,
+    artworkUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  const previousPath = current[pathField];
+  if (previousPath && previousPath !== objectPath && previousPath.startsWith(`snacks/${snackId}/`)) {
+    try { await FS._storage.ref(previousPath).delete(); } catch (error) {
+      if (error.code !== "storage/object-not-found") console.warn("Old snack image cleanup failed", error);
+    }
+  }
+  return { url, objectPath };
 };
 
 FS.admin.deactivateSnack = async (id) => {

@@ -3,6 +3,23 @@
 This branch moves Fresh Snacks from browser-side GitHub token writes to Firebase
 Auth plus Firestore.
 
+## Snack artwork storage
+
+Snack image binaries are stored in Cloud Storage for Firebase under
+`snacks/{snackId}/`. Firestore snack documents keep the public download URL in
+`photo` or `favoritePhoto` and the managed object path in `photoStoragePath` or
+`favoritePhotoStoragePath`. The Catalog admin page provides the upload UI.
+
+Deploy both database and file rules before enabling uploads:
+
+```powershell
+npx firebase deploy --only firestore:rules,firestore:indexes,storage --project fresh-snacks-ee79f
+```
+
+Storage reads are public for catalog display. Creates, replacements, and
+deletes require an active `/admins/{uid}` record; uploads are limited to image
+content types and 10 MB.
+
 ## Firebase Console
 
 1. Create or open the `fresh-snacks` Firebase project.

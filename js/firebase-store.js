@@ -13,6 +13,7 @@ FS.firebaseConfig = window.FS_FIREBASE_CONFIG || {};
 FS._ready = null;
 FS._auth = null;
 FS._db = null;
+FS._storage = null;
 FS.currentUser = null;
 FS.currentDevice = null;
 FS.firebaseConfigStorageKey = "fresh_snacks_firebase_config";
@@ -35,6 +36,7 @@ FS.initFirebase = async () => {
     if (!firebase.apps.length) firebase.initializeApp(FS.firebaseConfig);
     FS._auth = firebase.auth();
     FS._db = firebase.firestore();
+    if (firebase.storage) FS._storage = firebase.storage();
     return FS;
   })();
   return FS._ready;
@@ -544,10 +546,14 @@ FS.bundledSnackArtwork = {
   },
 };
 
-FS.withBundledSnackArtwork = (snack) => ({
-  ...snack,
-  ...(FS.bundledSnackArtwork[snack.id] || {}),
-});
+FS.withBundledSnackArtwork = (snack) => {
+  const bundled = FS.bundledSnackArtwork[snack.id] || {};
+  return {
+    ...snack,
+    photo: snack.photo || bundled.photo || null,
+    favoritePhoto: snack.favoritePhoto || bundled.favoritePhoto || null,
+  };
+};
 
 FS.getCatalog = async (includeInactive = false) => {
   await FS.initFirebase();

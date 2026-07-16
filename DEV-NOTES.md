@@ -1,5 +1,18 @@
 # Development notes
 
+## Cloud Storage snack artwork (2026-07-15)
+
+- `catalog.html` includes an admin upload harness for regular catalog artwork
+  and favorite-snack background artwork.
+- Files are uploaded to `snacks/{snackId}/`; Firestore stores the download URL
+  plus its Storage object path.
+- Replacing a managed upload removes the previous object after the Firestore
+  record is safely updated.
+- Bundled files in `assets/` remain fallbacks for records without uploaded
+  artwork and are no longer allowed to overwrite a custom upload.
+- `storage.rules` permits public reads and active-admin-only image writes, with
+  a 10 MB maximum.
+
 ## Pilot reversion: profile-gated Request Credit card
 
 Temporary pilot behavior added on 2026-07-15:
