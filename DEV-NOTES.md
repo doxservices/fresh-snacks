@@ -30,7 +30,9 @@
   the corresponding input. Card headers remain drag surfaces outside those
   interactive labels. A sticky left layout well mirrors floors and bins; bin
   rows dragged there persist the card order. Dropping a card or layout item on
-  a floor's add cutout duplicates it into that floor.
+  a floor's add cutout duplicates it into that floor. Floors are also draggable
+  from either the full page header or the left-well floor heading; their order is
+  persisted by keeping each floor's bins together in global `displayOrder`.
 
 ## Admin-managed snack gallery order (2026-07-16)
 

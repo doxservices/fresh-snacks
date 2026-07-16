@@ -2067,12 +2067,30 @@ textarea:focus {
 }
 
 .layout-floor-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin-bottom: 6px;
   color: #284e39;
   font-size: .82rem;
   font-weight: 800;
   letter-spacing: .02em;
   text-transform: uppercase;
+  cursor: grab;
+}
+
+.layout-floor.dragging-floor,
+.bin-floor-group.dragging-floor {
+  opacity: .48;
+  outline: 2px dashed #087a46;
+  outline-offset: 4px;
+}
+
+.floor-drag-grip {
+  color: #087a46;
+  cursor: grab;
+  font-weight: 900;
+  letter-spacing: -.18em;
 }
 
 .layout-bin-list {

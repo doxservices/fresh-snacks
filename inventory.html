@@ -244,16 +244,17 @@
 
       $("bin-layout-tree").innerHTML = floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
-        return `<section class="layout-floor" data-layout-floor="${esc(floor)}">
-          <div class="layout-floor-name">${esc(floor)}</div>
+        return `<section class="layout-floor" data-layout-floor="${esc(floor)}" draggable="true">
+          <div class="layout-floor-name" title="Drag to reorder floor"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(floor)}</span></div>
           <div class="layout-bin-list">${bins.map((bin) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
         </section>`;
       }).join("");
 
       $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
-        return `<section class="bin-floor-group">
-          <div class="bin-floor-heading" data-floor="${esc(floor)}">
+        return `<section class="bin-floor-group" data-floor-group="${esc(floor)}">
+          <div class="bin-floor-heading" data-floor="${esc(floor)}" draggable="true" title="Drag header to reorder floor">
+            <span class="floor-drag-grip" aria-hidden="true">&#8942;&#8942;</span>
             <div class="inline-floor-wrap">
               <button type="button" class="inline-name-display floor-name-display" data-action="edit-floor-name" title="Click to rename floor">${esc(floor)}</button>
               <input class="inline-floor-name hidden" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" />
@@ -483,7 +484,26 @@
     });
 
     let draggedBinId = null;
+    let draggedFloor = null;
+
+    async function saveFloorOrder(container, floorSelector, binSelector) {
+      const ids = [...container.querySelectorAll(floorSelector)]
+        .flatMap((floor) => [...floor.querySelectorAll(binSelector)].map((bin) => bin.dataset.binId || bin.dataset.layoutBinId));
+      await FS.admin.saveBinOrder(ids);
+      await refresh();
+      status("bin-status", "Floor order saved.", true);
+    }
+
     $("bin-locations").addEventListener("dragstart", (event) => {
+      const floorGroup = event.target.closest(".bin-floor-group");
+      const floorHeader = event.target.closest(".bin-floor-heading[draggable='true']");
+      if (floorGroup && floorHeader && !event.target.closest("button, input, select, a")) {
+        draggedFloor = floorGroup.dataset.floorGroup;
+        floorGroup.classList.add("dragging-floor");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `floor:${draggedFloor}`);
+        return;
+      }
       const card = event.target.closest(".bin-location-card");
       const onHandle = event.target.closest(".bin-location-drag");
       const onHeader = event.target.closest(".bin-location-heading[draggable='true']");
@@ -499,6 +519,15 @@
     });
 
     $("bin-locations").addEventListener("dragover", (event) => {
+      if (draggedFloor) {
+        const target = event.target.closest(".bin-floor-group");
+        const dragged = $("bin-locations").querySelector(`.bin-floor-group[data-floor-group="${CSS.escape(draggedFloor)}"]`);
+        if (!target || !dragged || target === dragged) return;
+        event.preventDefault();
+        const box = target.getBoundingClientRect();
+        target.parentElement.insertBefore(dragged, event.clientY > box.top + box.height / 2 ? target.nextSibling : target);
+        return;
+      }
       if (!draggedBinId) return;
       const cutout = event.target.closest(".bin-add-cutout");
       if (cutout) {
@@ -517,6 +546,14 @@
     });
 
     $("bin-locations").addEventListener("drop", async (event) => {
+      if (draggedFloor) {
+        event.preventDefault();
+        try {
+          status("bin-status", "Saving floor order...", true);
+          await saveFloorOrder($("bin-locations"), ".bin-floor-group", ".bin-location-card");
+        } catch (error) { status("bin-status", error.message, false); }
+        return;
+      }
       if (!draggedBinId) return;
       const cutout = event.target.closest(".bin-add-cutout");
       if (cutout) {
@@ -542,12 +579,22 @@
     });
 
     $("bin-locations").addEventListener("dragend", (event) => {
+      event.target.closest(".bin-floor-group")?.classList.remove("dragging-floor");
       event.target.closest(".bin-location-card")?.classList.remove("dragging");
       $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
+      draggedFloor = null;
     });
 
     $("bin-layout-tree").addEventListener("dragstart", (event) => {
+      const floor = event.target.closest(".layout-floor[draggable='true']");
+      if (floor && event.target.closest(".layout-floor-name")) {
+        draggedFloor = floor.dataset.layoutFloor;
+        floor.classList.add("dragging-floor");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", `floor:${draggedFloor}`);
+        return;
+      }
       const item = event.target.closest(".layout-bin-item[draggable='true']");
       if (!item) return;
       draggedBinId = item.dataset.layoutBinId;
@@ -557,6 +604,15 @@
     });
 
     $("bin-layout-tree").addEventListener("dragover", (event) => {
+      if (draggedFloor) {
+        const target = event.target.closest(".layout-floor");
+        const dragged = $("bin-layout-tree").querySelector(`.layout-floor[data-layout-floor="${CSS.escape(draggedFloor)}"]`);
+        if (!target || !dragged || target === dragged) return;
+        event.preventDefault();
+        const box = target.getBoundingClientRect();
+        target.parentElement.insertBefore(dragged, event.clientY > box.top + box.height / 2 ? target.nextSibling : target);
+        return;
+      }
       if (!draggedBinId) return;
       const target = event.target.closest(".layout-bin-item");
       const dragged = $("bin-layout-tree").querySelector(`.layout-bin-item[data-layout-bin-id="${CSS.escape(draggedBinId)}"]`);
@@ -567,6 +623,13 @@
     });
 
     $("bin-layout-tree").addEventListener("drop", async (event) => {
+      if (draggedFloor) {
+        event.preventDefault();
+        try {
+          await saveFloorOrder($("bin-layout-tree"), ".layout-floor", ".layout-bin-item");
+        } catch (error) { status("bin-status", error.message, false); }
+        return;
+      }
       if (!draggedBinId || !event.target.closest(".layout-bin-list")) return;
       event.preventDefault();
       const ids = [...$("bin-layout-tree").querySelectorAll(".layout-bin-item")].map((item) => item.dataset.layoutBinId);
@@ -578,9 +641,11 @@
     });
 
     $("bin-layout-tree").addEventListener("dragend", (event) => {
+      event.target.closest(".layout-floor")?.classList.remove("dragging-floor");
       event.target.closest(".layout-bin-item")?.classList.remove("dragging");
       $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
       draggedBinId = null;
+      draggedFloor = null;
     });
 
     FS.initFirebase()
