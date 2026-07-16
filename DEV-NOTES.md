@@ -51,6 +51,9 @@
   image to the clipboard, with an accessible status toast.
 - QR controls use a flat, borderless treatment with no resting shadow. The
   active state moves down and contracts slightly to read as a physical press.
+- Pressing a navigation QR icon opens one shared modal across customer and
+  admin pages. It shows a large scannable code, the readable destination URL,
+  and flat actions to copy either the QR PNG or the text link.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
