@@ -606,6 +606,32 @@ FS.admin.duplicateBinFloor = async (sourceFloor, targetFloor) => {
   return source.length;
 };
 
+FS.admin.deleteBinFloor = async (floorName) => {
+  await FS.admin.requireAdmin();
+  const floor = String(floorName || "").trim();
+  if (!floor) throw new Error("Choose a floor to delete.");
+  const records = (await FS.admin.getCollection("inventory"))
+    .filter((record) => record.recordType === "bin" && record.floor === floor);
+  if (!records.length) throw new Error("No bins were found on that floor.");
+  const batch = FS._db.batch();
+  records.forEach((record) => batch.delete(FS._db.collection("inventory").doc(record.id)));
+  await batch.commit();
+  return records.length;
+};
+
+FS.admin.saveBinOrder = async (binIds) => {
+  await FS.admin.requireAdmin();
+  const ids = [...new Set((binIds || []).filter(Boolean))];
+  if (!ids.length) throw new Error("No bins were provided for ordering.");
+  const batch = FS._db.batch();
+  ids.forEach((id, displayOrder) => batch.set(FS._db.collection("inventory").doc(id), {
+    displayOrder,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: FS.admin.user.uid,
+  }, { merge: true }));
+  await batch.commit();
+};
+
 // Persists the bundled artwork map when an authorized Admin opens Catalog.
 // Reads first and writes only records whose paths are stale, so ordinary
 // catalog refreshes do not create repeated update noise.

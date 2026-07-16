@@ -18,6 +18,10 @@
   stay inside six-row scroll frames.
 - Floor controls rename every bin on a floor or duplicate the full floor under
   a new name. Individual floor and location names remain editable per bin.
+- Floor headers also add bins and cascade-delete the floor's bins after
+  confirmation. Saved bins are the only reusable templates shown; built-in
+  templates are hidden. Bins can be dragged within a floor and their global
+  `displayOrder` is persisted.
 
 ## Admin-managed snack gallery order (2026-07-16)
 

@@ -2097,6 +2097,11 @@ textarea:focus {
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px solid #cadbce;
+  border-left: 5px solid #087a46;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f3f9f5, #fff);
 }
 
 .bin-floor-heading h3 {
@@ -2115,11 +2120,41 @@ textarea:focus {
 }
 
 .bin-location-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid #dce7df;
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(19, 69, 44, .07);
+}
+
+.bin-location-card.dragging {
+  opacity: .5;
+  outline: 2px dashed #087a46;
+}
+
+.bin-location-drag {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 10px;
+  padding: 7px 9px;
+  border: 1px solid #cbdccf;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .95);
+  color: #0b633c;
+  font-weight: 800;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.bin-location-card.dragging .bin-location-drag {
+  cursor: grabbing;
+}
+
+.bin-location-card .bin-location-heading {
+  padding-right: 58px;
 }
 
 .bin-location-heading,

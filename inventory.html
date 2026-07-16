@@ -105,7 +105,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260716-bin-locations"></script>
-  <script src="js/firebase-admin.js?v=20260716-bin-locations"></script>
+  <script src="js/firebase-admin.js?v=20260716-bin-floor-controls"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -124,13 +124,9 @@
       ? `Copied from ${SNAPSHOT.bins.find((bin) => bin.id === sourceId)?.name || "saved bin"}`
       : FS.admin.binTemplates[id]?.label || "Custom bin";
 
-    function renderTemplateOptions(selected = "standard") {
+    function renderTemplateOptions(selected = "custom") {
       $("bin-template").innerHTML = `
-        <optgroup label="Built-in templates">
-          ${Object.entries(FS.admin.binTemplates).map(([id, template]) =>
-            `<option value="${esc(id)}"${selected === id ? " selected" : ""}>${esc(template.label)}</option>`
-          ).join("")}
-        </optgroup>
+        <option value="custom"${selected === "custom" ? " selected" : ""}>Custom empty bin</option>
         <optgroup label="Build from an existing bin">
           ${SNAPSHOT.bins.map((bin) => `<option value="bin:${esc(bin.id)}"${selected === `bin:${bin.id}` ? " selected" : ""}>${esc(bin.floor)} — ${esc(bin.name)}</option>`).join("")}
         </optgroup>`;
@@ -170,9 +166,9 @@
       return FS.admin.templateBinItems(value, SNAPSHOT.snacks);
     }
 
-    function resetEditor(templateId = "custom") {
+    function resetEditor(templateId = "custom", floor = "") {
       $("bin-id").value = "";
-      $("bin-floor").value = "";
+      $("bin-floor").value = floor;
       $("bin-name").value = "";
       renderTemplateOptions(templateId);
       $("bin-form-title").textContent = "Add a bin";
@@ -204,11 +200,13 @@
       $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group">
-          <div class="bin-floor-heading">
+          <div class="bin-floor-heading" data-floor="${esc(floor)}">
             <h3>${esc(floor)} <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span></h3>
-            <div class="bin-floor-actions" data-floor="${esc(floor)}">
+            <div class="bin-floor-actions">
+              <button type="button" class="primary" data-action="add-floor-bin">Add bin</button>
               <button type="button" data-action="rename-floor">Rename floor</button>
               <button type="button" data-action="duplicate-floor">Duplicate floor</button>
+              <button type="button" class="danger" data-action="delete-floor">Delete floor</button>
             </div>
           </div>
           <div class="bin-location-grid">${bins.map((bin) => {
@@ -216,7 +214,8 @@
               const snack = snackById(item.snackId);
               return snack ? `<tr><td>${esc(snack.name)}</td><td class="num">${item.quantity}</td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
-            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
+            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" draggable="true">
+              <div class="bin-location-drag" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
               <div class="bin-location-heading">
                 <div><h4>${esc(bin.name)}</h4><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
@@ -235,7 +234,7 @@
       $("inventory-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
       render();
-      if (!$("bin-item-editor").children.length) resetEditor("standard");
+      if (!$("bin-item-editor").children.length) resetEditor("custom");
     }
 
     async function login(method) {
@@ -294,6 +293,12 @@
       const floorActions = button.closest("[data-floor]");
       if (floorActions) {
         const floor = floorActions.dataset.floor;
+        if (button.dataset.action === "add-floor-bin") {
+          resetEditor("custom", floor);
+          $("bin-name").focus();
+          document.querySelector(".bin-editor-card").scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
         if (button.dataset.action === "rename-floor") {
           const nextFloor = prompt(`Rename ${floor} to:`, floor);
           if (!nextFloor || nextFloor.trim() === floor) return;
@@ -314,6 +319,16 @@
           } catch (error) { status("bin-status", error.message, false); }
           return;
         }
+        if (button.dataset.action === "delete-floor") {
+          const binsOnFloor = SNAPSHOT.bins.filter((bin) => bin.floor === floor).length;
+          if (!confirm(`Delete ${floor} and all ${binsOnFloor} bins on it? This cannot be undone.`)) return;
+          try {
+            const count = await FS.admin.deleteBinFloor(floor);
+            await refresh();
+            status("bin-status", `${floor} and ${count} bins deleted.`, true);
+          } catch (error) { status("bin-status", error.message, false); }
+          return;
+        }
       }
       const card = button.closest("[data-bin-id]");
       if (!card) return;
@@ -326,6 +341,46 @@
         await refresh();
         status("bin-status", "Bin deleted.", true);
       } catch (error) { status("bin-status", error.message, false); }
+    });
+
+    let draggedBinId = null;
+    $("bin-locations").addEventListener("dragstart", (event) => {
+      const card = event.target.closest(".bin-location-card[draggable='true']");
+      if (!card) return;
+      draggedBinId = card.dataset.binId;
+      card.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedBinId);
+    });
+
+    $("bin-locations").addEventListener("dragover", (event) => {
+      if (!draggedBinId) return;
+      const target = event.target.closest(".bin-location-card");
+      const dragged = $("bin-locations").querySelector(`.bin-location-card[data-bin-id="${CSS.escape(draggedBinId)}"]`);
+      if (!target || !dragged || target === dragged || target.parentElement !== dragged.parentElement) return;
+      event.preventDefault();
+      const box = target.getBoundingClientRect();
+      const after = event.clientY > box.top + box.height / 2;
+      target.parentElement.insertBefore(dragged, after ? target.nextSibling : target);
+    });
+
+    $("bin-locations").addEventListener("drop", async (event) => {
+      if (!draggedBinId) return;
+      const grid = event.target.closest(".bin-location-grid");
+      if (!grid || !grid.querySelector(`[data-bin-id="${CSS.escape(draggedBinId)}"]`)) return;
+      event.preventDefault();
+      const ids = [...$("bin-locations").querySelectorAll(".bin-location-card")].map((card) => card.dataset.binId);
+      try {
+        status("bin-status", "Saving bin order...", true);
+        await FS.admin.saveBinOrder(ids);
+        await refresh();
+        status("bin-status", "Bin order saved.", true);
+      } catch (error) { status("bin-status", error.message, false); }
+    });
+
+    $("bin-locations").addEventListener("dragend", (event) => {
+      event.target.closest(".bin-location-card")?.classList.remove("dragging");
+      draggedBinId = null;
     });
 
     FS.initFirebase()
