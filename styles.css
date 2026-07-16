@@ -2601,15 +2601,62 @@ textarea:focus {
   font-weight: 750;
 }
 
+.floor-analysis {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.floor-analysis-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.floor-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 9px;
+}
+
+.floor-analysis-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.floor-analysis-card strong,
+.floor-analysis-card b {
+  color: var(--green-dark);
+}
+
+.floor-analysis-card span {
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.floor-analysis-card b {
+  grid-column: 2;
+  grid-row: 2 / span 2;
+  align-self: center;
+  font-size: .9rem;
+}
+
 .bin-add-cutout {
-  width: 160px;
-  min-height: 132px;
+  width: 240px;
+  min-height: 198px;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 5px;
+  gap: 8px;
   margin: 0;
-  padding: 16px 12px;
+  padding: 24px 18px;
   border: 2px dashed #9bbda5;
   border-radius: 10px;
   background: rgba(244, 249, 245, .7);
@@ -2632,24 +2679,24 @@ textarea:focus {
 }
 
 .bin-add-cutout span {
-  width: 34px;
-  height: 34px;
+  width: 51px;
+  height: 51px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #087a46;
   color: #fff;
-  font-size: 1.45rem;
+  font-size: 2.18rem;
   line-height: 1;
 }
 
 .bin-add-cutout strong {
-  font-size: .92rem;
+  font-size: 1.38rem;
 }
 
 .bin-add-cutout small {
   color: #637268;
-  font-size: .7rem;
+  font-size: 1.05rem;
   line-height: 1.25;
 }
 
@@ -2657,7 +2704,7 @@ textarea:focus {
   position: fixed;
   z-index: 24;
   top: clamp(170px, 50vh, calc(100vh - 170px));
-  right: max(22px, calc((100vw - 1360px) / 4));
+  right: max(22px, calc((100vw - 1520px) / 4));
   transform: translateY(-50%);
   box-shadow: 0 10px 24px rgba(10, 70, 40, .12);
 }
@@ -2676,8 +2723,8 @@ textarea:focus {
     top: auto;
     right: 14px;
     bottom: 14px;
-    width: 148px;
-    min-height: 116px;
+    width: 220px;
+    min-height: 174px;
     transform: none;
   }
 

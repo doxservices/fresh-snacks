@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-centered-add-bin" />
+  <link rel="stylesheet" href="styles.css?v=20260716-floor-analysis-large-add-bin" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -65,6 +65,13 @@
             <div class="stat-box"><div class="stat-label">Snack units</div><div class="stat-value blue" id="dash-units">-</div></div>
             <div class="stat-box"><div class="stat-label">Inventory value</div><div class="stat-value" id="dash-value">-</div></div>
           </div>
+        </div>
+        <div class="floor-analysis">
+          <div class="floor-analysis-heading">
+            <strong>Inventory by floor</strong>
+            <span id="floor-analysis-summary" class="muted-small"></span>
+          </div>
+          <div id="floor-analysis-grid" class="floor-analysis-grid"></div>
         </div>
       </section>
 
@@ -246,6 +253,26 @@
       $("dash-floors").textContent = floors.length;
       $("dash-units").textContent = totalUnits;
       $("dash-value").textContent = FS.money(totalValue, currency);
+      const floorMetrics = floors.map((floor) => {
+        const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        return {
+          floor,
+          bins: bins.length,
+          units: bins.reduce((sum, bin) => sum + Number(bin.totalUnits || 0), 0),
+          value: bins.reduce((sum, bin) => sum + Number(bin.totalValue || 0), 0),
+        };
+      });
+      const leadingFloor = [...floorMetrics].sort((a, b) => b.value - a.value)[0];
+      $("floor-analysis-summary").textContent = leadingFloor
+        ? `${leadingFloor.floor} holds ${totalValue ? Math.round((leadingFloor.value / totalValue) * 100) : 0}% of inventory value`
+        : "No floor inventory yet";
+      $("floor-analysis-grid").innerHTML = floorMetrics.length ? floorMetrics.map((metric) => `
+        <article class="floor-analysis-card">
+          <strong>${esc(metric.floor)}</strong>
+          <span>${metric.bins} ${metric.bins === 1 ? "bin" : "bins"}</span>
+          <span>${metric.units} units</span>
+          <b>${FS.money(metric.value, currency)}</b>
+        </article>`).join("") : `<p class="muted-small">Add a bin to begin floor analysis.</p>`;
 
       $("bin-layout-tree").innerHTML = floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
