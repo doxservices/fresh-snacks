@@ -33,6 +33,9 @@
   a floor's add cutout duplicates it into that floor. Floors are also draggable
   from either the full page header or the left-well floor heading; their order is
   persisted by keeping each floor's bins together in global `displayOrder`.
+- On wide desktop viewports, the layout well sits in the unused left margin and
+  does not narrow the 1040px inventory content. At smaller widths it becomes a
+  contained panel above the inventory rather than compressing cards and forms.
 
 ## Admin-managed snack gallery order (2026-07-16)
 
