@@ -97,6 +97,18 @@
       </section>
     </section>
 
+    <dialog id="copy-bin-dialog" class="bin-copy-dialog">
+      <form method="dialog" id="copy-bin-form">
+        <button type="button" class="dialog-close" id="copy-bin-close" aria-label="Close">&times;</button>
+        <h2>Add bin to <span id="copy-bin-floor-label"></span></h2>
+        <p class="muted-small">Choose an existing bin to copy into this new spot.</p>
+        <input type="hidden" id="copy-bin-floor" />
+        <div class="field"><label for="copy-bin-source">Copy from which bin?</label><select id="copy-bin-source"></select></div>
+        <div class="field"><label for="copy-bin-name">New bin name</label><input id="copy-bin-name" type="text" placeholder="e.g. Break Room" /></div>
+        <div class="dialog-actions"><button type="button" id="copy-bin-cancel">Cancel</button><button type="submit" class="primary">Create copied bin</button></div>
+      </form>
+    </dialog>
+
     <footer>Bin locations and inventory are restricted to active administrators.</footer>
   </main>
 
@@ -105,7 +117,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260716-bin-locations"></script>
-  <script src="js/firebase-admin.js?v=20260716-bin-floor-controls"></script>
+  <script src="js/firebase-admin.js?v=20260716-inline-bins"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -187,6 +199,28 @@
       document.querySelector(".bin-editor-card").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
+    const binPayload = (bin, overrides = {}) => ({
+      id: bin.id,
+      floor: bin.floor,
+      name: bin.name,
+      templateId: bin.templateId || "custom",
+      templateSourceId: bin.templateSourceId || null,
+      items: bin.items.map((item) => ({ snackId: item.snackId, quantity: item.quantity })),
+      active: bin.active !== false,
+      ...overrides,
+    });
+
+    function openCopyBinDialog(floor, sourceId = "") {
+      $("copy-bin-floor").value = floor;
+      $("copy-bin-floor-label").textContent = floor;
+      $("copy-bin-source").innerHTML = SNAPSHOT.bins.map((bin) =>
+        `<option value="${esc(bin.id)}"${bin.id === sourceId ? " selected" : ""}>${esc(bin.floor)} — ${esc(bin.name)}</option>`
+      ).join("");
+      const source = SNAPSHOT.bins.find((bin) => bin.id === $("copy-bin-source").value);
+      $("copy-bin-name").value = source ? `${source.name} Copy` : "";
+      $("copy-bin-dialog").showModal();
+    }
+
     function render() {
       const currency = SNAPSHOT.settings.currency;
       const floors = [...new Set(SNAPSHOT.bins.map((bin) => bin.floor))];
@@ -201,29 +235,30 @@
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="bin-floor-group">
           <div class="bin-floor-heading" data-floor="${esc(floor)}">
-            <h3>${esc(floor)} <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span></h3>
+            <div class="inline-floor-wrap">
+              <input class="inline-floor-name" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" title="Click to rename floor" />
+              <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span>
+            </div>
             <div class="bin-floor-actions">
-              <button type="button" class="primary" data-action="add-floor-bin">Add bin</button>
-              <button type="button" data-action="rename-floor">Rename floor</button>
-              <button type="button" data-action="duplicate-floor">Duplicate floor</button>
-              <button type="button" class="danger" data-action="delete-floor">Delete floor</button>
+              <button type="button" data-action="duplicate-floor" title="Duplicate floor" aria-label="Duplicate ${esc(floor)}">&#10697; Duplicate floor</button>
+              <button type="button" class="danger icon-button" data-action="delete-floor" title="Delete floor and bins" aria-label="Delete ${esc(floor)}">&#128465;</button>
             </div>
           </div>
           <div class="bin-location-grid">${bins.map((bin) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
-              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num">${item.quantity}</td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
+              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><div class="inline-qty"><button type="button" data-action="qty-down" data-snack-id="${esc(item.snackId)}" aria-label="Remove one ${esc(snack.name)}">&#9660;</button><span>${item.quantity}</span><button type="button" data-action="qty-up" data-snack-id="${esc(item.snackId)}" aria-label="Add one ${esc(snack.name)}">&#9650;</button></div></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
             return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" draggable="true">
               <div class="bin-location-drag" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">&#8942;&#8942;</div>
               <div class="bin-location-heading">
-                <div><h4>${esc(bin.name)}</h4><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
+                <div><input class="inline-bin-name" value="${esc(bin.name)}" aria-label="Bin name" title="Click to rename bin" /><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
               </div>
               <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
-              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button data-action="edit-bin">Edit</button><button class="danger" data-action="delete-bin">Delete</button></div>
+              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">&#10697;</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">&#9998;</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">&#128465;</button></div>
             </article>`;
-          }).join("")}</div>
+          }).join("")}<button type="button" class="bin-add-cutout" data-action="open-copy-bin" data-floor="${esc(floor)}" aria-label="Add a bin to ${esc(floor)}"><span>+</span><strong>Add bin</strong><small>Copy an existing bin</small></button></div>
         </section>`;
       }).join("") : `<p class="muted-small">No bins configured.</p>`;
     }
@@ -287,28 +322,64 @@
       finally { button.disabled = false; }
     };
 
+    $("copy-bin-source").addEventListener("change", () => {
+      const source = SNAPSHOT.bins.find((bin) => bin.id === $("copy-bin-source").value);
+      if (source) $("copy-bin-name").value = `${source.name} Copy`;
+    });
+    $("copy-bin-close").onclick = () => $("copy-bin-dialog").close();
+    $("copy-bin-cancel").onclick = () => $("copy-bin-dialog").close();
+    $("copy-bin-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await FS.admin.duplicateBin($("copy-bin-source").value, $("copy-bin-floor").value, $("copy-bin-name").value);
+        $("copy-bin-dialog").close();
+        await refresh();
+        status("bin-status", "Copied bin created.", true);
+      } catch (error) { status("bin-status", error.message, false); }
+    });
+
+    $("bin-locations").addEventListener("change", async (event) => {
+      if (event.target.matches(".inline-floor-name")) {
+        const from = event.target.dataset.originalFloor;
+        const to = event.target.value.trim();
+        if (!to || to === from) { event.target.value = from; return; }
+        try {
+          const count = await FS.admin.renameBinFloor(from, to);
+          await refresh();
+          status("bin-status", `${count} bins moved to ${to}.`, true);
+        } catch (error) { event.target.value = from; status("bin-status", error.message, false); }
+        return;
+      }
+      if (event.target.matches(".inline-bin-name")) {
+        const card = event.target.closest("[data-bin-id]");
+        const bin = SNAPSHOT.bins.find((record) => record.id === card?.dataset.binId);
+        const name = event.target.value.trim();
+        if (!bin || !name || name === bin.name) { if (bin) event.target.value = bin.name; return; }
+        try {
+          await FS.admin.saveBin(binPayload(bin, { name }));
+          await refresh();
+          status("bin-status", "Bin name updated.", true);
+        } catch (error) { event.target.value = bin.name; status("bin-status", error.message, false); }
+      }
+    });
+
+    $("bin-locations").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && event.target.matches(".inline-floor-name, .inline-bin-name")) {
+        event.preventDefault();
+        event.target.blur();
+      }
+    });
+
     $("bin-locations").addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
+      if (button.dataset.action === "open-copy-bin") {
+        openCopyBinDialog(button.dataset.floor);
+        return;
+      }
       const floorActions = button.closest("[data-floor]");
       if (floorActions) {
         const floor = floorActions.dataset.floor;
-        if (button.dataset.action === "add-floor-bin") {
-          resetEditor("custom", floor);
-          $("bin-name").focus();
-          document.querySelector(".bin-editor-card").scrollIntoView({ behavior: "smooth", block: "start" });
-          return;
-        }
-        if (button.dataset.action === "rename-floor") {
-          const nextFloor = prompt(`Rename ${floor} to:`, floor);
-          if (!nextFloor || nextFloor.trim() === floor) return;
-          try {
-            const count = await FS.admin.renameBinFloor(floor, nextFloor);
-            await refresh();
-            status("bin-status", `${count} bins moved to ${nextFloor.trim()}.`, true);
-          } catch (error) { status("bin-status", error.message, false); }
-          return;
-        }
         if (button.dataset.action === "duplicate-floor") {
           const nextFloor = prompt(`Name for the copy of ${floor}:`, `${floor} Copy`);
           if (!nextFloor) return;
@@ -335,6 +406,27 @@
       const id = card.dataset.binId;
       if (button.dataset.action === "edit-bin") return editBin(id);
       const bin = SNAPSHOT.bins.find((record) => record.id === id);
+      if (button.dataset.action === "duplicate-bin") {
+        try {
+          await FS.admin.duplicateBin(bin.id, bin.floor, `${bin.name} Copy`);
+          await refresh();
+          status("bin-status", `${bin.name} duplicated on ${bin.floor}.`, true);
+        } catch (error) { status("bin-status", error.message, false); }
+        return;
+      }
+      if (button.dataset.action === "qty-up" || button.dataset.action === "qty-down") {
+        const snackId = button.dataset.snackId;
+        const delta = button.dataset.action === "qty-up" ? 1 : -1;
+        const items = bin.items.map((item) => item.snackId === snackId
+          ? { ...item, quantity: Math.max(0, Number(item.quantity || 0) + delta) }
+          : item).filter((item) => item.quantity > 0);
+        try {
+          await FS.admin.saveBin(binPayload(bin, { items }));
+          await refresh();
+          status("bin-status", "Quantity updated.", true);
+        } catch (error) { status("bin-status", error.message, false); }
+        return;
+      }
       if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this bin"}?`)) return;
       try {
         await FS.admin.deleteBin(id);
@@ -346,7 +438,10 @@
     let draggedBinId = null;
     $("bin-locations").addEventListener("dragstart", (event) => {
       const card = event.target.closest(".bin-location-card[draggable='true']");
-      if (!card) return;
+      if (!card || !event.target.closest(".bin-location-drag")) {
+        event.preventDefault();
+        return;
+      }
       draggedBinId = card.dataset.binId;
       card.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";

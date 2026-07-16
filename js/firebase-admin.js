@@ -632,6 +632,37 @@ FS.admin.saveBinOrder = async (binIds) => {
   await batch.commit();
 };
 
+FS.admin.duplicateBin = async (sourceId, targetFloor, targetName) => {
+  await FS.admin.requireAdmin();
+  const sourceSnap = await FS._db.collection("inventory").doc(sourceId).get();
+  if (!sourceSnap.exists || sourceSnap.data().recordType !== "bin") throw new Error("Source bin not found.");
+  const source = sourceSnap.data();
+  const floor = String(targetFloor || source.floor || "").trim();
+  const name = String(targetName || `${source.name || "Bin"} Copy`).trim();
+  if (!floor || !name) throw new Error("Floor and bin name are required.");
+  const id = FS.uid("bin");
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  await FS._db.collection("inventory").doc(id).set({
+    id,
+    recordType: "bin",
+    floor,
+    name,
+    templateId: "custom",
+    templateSourceId: sourceId,
+    items: (source.items || []).map((item) => ({
+      snackId: item.snackId,
+      quantity: Math.max(0, Number(item.quantity || 0)),
+    })),
+    active: source.active !== false,
+    duplicatedFromBin: sourceId,
+    createdAt: now,
+    updatedAt: now,
+    createdBy: FS.admin.user.uid,
+    updatedBy: FS.admin.user.uid,
+  });
+  return id;
+};
+
 // Persists the bundled artwork map when an authorized Admin opens Catalog.
 // Reads first and writes only records whose paths are stale, so ordinary
 // catalog refreshes do not create repeated update noise.
