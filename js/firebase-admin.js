@@ -498,6 +498,20 @@ FS.admin.uploadSnackImage = async (snackId, file, kind = "photo", onProgress) =>
   return { url, objectPath };
 };
 
+FS.admin.saveSnackOrder = async (snackIds) => {
+  await FS.admin.requireAdmin();
+  const ids = [...new Set((snackIds || []).filter(Boolean))];
+  if (!ids.length) throw new Error("No snacks were provided for ordering.");
+  const batch = FS._db.batch();
+  ids.forEach((id, displayOrder) => {
+    batch.set(FS._db.collection("snacks").doc(id), {
+      displayOrder,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  await batch.commit();
+};
+
 FS.admin.deactivateSnack = async (id) => {
   await FS.admin.requireAdmin();
   await FS._db.collection("snacks").doc(id).set({

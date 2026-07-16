@@ -1984,6 +1984,35 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.catalog-card[draggable="true"] {
+  position: relative;
+}
+
+.catalog-card.dragging {
+  opacity: .48;
+  outline: 2px dashed #087a46;
+}
+
+.catalog-drag-handle {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  padding: 7px 9px;
+  border: 1px solid #cbdccf;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .94);
+  color: #0b633c;
+  font-weight: 800;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.catalog-card.dragging .catalog-drag-handle {
+  cursor: grabbing;
+}
+
 .catalog-card-photo {
   position: relative;
   height: 190px;

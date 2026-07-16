@@ -555,6 +555,18 @@ FS.withBundledSnackArtwork = (snack) => {
   };
 };
 
+FS.defaultSnackOrder = ["oreo", "banana-chips", "plantain-chips"];
+
+FS.compareSnackOrder = (a, b) => {
+  const explicitA = a.displayOrder != null && Number.isFinite(Number(a.displayOrder)) ? Number(a.displayOrder) : null;
+  const explicitB = b.displayOrder != null && Number.isFinite(Number(b.displayOrder)) ? Number(b.displayOrder) : null;
+  const defaultA = FS.defaultSnackOrder.indexOf(a.id);
+  const defaultB = FS.defaultSnackOrder.indexOf(b.id);
+  const orderA = explicitA ?? (defaultA >= 0 ? defaultA : 1000);
+  const orderB = explicitB ?? (defaultB >= 0 ? defaultB : 1000);
+  return orderA - orderB || String(a.name || "").localeCompare(String(b.name || ""));
+};
+
 FS.getCatalog = async (includeInactive = false) => {
   await FS.initFirebase();
   const ref = includeInactive
@@ -564,7 +576,7 @@ FS.getCatalog = async (includeInactive = false) => {
   return snap.docs
     .map((doc) => FS.withBundledSnackArtwork({ id: doc.id, ...doc.data() }))
     .filter((s) => includeInactive || s.active !== false)
-    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    .sort(FS.compareSnackOrder);
 };
 
 FS.snackById = (data, id) => (data.catalog || []).find((s) => s.id === id) || null;

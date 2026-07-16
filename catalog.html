@@ -18,7 +18,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <a class="btn" href="admin.html">Admin dashboard</a>
+          <a class="btn" href="admin.html">Dashboard</a>
           <a class="btn" href="inventory.html">Inventory</a>
           <a class="btn" href="accounting.html">Accounting</a>
           <a class="btn" href="transactions.html">Transactions</a>
@@ -59,6 +59,7 @@
           </div>
         </div>
         <div id="catalog-list"></div>
+        <div class="status" id="catalog-order-status" aria-live="polite"></div>
       </section>
 
       <section class="card section-card">
@@ -118,8 +119,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260715-snack-artwork"></script>
-  <script src="js/firebase-admin.js?v=20260715-snack-artwork"></script>
+  <script src="js/firebase-store.js?v=20260716-catalog-order"></script>
+  <script src="js/firebase-admin.js?v=20260716-catalog-order"></script>
   <script>
     let SNAPSHOT = null;
     let CATALOG_VIEW = localStorage.getItem("fresh_snacks_catalog_view") === "gallery" ? "gallery" : "row";
@@ -142,7 +143,8 @@
 
       if (CATALOG_VIEW === "gallery") {
         $("catalog-list").innerHTML = `<div class="catalog-gallery">${SNAPSHOT.snacks.map((s) => `
-          <article class="catalog-card" data-id="${esc(s.id)}">
+          <article class="catalog-card" data-id="${esc(s.id)}" draggable="true">
+            <div class="catalog-drag-handle" title="Drag to reorder" aria-label="Drag ${esc(s.name)} to reorder">&#8942;&#8942;</div>
             <div class="catalog-card-photo">${s.photo
               ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
               : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
@@ -201,10 +203,6 @@
     async function refresh() {
       await FS.admin.syncBundledSnackArtwork();
       SNAPSHOT = await FS.admin.getSnapshot();
-      SNAPSHOT.snacks.sort((a, b) =>
-        Number(b.price || 0) - Number(a.price || 0)
-        || String(a.name || "").localeCompare(String(b.name || ""))
-      );
       $("login-panel").classList.add("hidden");
       $("admin-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
@@ -305,6 +303,47 @@
       } catch (e) {
         status("cat-status", e.message, false);
       }
+    });
+
+    let draggedSnackId = null;
+    $("catalog-list").addEventListener("dragstart", (ev) => {
+      const card = ev.target.closest(".catalog-card[draggable='true']");
+      if (!card || CATALOG_VIEW !== "gallery") return;
+      draggedSnackId = card.dataset.id;
+      card.classList.add("dragging");
+      ev.dataTransfer.effectAllowed = "move";
+      ev.dataTransfer.setData("text/plain", draggedSnackId);
+    });
+
+    $("catalog-list").addEventListener("dragover", (ev) => {
+      if (!draggedSnackId || CATALOG_VIEW !== "gallery") return;
+      const target = ev.target.closest(".catalog-card");
+      const dragged = $("catalog-list").querySelector(`.catalog-card[data-id="${CSS.escape(draggedSnackId)}"]`);
+      if (!target || !dragged || target === dragged) return;
+      ev.preventDefault();
+      const box = target.getBoundingClientRect();
+      const after = ev.clientY > box.top + box.height / 2;
+      target.parentNode.insertBefore(dragged, after ? target.nextSibling : target);
+    });
+
+    $("catalog-list").addEventListener("drop", async (ev) => {
+      if (!draggedSnackId || CATALOG_VIEW !== "gallery") return;
+      ev.preventDefault();
+      const ids = [...$("catalog-list").querySelectorAll(".catalog-card")].map((card) => card.dataset.id);
+      try {
+        status("catalog-order-status", "Saving gallery order...", true);
+        await FS.admin.saveSnackOrder(ids);
+        SNAPSHOT.snacks.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+        status("catalog-order-status", "Gallery order saved for customers.", true);
+      } catch (e) {
+        status("catalog-order-status", e.message, false);
+        await refresh();
+      }
+    });
+
+    $("catalog-list").addEventListener("dragend", (ev) => {
+      ev.target.closest(".catalog-card")?.classList.remove("dragging");
+      draggedSnackId = null;
     });
 
     $("artwork-snack").addEventListener("change", renderArtworkHarness);

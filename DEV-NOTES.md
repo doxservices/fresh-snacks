@@ -1,5 +1,14 @@
 # Development notes
 
+## Admin-managed snack gallery order (2026-07-16)
+
+- Customer snack catalogs use the Firestore `displayOrder` field.
+- Until an admin saves an order, the default begins with Oreo, Banana Chips,
+  then Plantain Chips; remaining snacks follow alphabetically.
+- Admins reorder cards by dragging them in the Catalog gallery view. Dropping
+  a card writes the full order to Firestore and updates the index page,
+  `bins.html`, and feedback snack dropdown.
+
 ## Cloud Storage snack artwork (2026-07-15)
 
 - `catalog.html` includes an admin upload harness for regular catalog artwork
