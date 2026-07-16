@@ -52,14 +52,6 @@
 - On wide screens, the Add Bin target is horizontally centered in the unused
   margin to the right of the 1040px page. A 22px minimum inset keeps the card
   safely on-screen when that outside margin is narrower than the card.
-- The inventory overview now includes per-floor analysis cards showing bin
-  count, snack units, inventory value, and the leading floor's percentage of
-  total value. The floating Add Bin target is 50% larger (240x198px desktop),
-  and its right-margin centering formula accounts for the new width.
-- Floor totals now appear both in the Local Inventory overview and inside each
-  large floor banner. Both surfaces show total inventory value and units, with
-  bin count retained in the overview; typography uses restrained medium weight
-  rather than bold-heavy emphasis.
 
 ## Navigation QR copy controls (2026-07-16)
 
