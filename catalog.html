@@ -201,6 +201,10 @@
     async function refresh() {
       await FS.admin.syncBundledSnackArtwork();
       SNAPSHOT = await FS.admin.getSnapshot();
+      SNAPSHOT.snacks.sort((a, b) =>
+        Number(b.price || 0) - Number(a.price || 0)
+        || String(a.name || "").localeCompare(String(b.name || ""))
+      );
       $("login-panel").classList.add("hidden");
       $("admin-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
