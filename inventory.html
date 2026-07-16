@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fresh Snacks - Inventory</title>
+  <title>Fresh Snacks - Bins</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,14 +13,15 @@
         <div class="header-lead">
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
-            <h1>Bin Inventory</h1>
-            <p>Record what you've stocked in each bin and see what's sold, remaining, and earned.</p>
+            <h1>Bins</h1>
+            <p>Manage bin locations and the quantity of every snack placed in each bin.</p>
           </div>
         </div>
         <div class="header-actions">
           <a class="btn" href="admin.html">Dashboard</a>
           <a class="btn" href="catalog.html">Catalog</a>
-          <a class="btn" href="bins.html">Customer bins page &#8599;</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -32,14 +33,8 @@
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
-        <div class="field">
-          <label for="admin-email">Email</label>
-          <input id="admin-email" type="email" autocomplete="username" />
-        </div>
-        <div class="field">
-          <label for="admin-password">Password</label>
-          <input id="admin-password" type="password" autocomplete="current-password" />
-        </div>
+        <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" /></div>
+        <div class="field"><label for="admin-password">Password</label><input id="admin-password" type="password" autocomplete="current-password" /></div>
         <button id="email-login">Email login</button>
       </div>
       <div class="status" id="login-status"></div>
@@ -49,170 +44,184 @@
       <section class="brand-card">
         <div class="brand-grid">
           <div>
-            <div class="brand-title">Inventory</div>
-            <div class="brand-subtitle" id="inv-subtitle">Stock, sales, and what's left per bin</div>
+            <div class="brand-title">Location inventory</div>
+            <div class="brand-subtitle">Seasonal setup by floor and bin</div>
           </div>
           <div class="brand-stats">
-            <div class="stat-box balance-stat">
-              <div class="stat-label">Total stocked</div>
-              <div class="stat-value warm" id="dash-stocked">-</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Total sold</div>
-              <div class="stat-value green" id="dash-sold">-</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Remaining</div>
-              <div class="stat-value blue" id="dash-remaining">-</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">Resolved sales</div>
-              <div class="stat-value" id="dash-revenue">-</div>
-            </div>
+            <div class="stat-box balance-stat"><div class="stat-label">Bins</div><div class="stat-value warm" id="dash-bins">-</div></div>
+            <div class="stat-box"><div class="stat-label">Floors</div><div class="stat-value green" id="dash-floors">-</div></div>
+            <div class="stat-box"><div class="stat-label">Snack units</div><div class="stat-value blue" id="dash-units">-</div></div>
+            <div class="stat-box"><div class="stat-label">Inventory value</div><div class="stat-value" id="dash-value">-</div></div>
           </div>
         </div>
       </section>
 
-      <section class="card section-card">
-        <h2>Add stock to a bin</h2>
-        <p class="note">
-          This only records what you've physically put in the bin — it never adds anything to a
-          customer's tab. Customers add to their own tab from the
-          <a href="bins.html">bins page</a> when they take a snack.
-        </p>
-        <div class="form-grid">
-          <div class="field">
-            <label for="inv-snack">Snack / bin</label>
-            <select id="inv-snack"></select>
+      <section class="card section-card bin-editor-card">
+        <div class="section-heading-row">
+          <div>
+            <h2 id="bin-form-title">Add a bin</h2>
+            <p class="muted-small">Select a seasonal template or enter custom quantities.</p>
           </div>
-          <div class="field">
-            <label for="inv-qty">Quantity added</label>
-            <input id="inv-qty" type="number" min="1" step="1" value="1" />
-          </div>
-          <div class="field">
-            <label for="inv-note">Note (optional)</label>
-            <input id="inv-note" type="text" placeholder="e.g. Costco run 12 Jul" />
-          </div>
-          <button class="primary" id="inv-add">Add stock</button>
+          <button type="button" id="bin-new">New custom bin</button>
         </div>
-        <div class="status" id="inv-status"></div>
+        <input id="bin-id" type="hidden" />
+        <div class="bin-form-grid">
+          <div class="field"><label for="bin-floor">Floor</label><input id="bin-floor" type="text" placeholder="e.g. 6th Floor" /></div>
+          <div class="field"><label for="bin-name">Location name</label><input id="bin-name" type="text" placeholder="e.g. Kitchen" /></div>
+          <div class="field">
+            <label for="bin-template">Starting template</label>
+            <select id="bin-template">
+              <option value="standard">Standard seasonal bin</option>
+              <option value="hundred">J$100 bin</option>
+              <option value="large">Large seasonal bin</option>
+              <option value="custom">Custom bin</option>
+            </select>
+          </div>
+        </div>
+        <div class="bin-item-editor" id="bin-item-editor"></div>
+        <div class="bin-editor-actions">
+          <div class="bin-editor-total">Calculated value: <strong id="bin-form-value">J$0</strong></div>
+          <button type="button" id="bin-cancel">Clear</button>
+          <button type="button" class="primary" id="bin-save">Save bin</button>
+        </div>
+        <div class="status" id="bin-status" aria-live="polite"></div>
       </section>
 
       <section class="card section-card">
-        <h2>Bin totals</h2>
-        <div id="inv-table"></div>
-      </section>
-
-      <section class="card section-card">
-        <h2>Recent stock entries</h2>
-        <div id="inv-entries"></div>
+        <div class="section-heading-row">
+          <div>
+            <h2>Bins by floor</h2>
+            <p class="muted-small">Each location shows its snack quantities and total inventory value.</p>
+          </div>
+        </div>
+        <div id="bin-locations"></div>
       </section>
     </section>
 
-    <footer>Inventory is admin-only and separate from customer snack logging.</footer>
+    <footer>Bin locations and inventory are restricted to active administrators.</footer>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-store.js?v=20260716-bin-locations"></script>
+  <script src="js/firebase-admin.js?v=20260716-bin-locations"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
-    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
 
-    function status(id, msg, ok) {
-      const el = $(id);
-      el.textContent = msg;
-      el.className = "status " + (ok ? "ok" : "err");
-      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    function status(id, message, ok) {
+      const element = $(id);
+      element.textContent = message;
+      element.className = `status ${ok ? "ok" : "err"}`;
+      if (ok) setTimeout(() => { if (element.textContent === message) element.textContent = ""; }, 5000);
+    }
+
+    const snackById = (id) => SNAPSHOT.snacks.find((snack) => snack.id === id);
+    const templateLabel = (id) => FS.admin.binTemplates[id]?.label || "Custom bin";
+
+    function currentEditorItems() {
+      return [...$("bin-item-editor").querySelectorAll("input[data-snack-id]")].map((input) => ({
+        snackId: input.dataset.snackId,
+        quantity: Math.max(0, Math.floor(Number(input.value || 0))),
+      })).filter((item) => item.quantity > 0);
+    }
+
+    function updateEditorValue() {
+      const total = currentEditorItems().reduce((sum, item) =>
+        sum + item.quantity * Number(snackById(item.snackId)?.price || 0), 0);
+      $("bin-form-value").textContent = FS.money(total, SNAPSHOT.settings.currency);
+    }
+
+    function renderItemEditor(items = []) {
+      const quantityBySnack = new Map(items.map((item) => [item.snackId, Number(item.quantity || 0)]));
+      $("bin-item-editor").innerHTML = `<table class="admin-table bin-quantity-table">
+        <thead><tr><th>Snack</th><th class="num-money">Unit price</th><th class="num">Quantity in bin</th></tr></thead>
+        <tbody>${SNAPSHOT.snacks.filter((snack) => snack.active !== false).map((snack) => `<tr>
+          <td>${esc(snack.name)}</td>
+          <td class="num-money">${FS.money(snack.price, SNAPSHOT.settings.currency)}</td>
+          <td class="num"><input data-snack-id="${esc(snack.id)}" type="number" min="0" step="1" value="${quantityBySnack.get(snack.id) || 0}" aria-label="${esc(snack.name)} quantity" /></td>
+        </tr>`).join("")}</tbody>
+      </table>`;
+      updateEditorValue();
+    }
+
+    function resetEditor(templateId = "custom") {
+      $("bin-id").value = "";
+      $("bin-floor").value = "";
+      $("bin-name").value = "";
+      $("bin-template").value = templateId;
+      $("bin-form-title").textContent = "Add a bin";
+      renderItemEditor(FS.admin.templateBinItems(templateId, SNAPSHOT.snacks));
+    }
+
+    function editBin(id) {
+      const bin = SNAPSHOT.bins.find((record) => record.id === id);
+      if (!bin) return;
+      $("bin-id").value = bin.id;
+      $("bin-floor").value = bin.floor;
+      $("bin-name").value = bin.name;
+      $("bin-template").value = bin.templateId || "custom";
+      $("bin-form-title").textContent = `Edit ${bin.name}`;
+      renderItemEditor(bin.items);
+      document.querySelector(".bin-editor-card").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function render() {
-      const cur = SNAPSHOT.settings.currency;
+      const currency = SNAPSHOT.settings.currency;
+      const floors = [...new Set(SNAPSHOT.bins.map((bin) => bin.floor))];
+      const totalUnits = SNAPSHOT.bins.reduce((sum, bin) => sum + bin.totalUnits, 0);
+      const totalValue = SNAPSHOT.bins.reduce((sum, bin) => sum + bin.totalValue, 0);
+      $("dash-bins").textContent = SNAPSHOT.bins.length;
+      $("dash-floors").textContent = floors.length;
+      $("dash-units").textContent = totalUnits;
+      $("dash-value").textContent = FS.money(totalValue, currency);
 
-      $("inv-snack").innerHTML = SNAPSHOT.rows
-        .map((r) => `<option value="${esc(r.snack.id)}">${esc(r.snack.name)}</option>`).join("");
-
-      $("dash-stocked").textContent = SNAPSHOT.totals.stocked;
-      $("dash-sold").textContent = SNAPSHOT.totals.sold;
-      $("dash-remaining").textContent = SNAPSHOT.totals.remaining;
-      $("dash-revenue").textContent = FS.money(SNAPSHOT.totals.revenue, cur);
-
-      $("inv-table").innerHTML = `<table class="admin-table">
-        <thead><tr><th>Bin / Snack</th><th class="num">Stocked</th><th class="num">Sold</th><th class="num">Remaining</th><th class="num-money">Resolved sales</th></tr></thead>
-        <tbody>${SNAPSHOT.rows.map((r) => `<tr${r.remaining < 0 ? ' class="disputed"' : ""}>
-          <td>${esc(r.snack.name)}</td>
-          <td class="num">${r.stocked}</td>
-          <td class="num">${r.sold}</td>
-          <td class="num">${r.remaining}${r.remaining < 0 ? ' <span class="muted-small">(over-logged)</span>' : ""}</td>
-          <td class="num-money">${FS.money(r.revenue, cur)}</td>
-        </tr>`).join("")}
-        <tr class="month-line">
-          <td>All bins</td>
-          <td class="num">${SNAPSHOT.totals.stocked}</td>
-          <td class="num">${SNAPSHOT.totals.sold}</td>
-          <td class="num">${SNAPSHOT.totals.remaining}</td>
-          <td class="num-money">${FS.money(SNAPSHOT.totals.revenue, cur)}</td>
-        </tr>
-        </tbody>
-      </table>`;
-
-      const byId = new Map(SNAPSHOT.rows.map((r) => [r.snack.id, r.snack.name]));
-      $("inv-entries").innerHTML = SNAPSHOT.entries.length
-        ? `<table class="admin-table">
-            <thead><tr><th>When</th><th>Bin / Snack</th><th class="num">Qty added</th><th>Note</th></tr></thead>
-            <tbody>${SNAPSHOT.entries.slice(0, 30).map((e) => `<tr>
-              <td>${esc(FS.admin.dateFromRecord(e, "createdAt") || "-")}</td>
-              <td>${esc(byId.get(e.snackId) || e.snackId)}</td>
-              <td class="num">${e.quantity}</td>
-              <td>${esc(e.note || "")}</td>
-            </tr>`).join("")}</tbody>
-          </table>`
-        : `<p class="muted-small">No stock entries yet.</p>`;
+      $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
+        const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        return `<section class="bin-floor-group">
+          <h3>${esc(floor)} <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span></h3>
+          <div class="bin-location-grid">${bins.map((bin) => {
+            const rows = bin.items.map((item) => {
+              const snack = snackById(item.snackId);
+              return snack ? `<tr><td>${esc(snack.name)}</td><td class="num">${item.quantity}</td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
+            }).join("");
+            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
+              <div class="bin-location-heading">
+                <div><h4>${esc(bin.name)}</h4><div class="muted-small">${esc(templateLabel(bin.templateId))}</div></div>
+                <strong>${FS.money(bin.totalValue, currency)}</strong>
+              </div>
+              <table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table>
+              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button data-action="edit-bin">Edit</button><button class="danger" data-action="delete-bin">Delete</button></div>
+            </article>`;
+          }).join("")}</div>
+        </section>`;
+      }).join("") : `<p class="muted-small">No bins configured.</p>`;
     }
 
     async function refresh() {
-      SNAPSHOT = await FS.admin.getInventorySnapshot();
+      SNAPSHOT = await FS.admin.getBinsSnapshot();
       $("login-panel").classList.add("hidden");
       $("inventory-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
       render();
+      if (!$("bin-item-editor").children.length) resetEditor("standard");
     }
 
-    $("google-login").onclick = async () => {
+    async function login(method) {
       try {
         status("login-status", "Signing in...", true);
-        await FS.admin.signInWithGoogle();
+        await method();
         await refresh();
-      } catch (e) {
-        status("login-status", e.message, false);
-      }
-    };
+      } catch (error) { status("login-status", error.message, false); }
+    }
 
-    $("microsoft-login").onclick = async () => {
-      try {
-        status("login-status", "Signing in...", true);
-        await FS.admin.signInWithMicrosoft();
-        await refresh();
-      } catch (e) {
-        status("login-status", e.message, false);
-      }
-    };
-
-    $("email-login").onclick = async () => {
-      try {
-        status("login-status", "Signing in...", true);
-        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
-        await refresh();
-      } catch (e) {
-        status("login-status", e.message, false);
-      }
-    };
-
+    $("google-login").onclick = () => login(() => FS.admin.signInWithGoogle());
+    $("microsoft-login").onclick = () => login(() => FS.admin.signInWithMicrosoft());
+    $("email-login").onclick = () => login(() => FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value));
     $("admin-sign-out").onclick = async () => {
       await FS.admin.signOut();
       $("inventory-app").classList.add("hidden");
@@ -220,34 +229,50 @@
       $("login-panel").classList.remove("hidden");
     };
 
-    $("inv-add").onclick = async () => {
-      const btn = $("inv-add");
-      btn.disabled = true;
+    $("bin-template").addEventListener("change", () => {
+      renderItemEditor(FS.admin.templateBinItems($("bin-template").value, SNAPSHOT.snacks));
+    });
+    $("bin-item-editor").addEventListener("input", updateEditorValue);
+    $("bin-new").onclick = () => resetEditor("custom");
+    $("bin-cancel").onclick = () => resetEditor("custom");
+    $("bin-save").onclick = async () => {
+      const button = $("bin-save");
+      button.disabled = true;
       try {
-        await FS.admin.addInventory({
-          snackId: $("inv-snack").value,
-          quantity: $("inv-qty").value,
-          note: $("inv-note").value,
+        await FS.admin.saveBin({
+          id: $("bin-id").value || null,
+          floor: $("bin-floor").value,
+          name: $("bin-name").value,
+          templateId: $("bin-template").value,
+          items: currentEditorItems(),
         });
-        $("inv-note").value = "";
         await refresh();
-        status("inv-status", "Stock added.", true);
-      } catch (e) {
-        status("inv-status", e.message, false);
-      } finally {
-        btn.disabled = false;
-      }
+        resetEditor("custom");
+        status("bin-status", "Bin saved.", true);
+      } catch (error) { status("bin-status", error.message, false); }
+      finally { button.disabled = false; }
     };
+
+    $("bin-locations").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const id = button.closest("[data-bin-id]").dataset.binId;
+      if (button.dataset.action === "edit-bin") return editBin(id);
+      const bin = SNAPSHOT.bins.find((record) => record.id === id);
+      if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this bin"}?`)) return;
+      try {
+        await FS.admin.deleteBin(id);
+        await refresh();
+        status("bin-status", "Bin deleted.", true);
+      } catch (error) { status("bin-status", error.message, false); }
+    });
 
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
       .then((admin) => { if (admin) return refresh(); })
-      .catch((e) => {
-        if (String(e.message).includes("Firebase is not configured")) {
-          FS.showFirebaseSetupPrompt("login-panel", e.message);
-        } else {
-          status("login-status", e.message, false);
-        }
+      .catch((error) => {
+        if (String(error.message).includes("Firebase is not configured")) FS.showFirebaseSetupPrompt("login-panel", error.message);
+        else status("login-status", error.message, false);
       });
   </script>
 </body>

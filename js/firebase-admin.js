@@ -421,6 +421,131 @@ FS.admin.saveSnack = async (snack) => {
   await FS._db.collection("snacks").doc(id).set(payload, { merge: true });
 };
 
+FS.admin.binTemplates = {
+  standard: { label: "Standard seasonal bin", quantity: 1 },
+  hundred: { label: "J$100 bin", quantity: 1 },
+  large: { label: "Large seasonal bin", quantity: 2 },
+  custom: { label: "Custom bin", quantity: 0 },
+};
+
+FS.admin.seasonalSnackIds = (snacks) => {
+  const wanted = ["oreo", "banana chips", "chee zees", "cheese krunchies"];
+  const normalize = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return wanted.map((name) => snacks.find((snack) =>
+    normalize(snack.id) === name || normalize(snack.name) === name
+  )?.id).filter(Boolean);
+};
+
+FS.admin.templateBinItems = (templateId, snacks) => {
+  const quantity = FS.admin.binTemplates[templateId]?.quantity || 0;
+  if (!quantity) return [];
+  return FS.admin.seasonalSnackIds(snacks).map((snackId) => ({ snackId, quantity }));
+};
+
+FS.admin.ensureStandardBins = async (snacks) => {
+  await FS.admin.requireAdmin();
+  const setupRef = FS._db.collection("inventory").doc("bin-location-setup");
+  const setup = await setupRef.get();
+  if (setup.exists) return false;
+  const definitions = [
+    ["bin-9th-floor-1", "9th Floor", "Bin 1", "standard"],
+    ["bin-9th-floor-2", "9th Floor", "Bin 2", "standard"],
+    ["bin-6th-floor-desk", "6th Floor", "Desk", "standard"],
+    ["bin-6th-floor-hr-1", "6th Floor", "HR 1", "standard"],
+    ["bin-6th-floor-hr-2", "6th Floor", "HR 2", "standard"],
+    ["bin-6th-floor-kitchen", "6th Floor", "Kitchen", "hundred"],
+    ["bin-6th-floor-hall", "6th Floor", "Hall", "large"],
+    ["bin-5th-floor-nanda-1", "5th Floor", "Nanda 1", "standard"],
+    ["bin-5th-floor-nanda-2", "5th Floor", "Nanda 2", "standard"],
+  ];
+  const batch = FS._db.batch();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  definitions.forEach(([id, floor, name, templateId], displayOrder) => {
+    batch.set(FS._db.collection("inventory").doc(id), {
+      id,
+      recordType: "bin",
+      floor,
+      name,
+      templateId,
+      items: FS.admin.templateBinItems(templateId, snacks),
+      displayOrder,
+      active: true,
+      createdBy: FS.admin.user.uid,
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+  batch.set(setupRef, {
+    recordType: "binSetup",
+    version: 1,
+    createdBy: FS.admin.user.uid,
+    createdAt: now,
+  });
+  await batch.commit();
+  return true;
+};
+
+FS.admin.getBinsSnapshot = async () => {
+  await FS.admin.requireAdmin();
+  const [settings, snacks] = await Promise.all([
+    FS.getSettings(),
+    FS.getCatalog(true),
+  ]);
+  await FS.admin.ensureStandardBins(snacks);
+  const records = (await FS.admin.getCollection("inventory"))
+    .filter((record) => record.recordType === "bin");
+  const bySnack = new Map(snacks.map((snack) => [snack.id, snack]));
+  const bins = records.map((bin) => {
+    const items = (bin.items || []).map((item) => ({
+      snackId: item.snackId,
+      quantity: Math.max(0, Number(item.quantity || 0)),
+    })).filter((item) => item.snackId && item.quantity > 0);
+    const totalUnits = items.reduce((sum, item) => sum + item.quantity, 0);
+    const totalValue = items.reduce((sum, item) =>
+      sum + item.quantity * Number(bySnack.get(item.snackId)?.price || 0), 0);
+    return { ...bin, items, totalUnits, totalValue };
+  }).sort((a, b) =>
+    Number(a.displayOrder ?? 999) - Number(b.displayOrder ?? 999)
+    || String(a.floor || "").localeCompare(String(b.floor || ""))
+    || String(a.name || "").localeCompare(String(b.name || ""))
+  );
+  return { settings, snacks, bins };
+};
+
+FS.admin.saveBin = async (bin) => {
+  await FS.admin.requireAdmin();
+  const floor = String(bin.floor || "").trim();
+  const name = String(bin.name || "").trim();
+  if (!floor || !name) throw new Error("Floor and location name are required.");
+  const id = bin.id || FS.uid("bin");
+  const items = (bin.items || []).map((item) => ({
+    snackId: String(item.snackId || ""),
+    quantity: Math.max(0, Math.floor(Number(item.quantity || 0))),
+  })).filter((item) => item.snackId && item.quantity > 0);
+  await FS._db.collection("inventory").doc(id).set({
+    id,
+    recordType: "bin",
+    floor,
+    name,
+    templateId: FS.admin.binTemplates[bin.templateId] ? bin.templateId : "custom",
+    items,
+    active: bin.active !== false,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: FS.admin.user.uid,
+    ...(bin.id ? {} : {
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: FS.admin.user.uid,
+    }),
+  }, { merge: true });
+  return id;
+};
+
+FS.admin.deleteBin = async (id) => {
+  await FS.admin.requireAdmin();
+  if (!id) throw new Error("Choose a bin to delete.");
+  await FS._db.collection("inventory").doc(id).delete();
+};
+
 // Persists the bundled artwork map when an authorized Admin opens Catalog.
 // Reads first and writes only records whose paths are stale, so ordinary
 // catalog refreshes do not create repeated update noise.

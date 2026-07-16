@@ -2013,6 +2013,132 @@ textarea:focus {
   cursor: grabbing;
 }
 
+.section-heading-row,
+.bin-editor-actions,
+.bin-location-heading,
+.bin-location-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.section-heading-row h2,
+.section-heading-row p,
+.bin-location-heading h4 {
+  margin-bottom: 0;
+}
+
+.bin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.bin-item-editor {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid #dce7df;
+  border-radius: 14px;
+}
+
+.bin-quantity-table {
+  margin: 0;
+}
+
+.bin-quantity-table input[type="number"] {
+  width: 86px;
+  text-align: center;
+}
+
+.bin-editor-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.bin-editor-total {
+  margin-right: auto;
+  font-size: 1.05rem;
+}
+
+.bin-floor-group + .bin-floor-group {
+  margin-top: 28px;
+}
+
+.bin-floor-group h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bin-location-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.bin-location-card {
+  overflow: hidden;
+  border: 1px solid #dce7df;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(19, 69, 44, .07);
+}
+
+.bin-location-heading,
+.bin-location-actions {
+  padding: 14px 16px;
+}
+
+.bin-location-heading {
+  background: #f4f9f5;
+}
+
+.bin-location-heading strong {
+  color: #075b35;
+  white-space: nowrap;
+}
+
+.bin-location-card .compact-table {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.compact-table th,
+.compact-table td {
+  padding: 8px 10px;
+}
+
+.bin-location-actions {
+  justify-content: flex-end;
+  border-top: 1px solid #edf2ee;
+}
+
+.bin-location-actions span {
+  margin-right: auto;
+  color: #5c6b61;
+}
+
+@media (max-width: 780px) {
+  .bin-form-grid,
+  .bin-location-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading-row,
+  .bin-editor-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bin-editor-total {
+    margin-right: 0;
+  }
+}
+
 .catalog-card-photo {
   position: relative;
   height: 190px;

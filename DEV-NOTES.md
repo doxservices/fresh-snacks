@@ -1,5 +1,19 @@
 # Development notes
 
+## Location-based bin CRUD (2026-07-16)
+
+- `inventory.html` is the admin Bins page; customer self-service remains on
+  `bins.html` and the index page.
+- Bin records live in `/inventory` with `recordType: "bin"`, so the existing
+  admin-only Firestore rule applies without a new rules deployment.
+- First authorized use seeds nine locations once: two on 9th Floor; Desk, HR
+  1, HR 2, Kitchen, and Hall on 6th Floor; Nanda 1 and Nanda 2 on 5th Floor.
+- Seasonal templates use Oreo, Banana Chips, Chee Zees, and Cheese Krunchies.
+  Standard and J$100 templates start with one each; Large starts with two each;
+  Custom starts empty. Every quantity remains editable.
+- Inventory value is calculated from current catalog prices and is not stored
+  as duplicated data on the bin document.
+
 ## Admin-managed snack gallery order (2026-07-16)
 
 - Customer snack catalogs use the Firestore `displayOrder` field.
