@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260716-bin-drawer" />
 </head>
 <body>
   <main class="page">
@@ -498,6 +498,16 @@
     let draggedFloor = null;
     let pendingCopyDrag = null;
 
+    async function copyDraggedBinTo(binId, cutout) {
+      const source = SNAPSHOT.bins.find((bin) => bin.id === binId);
+      if (!source || !cutout) return false;
+      status("bin-status", `Copying ${source.name}...`, true);
+      await FS.admin.duplicateBin(source.id, cutout.dataset.floor, `${source.name} Copy`);
+      await refresh();
+      status("bin-status", `${source.name} copied to ${cutout.dataset.floor}.`, true);
+      return true;
+    }
+
     async function saveFloorOrder(container, floorSelector, binSelector) {
       const ids = [...container.querySelectorAll(floorSelector)]
         .flatMap((floor) => [...floor.querySelectorAll(binSelector)].map((bin) => bin.dataset.binId || bin.dataset.layoutBinId));
@@ -572,11 +582,10 @@
       if (cutout) {
         event.preventDefault();
         pendingCopyDrag = null;
-        const source = SNAPSHOT.bins.find((bin) => bin.id === draggedBinId);
+        const sourceId = draggedBinId;
+        draggedBinId = null;
         try {
-          await FS.admin.duplicateBin(draggedBinId, cutout.dataset.floor, `${source?.name || "Bin"} Copy`);
-          await refresh();
-          status("bin-status", `Bin copied to ${cutout.dataset.floor}.`, true);
+          await copyDraggedBinTo(sourceId, cutout);
         } catch (error) { status("bin-status", error.message, false); }
         return;
       }
@@ -592,7 +601,14 @@
       } catch (error) { status("bin-status", error.message, false); }
     });
 
-    $("bin-locations").addEventListener("dragend", (event) => {
+    $("bin-locations").addEventListener("dragend", async (event) => {
+      const sourceId = draggedBinId;
+      const cutout = sourceId && document.elementFromPoint(event.clientX, event.clientY)?.closest(".bin-add-cutout");
+      if (cutout) {
+        draggedBinId = null;
+        try { await copyDraggedBinTo(sourceId, cutout); }
+        catch (error) { status("bin-status", error.message, false); }
+      }
       event.target.closest(".bin-floor-group")?.classList.remove("dragging-floor");
       event.target.closest(".bin-location-card")?.classList.remove("dragging");
       $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
@@ -654,7 +670,14 @@
       } catch (error) { status("bin-status", error.message, false); }
     });
 
-    $("bin-layout-tree").addEventListener("dragend", (event) => {
+    $("bin-layout-tree").addEventListener("dragend", async (event) => {
+      const sourceId = draggedBinId;
+      const cutout = sourceId && document.elementFromPoint(event.clientX, event.clientY)?.closest(".bin-add-cutout");
+      if (cutout) {
+        draggedBinId = null;
+        try { await copyDraggedBinTo(sourceId, cutout); }
+        catch (error) { status("bin-status", error.message, false); }
+      }
       event.target.closest(".layout-floor")?.classList.remove("dragging-floor");
       event.target.closest(".layout-bin-item")?.classList.remove("dragging");
       $("bin-locations").querySelectorAll(".bin-add-cutout.drop-ready").forEach((cutout) => cutout.classList.remove("drop-ready"));
@@ -681,13 +704,8 @@
       if (!pending || Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 24) return;
       const cutout = document.elementFromPoint(event.clientX, event.clientY)?.closest(".bin-add-cutout");
       if (!cutout) return;
-      const source = SNAPSHOT.bins.find((bin) => bin.id === pending.binId);
-      if (!source) return;
       try {
-        status("bin-status", `Copying ${source.name}...`, true);
-        await FS.admin.duplicateBin(source.id, cutout.dataset.floor, `${source.name} Copy`);
-        await refresh();
-        status("bin-status", `${source.name} copied to ${cutout.dataset.floor}.`, true);
+        await copyDraggedBinTo(pending.binId, cutout);
       } catch (error) { status("bin-status", error.message, false); }
     }
 
