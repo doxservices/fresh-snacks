@@ -2601,15 +2601,102 @@ textarea:focus {
   font-weight: 750;
 }
 
+.floor-analysis {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.floor-analysis-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.floor-analysis-title {
+  color: var(--green-dark);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.floor-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 9px;
+}
+
+.floor-analysis-card {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.floor-analysis-name {
+  color: var(--green-dark);
+  font-size: .92rem;
+  font-weight: 600;
+}
+
+.floor-analysis-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.floor-analysis-value span,
+.floor-analysis-meta {
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.floor-analysis-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.floor-banner-totals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-left: auto;
+  color: var(--green-dark);
+}
+
+.floor-banner-totals > span {
+  display: grid;
+  gap: 1px;
+  min-width: 86px;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.floor-banner-totals small {
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 400;
+  letter-spacing: .02em;
+}
+
 .bin-add-cutout {
-  width: 160px;
-  min-height: 132px;
+  width: clamp(150px, calc((100% - 1040px) / 2 - 32px), 210px);
+  min-height: 0;
+  aspect-ratio: 1.18 / 1;
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 5px;
+  gap: 6px;
   margin: 0;
-  padding: 16px 12px;
+  padding: 18px 14px;
   border: 2px dashed #9bbda5;
   border-radius: 10px;
   background: rgba(244, 249, 245, .7);
@@ -2632,24 +2719,24 @@ textarea:focus {
 }
 
 .bin-add-cutout span {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #087a46;
   color: #fff;
-  font-size: 1.45rem;
+  font-size: 1.85rem;
   line-height: 1;
 }
 
 .bin-add-cutout strong {
-  font-size: .92rem;
+  font-size: 1.08rem;
 }
 
 .bin-add-cutout small {
   color: #637268;
-  font-size: .7rem;
+  font-size: .82rem;
   line-height: 1.25;
 }
 
@@ -2657,7 +2744,7 @@ textarea:focus {
   position: fixed;
   z-index: 24;
   top: clamp(170px, 50vh, calc(100vh - 170px));
-  right: max(22px, calc((100vw - 1360px) / 4));
+  right: max(16px, calc((100% - 1460px) / 4));
   transform: translateY(-50%);
   box-shadow: 0 10px 24px rgba(10, 70, 40, .12);
 }
@@ -2671,23 +2758,9 @@ textarea:focus {
   transform: translateY(-50%) scale(1.03);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1390px) {
   .bin-add-floating {
-    top: auto;
-    right: 14px;
-    bottom: 14px;
-    width: 148px;
-    min-height: 116px;
-    transform: none;
-  }
-
-  .bin-add-floating:hover,
-  .bin-add-floating:focus {
-    transform: translateY(-2px);
-  }
-
-  .bin-add-floating.drop-ready {
-    transform: scale(1.03);
+    display: none;
   }
 }
 
@@ -2746,6 +2819,11 @@ textarea:focus {
   .bin-floor-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .floor-banner-totals {
+    justify-content: flex-start;
+    margin-left: 0;
   }
 
   .bin-floor-actions button {

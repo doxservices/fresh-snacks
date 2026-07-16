@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-centered-add-bin" />
+  <link rel="stylesheet" href="styles.css?v=20260716-responsive-add-bin" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -65,6 +65,13 @@
             <div class="stat-box"><div class="stat-label">Snack units</div><div class="stat-value blue" id="dash-units">-</div></div>
             <div class="stat-box"><div class="stat-label">Inventory value</div><div class="stat-value" id="dash-value">-</div></div>
           </div>
+        </div>
+        <div class="floor-analysis">
+          <div class="floor-analysis-heading">
+            <span class="floor-analysis-title">Floor totals</span>
+            <span id="floor-analysis-summary" class="muted-small"></span>
+          </div>
+          <div id="floor-analysis-grid" class="floor-analysis-grid"></div>
         </div>
       </section>
 
@@ -246,6 +253,25 @@
       $("dash-floors").textContent = floors.length;
       $("dash-units").textContent = totalUnits;
       $("dash-value").textContent = FS.money(totalValue, currency);
+      const floorMetrics = floors.map((floor) => {
+        const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        return {
+          floor,
+          bins: bins.length,
+          units: bins.reduce((sum, bin) => sum + Number(bin.totalUnits || 0), 0),
+          value: bins.reduce((sum, bin) => sum + Number(bin.totalValue || 0), 0),
+        };
+      });
+      const leadingFloor = [...floorMetrics].sort((a, b) => b.value - a.value)[0];
+      $("floor-analysis-summary").textContent = leadingFloor
+        ? `${leadingFloor.floor} holds ${totalValue ? Math.round((leadingFloor.value / totalValue) * 100) : 0}% of inventory value`
+        : "No floor inventory yet";
+      $("floor-analysis-grid").innerHTML = floorMetrics.length ? floorMetrics.map((metric) => `
+        <article class="floor-analysis-card">
+          <div class="floor-analysis-name">${esc(metric.floor)}</div>
+          <div class="floor-analysis-value"><span>Total inventory</span>${FS.money(metric.value, currency)}</div>
+          <div class="floor-analysis-meta"><span>${metric.bins} ${metric.bins === 1 ? "bin" : "bins"}</span><span>${metric.units} units</span></div>
+        </article>`).join("") : `<p class="muted-small">Add a bin to begin floor analysis.</p>`;
 
       $("bin-layout-tree").innerHTML = floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
@@ -257,6 +283,7 @@
 
       $("bin-locations").innerHTML = floors.length ? floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        const metric = floorMetrics.find((item) => item.floor === floor) || { bins: 0, units: 0, value: 0 };
         return `<section class="bin-floor-group" data-floor-group="${esc(floor)}">
           <div class="bin-floor-heading" data-floor="${esc(floor)}" draggable="true" title="Drag header to reorder floor">
             <span class="floor-drag-grip" aria-hidden="true">&#8942;&#8942;</span>
@@ -264,6 +291,10 @@
               <button type="button" class="inline-name-display floor-name-display" data-action="edit-floor-name" title="Click to rename floor">${esc(floor)}</button>
               <input class="inline-floor-name hidden" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" />
               <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span>
+            </div>
+            <div class="floor-banner-totals" aria-label="${esc(floor)} inventory totals">
+              <span><small>Total inventory</small>${FS.money(metric.value, currency)}</span>
+              <span><small>Units</small>${metric.units}</span>
             </div>
             <div class="bin-floor-actions">
               <button type="button" data-action="duplicate-floor" title="Duplicate floor" aria-label="Duplicate ${esc(floor)}">&#10697; Duplicate floor</button>
