@@ -356,6 +356,7 @@
       const button = $(kind === "photo" ? "photo-upload-button" : "favorite-photo-upload-button");
       try {
         button.disabled = true;
+        status("artwork-status", "Optimizing image...", true);
         await FS.admin.uploadSnackImage($("artwork-snack").value, input.files[0], kind, (percent) => {
           status("artwork-status", `Uploading ${percent}%...`, true);
         });

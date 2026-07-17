@@ -795,6 +795,45 @@ FS.admin.syncBundledSnackArtwork = async () => {
   return changed;
 };
 
+/* Downsizes and re-encodes an admin's uploaded photo as WebP client-side
+ * before it ever reaches Storage, so every new upload is already an
+ * optimized copy instead of storing whatever raw size the source file (a
+ * camera photo, an unoptimized PNG export, etc.) happened to be - several of
+ * the bundled snack photos this app shipped with were 1.5-2.5MB PNGs for
+ * what should be a ~100-200KB product photo, purely because nothing
+ * compressed them on the way in. Falls back to the original file untouched
+ * if the browser can't encode WebP, if decoding fails, or if the re-encoded
+ * result somehow isn't actually smaller. */
+FS.admin.prepareImageForUpload = (file, maxDimension = 1600, quality = 0.82) =>
+  new Promise((resolve) => {
+    const fallback = () => resolve({
+      blob: file,
+      contentType: file.type,
+      extension: (String(file.name || "").split(".").pop() || "jpg").toLowerCase(),
+    });
+    if (typeof document === "undefined" || !document.createElement) return fallback();
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); fallback(); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return fallback();
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob || blob.size >= file.size) { fallback(); return; }
+        resolve({ blob, contentType: "image/webp", extension: "webp" });
+      }, "image/webp", quality);
+    };
+    img.src = url;
+  });
+
 FS.admin.uploadSnackImage = async (snackId, file, kind = "photo", onProgress) => {
   await FS.admin.requireAdmin();
   if (!FS._storage) throw new Error("Firebase Storage SDK is unavailable.");
@@ -809,14 +848,16 @@ FS.admin.uploadSnackImage = async (snackId, file, kind = "photo", onProgress) =>
   if (!currentSnap.exists) throw new Error("Snack record not found.");
   const current = currentSnap.data();
   const pathField = kind === "photo" ? "photoStoragePath" : "favoritePhotoStoragePath";
+  const { blob, contentType, extension } = await FS.admin.prepareImageForUpload(file);
   const safeName = String(file.name || "image")
     .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, "")
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "image";
-  const objectPath = `snacks/${snackId}/${kind}-${Date.now()}-${safeName}`;
+  const objectPath = `snacks/${snackId}/${kind}-${Date.now()}-${safeName}.${extension}`;
   const objectRef = FS._storage.ref(objectPath);
-  const task = objectRef.put(file, {
-    contentType: file.type,
+  const task = objectRef.put(blob, {
+    contentType,
     cacheControl: "public,max-age=31536000,immutable",
     customMetadata: { snackId, artworkKind: kind },
   });

@@ -55,6 +55,13 @@ body::after {
   margin: 24px auto;
 }
 
+/* index.html only: a little extra width so the snack gallery can run 3
+   larger columns alongside the sticky cart sidebar without either shrinking
+   below what the standard 1040px page allowed. */
+.page-wide {
+  width: min(1280px, calc(100% - 28px));
+}
+
 header,
 .brand-card,
 .card,
@@ -3175,8 +3182,111 @@ textarea:focus {
 
 .bin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+/* Gallery + sticky cart tracker, side by side. The cart column is a fixed
+   width so the gallery keeps its 3 full-size columns regardless of viewport
+   width down to the tablet breakpoint below. align-items stays at its grid
+   default (stretch) rather than "start" - a sticky child only has room to
+   float while scrolling for as much extra height as its own parent box
+   actually has, and "start" would size the cart column down to just its own
+   content height (no taller than the cart card itself), leaving no range
+   for position:sticky to work with while the much taller gallery column
+   scrolls past beside it. */
+.bins-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 22px;
+}
+
+.bins-cart-sticky {
+  position: sticky;
+  top: 16px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.bins-cart-header {
+  font-weight: 600;
+  color: var(--green-dark);
+  margin-bottom: 10px;
+}
+
+.bins-cart-items {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.bins-cart-empty {
+  margin: 0;
+}
+
+.bins-cart-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.bins-cart-item:last-child {
+  border-bottom: none;
+}
+
+.bins-cart-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.bins-cart-item-qty {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bins-cart-item-subtotal {
+  font-weight: 600;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.bins-cart-item-remove {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bins-cart-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.bins-cart-total .amount {
+  color: var(--green-dark);
+  font-size: 18px;
+}
+
+.bins-cart-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.bins-cart-actions #bins-submit {
+  flex: 1;
 }
 
 .bin-card {
@@ -3818,6 +3928,21 @@ tr.disputed td {
   .bin-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+  }
+
+  /* no room to dock a sidebar next to the gallery on phones - stack it below
+     instead, and drop the sticky pin since there's no "side" to hold it to */
+  .bins-layout {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .bins-cart-sticky {
+    position: static;
+  }
+
+  .bins-cart-items {
+    max-height: 200px;
   }
 
   .bin-photo {

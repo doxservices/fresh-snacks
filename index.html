@@ -9,7 +9,7 @@
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
 <body>
-  <main class="page">
+  <main class="page page-wide">
     <header class="banner" id="site-banner"></header>
 
     <div id="firebase-auth-prompt"></div>
@@ -89,22 +89,32 @@
     </section>
 
     <section class="card section-card">
-      <h2>Snack now, pay later</h2>
-      <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
-      <div class="bin-grid" id="bins">
-        <p>Loading snacks…</p>
-      </div>
-      <div class="bin-total">
-        <div>
-          <div class="stat-label">Adding to tab</div>
-          <div class="amount" id="bins-total">J$0</div>
+      <div class="bins-layout">
+        <div class="bins-gallery-col">
+          <h2>Snack now, pay later</h2>
+          <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
+          <div class="bin-grid" id="bins">
+            <p>Loading snacks…</p>
+          </div>
         </div>
-        <div style="display:flex; gap:8px;">
-          <button id="bins-reset">Clear</button>
-          <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-        </div>
+        <aside class="bins-cart-col">
+          <div class="bins-cart-sticky">
+            <div class="bins-cart-header">Adding to tab</div>
+            <div class="bins-cart-items" id="bins-cart-items">
+              <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+            </div>
+            <div class="bins-cart-total">
+              <span>Total</span>
+              <span class="amount" id="bins-total">J$0</span>
+            </div>
+            <div class="bins-cart-actions">
+              <button id="bins-reset">Clear</button>
+              <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+            </div>
+            <div class="status" id="bins-status"></div>
+          </div>
+        </aside>
       </div>
-      <div class="status" id="bins-status"></div>
     </section>
 
     <div id="tab-activity" class="hidden">
@@ -483,6 +493,25 @@
       return t;
     }
 
+    function renderCartItems(data) {
+      const container = $id("bins-cart-items");
+      if (!picked.size) {
+        container.innerHTML = `<p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>`;
+        return;
+      }
+      const cur = data.profile.currency;
+      container.innerHTML = [...picked.entries()].map(([id, qty]) => {
+        const s = FS.snackById(data, id);
+        if (!s) return "";
+        return `<div class="bins-cart-item" data-id="${esc(id)}">
+          <span class="bins-cart-item-name">${esc(s.name)}</span>
+          <span class="bins-cart-item-qty">&times;${qty}</span>
+          <span class="bins-cart-item-subtotal">${FS.money(s.price * qty, cur)}</span>
+          <button type="button" class="bins-cart-item-remove" data-id="${esc(id)}" aria-label="Remove ${esc(s.name)}">&times;</button>
+        </div>`;
+      }).join("");
+    }
+
     function syncBinsGallery(data) {
       const cur = data.profile.currency;
       for (const s of data.catalog) {
@@ -491,6 +520,7 @@
       }
       $id("bins-total").textContent = FS.money(binsTotal(data), cur);
       $id("bins-submit").disabled = binsTotal(data) === 0;
+      renderCartItems(data);
     }
 
     function renderBinsGallery(data) {
@@ -623,6 +653,13 @@
     });
 
     $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
+
+    $id("bins-cart-items").addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".bins-cart-item-remove");
+      if (!btn) return;
+      picked.delete(btn.dataset.id);
+      syncBinsGallery(LAST_DATA);
+    });
 
     $id("bins-submit").onclick = async () => {
       const cur = LAST_DATA.profile.currency;
