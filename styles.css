@@ -3186,6 +3186,47 @@ textarea:focus {
   gap: 14px;
 }
 
+.snack-shop-section {
+  padding: 28px;
+}
+
+.snack-shop-heading {
+  text-align: center;
+  margin: 2px auto 28px;
+}
+
+.snack-shop-kicker {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.snack-shop-heading h2 {
+  color: var(--green-dark);
+  font-size: clamp(28px, 3.4vw, 42px);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+
+.snack-shop-heading h2::after {
+  background: var(--green);
+  border-radius: 99px;
+  content: "";
+  display: block;
+  height: 3px;
+  margin: 13px auto 14px;
+  width: 72px;
+}
+
+.snack-shop-heading p {
+  color: var(--muted);
+  margin: 0;
+}
+
 /* Gallery + sticky cart tracker, side by side. The cart column is a fixed
    width so the gallery keeps its 3 full-size columns regardless of viewport
    width down to the tablet breakpoint below. align-items stays at its grid
@@ -3207,13 +3248,25 @@ textarea:focus {
   background: rgba(255,255,255,0.9);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 18px;
+  box-shadow: 0 10px 28px rgba(24, 79, 42, 0.08);
 }
 
 .bins-cart-header {
-  font-weight: 600;
+  align-items: center;
+  border-bottom: 2px solid rgba(47, 122, 68, 0.18);
+  font-size: 18px;
+  font-weight: 500;
   color: var(--green-dark);
-  margin-bottom: 10px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  display: flex;
+}
+
+.bins-cart-icon {
+  height: 20px;
+  margin-right: 7px;
+  width: 20px;
 }
 
 .bins-cart-items {
@@ -3295,11 +3348,18 @@ textarea:focus {
   border-radius: var(--radius);
   padding: 0;
   overflow: hidden;
-  text-align: center;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(24, 79, 42, 0.07);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.bin-card:hover {
+  box-shadow: 0 12px 28px rgba(24, 79, 42, 0.12);
+  transform: translateY(-2px);
 }
 
 .bin-photo {
-  height: 132px;
+  height: 190px;
   background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
   border-bottom: 1px solid var(--line);
   position: relative;
@@ -3332,7 +3392,7 @@ textarea:focus {
 }
 
 .bin-body {
-  padding: 12px 14px 16px;
+  padding: 16px 17px 18px;
 }
 
 /* two-line clamp keeps every card's name block the same height, so price
@@ -3340,8 +3400,8 @@ textarea:focus {
    of whether a given snack's name is short ("Oreo") or long ("Butterkist
    Sandwich Cookies - Chocolate") */
 .bin-card .bin-name {
-  font-size: 15.5px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
   line-height: 1.28;
   color: var(--green-dark);
   display: -webkit-box;
@@ -3352,19 +3412,27 @@ textarea:focus {
 }
 
 .bin-card .bin-price {
+  color: var(--green);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 7px 0 3px;
+}
+
+.bin-card .bin-meta {
   color: var(--muted);
-  font-size: 13.5px;
-  margin: 3px 0 10px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
 }
 
 /* one encapsulated control: [ − | qty | + ] */
 .stepper {
-  display: inline-flex;
+  display: flex;
   align-items: stretch;
   border: 1px solid var(--line);
   border-radius: 999px;
   overflow: hidden;
   background: #fff;
+  width: 100%;
 }
 
 .stepper button {
@@ -3395,6 +3463,7 @@ textarea:focus {
   font-weight: 600;
   color: var(--green-dark);
   font-variant-numeric: tabular-nums;
+  flex: 1;
 }
 
 /* Tapping a bin's photo opens this bigger, easier-to-hit stepper instead of
@@ -3865,12 +3934,17 @@ tr.disputed td {
 
 .bin-facts {
   margin-bottom: 12px;
+  min-height: 18px;
 }
 
 .bin-facts a,
 #fav-facts a {
   color: var(--blue-dark);
   font-size: 13px;
+}
+
+.bin-facts a {
+  text-decoration: none;
 }
 
 .facts-overlay {

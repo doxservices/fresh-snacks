@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-gallery-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260717-bakenwake-gallery" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -88,18 +88,21 @@
       </article>
     </section>
 
-    <section class="card section-card">
+    <section class="card section-card snack-shop-section">
+      <div class="snack-shop-heading">
+        <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
+        <h2>Snack now, pay later</h2>
+        <p>Took a snack? Choose it below and add it to your tab.</p>
+      </div>
       <div class="bins-layout">
         <div class="bins-gallery-col">
-          <h2>Snack now, pay later</h2>
-          <p class="muted-small" style="margin-bottom:10px;">Took a snack? Tap it below — it goes on your tab right away.</p>
           <div class="bin-grid" id="bins">
             <p>Loading snacks…</p>
           </div>
         </div>
         <aside class="bins-cart-col">
           <div class="bins-cart-sticky">
-            <div class="bins-cart-header">Adding to tab</div>
+            <div class="bins-cart-header"><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H6.2M9.5 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg> Your selection</div>
             <div class="bins-cart-items" id="bins-cart-items">
               <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
             </div>
@@ -535,8 +538,9 @@
             : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
-            <div class="bin-price">${FS.money(s.price, data.profile.currency)} each</div>
-            ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
+            <div class="bin-price">${FS.money(s.price, data.profile.currency)}</div>
+            <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
+            ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">View nutrition details <span aria-hidden="true">&rsaquo;</span></a></div>` : `<div class="bin-facts bin-facts-empty" aria-hidden="true">&nbsp;</div>`}
             <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
               <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
               <span class="qty" data-id="${esc(s.id)}">0</span>
