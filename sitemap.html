@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Sitemap</title>
+  <link rel="stylesheet" href="styles.css?v=20260717-admin-sitemap" />
+  <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
+  <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div><h1>Sitemap</h1><p>Generate QR codes from one organized view of Fresh Snacks.</p></div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Dashboard</a>
+          <a class="btn" href="inventory.html">Bins</a>
+          <a class="btn" href="catalog.html">Catalog</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="sitemap.html" aria-current="page">Sitemap</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" /></div>
+        <div class="field"><label for="admin-password">Password</label><input id="admin-password" type="password" autocomplete="current-password" /></div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="sitemap-app" class="hidden">
+      <section class="card section-card">
+        <div class="section-head"><div><h2>Page hierarchy</h2><p class="muted-small">Open a page normally or use its QR button to display, copy, or scan its code.</p></div></div>
+        <div class="sitemap-tree" id="page-sitemap"></div>
+      </section>
+      <section class="card section-card">
+        <div class="section-head"><div><h2>Inventory hierarchy</h2><p class="muted-small">Floor and bin codes return an administrator directly to that inventory location.</p></div></div>
+        <div class="sitemap-tree inventory-sitemap" id="inventory-sitemap"></div>
+      </section>
+    </section>
+
+    <footer>Sitemap and inventory QR tools are restricted to authorized Fresh Snacks administrators.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js"></script>
+  <script src="js/firebase-admin.js?v=20260717-admin-sitemap"></script>
+  <script>
+    let SNAPSHOT = null;
+    const $ = (id) => document.getElementById(id);
+    const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+    const qrIcon = `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm4 0h3v7h-3v-3h-3v3h-3v-3h3v-3h3v-1Z" fill="currentColor" stroke="none"/></svg>`;
+    const pages = [
+      { label: "Customer experience", group: true },
+      { label: "My tab", href: "index.html", level: 1 },
+      { label: "Log my snacks", href: "bins.html", level: 1 },
+      { label: "Invoice", href: "invoice.html", level: 1 },
+      { label: "Feedback", href: "feedback.html", level: 1 },
+      { label: "Privacy policy", href: "privacy.html", level: 1 },
+      { label: "Administration", group: true },
+      { label: "Dashboard", href: "admin.html", level: 1 },
+      { label: "Bins", href: "inventory.html", level: 1 },
+      { label: "Snack catalog", href: "catalog.html", level: 1 },
+      { label: "Accounting", href: "accounting.html", level: 1 },
+      { label: "Transactions and payments", href: "transactions.html", level: 2 },
+      { label: "Sitemap", href: "sitemap.html", level: 1 },
+    ];
+
+    function destination(href) { return new URL(href, location.href).href; }
+    function row({ label, href, level = 0, meta = "" }) {
+      return `<div class="sitemap-row level-${level}" data-label="${esc(label)}" data-href="${esc(href)}">
+        <span class="sitemap-branch" aria-hidden="true"></span>
+        <div class="sitemap-label"><a href="${esc(href)}">${esc(label)}</a>${meta ? `<span>${esc(meta)}</span>` : ""}</div>
+        <button type="button" class="icon-button sitemap-qr" data-action="show-qr" title="Show QR code" aria-label="Show QR code for ${esc(label)}">${qrIcon}</button>
+      </div>`;
+    }
+
+    function render() {
+      $("page-sitemap").innerHTML = pages.map((page) => page.group
+        ? `<div class="sitemap-group">${esc(page.label)}</div>`
+        : row(page)).join("");
+      const floors = [...new Set(SNAPSHOT.bins.map((bin) => bin.floor))];
+      $("inventory-sitemap").innerHTML = floors.length ? floors.map((floor) => {
+        const floorHref = `inventory.html?floor=${encodeURIComponent(floor)}`;
+        const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
+        return `<div class="sitemap-floor">${row({ label: floor, href: floorHref, meta: `${bins.length} ${bins.length === 1 ? "bin" : "bins"}` })}${bins.map((bin) => row({ label: bin.name, href: `inventory.html?bin=${encodeURIComponent(bin.id)}`, level: 1, meta: `${bin.totalUnits} units` })).join("")}</div>`;
+      }).join("") : `<p class="muted-small">No inventory locations are configured.</p>`;
+    }
+
+    async function refresh() {
+      SNAPSHOT = await FS.admin.getBinsSnapshot();
+      $("login-panel").classList.add("hidden");
+      $("sitemap-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      render();
+    }
+    async function login(method) {
+      try { await method(); await refresh(); }
+      catch (error) { $("login-status").textContent = error.message; $("login-status").className = "status err"; }
+    }
+    $("google-login").onclick = () => login(() => FS.admin.signInWithGoogle());
+    $("microsoft-login").onclick = () => login(() => FS.admin.signInWithMicrosoft());
+    $("email-login").onclick = () => login(() => FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value));
+    $("admin-sign-out").onclick = async () => { await FS.admin.signOut(); $("sitemap-app").classList.add("hidden"); $("admin-sign-out").classList.add("hidden"); $("login-panel").classList.remove("hidden"); };
+    $("sitemap-app").addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action='show-qr']");
+      if (!button) return;
+      const item = button.closest("[data-href]");
+      await FreshSnacksQR.open({ label: item.dataset.label, destination: destination(item.dataset.href), button });
+    });
+    FS.initFirebase().then(() => FS.admin.currentAdmin()).then((admin) => { if (admin) return refresh(); }).catch((error) => { $("login-status").textContent = error.message; $("login-status").className = "status err"; });
+  </script>
+</body>
+</html>

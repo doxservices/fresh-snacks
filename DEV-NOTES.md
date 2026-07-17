@@ -1,5 +1,13 @@
 # Development notes
 
+## Admin sitemap and inventory QR codes (2026-07-17)
+
+- Admin header links no longer receive individual QR buttons. QR generation for application pages is centralized on the admin-only `sitemap.html` page.
+- The sitemap presents customer and administrative page hierarchy, plus live inventory floors and bins after administrator authentication.
+- Each floor header and bin card on `inventory.html` has an explicit QR button. Its code links back to the protected inventory page with a stable `floor` or `bin` query parameter; after authentication, the destination scrolls into view and is highlighted.
+- Inventory remains admin-only. This change does not expose physical stock documents through public Firestore rules.
+- Customer drawer QR buttons remain available; the removal applies to the admin header navigation.
+
 ## Location-based bin CRUD (2026-07-16)
 
 - `inventory.html` is the admin Bins page; customer self-service remains on

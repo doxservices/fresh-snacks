@@ -1,4 +1,5 @@
-/* On-demand QR copying for customer and admin navigation links. */
+/* Shared on-demand QR modal. Customer drawer links are enhanced automatically;
+ * admin pages call FreshSnacksQR.open() from the protected sitemap/inventory. */
 (function () {
   const QR_SCRIPT_ID = "fresh-snacks-qr-generator";
 
@@ -150,6 +151,13 @@
     }
   }
 
+  async function openDestination({ label, destination, button }) {
+    const anchor = document.createElement("a");
+    anchor.href = destination;
+    anchor.textContent = label;
+    await openQr(anchor, button || document.createElement("button"));
+  }
+
   function enhance(anchor) {
     if (anchor.dataset.qrEnhanced === "true" || !anchor.getAttribute("href")) return;
     anchor.dataset.qrEnhanced = "true";
@@ -169,13 +177,16 @@
   }
 
   function scan(root = document) {
-    root.querySelectorAll?.(".header-actions a[href], nav.drawer a.drawer-link[href]").forEach(enhance);
+    root.querySelectorAll?.("nav.drawer a.drawer-link[href]").forEach(enhance);
   }
+
+
+  window.FreshSnacksQR = { open: openDestination };
 
   scan();
   new MutationObserver((records) => records.forEach((record) => record.addedNodes.forEach((node) => {
     if (node.nodeType !== 1) return;
-    if (node.matches?.(".header-actions a[href], nav.drawer a.drawer-link[href]")) enhance(node);
+    if (node.matches?.("nav.drawer a.drawer-link[href]")) enhance(node);
     scan(node);
   }))).observe(document.body, { childList: true, subtree: true });
 })();

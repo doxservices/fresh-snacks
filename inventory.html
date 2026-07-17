@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-professional-bin-icons" />
+  <link rel="stylesheet" href="styles.css?v=20260717-admin-sitemap" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
-  <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
+  <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
 <body>
   <main class="page">
@@ -24,6 +24,7 @@
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="accounting.html">Accounting</a>
           <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="sitemap.html">Sitemap</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -142,6 +143,7 @@
   <script src="js/firebase-admin.js?v=20260716-inline-bins"></script>
   <script>
     let SNAPSHOT = null;
+    let focusedFromQr = false;
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
@@ -152,6 +154,7 @@
       trash: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 7h14M9 7V4h6v3M7 7l.8 13h8.4L17 7M10 11v5M14 11v5"/></svg>`,
       grip: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="8" cy="6" r="1"/><circle cx="16" cy="6" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg>`,
       plus: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>`,
+      qr: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm4 0h3v7h-3v-3h-3v3h-3v-3h3v-3h3v-1Z" fill="currentColor" stroke="none"/></svg>`,
     }[name] || "");
 
     function status(id, message, ok) {
@@ -305,6 +308,7 @@
               <span><small>Units</small>${metric.units}</span>
             </div>
             <div class="bin-floor-actions">
+              <button type="button" class="icon-button" data-action="floor-qr" data-floor="${esc(floor)}" title="Show floor QR code" aria-label="Show QR code for ${esc(floor)}">${svgIcon("qr")}</button>
               <button type="button" class="action-button" data-action="duplicate-floor" title="Duplicate floor" aria-label="Duplicate ${esc(floor)}">${svgIcon("copy")}<span>Duplicate floor</span></button>
               <button type="button" class="danger icon-button" data-action="delete-floor" title="Delete floor and bins" aria-label="Delete ${esc(floor)}">${svgIcon("trash")}</button>
             </div>
@@ -321,11 +325,27 @@
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
               </div>
               <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
-              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">${svgIcon("copy")}</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">${svgIcon("edit")}</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">${svgIcon("trash")}</button></div>
+              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="bin-qr" title="Show bin QR code" aria-label="Show QR code for ${esc(bin.name)}">${svgIcon("qr")}</button><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">${svgIcon("copy")}</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">${svgIcon("edit")}</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">${svgIcon("trash")}</button></div>
             </article>`;
           }).join("")}</div>
         </section>`;
       }).join("") : `<p class="muted-small">No bins configured.</p>`;
+
+      if (!focusedFromQr) {
+        const params = new URLSearchParams(location.search);
+        const targetBin = params.get("bin");
+        const targetFloor = params.get("floor");
+        const target = targetBin
+          ? $("bin-locations").querySelector(`[data-bin-id="${CSS.escape(targetBin)}"]`)
+          : targetFloor
+            ? $("bin-locations").querySelector(`[data-floor-group="${CSS.escape(targetFloor)}"]`)
+            : null;
+        if (target) {
+          focusedFromQr = true;
+          target.classList.add("qr-target-highlight");
+          requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "center" }));
+        }
+      }
     }
 
     async function refresh() {
@@ -496,6 +516,13 @@
         openCopyBinDialog(button.dataset.floor);
         return;
       }
+      if (button.dataset.action === "floor-qr") {
+        const floor = button.dataset.floor || button.closest("[data-floor]")?.dataset.floor;
+        const destination = new URL("inventory.html", location.href);
+        destination.searchParams.set("floor", floor);
+        await FreshSnacksQR.open({ label: `${floor} floor`, destination: destination.href, button });
+        return;
+      }
       const floorActions = button.closest("[data-floor]");
       if (floorActions) {
         const floor = floorActions.dataset.floor;
@@ -523,6 +550,13 @@
       const card = button.closest("[data-bin-id]");
       if (!card) return;
       const id = card.dataset.binId;
+      if (button.dataset.action === "bin-qr") {
+        const bin = SNAPSHOT.bins.find((record) => record.id === id);
+        const destination = new URL("inventory.html", location.href);
+        destination.searchParams.set("bin", id);
+        await FreshSnacksQR.open({ label: `${bin.floor} — ${bin.name}`, destination: destination.href, button });
+        return;
+      }
       if (button.dataset.action === "edit-bin") return editBin(id);
       const bin = SNAPSHOT.bins.find((record) => record.id === id);
       if (button.dataset.action === "duplicate-bin") {
