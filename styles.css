@@ -3341,59 +3341,32 @@ textarea:focus {
   margin: 0;
 }
 
-/* Gallery + sticky cart tracker, side by side. The cart column is a fixed
-   width so the gallery keeps its 3 full-size columns regardless of viewport
-   width down to the tablet breakpoint below. align-items stays at its grid
-   default (stretch) rather than "start" - a sticky child only has room to
-   float while scrolling for as much extra height as its own parent box
-   actually has, and "start" would size the cart column down to just its own
-   content height (no taller than the cart card itself), leaving no range
-   for position:sticky to work with while the much taller gallery column
-   scrolls past beside it. */
+/* Gallery + persistent cart well, side by side on desktop/tablet - the well
+   stays in view via position:sticky rather than being hidden behind a
+   floating button, so a shopper can always see what they've picked while
+   browsing the rest of the gallery. align-items stays at its grid default
+   (stretch) rather than "start" - a sticky child only has room to float
+   while scrolling for as much extra height as its own parent box actually
+   has, and "start" would size the cart column down to just its own content
+   height (no taller than the cart card itself), leaving no range for
+   position:sticky to work with while the much taller gallery column scrolls
+   past beside it.
+   Below the 900px breakpoint there's no room for gallery + well side by
+   side, so it switches over to the floating button + slide-in drawer
+   pattern instead (see that breakpoint below). */
 .bins-layout {
-  display: block;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 320px;
 }
 
-/* Dims the page behind the basket panel while it's open, and gives a click
-   target to close it - without this there was no way to dismiss the panel
-   except the small X button or Escape. */
 .basket-overlay {
-  background: rgba(24, 79, 42, 0.28);
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  position: fixed;
-  transition: opacity 160ms ease;
-  z-index: 41;
-}
-
-.basket-overlay.is-open {
-  opacity: 1;
-  pointer-events: auto;
+  display: none;
 }
 
 .bins-cart-col {
-  opacity: 0;
-  pointer-events: none;
-  position: fixed;
-  right: 18px;
-  top: 84px;
-  transform: translateX(calc(100% + 34px));
-  transition: opacity 160ms ease, transform 180ms ease;
-  /* 100vw can measure wider than the actual visible viewport once a
-     vertical scrollbar is present (a well-known browser quirk - vw doesn't
-     subtract the scrollbar's own width), which at narrow phone widths was
-     enough to push this fixed-position panel's left edge past the screen
-     edge. A wider safety margin than the visual gap alone calls for absorbs
-     that discrepancy instead of trying to calculate around it exactly. */
-  width: min(300px, calc(100vw - 44px));
-  z-index: 43;
-}
-
-.bins-cart-col.is-open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(0);
+  position: sticky;
+  top: 16px;
 }
 
 .bins-cart-sticky {
@@ -3640,7 +3613,7 @@ textarea:focus {
   border-radius: 50%;
   box-shadow: 0 8px 20px rgba(24, 79, 42, 0.24);
   color: #fff;
-  display: flex;
+  display: none;
   height: 54px;
   justify-content: center;
   padding: 0;
@@ -4266,9 +4239,56 @@ tr.disputed td {
     grid-template-columns: 1fr;
   }
 
+  /* Below this width the gallery + persistent well no longer fit side by
+     side, so the well switches to a floating button that opens a slide-in
+     drawer instead - the desktop base rules above (position:sticky, always
+     visible) are overridden back to the fixed/hidden/toggle pattern here. */
+  .bins-layout {
+    display: block;
+  }
+
+  .basket-notification {
+    display: flex;
+  }
+
+  .basket-overlay {
+    background: rgba(24, 79, 42, 0.28);
+    display: block;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
+    transition: opacity 160ms ease;
+    z-index: 41;
+  }
+
+  .basket-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .bins-cart-col {
+    opacity: 0;
+    pointer-events: none;
+    position: fixed;
     right: 14px;
     top: 78px;
+    transform: translateX(calc(100% + 34px));
+    transition: opacity 160ms ease, transform 180ms ease;
+    /* 100vw can measure wider than the actual visible viewport once a
+       vertical scrollbar is present (a well-known browser quirk - vw
+       doesn't subtract the scrollbar's own width), which at narrow phone
+       widths was enough to push this fixed-position panel's left edge past
+       the screen edge. A wider safety margin than the visual gap alone
+       calls for absorbs that discrepancy instead of trying to calculate
+       around it exactly. */
+    width: min(300px, calc(100vw - 44px));
+  }
+
+  .bins-cart-col.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
   }
 
   .favorite-card {
