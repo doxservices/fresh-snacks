@@ -108,6 +108,7 @@
             <p>Loading snacks…</p>
           </div>
         </div>
+        <div class="basket-overlay" id="basket-overlay"></div>
         <aside class="bins-cart-col" id="basket-panel" aria-label="Your basket">
           <div class="bins-cart-sticky">
             <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 9h14l-1.2 10H6.2L5 9Zm3.5 0L12 4l3.5 5M4 9h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg> Your basket</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
@@ -706,15 +707,19 @@
       const panel = $id("basket-panel");
       const opening = !panel.classList.contains("is-open");
       panel.classList.toggle("is-open", opening);
+      $id("basket-overlay").classList.toggle("is-open", opening);
       $id("basket-notification").setAttribute("aria-expanded", String(opening));
       if (opening) $id("basket-panel-close").focus();
     };
 
     $id("basket-panel-close").onclick = () => {
       $id("basket-panel").classList.remove("is-open");
+      $id("basket-overlay").classList.remove("is-open");
       $id("basket-notification").setAttribute("aria-expanded", "false");
       $id("basket-notification").focus();
     };
+
+    $id("basket-overlay").onclick = () => $id("basket-panel-close").click();
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {

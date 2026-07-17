@@ -16,6 +16,15 @@
 
 * { box-sizing: border-box; }
 
+/* Without this, position:fixed elements that are deliberately translated
+   off-screen (the slide-in basket panel when closed) or decorative
+   background shapes that bleed past the edge still count toward the page's
+   scrollable width, since overflow-x on body alone doesn't clip fixed
+   descendants - only html does. */
+html {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
@@ -23,6 +32,7 @@ body {
   line-height: 1.42;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
   background: #f6faf5;
 }
 
@@ -3344,6 +3354,24 @@ textarea:focus {
   display: block;
 }
 
+/* Dims the page behind the basket panel while it's open, and gives a click
+   target to close it - without this there was no way to dismiss the panel
+   except the small X button or Escape. */
+.basket-overlay {
+  background: rgba(24, 79, 42, 0.28);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 160ms ease;
+  z-index: 41;
+}
+
+.basket-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .bins-cart-col {
   opacity: 0;
   pointer-events: none;
@@ -3352,7 +3380,13 @@ textarea:focus {
   top: 84px;
   transform: translateX(calc(100% + 34px));
   transition: opacity 160ms ease, transform 180ms ease;
-  width: min(300px, calc(100vw - 28px));
+  /* 100vw can measure wider than the actual visible viewport once a
+     vertical scrollbar is present (a well-known browser quirk - vw doesn't
+     subtract the scrollbar's own width), which at narrow phone widths was
+     enough to push this fixed-position panel's left edge past the screen
+     edge. A wider safety margin than the visual gap alone calls for absorbs
+     that discrepancy instead of trying to calculate around it exactly. */
+  width: min(300px, calc(100vw - 44px));
   z-index: 43;
 }
 
