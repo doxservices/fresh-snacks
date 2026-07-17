@@ -3281,10 +3281,13 @@ textarea:focus {
 
 .bins-cart-item {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name subtotal"
+    "stepper remove";
   align-items: center;
-  gap: 6px;
-  padding: 7px 0;
+  gap: 8px 10px;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line);
   font-size: 13.5px;
 }
@@ -3294,24 +3297,22 @@ textarea:focus {
 }
 
 .bins-cart-item-name {
+  grid-area: name;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
 }
 
-.bins-cart-item-qty {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .bins-cart-item-subtotal {
+  grid-area: subtotal;
   font-weight: 600;
   color: var(--green-dark);
   font-variant-numeric: tabular-nums;
 }
 
 .bins-cart-item-remove {
+  grid-area: remove;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -3351,6 +3352,35 @@ textarea:focus {
   text-align: left;
   box-shadow: 0 8px 22px rgba(24, 79, 42, 0.07);
   transition: transform 160ms ease, box-shadow 160ms ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.basket-item-stepper {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-grid;
+  grid-area: stepper;
+  grid-template-columns: 30px minmax(32px, auto) 30px;
+  justify-self: start;
+  overflow: hidden;
+}
+
+.basket-item-stepper button {
+  background: #f4faf3;
+  border: 0;
+  border-radius: 0;
+  color: var(--green-dark);
+  height: 30px;
+  padding: 0;
+  width: 30px;
+}
+
+.basket-item-stepper span {
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .bin-card:hover {
@@ -3393,6 +3423,9 @@ textarea:focus {
 
 .bin-body {
   padding: 16px 17px 18px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 /* two-line clamp keeps every card's name block the same height, so price
@@ -3422,6 +3455,66 @@ textarea:focus {
   color: var(--muted);
   font-size: 12.5px;
   margin-bottom: 10px;
+}
+
+.bin-add-button {
+  margin-top: auto;
+  width: 100%;
+}
+
+.basket-notification {
+  align-items: center;
+  background: var(--green-dark);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(24, 79, 42, 0.24);
+  color: #fff;
+  display: flex;
+  height: 54px;
+  justify-content: center;
+  padding: 0;
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  width: 54px;
+  z-index: 42;
+}
+
+.basket-notification:active {
+  box-shadow: 0 3px 8px rgba(24, 79, 42, 0.24);
+  transform: translateY(2px);
+}
+
+.basket-notification svg {
+  height: 26px;
+  width: 26px;
+}
+
+.basket-notification span {
+  align-items: center;
+  background: #fff;
+  border: 2px solid var(--green-dark);
+  border-radius: 999px;
+  color: var(--green-dark);
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  height: 21px;
+  justify-content: center;
+  min-width: 21px;
+  padding: 0 4px;
+  position: absolute;
+  right: -4px;
+  top: -4px;
+}
+
+.bins-cart-sticky.basket-attention {
+  animation: basket-attention 700ms ease;
+}
+
+@keyframes basket-attention {
+  0%, 100% { outline: 0 solid rgba(47, 122, 68, 0); }
+  45% { outline: 7px solid rgba(47, 122, 68, 0.16); }
 }
 
 /* one encapsulated control: [ − | qty | + ] */
@@ -3466,8 +3559,8 @@ textarea:focus {
   flex: 1;
 }
 
-/* Tapping a bin's photo opens this bigger, easier-to-hit stepper instead of
-   the small inline one - same control, just given more room to tap on a phone. */
+/* Tapping a product photo opens its preview. Quantities are adjusted only in
+   the basket so the gallery remains clean and product-led. */
 .bin-photo {
   cursor: pointer;
 }
@@ -3542,6 +3635,10 @@ textarea:focus {
   align-items: center;
   justify-content: center;
   gap: 12px;
+}
+
+.snack-modal-add {
+  min-width: 180px;
 }
 
 .snack-modal-stepper {

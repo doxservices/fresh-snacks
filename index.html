@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-bakenwake-gallery" />
+  <link rel="stylesheet" href="styles.css?v=20260717-basket-gallery" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -17,6 +17,11 @@
       <div><strong>Fresh Snacks did not finish loading.</strong><span id="app-health-message">Please retry. If this continues, share the message below with Fresh Snacks.</span></div>
       <button type="button" id="app-health-retry">Retry</button>
     </section>
+
+    <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 9h14l-1.2 10H6.2L5 9Zm3.5 0L12 4l3.5 5M4 9h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
+      <span id="basket-notification-count" aria-hidden="true">0</span>
+    </button>
 
     <section class="card section-card link-invite-card hidden" id="link-invite-card">
       <h2 id="link-invite-title">Connecting your tab…</h2>
@@ -262,12 +267,7 @@
           <h2 id="snack-modal-title"></h2>
           <p id="snack-modal-price"></p>
           <div class="snack-modal-controls">
-            <div class="stepper snack-modal-stepper" role="group">
-              <button id="snack-modal-minus" aria-label="One less">&minus;</button>
-              <span class="qty" id="snack-modal-qty" aria-live="polite" aria-atomic="true">0</span>
-              <button id="snack-modal-plus" aria-label="One more">+</button>
-            </div>
-            <button class="primary" id="snack-modal-done">Done</button>
+            <button class="primary snack-modal-add" id="snack-modal-add">Add to basket</button>
           </div>
         </div>
       </div>
@@ -508,8 +508,12 @@
         if (!s) return "";
         return `<div class="bins-cart-item" data-id="${esc(id)}">
           <span class="bins-cart-item-name">${esc(s.name)}</span>
-          <span class="bins-cart-item-qty">&times;${qty}</span>
           <span class="bins-cart-item-subtotal">${FS.money(s.price * qty, cur)}</span>
+          <span class="basket-item-stepper" role="group" aria-label="${esc(s.name)} quantity">
+            <button type="button" data-id="${esc(id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+            <span aria-live="polite" aria-atomic="true">${qty}</span>
+            <button type="button" data-id="${esc(id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+          </span>
           <button type="button" class="bins-cart-item-remove" data-id="${esc(id)}" aria-label="Remove ${esc(s.name)}">&times;</button>
         </div>`;
       }).join("");
@@ -517,23 +521,23 @@
 
     function syncBinsGallery(data) {
       const cur = data.profile.currency;
-      for (const s of data.catalog) {
-        const el = document.querySelector(`#bins .qty[data-id="${s.id}"]`);
-        if (el) el.textContent = picked.get(s.id) || 0;
-      }
       $id("bins-total").textContent = FS.money(binsTotal(data), cur);
       $id("bins-submit").disabled = binsTotal(data) === 0;
+      $id("basket-notification-count").textContent = picked.size;
+      $id("basket-notification").setAttribute("aria-label", `View basket, ${picked.size} different snack${picked.size === 1 ? "" : "s"} selected`);
       renderCartItems(data);
     }
 
     function renderBinsGallery(data) {
       if (!data.catalog.length) {
+        $id("basket-notification").classList.add("hidden");
         $id("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
+      $id("basket-notification").classList.remove("hidden");
       $id("bins").innerHTML = data.catalog.map((s) => `
         <div class="bin-card" data-id="${esc(s.id)}">
-          <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="Adjust ${esc(s.name)} quantity">${s.photo
+          <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
             : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
           <div class="bin-body">
@@ -541,11 +545,7 @@
             <div class="bin-price">${FS.money(s.price, data.profile.currency)}</div>
             <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
             ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">View nutrition details <span aria-hidden="true">&rsaquo;</span></a></div>` : `<div class="bin-facts bin-facts-empty" aria-hidden="true">&nbsp;</div>`}
-            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
-              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
-              <span class="qty" data-id="${esc(s.id)}">0</span>
-              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
-            </div>
+            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}">Add to basket</button>
           </div>
         </div>`).join("");
       syncBinsGallery(data);
@@ -564,11 +564,10 @@
         FS.showFacts(facts.dataset.facts, facts.dataset.name);
         return;
       }
-      const btn = ev.target.closest("button[data-id]");
+      const btn = ev.target.closest("button[data-add]");
       if (btn) {
-        const id = btn.dataset.id;
-        const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
-        if (next === 0) picked.delete(id); else picked.set(id, next);
+        const id = btn.dataset.add;
+        picked.set(id, (picked.get(id) || 0) + 1);
         syncBinsGallery(LAST_DATA);
         return;
       }
@@ -590,10 +589,6 @@
     let modalSnackId = null;
     let snackModalReturnFocus = null;
 
-    function syncSnackModal() {
-      $id("snack-modal-qty").textContent = picked.get(modalSnackId) || 0;
-    }
-
     function openSnackModal(id) {
       const s = FS.snackById(LAST_DATA, id);
       if (!s) return;
@@ -604,9 +599,8 @@
         : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
-      syncSnackModal();
       $id("snack-modal-backdrop").classList.add("show");
-      $id("snack-modal-minus").focus();
+      $id("snack-modal-add").focus();
     }
 
     function closeSnackModal() {
@@ -619,21 +613,13 @@
       snackModalReturnFocus = null;
     }
 
-    $id("snack-modal-minus").onclick = () => {
-      if (!modalSnackId) return;
-      const next = Math.max(0, (picked.get(modalSnackId) || 0) - 1);
-      if (next === 0) picked.delete(modalSnackId); else picked.set(modalSnackId, next);
-      syncBinsGallery(LAST_DATA);
-      syncSnackModal();
-    };
-    $id("snack-modal-plus").onclick = () => {
+    $id("snack-modal-add").onclick = () => {
       if (!modalSnackId) return;
       picked.set(modalSnackId, (picked.get(modalSnackId) || 0) + 1);
       syncBinsGallery(LAST_DATA);
-      syncSnackModal();
+      closeSnackModal();
     };
     $id("snack-modal-close").onclick = closeSnackModal;
-    $id("snack-modal-done").onclick = closeSnackModal;
     $id("snack-modal-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("snack-modal-backdrop")) closeSnackModal();
     });
@@ -659,11 +645,25 @@
     $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
 
     $id("bins-cart-items").addEventListener("click", (ev) => {
+      const step = ev.target.closest("button[data-d]");
+      if (step) {
+        const id = step.dataset.id;
+        const next = Math.max(0, (picked.get(id) || 0) + Number(step.dataset.d));
+        if (next === 0) picked.delete(id); else picked.set(id, next);
+        syncBinsGallery(LAST_DATA);
+        return;
+      }
       const btn = ev.target.closest(".bins-cart-item-remove");
       if (!btn) return;
       picked.delete(btn.dataset.id);
       syncBinsGallery(LAST_DATA);
     });
+
+    $id("basket-notification").onclick = () => {
+      document.querySelector(".bins-cart-sticky").scrollIntoView({ behavior: "smooth", block: "center" });
+      document.querySelector(".bins-cart-sticky").classList.add("basket-attention");
+      setTimeout(() => document.querySelector(".bins-cart-sticky")?.classList.remove("basket-attention"), 900);
+    };
 
     $id("bins-submit").onclick = async () => {
       const cur = LAST_DATA.profile.currency;
