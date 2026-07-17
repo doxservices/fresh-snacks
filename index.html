@@ -40,7 +40,7 @@
 
         <div class="brand-stats">
           <div class="stat-box balance-stat">
-            <div class="stat-label">Current tab</div>
+            <div class="stat-label" id="stat-balance-label">Current tab</div>
             <div class="stat-value warm" id="stat-balance">–</div>
           </div>
           <div class="stat-box">
@@ -169,7 +169,7 @@
             <td></td>
           </tr>
           <tr class="balance-row">
-            <td>Current tab</td>
+            <td id="bottom-balance-label">Current tab</td>
             <td></td>
             <td></td>
             <td class="num-money"><span class="mv" id="bottom-balance">–</span></td>
@@ -348,7 +348,9 @@
       const set = (id, v) => (document.getElementById(id).textContent = v);
       set("brand-title", data.profile.brand);
       set("brand-subtitle", data.profile.subtitle);
-      set("stat-balance", FS.money(t.balance, cur));
+      const balanceText = FS.money(Math.abs(t.balance), cur);
+      set("stat-balance-label", t.balance < 0 ? "Available credit" : "Current tab");
+      set("stat-balance", balanceText);
       set("stat-avg", `${FS.money(avgPerDay, cur)}/day`);
       set("stat-paid", FS.money(t.paid, cur));
       set("stat-days", snackDays);
@@ -407,7 +409,8 @@
       set("sum-month", FS.money(monthTotal, cur));
       set("bottom-value", FS.money(t.value, cur));
       set("bottom-paid", FS.money(t.paid, cur));
-      set("bottom-balance", FS.money(t.balance, cur));
+      set("bottom-balance-label", t.balance < 0 ? "Available credit" : "Current tab");
+      set("bottom-balance", balanceText);
 
       renderBinsGallery(data);
 

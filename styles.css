@@ -2829,6 +2829,100 @@ textarea:focus {
   gap: 16px;
 }
 
+/* Customer transaction and payment ledger */
+.user-ledger-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr)) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(246, 250, 247, .78);
+}
+
+.user-ledger-overview > div {
+  display: grid;
+  gap: 2px;
+  color: var(--text);
+  font-size: .96rem;
+  font-weight: 500;
+}
+
+.user-ledger-overview > div span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 400;
+}
+
+.user-ledger-overview .credit { color: #087a46; }
+.user-ledger-overview .due { color: #8a4d16; }
+.credit-balance { color: #087a46; font-weight: 500; }
+
+.ledger-type,
+.ledger-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.ledger-type {
+  margin-right: 5px;
+  border: 1px solid #d4e2d7;
+  color: #52645a;
+  background: #f7faf8;
+}
+
+.ledger-type.payment,
+.ledger-status.paid {
+  border-color: #b9d8c2;
+  color: #075b35;
+  background: #eaf6ed;
+}
+
+.ledger-status.neutral {
+  color: #66736a;
+  background: #eef2ef;
+}
+
+.ledger-status.approved {
+  color: #29566f;
+  background: #e9f2f7;
+}
+
+.payment-row { background: rgba(234, 246, 237, .42); }
+.payment-value { color: #087a46; }
+.ledger-actions { white-space: nowrap; }
+.ledger-actions button + button { margin-left: 4px; }
+.permanent-note { color: var(--muted); font-size: .78rem; }
+
+.payment-modal { width: min(540px, calc(100vw - 28px)); }
+.payment-form { display: grid; gap: 14px; margin-top: 16px; }
+
+.payment-ledger-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.payment-ledger-link-card h2,
+.payment-ledger-link-card p { margin-bottom: 0; }
+
+@media (max-width: 760px) {
+  .user-ledger-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .user-ledger-overview > button { width: 100%; }
+  #txn-groups details > .admin-table { display: block; overflow-x: auto; }
+  .payment-ledger-link-card { align-items: stretch; flex-direction: column; }
+}
+
 .bin-copy-dialog h2,
 .bin-copy-dialog p {
   margin-bottom: 0;

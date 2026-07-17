@@ -93,6 +93,7 @@ FS.admin.getSnapshot = async () => {
     FS.admin.getCollection("feedback"),
   ]);
   const activeTransactions = transactions.filter((x) => x.status !== "void");
+  const balanceTransactions = activeTransactions.filter((x) => x.userStatus !== "disputed");
   const activePayments = payments.filter((x) => x.status !== "void");
   const activeAdjustments = adjustments.filter((x) => x.status !== "void");
   return {
@@ -104,7 +105,7 @@ FS.admin.getSnapshot = async () => {
     payments: activePayments,
     adjustments: activeAdjustments,
     feedback: feedback.sort((a, b) => FS.admin.dateFromRecord(b, "createdAt").localeCompare(FS.admin.dateFromRecord(a, "createdAt"))),
-    accounting: FS.admin.accounting(users, devices, activeTransactions, activePayments, activeAdjustments),
+    accounting: FS.admin.accounting(users, devices, balanceTransactions, activePayments, activeAdjustments),
   };
 };
 
@@ -312,6 +313,100 @@ FS.admin.voidTransaction = async (id) => {
     voidedBy: FS.admin.user.uid,
     voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
+};
+
+FS.admin.paymentAllocationPlan = (transactions, paidTotal) => {
+  const alreadySettled = transactions
+    .filter((record) => record.reviewStatus === "paid")
+    .reduce((sum, record) => sum + Number(record.total || record.value || 0), 0);
+  let available = Math.max(0, paidTotal - alreadySettled);
+  const eligible = transactions
+    .filter((record) => record.reviewStatus === "approved")
+    .sort((a, b) => String(a.createdDate || "").localeCompare(String(b.createdDate || ""))
+      || String(a.id).localeCompare(String(b.id)));
+  const settledIds = [];
+  for (const record of eligible) {
+    const value = Number(record.total || record.value || 0);
+    if (value <= 0) continue;
+    if (available < value) break;
+    available -= value;
+    settledIds.push(record.id);
+  }
+  return { settledIds, credit: available, paidTotal };
+};
+
+FS.admin.allocateApprovedTransactions = async (userId) => {
+  await FS.admin.requireAdmin();
+  const [transactionSnap, paymentSnap] = await Promise.all([
+    FS._db.collection("transactions").where("userId", "==", userId).get(),
+    FS._db.collection("payments").where("userId", "==", userId).get(),
+  ]);
+  const transactions = transactionSnap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((record) => record.status !== "void" && record.userStatus !== "disputed");
+  const payments = paymentSnap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((record) => record.status !== "void");
+  const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const plan = FS.admin.paymentAllocationPlan(transactions, paidTotal);
+  const batch = FS._db.batch();
+  for (const id of plan.settledIds) {
+    batch.update(FS._db.collection("transactions").doc(id), {
+      reviewStatus: "paid",
+      paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+      paidBy: FS.admin.user.uid,
+    });
+  }
+  if (plan.settledIds.length) await batch.commit();
+  return plan;
+};
+
+FS.admin.recordPermanentPayment = async ({ userId, amount, note, createdDate }) => {
+  await FS.admin.requireAdmin();
+  const value = Number(amount);
+  if (!userId) throw new Error("Choose a customer.");
+  if (!Number.isFinite(value) || value <= 0) throw new Error("Enter a payment greater than zero.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw new Error("Choose a valid payment date.");
+  const paymentId = FS.uid("fs_pay");
+  await FS._db.collection("payments").doc(paymentId).set({
+    paymentId,
+    userId,
+    amount: value,
+    note: (note || "").trim(),
+    source: "admin",
+    permanent: true,
+    createdBy: FS.admin.user.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdDate,
+    status: "active",
+  });
+  const allocation = await FS.admin.allocateApprovedTransactions(userId);
+  return { paymentId, ...allocation };
+};
+
+FS.admin.setTransactionReviewStatus = async (id, reviewStatus) => {
+  await FS.admin.requireAdmin();
+  if (!['neutral', 'approved'].includes(reviewStatus)) throw new Error("Choose a valid transaction status.");
+  const ref = FS._db.collection("transactions").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw new Error("Transaction not found.");
+  const record = snap.data();
+  if (record.reviewStatus === "paid") throw new Error("Paid transactions are permanent and cannot be changed.");
+  const payload = reviewStatus === "neutral"
+    ? {
+        reviewStatus: firebase.firestore.FieldValue.delete(),
+        approvedAt: firebase.firestore.FieldValue.delete(),
+        approvedBy: firebase.firestore.FieldValue.delete(),
+      }
+    : {
+        reviewStatus: "approved",
+        userStatus: firebase.firestore.FieldValue.delete(),
+        userStatusAt: firebase.firestore.FieldValue.delete(),
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedBy: FS.admin.user.uid,
+      };
+  await ref.update(payload);
+  if (reviewStatus === "approved") await FS.admin.allocateApprovedTransactions(record.userId || record.uid);
 };
 
 FS.admin.deleteTransaction = async (id) => {

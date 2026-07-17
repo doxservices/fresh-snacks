@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -33,7 +33,7 @@
 
     <section class="card section-card" id="login-panel">
       <h2>Admin login</h2>
-      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
@@ -81,30 +81,15 @@
       <section class="card section-card">
         <p class="muted-small">
           Per-user profiles, invites, and linked devices now live on the
-          <a href="accounting.html">Accounting</a> page; the full listings log (approve/edit/void)
-          moved to the <a href="transactions.html">Transactions</a> page, and snack setup
+          <a href="accounting.html">Accounting</a> page; purchases, approvals, payments, and customer
+          credit are managed from the <a href="transactions.html">Transactions</a> page, and snack setup
           lives in the <a href="catalog.html">Catalog</a>.
         </p>
       </section>
 
-      <section class="card section-card">
-        <h2>Add payment</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="payment-user">User / device</label>
-            <select id="payment-user"></select>
-          </div>
-          <div class="field">
-            <label for="payment-amount">Amount</label>
-            <input id="payment-amount" type="number" min="1" step="1" />
-          </div>
-          <div class="field">
-            <label for="payment-note">Note</label>
-            <input id="payment-note" type="text" />
-          </div>
-          <button class="primary" id="payment-add">Add payment</button>
-        </div>
-        <div class="status" id="payment-status"></div>
+      <section class="card section-card payment-ledger-link-card">
+        <div><h2>Payments</h2><p class="muted-small">Record payments from the customer ledger so purchases are settled in order and unused funds remain visible as credit.</p></div>
+        <a class="btn primary" href="transactions.html">Open payment ledger</a>
       </section>
 
       <section class="card section-card">
@@ -133,7 +118,7 @@
       </section>
     </section>
 
-    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -141,7 +126,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js?v=20260715-admin-profile"></script>
+  <script src="js/firebase-admin.js?v=20260717-payment-ledger"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -215,7 +200,6 @@
       $("admin-sign-out").classList.remove("hidden");
       renderDashboard();
       renderFeedback();
-      $("payment-user").innerHTML = userOptions();
       $("adjust-user").innerHTML = userOptions();
     }
 
@@ -269,22 +253,6 @@
         link.textContent = originalLabel;
         link.removeAttribute("aria-disabled");
         status("login-status", e.message, false);
-      }
-    };
-
-    $("payment-add").onclick = async () => {
-      try {
-        await FS.admin.addPayment({
-          userId: $("payment-user").value,
-          amount: $("payment-amount").value,
-          note: $("payment-note").value,
-        });
-        $("payment-amount").value = "";
-        $("payment-note").value = "";
-        await refresh();
-        status("payment-status", "Payment added.", true);
-      } catch (e) {
-        status("payment-status", e.message, false);
       }
     };
 

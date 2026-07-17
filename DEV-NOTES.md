@@ -70,6 +70,21 @@
   copy action remains available. Inventory-specific typography
   uses regular and medium weights instead of repeated heavy bold treatments.
 
+## Customer payment ledger (2026-07-17)
+
+- Transactions now combines purchases and payment records by customer. Each
+  customer header shows purchase value, payments, balance due, or available
+  credit when payments exceed purchases.
+- Purchases begin neutral. Admin approval moves them to approved; Mark paid
+  opens the permanent payment confirmation. Approved purchases are settled
+  oldest-first, stopping before the first purchase the available funds cannot
+  fully cover. Remaining funds stay visible as future credit.
+- Payment records are created only by authorized administrators and have no
+  individual edit/delete controls. The previous Add Payment forms were removed
+  from Dashboard and Edit Tab; both now link to the unified payment ledger.
+- Visible admin copy uses business language such as "removed permanently" and
+  "cannot be restored" instead of database and authentication terminology.
+
 ## Navigation QR copy controls (2026-07-16)
 
 - `js/qrcode.js` was already present in the stack. Navigation destinations are

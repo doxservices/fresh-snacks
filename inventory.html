@@ -31,7 +31,7 @@
 
     <section class="card section-card" id="login-panel">
       <h2>Admin login</h2>
-      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
@@ -511,7 +511,7 @@
         }
         if (button.dataset.action === "delete-floor") {
           const binsOnFloor = SNAPSHOT.bins.filter((bin) => bin.floor === floor).length;
-          if (!confirm(`Delete ${floor} and all ${binsOnFloor} bins on it? This cannot be undone.`)) return;
+          if (!confirm(`Permanently delete ${floor} and all ${binsOnFloor} bins on it? Every bin on this floor will be removed.`)) return;
           try {
             const count = await FS.admin.deleteBinFloor(floor);
             await refresh();

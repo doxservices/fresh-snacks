@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -29,7 +29,7 @@
 
     <section class="card section-card" id="login-panel">
       <h2>Admin login</h2>
-      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
@@ -60,7 +60,7 @@
           </div>
           <div class="brand-stats">
             <div class="stat-box balance-stat">
-              <div class="stat-label">Current tab</div>
+              <div class="stat-label" id="dash-balance-label">Current tab</div>
               <div class="stat-value warm" id="dash-balance">-</div>
             </div>
             <div class="stat-box">
@@ -125,20 +125,12 @@
         <div class="status" id="bins-status"></div>
       </section>
 
-      <section class="card section-card">
-        <h2>Add payment</h2>
-        <div class="form-grid">
-          <div class="field">
-            <label for="payment-amount">Amount</label>
-            <input id="payment-amount" type="number" min="1" step="1" />
-          </div>
-          <div class="field">
-            <label for="payment-note">Note</label>
-            <input id="payment-note" type="text" />
-          </div>
-          <button class="primary" id="payment-add">Add payment</button>
+      <section class="card section-card payment-ledger-link-card">
+        <div>
+          <h2>Payments</h2>
+          <p class="muted-small">Record and review payments alongside this customer's purchases.</p>
         </div>
-        <div class="status" id="payment-status"></div>
+        <a class="btn primary" id="payment-ledger-link" href="transactions.html">Open payment ledger</a>
       </section>
 
       <section class="card section-card">
@@ -163,7 +155,7 @@
       </section>
     </section>
 
-    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
   </main>
 
   <div class="modal-backdrop" id="invite-modal-backdrop">
@@ -228,7 +220,7 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-admin.js?v=20260717-payment-ledger"></script>
   <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
@@ -711,12 +703,14 @@
 
       $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
       $("profile-subtitle").textContent = `Tab id: ${SNAPSHOT.profile.id}`;
-      $("dash-balance").textContent = FS.money(balance, cur);
+      $("dash-balance-label").textContent = balance < 0 ? "Available credit" : "Current tab";
+      $("dash-balance").textContent = FS.money(Math.abs(balance), cur);
       $("dash-snacks").textContent = FS.money(snackTotal, cur);
       $("dash-paid").textContent = FS.money(paidTotal, cur);
       $("dash-devices").textContent = `${(SNAPSHOT.profile.linkedUids || []).length}/3`;
       $("profile-name").value = SNAPSHOT.profile.displayName || "";
       $("profile-vip").value = SNAPSHOT.profile.vipStatus || "anonymous";
+      $("payment-ledger-link").href = `transactions.html?user=${encodeURIComponent(TARGET_USER_ID)}`;
 
       renderBinsGallery();
       renderTransactionTable();
@@ -763,21 +757,6 @@
       }
     });
 
-    $("payment-add").onclick = async () => {
-      try {
-        await FS.admin.addPayment({
-          userId: TARGET_USER_ID,
-          amount: $("payment-amount").value,
-          note: $("payment-note").value,
-        });
-        $("payment-amount").value = "";
-        $("payment-note").value = "";
-        await refresh();
-        status("payment-status", "Payment added.", true);
-      } catch (e) {
-        status("payment-status", e.message, false);
-      }
-    };
 
     $("adjust-add").onclick = async () => {
       try {
@@ -802,7 +781,7 @@
       const act = btn.dataset.act;
       try {
         if (act === "txn-approve") {
-          await FS.admin.resolveTransaction(row.dataset.id);
+          await FS.admin.setTransactionReviewStatus(row.dataset.id, "approved");
           await refresh();
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
@@ -826,7 +805,7 @@
         } else if (act === "txn-delete") {
           const ok = await AdminModals.confirm(
             "Delete this transaction permanently?",
-            "This cannot be undone. The transaction will be removed from Firestore.",
+            "This transaction will be removed permanently and cannot be restored.",
             { confirmText: "Delete permanently", danger: true }
           );
           if (!ok) return;

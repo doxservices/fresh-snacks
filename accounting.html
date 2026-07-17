@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -30,7 +30,7 @@
 
     <section class="card section-card" id="login-panel">
       <h2>Admin login</h2>
-      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
@@ -52,11 +52,10 @@
         <h2>User accounting</h2>
         <p class="muted-small" style="margin-bottom:10px;">
           View opens that user's listings on the <a href="transactions.html">Transactions</a> page.
-          Edit tab opens <a href="edit-tab.html">Edit Tab</a>, where you can add snacks/payments
+          Edit tab opens <a href="edit-tab.html">Edit Tab</a>, where you can add snacks
           directly to that profile. Create new tab starts a brand-new guest profile you own and can
-          build out before sharing its invite. Delete wipes a user's data entirely (transactions,
-          payments, adjustments, devices, profile) so their browser starts completely fresh — use it
-          to clear test guests, not real customers you want to keep.
+          build out before sharing its invite. Delete permanently removes the customer's tab and
+          account history. Use it only for test guests or accounts that should no longer be retained.
         </p>
         <button class="primary" id="create-tab-btn" style="margin-bottom:12px;">Create new tab</button>
         <div id="accounting-list"></div>
@@ -64,7 +63,7 @@
       </section>
     </section>
 
-    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
   </main>
 
   <div class="modal-backdrop" id="invite-modal-backdrop">
@@ -133,7 +132,7 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-admin.js?v=20260717-payment-ledger"></script>
   <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
@@ -512,7 +511,7 @@
           <td class="num">${FS.money(r.snackTotal, cur)}</td>
           <td class="num">${FS.money(r.paidTotal, cur)}</td>
           <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
-          <td class="num">${FS.money(r.balance, cur)}</td>
+          <td class="num ${r.balance < 0 ? "credit-balance" : ""}">${r.balance < 0 ? `Credit ${FS.money(Math.abs(r.balance), cur)}` : FS.money(r.balance, cur)}</td>
           <td class="nowrap">${esc(r.lastActivity || "-")}</td>
           <td class="nowrap">
             <div class="row-menu">
@@ -685,7 +684,7 @@
           const balance = row.children[5].textContent;
           const ok = await AdminModals.confirm(
             `Delete all data for "${name}"?`,
-            `Balance ${balance}. This wipes their transactions, payments, adjustments, devices, and profile so their browser starts completely fresh. This cannot be undone.`,
+            `Current balance: ${balance}. This permanently removes the customer's tab, payment history, linked devices, and profile. The account cannot be restored.`,
             { confirmText: "Delete", danger: true }
           );
           if (!ok) return;

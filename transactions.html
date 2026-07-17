@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -16,7 +16,7 @@
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
             <h1>Transactions</h1>
-            <p>Approve, edit, void, or permanently delete customer listings — grouped by user.</p>
+            <p>Review customer purchases, record payments, and manage balances in one place.</p>
           </div>
         </div>
         <div class="header-actions">
@@ -30,7 +30,7 @@
 
     <section class="card section-card" id="login-panel">
       <h2>Admin login</h2>
-      <p style="margin-bottom:10px;">Sign in with a Firebase Auth user that is active in <code>/admins/{uid}</code>.</p>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
         <button class="primary" id="google-login">Continue with Google</button>
         <button id="microsoft-login">Continue with Microsoft</button>
@@ -50,22 +50,36 @@
     <section id="transactions-app" class="hidden">
       <section class="card section-card">
         <div class="section-head">
-          <h2>All transactions</h2>
+          <h2>Customer transactions</h2>
           <div>
             <button id="expand-all">Expand all</button>
             <button id="collapse-all">Collapse all</button>
           </div>
         </div>
         <p class="muted-small" style="margin-bottom:10px;">
-          Each user's listings collapse into their own section — flagged (disputed) sections open
-          automatically. Disputed listings sort to the top within a section: Approve keeps them and
-          clears the flag, Change edits quantity, value, and date, Void hides them, and Delete removes them permanently.
+          Purchases and payments are listed together for each customer. Approve a purchase before
+          settling it. Recorded payments settle approved purchases from oldest to newest, and any
+          amount left over remains available as credit for future snacks.
         </p>
         <div id="txn-groups"></div>
       </section>
     </section>
 
-    <footer>Admin access is enforced by Firebase Auth and Firestore rules.</footer>
+    <div class="modal-backdrop" id="payment-modal-backdrop">
+      <div class="modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+        <h2 id="payment-modal-title">Record payment</h2>
+        <p class="muted-small" id="payment-modal-customer"></p>
+        <form id="payment-form" class="payment-form">
+          <input type="hidden" id="payment-user-id" />
+          <div class="field"><label for="payment-amount">Amount received</label><input id="payment-amount" type="number" min="1" step="1" required /></div>
+          <div class="field"><label for="payment-date">Payment date</label><input id="payment-date" type="date" required /></div>
+          <div class="field"><label for="payment-note">Note <span class="muted-small">(optional)</span></label><input id="payment-note" type="text" maxlength="160" placeholder="Cash, transfer, or reference" /></div>
+          <div class="modal-actions"><button type="button" id="payment-cancel">Cancel</button><button type="submit" class="primary">Review payment</button></div>
+        </form>
+      </div>
+    </div>
+
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -73,7 +87,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js"></script>
+  <script src="js/firebase-admin.js?v=20260717-payment-ledger"></script>
   <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
@@ -88,25 +102,34 @@
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
     }
 
-    const badge = (t) => t.userStatus
-      ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
-      : "";
+    const reviewStatus = (t) => t.reviewStatus || "neutral";
+    const reviewBadge = (t) => t.userStatus === "disputed"
+      ? `<span class="verdict-badge disputed">Needs review</span>`
+      : `<span class="ledger-status ${esc(reviewStatus(t))}">${reviewStatus(t) === "paid" ? "Paid" : reviewStatus(t) === "approved" ? "Approved" : "Neutral"}</span>`;
+
+    const balanceLabel = (amount, currency) => Number(amount || 0) < 0
+      ? `Credit ${FS.money(Math.abs(Number(amount)), currency)}`
+      : `Balance ${FS.money(amount, currency)}`;
 
     function renderTransactions() {
       const cur = SNAPSHOT.settings.currency;
       const byUser = new Map(SNAPSHOT.accounting.map((r) => [r.userId, r]));
 
       const groups = new Map();
+      const ensureGroup = (key) => {
+        if (!groups.has(key)) groups.set(key, { transactions: [], payments: [] });
+        return groups.get(key);
+      };
       for (const t of SNAPSHOT.transactions) {
         const key = t.userId || t.uid || t.deviceId || "unassigned";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(t);
+        ensureGroup(key).transactions.push(t);
       }
+      for (const p of SNAPSHOT.payments) ensureGroup(p.userId || p.uid || p.deviceId || "unassigned").payments.push(p);
 
       const requestedUser = new URLSearchParams(location.search).get("user");
-      const sorted = [...groups.entries()].sort(([keyA, txA], [keyB, txB]) => {
-        const disputedA = txA.some((t) => t.userStatus === "disputed");
-        const disputedB = txB.some((t) => t.userStatus === "disputed");
+      const sorted = [...groups.entries()].sort(([keyA, groupA], [keyB, groupB]) => {
+        const disputedA = groupA.transactions.some((t) => t.userStatus === "disputed");
+        const disputedB = groupB.transactions.some((t) => t.userStatus === "disputed");
         if (disputedA !== disputedB) return disputedA ? -1 : 1;
         const nameA = byUser.get(keyA)?.displayName || keyA;
         const nameB = byUser.get(keyB)?.displayName || keyB;
@@ -114,37 +137,58 @@
       });
 
       $("txn-groups").innerHTML = sorted.length
-        ? sorted.map(([userId, txns]) => {
+        ? sorted.map(([userId, group]) => {
             const info = byUser.get(userId);
             const name = info?.displayName || userId;
-            const total = txns.reduce((n, t) => n + Number(t.total || 0), 0);
+            const txns = group.transactions;
+            const payments = group.payments;
+            const snackTotal = txns.filter((t) => t.userStatus !== "disputed").reduce((n, t) => n + Number(t.total || 0), 0);
+            const paidTotal = info?.paidTotal ?? payments.reduce((n, p) => n + Number(p.amount || 0), 0);
+            const balance = snackTotal + Number(info?.adjustmentTotal || 0) - paidTotal;
             const flagged = txns.some((t) => t.userStatus === "disputed");
             const shouldOpen = flagged || userId === requestedUser;
-            const rows = [...txns]
-              .sort((a, b) =>
-                (b.userStatus === "disputed") - (a.userStatus === "disputed")
-                || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
-              .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
-                <td>${esc(t.createdDate || "-")}</td>
-                <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
-                <td class="num">${esc(t.quantity || 1)}</td>
-                <td class="num-money">${FS.money(t.total || 0, cur)}</td>
-                <td>${esc(t.source || "self")} ${badge(t)}</td>
-                <td style="white-space:nowrap;">
-                  ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
+            const ledger = [
+              ...txns.map((record) => ({ kind: "purchase", date: record.createdDate || "", record })),
+              ...payments.map((record) => ({ kind: "payment", date: record.createdDate || "", record })),
+            ].sort((a, b) => (b.record.userStatus === "disputed") - (a.record.userStatus === "disputed")
+              || String(b.date).localeCompare(String(a.date)));
+            const rows = ledger.map(({ kind, record }) => kind === "payment"
+              ? `<tr class="payment-row" data-payment-id="${esc(record.paymentId || record.id)}">
+                <td>${esc(record.createdDate || "-")}</td>
+                <td><span class="ledger-type payment">Payment</span>${record.note ? ` <span class="muted-small">${esc(record.note)}</span>` : ""}</td>
+                <td class="num">—</td>
+                <td class="num-money payment-value">−${FS.money(record.amount || 0, cur)}</td>
+                <td><span class="ledger-status paid">Recorded</span></td><td></td>
+              </tr>`
+              : `<tr data-id="${esc(record.transactionId || record.id)}"${record.userStatus === "disputed" ? ' class="disputed"' : ""}>
+                <td>${esc(record.createdDate || "-")}</td>
+                <td><span class="ledger-type purchase">Purchase</span> ${esc(record.snackName || record.label || record.snackId || "-")}</td>
+                <td class="num">${esc(record.quantity || 1)}</td>
+                <td class="num-money">${FS.money(record.total || 0, cur)}</td>
+                <td>${reviewBadge(record)}</td>
+                <td class="ledger-actions">
+                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button data-act="txn-approve">Approve</button>` : ""}
+                  ${reviewStatus(record) === "approved" ? `<button class="primary" data-act="txn-pay">Mark paid</button><button data-act="txn-neutral">Reset</button>` : ""}
+                  ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : `
                   <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
                   <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
-                  <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>
+                  <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
                 </td>
               </tr>`).join("");
             return `<details data-user="${esc(userId)}"${shouldOpen ? " open" : ""}>
               <summary>
                 <span class="toggle"></span>
-                <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(name)}</span> <span class="month-note">${txns.length} listing(s)</span></span>
-                <span class="month-total num-money">${FS.money(total, cur)}</span>
+                <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a purchase needing review"' : ""}>${esc(name)}</span> <span class="month-note">${ledger.length} record(s)</span></span>
+                <span class="month-total num-money">${balanceLabel(balance, cur)}</span>
               </summary>
+              <div class="user-ledger-overview">
+                <div><span>Purchase value</span>${FS.money(snackTotal, cur)}</div>
+                <div><span>Payments</span>${FS.money(paidTotal, cur)}</div>
+                <div class="${balance < 0 ? "credit" : "due"}"><span>${balance < 0 ? "Available credit" : "Balance due"}</span>${FS.money(Math.abs(balance), cur)}</div>
+                <button type="button" class="primary" data-act="payment-open" data-user="${esc(userId)}">Record payment</button>
+              </div>
               <table class="admin-table">
-                <thead><tr><th>Day</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Date</th><th>Record</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
             </details>`;
@@ -164,6 +208,54 @@
       document.querySelectorAll("#txn-groups details").forEach((d) => d.setAttribute("open", ""));
     $("collapse-all").onclick = () =>
       document.querySelectorAll("#txn-groups details").forEach((d) => d.removeAttribute("open"));
+
+    function openPaymentModal(userId, amount = "", note = "") {
+      const info = SNAPSHOT.accounting.find((row) => row.userId === userId);
+      $("payment-user-id").value = userId;
+      $("payment-amount").value = amount || "";
+      $("payment-date").value = FS.todayISO();
+      $("payment-note").value = note;
+      $("payment-modal-customer").textContent = `For ${info?.displayName || userId}. Approved purchases will be settled from oldest to newest.`;
+      $("payment-modal-backdrop").classList.add("show");
+      $("payment-amount").focus();
+    }
+
+    function closePaymentModal() {
+      $("payment-modal-backdrop").classList.remove("show");
+    }
+
+    $("payment-cancel").onclick = closePaymentModal;
+    $("payment-modal-backdrop").onclick = (event) => {
+      if (event.target === $("payment-modal-backdrop")) closePaymentModal();
+    };
+    $("payment-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const userId = $("payment-user-id").value;
+      const amount = Number($("payment-amount").value || 0);
+      const info = SNAPSHOT.accounting.find((row) => row.userId === userId);
+      const ok = await AdminModals.confirm(
+        "Confirm this payment?",
+        `You are recording ${FS.money(amount, SNAPSHOT.settings.currency)} for ${info?.displayName || userId}. This payment is permanent. It will settle approved purchases from oldest to newest, and any amount left over will remain as credit for future snacks.`,
+        { confirmText: "Record payment" }
+      );
+      if (!ok) return;
+      try {
+        const result = await FS.admin.recordPermanentPayment({
+          userId,
+          amount,
+          note: $("payment-note").value,
+          createdDate: $("payment-date").value,
+        });
+        closePaymentModal();
+        await refresh();
+        await AdminModals.alert(
+          "Payment recorded",
+          `${result.settledIds.length} approved purchase${result.settledIds.length === 1 ? " was" : "s were"} marked paid. ${result.credit > 0 ? `${FS.money(result.credit, SNAPSHOT.settings.currency)} remains as credit for future snacks.` : "There is no unused credit from this payment."}`
+        );
+      } catch (error) {
+        await AdminModals.alert("Payment could not be recorded", error.message);
+      }
+    };
 
     async function refresh() {
       SNAPSHOT = await FS.admin.getSnapshot();
@@ -213,13 +305,24 @@
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
-      const row = btn.closest("tr");
       const act = btn.dataset.act;
+      if (act === "payment-open") {
+        openPaymentModal(btn.dataset.user);
+        return;
+      }
+      const row = btn.closest("tr");
       // open sections stay open across the re-render each action triggers
       const openKeys = [...document.querySelectorAll("#txn-groups details[open]")].map((d) => d.dataset.user);
       try {
         if (act === "txn-approve") {
-          await FS.admin.resolveTransaction(row.dataset.id);
+          await FS.admin.setTransactionReviewStatus(row.dataset.id, "approved");
+        } else if (act === "txn-neutral") {
+          await FS.admin.setTransactionReviewStatus(row.dataset.id, "neutral");
+        } else if (act === "txn-pay") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          const details = row.closest("details");
+          openPaymentModal(details.dataset.user, t?.total || "", t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "");
+          return;
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
           const result = await AdminModals.editListing({
@@ -240,7 +343,7 @@
         } else if (act === "txn-delete") {
           const ok = await AdminModals.confirm(
             "Delete this transaction permanently?",
-            "This cannot be undone. The transaction will be removed from Firestore.",
+            "This transaction will be removed permanently and cannot be restored.",
             { confirmText: "Delete permanently", danger: true }
           );
           if (!ok) return;
