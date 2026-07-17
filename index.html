@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-basket-gallery" />
+  <link rel="stylesheet" href="styles.css?v=20260717-profile-recommendations" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -18,7 +18,7 @@
       <button type="button" id="app-health-retry">Retry</button>
     </section>
 
-    <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected">
+    <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected" aria-controls="basket-panel" aria-expanded="false">
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 9h14l-1.2 10H6.2L5 9Zm3.5 0L12 4l3.5 5M4 9h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
@@ -53,16 +53,8 @@
             <div class="stat-value warm" id="stat-balance">–</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">Average purchase</div>
-            <div class="stat-value green" id="stat-avg">–</div>
-          </div>
-          <div class="stat-box">
             <div class="stat-label">Paid so far</div>
             <div class="stat-value blue" id="stat-paid">–</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Activity days</div>
-            <div class="stat-value" id="stat-days">–</div>
           </div>
         </div>
       </div>
@@ -93,6 +85,17 @@
       </article>
     </section>
 
+    <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
+      <div class="recommendations-heading">
+        <div>
+          <span class="snack-shop-kicker">Selected for you</span>
+          <h2 id="recommendations-title">Three snacks to consider</h2>
+        </div>
+        <p id="recommendations-note">Based on your current favourite and a little variety.</p>
+      </div>
+      <div class="recommendations-grid" id="recommendations-grid"></div>
+    </section>
+
     <section class="card section-card snack-shop-section">
       <div class="snack-shop-heading">
         <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
@@ -105,9 +108,9 @@
             <p>Loading snacks…</p>
           </div>
         </div>
-        <aside class="bins-cart-col">
+        <aside class="bins-cart-col" id="basket-panel" aria-label="Your basket">
           <div class="bins-cart-sticky">
-            <div class="bins-cart-header"><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H6.2M9.5 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm8 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg> Your selection</div>
+            <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 9h14l-1.2 10H6.2L5 9Zm3.5 0L12 4l3.5 5M4 9h16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg> Your basket</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
             <div class="bins-cart-items" id="bins-cart-items">
               <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
             </div>
@@ -138,12 +141,6 @@
           <div class="stat-label">Paid so far</div>
           <div class="stat-value green" id="sum-paid">–</div>
           <div class="muted-small">Payments added.</div>
-        </div>
-
-        <div class="card">
-          <div class="stat-label">Average purchase</div>
-          <div class="stat-value" id="sum-avg">–</div>
-          <div class="muted-small">Amount purchased each snack day.</div>
         </div>
 
         <div class="card soft-blue">
@@ -365,6 +362,57 @@
       </table>`;
     }
 
+    function recommendationStorageKey(data) {
+      const identity = data.claim?.userId || linkCode || "current-profile";
+      return `fresh_snacks_dismissed_recommendations_${identity}`;
+    }
+
+    function recommendationReason(snack, favorite, index) {
+      const favoriteSnack = favorite?.snack;
+      if (favoriteSnack?.calories != null && snack.calories != null && Number(snack.calories) < Number(favoriteSnack.calories)) {
+        return "A lighter alternative when you want something different.";
+      }
+      if (favoriteSnack?.price && Number(snack.price) < Number(favoriteSnack.price)) {
+        return "A more budget-friendly change from your usual favourite.";
+      }
+      return [
+        "A different flavour for your next snack break.",
+        "Worth trying when you feel like changing your routine.",
+        "A fresh alternative to add some variety to your tab.",
+      ][index % 3];
+    }
+
+    function renderRecommendations(data, favorite) {
+      const section = $id("recommendations-section");
+      const grid = $id("recommendations-grid");
+      let dismissed = [];
+      try { dismissed = JSON.parse(localStorage.getItem(recommendationStorageKey(data)) || "[]"); } catch (_) {}
+      const options = data.catalog
+        .filter((snack) => snack.id !== favorite?.snackId && !dismissed.includes(snack.id))
+        .slice(0, 3);
+      $id("recommendations-note").textContent = favorite
+        ? "Based on your current favourite and a little variety."
+        : "Three different places to start exploring the catalogue.";
+      section.classList.toggle("hidden", options.length === 0);
+      grid.innerHTML = options.map((snack, index) => `
+        <article class="recommendation-card" data-recommendation="${esc(snack.id)}">
+          <button type="button" class="recommendation-dismiss" data-dismiss-recommendation="${esc(snack.id)}" aria-label="Dismiss ${esc(snack.name)} recommendation">&times;</button>
+          <div class="recommendation-photo">${snack.photo ? `<img src="${esc(snack.photo)}" alt="${esc(snack.name)}" loading="lazy" />` : `<span aria-hidden="true">&#127850;</span>`}</div>
+          <div>
+            <h3>${esc(snack.name)}</h3>
+            <p>${esc(recommendationReason(snack, favorite, index))}</p>
+            <span>${FS.money(snack.price, data.profile.currency)}</span>
+          </div>
+        </article>`).join("");
+      grid.querySelectorAll("[data-dismiss-recommendation]").forEach((button) => {
+        button.onclick = () => {
+          const next = [...new Set([...dismissed, button.dataset.dismissRecommendation])];
+          try { localStorage.setItem(recommendationStorageKey(data), JSON.stringify(next)); } catch (_) {}
+          renderRecommendations(data, favorite);
+        };
+      });
+    }
+
     function render(data) {
       const cur = data.profile.currency;
       const t = FS.totals(data);
@@ -377,11 +425,9 @@
       // the gallery + QR until there's a real tab to show.
       $id("tab-activity").classList.toggle("hidden", data.entries.length === 0);
       $id("favorite-section").classList.toggle("hidden", !favorite);
+      renderRecommendations(data, favorite);
 
       const dated = data.entries.filter((e) => e.date);
-      const snackDays = new Set(dated.map((e) => e.date)).size;
-      const datedTotal = dated.reduce((n, e) => n + Number(e.value || 0), 0);
-      const avgPerDay = snackDays ? Math.round(datedTotal / snackDays) : 0;
       const monthKey = FS.todayISO().slice(0, 7);
       const monthTotal = dated
         .filter((e) => e.date.startsWith(monthKey))
@@ -392,9 +438,7 @@
       const balanceText = FS.money(Math.abs(t.balance), cur);
       set("stat-balance-label", t.balance < 0 ? "Available credit" : "Current tab");
       set("stat-balance", balanceText);
-      set("stat-avg", `${FS.money(avgPerDay, cur)}/day`);
       set("stat-paid", FS.money(t.paid, cur));
-      set("stat-days", snackDays);
       set("fav-name", favorite ? favorite.name : "–");
       set("fav-desc", favorite
         ? `${favorite.count} snack${favorite.count === 1 ? "" : "s"} purchased.`
@@ -445,7 +489,6 @@
       set("mini-last", favorite && favorite.lastDate ? FS.fmtDay(favorite.lastDate) : "–");
       set("sum-value", FS.money(t.value, cur));
       set("sum-paid", FS.money(t.paid, cur));
-      set("sum-avg", FS.money(avgPerDay, cur));
       set("sum-month-label", FS.monthLabel(monthKey));
       set("sum-month", FS.money(monthTotal, cur));
       set("bottom-value", FS.money(t.value, cur));
@@ -660,10 +703,24 @@
     });
 
     $id("basket-notification").onclick = () => {
-      document.querySelector(".bins-cart-sticky").scrollIntoView({ behavior: "smooth", block: "center" });
-      document.querySelector(".bins-cart-sticky").classList.add("basket-attention");
-      setTimeout(() => document.querySelector(".bins-cart-sticky")?.classList.remove("basket-attention"), 900);
+      const panel = $id("basket-panel");
+      const opening = !panel.classList.contains("is-open");
+      panel.classList.toggle("is-open", opening);
+      $id("basket-notification").setAttribute("aria-expanded", String(opening));
+      if (opening) $id("basket-panel-close").focus();
     };
+
+    $id("basket-panel-close").onclick = () => {
+      $id("basket-panel").classList.remove("is-open");
+      $id("basket-notification").setAttribute("aria-expanded", "false");
+      $id("basket-notification").focus();
+    };
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
+        $id("basket-panel-close").click();
+      }
+    });
 
     $id("bins-submit").onclick = async () => {
       const cur = LAST_DATA.profile.currency;

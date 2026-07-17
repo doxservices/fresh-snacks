@@ -130,11 +130,13 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
         vipStatus: "anonymous",
         deviceCount: 0,
         snackTotal: 0,
+        datedSnackTotal: 0,
         paidTotal: 0,
         adjustmentTotal: 0,
         balance: 0,
         lastActivity: "",
         linkedUids: [],
+        snackActivityDates: [],
       });
     }
     return rows.get(id);
@@ -156,7 +158,12 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
   for (const t of transactions) {
     const row = ensure(FS.admin.accountKey(t));
     row.snackTotal += Number(t.total || t.value || 0);
-    row.lastActivity = FS.admin.maxDate(row.lastActivity, t.createdDate || FS.admin.dateFromRecord(t, "createdAt"));
+    const activityDate = t.createdDate || FS.admin.dateFromRecord(t, "createdAt");
+    if (activityDate) {
+      row.datedSnackTotal += Number(t.total || t.value || 0);
+      if (!row.snackActivityDates.includes(activityDate)) row.snackActivityDates.push(activityDate);
+    }
+    row.lastActivity = FS.admin.maxDate(row.lastActivity, activityDate);
   }
   for (const p of payments) {
     const row = ensure(FS.admin.accountKey(p));
@@ -171,6 +178,8 @@ FS.admin.accounting = (users, devices, transactions, payments, adjustments) => {
   return [...rows.values()].map((row) => ({
     ...row,
     balance: row.snackTotal + row.adjustmentTotal - row.paidTotal,
+    activityDays: row.snackActivityDates.length,
+    averagePurchasePerDay: row.snackActivityDates.length ? Math.round(row.datedSnackTotal / row.snackActivityDates.length) : 0,
   })).filter((row) =>
     row.snackTotal !== 0 ||
     row.paidTotal !== 0 ||

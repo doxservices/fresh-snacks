@@ -133,7 +133,7 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260717-read-cache"></script>
-  <script src="js/firebase-admin.js?v=20260717-gallery-redesign"></script>
+  <script src="js/firebase-admin.js?v=20260717-customer-analytics"></script>
   <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
@@ -503,7 +503,7 @@
     function renderAccounting() {
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
+        <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th class="num">Avg / active day</th><th class="num">Active days</th><th>Last activity</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
           <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
           <td><select data-f="vipStatus">
@@ -513,6 +513,8 @@
           <td class="num">${FS.money(r.paidTotal, cur)}</td>
           <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
           <td class="num ${r.balance < 0 ? "credit-balance" : ""}">${r.balance < 0 ? `Credit ${FS.money(Math.abs(r.balance), cur)}` : FS.money(r.balance, cur)}</td>
+          <td class="num">${FS.money(r.averagePurchasePerDay, cur)}</td>
+          <td class="num">${r.activityDays}</td>
           <td class="nowrap">${esc(r.lastActivity || "-")}</td>
           <td class="nowrap">
             <div class="row-menu">
