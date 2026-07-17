@@ -1,5 +1,13 @@
 # Development notes
 
+## Customer profile load health (2026-07-17)
+
+- Root cause of the frozen profile was a synchronous `qrcode()` call in `index.html` running before the deferred QR library. The resulting `ReferenceError` stopped the customer profile bootstrap before catalog, balances, transactions, or settings could render.
+- Tell-a-Friend QR rendering now waits for `DOMContentLoaded`, after deferred scripts have executed, and safely skips QR rendering if the optional library is unavailable.
+- The customer page now catches global script failures, unhandled promise failures, and profile-load failures; it replaces the indefinite loading state with a visible message and Retry action.
+- Profile startup also times out after 12 seconds with a connection-focused message, covering stalled requests that never return an error.
+- The Admin test profile uses the same `index.html` bootstrap as regular customers, so it remains the manual production canary without creating separate monitoring data artifacts.
+
 ## Admin test profile recovery (2026-07-17)
 
 - The Admin dashboard now presents a visible **Test customer profile** card in addition to the header link.

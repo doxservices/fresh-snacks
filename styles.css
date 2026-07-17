@@ -2952,6 +2952,20 @@ textarea:focus {
 .admin-test-profile-card p { margin-bottom: 0; }
 .admin-test-profile-card .status { grid-column: 1 / -1; }
 
+.app-health-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-color: #d9a3a0;
+  background: #fff6f5;
+  color: #7f2924;
+}
+
+.app-health-alert > div { display: grid; gap: 4px; }
+.app-health-alert span { color: #6f4542; font-size: .88rem; }
+.app-health-alert button { flex: 0 0 auto; }
+
 @media (max-width: 760px) {
   .user-ledger-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2963,6 +2977,8 @@ textarea:focus {
   .payment-ledger-link-card { align-items: stretch; flex-direction: column; }
   .admin-test-profile-card { grid-template-columns: 1fr; }
   .admin-test-profile-card > button { width: 100%; }
+  .app-health-alert { align-items: stretch; flex-direction: column; }
+  .app-health-alert button { width: 100%; }
 }
 
 .bin-copy-dialog h2,

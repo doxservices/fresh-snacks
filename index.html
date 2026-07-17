@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260716-nav-qr-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260717-profile-health" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -13,6 +13,10 @@
     <header class="banner" id="site-banner"></header>
 
     <div id="firebase-auth-prompt"></div>
+    <section class="card section-card app-health-alert hidden" id="app-health" role="alert" aria-live="assertive">
+      <div><strong>Fresh Snacks did not finish loading.</strong><span id="app-health-message">Please retry. If this continues, share the message below with Fresh Snacks.</span></div>
+      <button type="button" id="app-health-retry">Retry</button>
+    </section>
 
     <section class="card section-card link-invite-card hidden" id="link-invite-card">
       <h2 id="link-invite-title">Connecting your tab…</h2>
@@ -261,13 +265,37 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260716-catalog-order"></script>
+  <script src="js/firebase-store.js?v=20260717-profile-health"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260716-admin-return"></script>
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const $id = (id) => document.getElementById(id);
+
+    function showAppFailure(error) {
+      const message = String(error?.message || error || "Unknown loading error");
+      $id("app-health-message").textContent = message;
+      $id("app-health").classList.remove("hidden");
+      const basket = $id("bins");
+      if (basket && /Loading snacks/i.test(basket.textContent)) {
+        basket.innerHTML = `<p class="status err">The snack list could not be loaded.</p>`;
+      }
+    }
+
+    $id("app-health-retry").onclick = () => location.reload();
+
+    function withLoadTimeout(promise, milliseconds = 12000) {
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(
+          "Loading is taking longer than expected. Check your connection, then retry."
+        )), milliseconds);
+      });
+      return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+    }
+    window.addEventListener("error", (event) => showAppFailure(event.error || event.message));
+    window.addEventListener("unhandledrejection", (event) => showAppFailure(event.reason));
 
     function trackerTable(data, group, cur) {
       const opening = group.key === "opening";
@@ -688,11 +716,19 @@
 
     // QR to start a fresh tab (plain site URL — never includes a tab code)
     (function () {
-      const joinUrl = location.origin + location.pathname.replace(/[^/]*$/, "");
-      const qr = qrcode(0, "M");
-      qr.addData(joinUrl);
-      qr.make();
-      document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+      const renderJoinQr = () => {
+        if (typeof window.qrcode !== "function") return;
+        const joinUrl = location.origin + location.pathname.replace(/[^/]*$/, "");
+        const qr = window.qrcode(0, "M");
+        qr.addData(joinUrl);
+        qr.make();
+        document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", renderJoinQr, { once: true });
+      } else {
+        renderJoinQr();
+      }
     })();
 
     /* ---------- user settings right well (anonymous by default, identity opt-in) ---------- */
@@ -826,7 +862,7 @@
     // instant the page loaded, even before the visitor chose to link to the
     // shared tab the invite actually pointed at.
     function startTabFlow() {
-      FS.loadData()
+      withLoadTimeout(FS.loadData())
         .then((data) => {
           CLAIM = data.claim || null;
           LAST_DATA = data;
@@ -835,6 +871,7 @@
         })
         .then(renderUserSettings)
         .catch((e) => {
+          showAppFailure(e);
           if (String(e.message).includes("Firebase is not configured")) {
             FS.showFirebaseSetupPrompt("firebase-auth-prompt", e.message);
             document.getElementById("log").innerHTML = "";
