@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Sitemap</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-admin-sitemap" />
+  <link rel="stylesheet" href="styles.css?v=20260717-basket-ui" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -18,7 +18,7 @@
         </div>
         <div class="header-actions">
           <a class="btn" href="admin.html">Dashboard</a>
-          <a class="btn" href="inventory.html">Bins</a>
+          <a class="btn" href="inventory.html">Baskets</a>
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="accounting.html">Accounting</a>
           <a class="btn" href="transactions.html">Transactions</a>
@@ -47,7 +47,7 @@
         <div class="sitemap-tree" id="page-sitemap"></div>
       </section>
       <section class="card section-card">
-        <div class="section-head"><div><h2>Inventory hierarchy</h2><p class="muted-small">Floor and bin codes return an administrator directly to that inventory location.</p></div></div>
+        <div class="section-head"><div><h2>Inventory hierarchy</h2><p class="muted-small">Floor and basket codes return an administrator directly to that inventory location.</p></div></div>
         <div class="sitemap-tree inventory-sitemap" id="inventory-sitemap"></div>
       </section>
     </section>
@@ -60,7 +60,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js?v=20260717-admin-sitemap"></script>
+  <script src="js/firebase-admin.js?v=20260717-basket-ui"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -76,7 +76,7 @@
       { label: "Privacy policy", href: "privacy.html", level: 1 },
       { label: "Administration", group: true },
       { label: "Dashboard", href: "admin.html", level: 1 },
-      { label: "Bins", href: "inventory.html", level: 1 },
+      { label: "Baskets", href: "inventory.html", level: 1 },
       { label: "Snack catalog", href: "catalog.html", level: 1 },
       { label: "Accounting", href: "accounting.html", level: 1 },
       { label: "Transactions and payments", href: "transactions.html", level: 2 },
@@ -100,7 +100,7 @@
       $("inventory-sitemap").innerHTML = floors.length ? floors.map((floor) => {
         const floorHref = `inventory.html?floor=${encodeURIComponent(floor)}`;
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
-        return `<div class="sitemap-floor">${row({ label: floor, href: floorHref, meta: `${bins.length} ${bins.length === 1 ? "bin" : "bins"}` })}${bins.map((bin) => row({ label: bin.name, href: `inventory.html?bin=${encodeURIComponent(bin.id)}`, level: 1, meta: `${bin.totalUnits} units` })).join("")}</div>`;
+        return `<div class="sitemap-floor">${row({ label: floor, href: floorHref, meta: `${bins.length} ${bins.length === 1 ? "basket" : "baskets"}` })}${bins.map((bin) => row({ label: bin.name, href: `inventory.html?bin=${encodeURIComponent(bin.id)}`, level: 1, meta: `${bin.totalUnits} units` })).join("")}</div>`;
       }).join("") : `<p class="muted-small">No inventory locations are configured.</p>`;
     }
 

@@ -33,7 +33,7 @@
         <span class="feedback-hero-kicker">More features coming soon</span>
         <h1>We're just getting started!</h1>
         <p>New snacks, rewards, and easier ways to track your tab are all on the way.</p>
-        <p>Got a question, a concern, or a favorite snack you'd love to see in the bins? Tell us anything.</p>
+        <p>Got a question, a concern, or a favorite snack you'd love to see in the baskets? Tell us anything.</p>
       </div>
     </div>
 
@@ -46,7 +46,7 @@
         <button type="button" class="request-card" data-category="change">
           <span class="request-icon"><img src="assets/icons/icon-change.svg" alt="" /></span>
           <span class="request-title">Request Change</span>
-          <span class="request-desc">Not enough change at the bin</span>
+          <span class="request-desc">Not enough change at the basket</span>
           <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="credit" disabled aria-disabled="true" title="Request Credit is coming soon">
@@ -59,7 +59,7 @@
         <button type="button" class="request-card" data-category="snack">
           <span class="request-icon"><img src="assets/icons/icon-basket.svg" alt="" /></span>
           <span class="request-title">Request a Snack</span>
-          <span class="request-desc">A bin's empty, or you've got a favorite to suggest</span>
+          <span class="request-desc">A basket's empty, or you've got a favorite to suggest</span>
           <span class="request-arrow" aria-hidden="true"></span>
         </button>
         <button type="button" class="request-card" data-category="message">
@@ -193,7 +193,7 @@
     const REQUEST_INFO = {
       change: {
         title: "Request Change",
-        desc: "Didn't get enough change back at the bin? Enter how much you're still owed so we can pay you back.",
+        desc: "Didn't get enough change back at the basket? Enter how much you're still owed so we can pay you back.",
         showAmount: true, requireAmount: true,
         showPhone: true, requireContact: true,
         showSnackRequest: false, requireDetails: false, showCategoryPicker: false,
@@ -207,7 +207,7 @@
       },
       snack: {
         title: "Request a Snack",
-        desc: "A bin's run out, or there's a snack you wish we carried — tell us which one.",
+        desc: "A basket's run out, or there's a snack you wish we carried — tell us which one.",
         showAmount: false, requireAmount: false,
         showPhone: true, requireContact: false,
         showSnackRequest: true, requireDetails: false, showCategoryPicker: false,

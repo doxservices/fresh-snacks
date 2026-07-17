@@ -517,10 +517,10 @@ FS.admin.saveSnack = async (snack) => {
 };
 
 FS.admin.binTemplates = {
-  standard: { label: "Standard seasonal bin", quantity: 1 },
-  hundred: { label: "J$100 bin", quantity: 1 },
-  large: { label: "Large seasonal bin", quantity: 2 },
-  custom: { label: "Custom bin", quantity: 0 },
+  standard: { label: "Standard seasonal basket", quantity: 1 },
+  hundred: { label: "J$100 basket", quantity: 1 },
+  large: { label: "Large seasonal basket", quantity: 2 },
+  custom: { label: "Custom basket", quantity: 0 },
 };
 
 FS.admin.seasonalSnackIds = (snacks) => {
@@ -543,8 +543,8 @@ FS.admin.ensureStandardBins = async (snacks) => {
   const setup = await setupRef.get();
   if (setup.exists) return false;
   const definitions = [
-    ["bin-9th-floor-1", "9th Floor", "Bin 1", "standard"],
-    ["bin-9th-floor-2", "9th Floor", "Bin 2", "standard"],
+    ["bin-9th-floor-1", "9th Floor", "Basket 1", "standard"],
+    ["bin-9th-floor-2", "9th Floor", "Basket 2", "standard"],
     ["bin-6th-floor-desk", "6th Floor", "Desk", "standard"],
     ["bin-6th-floor-hr-1", "6th Floor", "HR 1", "standard"],
     ["bin-6th-floor-hr-2", "6th Floor", "HR 2", "standard"],
@@ -638,7 +638,7 @@ FS.admin.saveBin = async (bin) => {
 
 FS.admin.deleteBin = async (id) => {
   await FS.admin.requireAdmin();
-  if (!id) throw new Error("Choose a bin to delete.");
+  if (!id) throw new Error("Choose a basket to delete.");
   await FS._db.collection("inventory").doc(id).delete();
 };
 
@@ -649,7 +649,7 @@ FS.admin.renameBinFloor = async (currentFloor, nextFloor) => {
   if (!from || !to) throw new Error("Both floor names are required.");
   const records = (await FS.admin.getCollection("inventory"))
     .filter((record) => record.recordType === "bin" && record.floor === from);
-  if (!records.length) throw new Error("No bins were found on that floor.");
+  if (!records.length) throw new Error("No baskets were found on that floor.");
   const batch = FS._db.batch();
   records.forEach((record) => batch.set(FS._db.collection("inventory").doc(record.id), {
     floor: to,
@@ -668,7 +668,7 @@ FS.admin.duplicateBinFloor = async (sourceFloor, targetFloor) => {
   const allBins = (await FS.admin.getCollection("inventory"))
     .filter((record) => record.recordType === "bin");
   const source = allBins.filter((record) => record.floor === from);
-  if (!source.length) throw new Error("No bins were found on that floor.");
+  if (!source.length) throw new Error("No baskets were found on that floor.");
   if (allBins.some((record) => record.floor.toLowerCase() === to.toLowerCase())) {
     throw new Error("A floor with that name already exists.");
   }
@@ -707,7 +707,7 @@ FS.admin.deleteBinFloor = async (floorName) => {
   if (!floor) throw new Error("Choose a floor to delete.");
   const records = (await FS.admin.getCollection("inventory"))
     .filter((record) => record.recordType === "bin" && record.floor === floor);
-  if (!records.length) throw new Error("No bins were found on that floor.");
+  if (!records.length) throw new Error("No baskets were found on that floor.");
   const batch = FS._db.batch();
   records.forEach((record) => batch.delete(FS._db.collection("inventory").doc(record.id)));
   await batch.commit();
@@ -717,7 +717,7 @@ FS.admin.deleteBinFloor = async (floorName) => {
 FS.admin.saveBinOrder = async (binIds) => {
   await FS.admin.requireAdmin();
   const ids = [...new Set((binIds || []).filter(Boolean))];
-  if (!ids.length) throw new Error("No bins were provided for ordering.");
+  if (!ids.length) throw new Error("No baskets were provided for ordering.");
   const batch = FS._db.batch();
   ids.forEach((id, displayOrder) => batch.set(FS._db.collection("inventory").doc(id), {
     displayOrder,
@@ -730,11 +730,11 @@ FS.admin.saveBinOrder = async (binIds) => {
 FS.admin.duplicateBin = async (sourceId, targetFloor, targetName) => {
   await FS.admin.requireAdmin();
   const sourceSnap = await FS._db.collection("inventory").doc(sourceId).get();
-  if (!sourceSnap.exists || sourceSnap.data().recordType !== "bin") throw new Error("Source bin not found.");
+  if (!sourceSnap.exists || sourceSnap.data().recordType !== "bin") throw new Error("Source basket not found.");
   const source = sourceSnap.data();
   const floor = String(targetFloor || source.floor || "").trim();
-  const name = String(targetName || `${source.name || "Bin"} Copy`).trim();
-  if (!floor || !name) throw new Error("Floor and bin name are required.");
+  const name = String(targetName || `${source.name || "Basket"} Copy`).trim();
+  if (!floor || !name) throw new Error("Floor and basket name are required.");
   const id = FS.uid("bin");
   const now = firebase.firestore.FieldValue.serverTimestamp();
   await FS._db.collection("inventory").doc(id).set({

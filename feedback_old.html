@@ -15,7 +15,7 @@
       <h2>We're just getting started!</h2>
       <p>
         New snacks, rewards for regulars, and easier ways to track your tab are all on the way.
-        Got a question, a concern, or a favorite snack you'd love to see in the bins? This is the place — tell us anything.
+        Got a question, a concern, or a favorite snack you'd love to see in the baskets? This is the place — tell us anything.
       </p>
     </section>
 
@@ -36,7 +36,7 @@
             </svg>
           </span>
           <span class="request-title">Request Change</span>
-          <span class="request-desc">Not enough change at the bin</span>
+          <span class="request-desc">Not enough change at the basket</span>
         </button>
         <button type="button" class="request-card" data-category="credit">
           <span class="request-icon">
@@ -58,7 +58,7 @@
             </svg>
           </span>
           <span class="request-title">Request a Snack</span>
-          <span class="request-desc">A bin's empty, or you've got a favorite to suggest</span>
+          <span class="request-desc">A basket's empty, or you've got a favorite to suggest</span>
         </button>
         <button type="button" class="request-card" data-category="message">
           <span class="request-icon">
@@ -195,7 +195,7 @@
     const REQUEST_INFO = {
       change: {
         title: "Request Change",
-        desc: "Didn't get enough change back at the bin? Enter how much you're still owed so we can pay you back.",
+        desc: "Didn't get enough change back at the basket? Enter how much you're still owed so we can pay you back.",
         showAmount: true, requireAmount: true,
         showPhone: true, requireContact: true, showSnackName: false,
         showMessageBox: false, showCategoryPicker: false,
@@ -209,7 +209,7 @@
       },
       snack: {
         title: "Request a Snack",
-        desc: "A bin's run out, or there's a snack you wish we carried — tell us which one.",
+        desc: "A basket's run out, or there's a snack you wish we carried — tell us which one.",
         showAmount: false, requireAmount: false,
         showPhone: true, requireContact: false, showSnackName: true,
         showMessageBox: false, showCategoryPicker: false,
@@ -330,4 +330,3 @@
   </script>
 </body>
 </html>
-

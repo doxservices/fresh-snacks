@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fresh Snacks - Bins</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-admin-sitemap" />
+  <title>Fresh Snacks - Baskets</title>
+  <link rel="stylesheet" href="styles.css?v=20260717-basket-ui" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -15,8 +15,8 @@
         <div class="header-lead">
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
-            <h1>Bins</h1>
-            <p>Manage bin locations and the quantity of every snack placed in each bin.</p>
+            <h1>Baskets</h1>
+            <p>Manage basket locations and the quantity of every snack placed in each basket.</p>
           </div>
         </div>
         <div class="header-actions">
@@ -46,9 +46,9 @@
     <section id="inventory-app" class="hidden">
       <button type="button" id="bin-layout-toggle" class="bin-layout-toggle" aria-controls="bin-layout-well" aria-expanded="false"><span aria-hidden="true">&#9776;</span> Layout</button>
       <div class="bin-page-shell">
-        <aside id="bin-layout-well" class="bin-layout-well" aria-label="Floor and bin layout" aria-hidden="true">
+        <aside id="bin-layout-well" class="bin-layout-well" aria-label="Floor and basket layout" aria-hidden="true">
           <div class="bin-layout-well-heading">
-            <div><strong>Layout</strong><span>Drag floors and bins to arrange</span></div>
+            <div><strong>Layout</strong><span>Drag floors and baskets to arrange</span></div>
             <button type="button" id="bin-layout-close" class="bin-layout-close" aria-label="Close layout sidebar">&times;</button>
           </div>
           <div id="bin-layout-tree"></div>
@@ -58,10 +58,10 @@
         <div class="brand-grid">
           <div>
             <div class="brand-title">Location inventory</div>
-            <div class="brand-subtitle">Seasonal setup by floor and bin</div>
+            <div class="brand-subtitle">Seasonal setup by floor and basket</div>
           </div>
           <div class="brand-stats">
-            <div class="stat-box balance-stat"><div class="stat-label">Bins</div><div class="stat-value warm" id="dash-bins">-</div></div>
+            <div class="stat-box balance-stat"><div class="stat-label">Baskets</div><div class="stat-value warm" id="dash-bins">-</div></div>
             <div class="stat-box"><div class="stat-label">Floors</div><div class="stat-value green" id="dash-floors">-</div></div>
             <div class="stat-box"><div class="stat-label">Snack units</div><div class="stat-value blue" id="dash-units">-</div></div>
             <div class="stat-box"><div class="stat-label">Inventory value</div><div class="stat-value" id="dash-value">-</div></div>
@@ -79,10 +79,10 @@
       <section class="card section-card bin-editor-card">
         <div class="section-heading-row">
           <div>
-            <h2 id="bin-form-title">Add a bin</h2>
+            <h2 id="bin-form-title">Add a basket</h2>
             <p class="muted-small">Select a seasonal template or enter custom quantities.</p>
           </div>
-          <button type="button" id="bin-new">New custom bin</button>
+          <button type="button" id="bin-new">New custom basket</button>
         </div>
         <input id="bin-id" type="hidden" />
         <div class="bin-form-grid">
@@ -101,7 +101,7 @@
         <div class="bin-editor-actions">
           <div class="bin-editor-total">Calculated value: <strong id="bin-form-value">J$0</strong></div>
           <button type="button" id="bin-cancel">Clear</button>
-          <button type="button" class="primary" id="bin-save">Save bin</button>
+          <button type="button" class="primary" id="bin-save">Save basket</button>
         </div>
         <div class="status" id="bin-status" aria-live="polite"></div>
       </section>
@@ -109,7 +109,7 @@
       <section class="card section-card">
         <div class="section-heading-row">
           <div>
-            <h2>Bins by floor</h2>
+            <h2>Baskets by floor</h2>
             <p class="muted-small">Each location shows its snack quantities and total inventory value.</p>
           </div>
         </div>
@@ -117,22 +117,22 @@
       </section>
         </div>
       </div>
-      <button type="button" id="global-add-bin" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="" aria-label="Add or drop a bin on its current floor"><span class="bin-add-symbol"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="bin-add-title">Add bin</span><small>Drop to copy on the same floor</small></button>
+      <button type="button" id="global-add-bin" class="bin-add-cutout bin-add-floating" data-action="open-copy-bin" data-floor="" aria-label="Add or drop a basket on its current floor"><span class="bin-add-symbol"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg></span><span class="bin-add-title">Add basket</span><small>Drop to copy on the same floor</small></button>
     </section>
 
     <dialog id="copy-bin-dialog" class="bin-copy-dialog">
       <form method="dialog" id="copy-bin-form">
         <button type="button" class="dialog-close" id="copy-bin-close" aria-label="Close">&times;</button>
-        <h2>Add bin to <span id="copy-bin-floor-label"></span></h2>
-        <p class="muted-small">Choose an existing bin to copy into this new spot.</p>
+        <h2>Add basket to <span id="copy-bin-floor-label"></span></h2>
+        <p class="muted-small">Choose an existing basket to copy into this new spot.</p>
         <input type="hidden" id="copy-bin-floor" />
-        <div class="field"><label for="copy-bin-source">Copy from which bin?</label><select id="copy-bin-source"></select></div>
-        <div class="field"><label for="copy-bin-name">New bin name</label><input id="copy-bin-name" type="text" placeholder="e.g. Break Room" /></div>
-        <div class="dialog-actions"><button type="button" id="copy-bin-cancel">Cancel</button><button type="submit" class="primary">Create copied bin</button></div>
+        <div class="field"><label for="copy-bin-source">Copy from which basket?</label><select id="copy-bin-source"></select></div>
+        <div class="field"><label for="copy-bin-name">New basket name</label><input id="copy-bin-name" type="text" placeholder="e.g. Break Room" /></div>
+        <div class="dialog-actions"><button type="button" id="copy-bin-cancel">Cancel</button><button type="submit" class="primary">Create copied basket</button></div>
       </form>
     </dialog>
 
-    <footer>Bin locations and inventory are restricted to active administrators.</footer>
+    <footer>Basket locations and inventory are restricted to active administrators.</footer>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -140,7 +140,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260716-bin-locations"></script>
-  <script src="js/firebase-admin.js?v=20260716-inline-bins"></script>
+  <script src="js/firebase-admin.js?v=20260717-basket-ui"></script>
   <script>
     let SNAPSHOT = null;
     let focusedFromQr = false;
@@ -150,8 +150,8 @@
     const svgIcon = (name) => ({
       bin: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7.5h16l-1.2 13H5.2L4 7.5Z"/><path d="M7 7.5V4.7h10v2.8M8.5 11v5.8M12 11v5.8M15.5 11v5.8"/></svg>`,
       copy: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="11" height="11" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-10A1.5 1.5 0 0 0 3 5.5v10A1.5 1.5 0 0 0 4.5 17H8"/></svg>`,
-      edit: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m4 16.8-.8 4 4-.8L18.5 8.7l-3.2-3.2L4 16.8Z"/><path d="m13.8 7 3.2 3.2M14.8 6l2-2a1.4 1.4 0 0 1 2 0l1.2 1.2a1.4 1.4 0 0 1 0 2l-2 2"/></svg>`,
-      trash: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 7h14M9 7V4h6v3M7 7l.8 13h8.4L17 7M10 11v5M14 11v5"/></svg>`,
+      edit: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13.5 6.5 17.5 10.5M4 20l1.1-4.6L15.9 4.6a2 2 0 0 1 2.8 0l.7.7a2 2 0 0 1 0 2.8L8.6 18.9 4 20Z"/><path d="M12 20h8"/></svg>`,
+      trash: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>`,
       grip: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="8" cy="6" r="1"/><circle cx="16" cy="6" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="16" cy="12" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg>`,
       plus: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>`,
       qr: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm4 0h3v7h-3v-3h-3v3h-3v-3h3v-3h3v-1Z" fill="currentColor" stroke="none"/></svg>`,
@@ -166,13 +166,13 @@
 
     const snackById = (id) => SNAPSHOT.snacks.find((snack) => snack.id === id);
     const templateLabel = (id, sourceId) => sourceId
-      ? `Copied from ${SNAPSHOT.bins.find((bin) => bin.id === sourceId)?.name || "saved bin"}`
-      : FS.admin.binTemplates[id]?.label || "Custom bin";
+      ? `Copied from ${SNAPSHOT.bins.find((bin) => bin.id === sourceId)?.name || "saved basket"}`
+      : FS.admin.binTemplates[id]?.label || "Custom basket";
 
     function renderTemplateOptions(selected = "custom") {
       $("bin-template").innerHTML = `
-        <option value="custom"${selected === "custom" ? " selected" : ""}>Custom empty bin</option>
-        <optgroup label="Build from an existing bin">
+        <option value="custom"${selected === "custom" ? " selected" : ""}>Custom empty basket</option>
+        <optgroup label="Build from an existing basket">
           ${SNAPSHOT.bins.map((bin) => `<option value="bin:${esc(bin.id)}"${selected === `bin:${bin.id}` ? " selected" : ""}>${esc(bin.floor)} — ${esc(bin.name)}</option>`).join("")}
         </optgroup>`;
     }
@@ -193,7 +193,7 @@
     function renderItemEditor(items = []) {
       const quantityBySnack = new Map(items.map((item) => [item.snackId, Number(item.quantity || 0)]));
       $("bin-item-editor").innerHTML = `<table class="admin-table bin-quantity-table">
-        <thead><tr><th>Snack</th><th class="num-money">Unit price</th><th class="num">Quantity in bin</th></tr></thead>
+        <thead><tr><th>Snack</th><th class="num-money">Unit price</th><th class="num">Quantity in basket</th></tr></thead>
         <tbody>${SNAPSHOT.snacks.filter((snack) => snack.active !== false).map((snack) => `<tr data-snack-search="${esc(String(snack.name || "").toLowerCase())}">
           <td>${esc(snack.name)}</td>
           <td class="num-money">${FS.money(snack.price, SNAPSHOT.settings.currency)}</td>
@@ -216,7 +216,7 @@
       $("bin-floor").value = floor;
       $("bin-name").value = "";
       renderTemplateOptions(templateId);
-      $("bin-form-title").textContent = "Add a bin";
+      $("bin-form-title").textContent = "Add a basket";
       renderItemEditor(itemsForTemplate(templateId));
     }
 
@@ -281,14 +281,14 @@
         <article class="floor-analysis-card">
           <div class="floor-analysis-name">${esc(metric.floor)}</div>
           <div class="floor-analysis-value"><span>Total inventory</span>${FS.money(metric.value, currency)}</div>
-          <div class="floor-analysis-meta"><span>${metric.bins} ${metric.bins === 1 ? "bin" : "bins"}</span><span>${metric.units} units</span></div>
-        </article>`).join("") : `<p class="muted-small">Add a bin to begin floor analysis.</p>`;
+          <div class="floor-analysis-meta"><span>${metric.bins} ${metric.bins === 1 ? "basket" : "baskets"}</span><span>${metric.units} units</span></div>
+        </article>`).join("") : `<p class="muted-small">Add a basket to begin floor analysis.</p>`;
 
       $("bin-layout-tree").innerHTML = floors.map((floor) => {
         const bins = SNAPSHOT.bins.filter((bin) => bin.floor === floor);
         return `<section class="layout-floor" data-layout-floor="${esc(floor)}" draggable="true">
           <div class="layout-floor-name" title="Drag to reorder floor"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(floor)}</span></div>
-          <div class="layout-bin-list">${bins.map((bin, index) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true" style="--bin-order:${index}"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
+          <div class="layout-bin-list">${bins.map((bin) => `<div class="layout-bin-item" data-layout-bin-id="${esc(bin.id)}" draggable="true"><span class="layout-grip">&#8942;&#8942;</span><span>${esc(bin.name)}</span></div>`).join("")}</div>
         </section>`;
       }).join("");
 
@@ -301,7 +301,7 @@
             <div class="inline-floor-wrap">
               <button type="button" class="inline-name-display floor-name-display" data-action="edit-floor-name" title="Click to rename floor">${esc(floor)}</button>
               <input class="inline-floor-name hidden" data-original-floor="${esc(floor)}" value="${esc(floor)}" aria-label="Floor name" />
-              <span class="muted-small">${bins.length} ${bins.length === 1 ? "bin" : "bins"}</span>
+              <span class="muted-small">${bins.length} ${bins.length === 1 ? "basket" : "baskets"}</span>
             </div>
             <div class="floor-banner-totals" aria-label="${esc(floor)} inventory totals">
               <span><small>Total inventory</small>${FS.money(metric.value, currency)}</span>
@@ -310,26 +310,26 @@
             <div class="bin-floor-actions">
               <button type="button" class="icon-button" data-action="floor-qr" data-floor="${esc(floor)}" title="Show floor QR code" aria-label="Show QR code for ${esc(floor)}">${svgIcon("qr")}</button>
               <button type="button" class="action-button" data-action="duplicate-floor" title="Duplicate floor" aria-label="Duplicate ${esc(floor)}">${svgIcon("copy")}<span>Duplicate floor</span></button>
-              <button type="button" class="danger icon-button" data-action="delete-floor" title="Delete floor and bins" aria-label="Delete ${esc(floor)}">${svgIcon("trash")}</button>
+              <button type="button" class="danger icon-button professional-action-icon" data-action="delete-floor" title="Delete floor and baskets" aria-label="Delete ${esc(floor)}">${svgIcon("trash")}</button>
             </div>
           </div>
-          <div class="bin-location-grid">${bins.map((bin, index) => {
+          <div class="bin-location-grid">${bins.map((bin) => {
             const rows = bin.items.map((item) => {
               const snack = snackById(item.snackId);
               return snack ? `<tr><td>${esc(snack.name)}</td><td class="num"><button type="button" class="inline-value-display" data-action="edit-qty" data-snack-id="${esc(item.snackId)}" aria-label="Edit ${esc(snack.name)} quantity">${item.quantity}</button><input class="inline-qty-input hidden" data-snack-id="${esc(item.snackId)}" type="number" min="0" step="1" value="${item.quantity}" aria-label="${esc(snack.name)} quantity in ${esc(bin.name)}" /></td><td class="num-money">${FS.money(item.quantity * Number(snack.price || 0), currency)}</td></tr>` : "";
             }).join("");
-            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}" style="--bin-order:${index}">
+            return `<article class="bin-location-card" data-bin-id="${esc(bin.id)}">
               <div class="bin-location-drag" draggable="true" title="Drag to reorder" aria-label="Drag ${esc(bin.name)} to reorder">${svgIcon("grip")}</div>
               <div class="bin-location-heading" draggable="true" title="Drag header to reorder">
-                <div><div class="bin-title-row">${svgIcon("bin")}<button type="button" class="inline-name-display bin-name-display" data-action="edit-bin-name" title="Click to rename bin">${esc(bin.name)}</button><input class="inline-bin-name hidden" value="${esc(bin.name)}" aria-label="Bin name" /></div><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
+                <div><div class="bin-title-row">${svgIcon("bin")}<button type="button" class="inline-name-display bin-name-display" data-action="edit-bin-name" title="Click to rename basket">${esc(bin.name)}</button><input class="inline-bin-name hidden" value="${esc(bin.name)}" aria-label="Basket name" /></div><div class="muted-small">${esc(templateLabel(bin.templateId, bin.templateSourceId))}</div></div>
                 <strong>${FS.money(bin.totalValue, currency)}</strong>
               </div>
-              <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty bin</td></tr>`}</tbody></table></div>
-              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="bin-qr" title="Show bin QR code" aria-label="Show QR code for ${esc(bin.name)}">${svgIcon("qr")}</button><button class="icon-button" data-action="duplicate-bin" title="Duplicate this bin" aria-label="Duplicate ${esc(bin.name)}">${svgIcon("copy")}</button><button class="icon-button" data-action="edit-bin" title="Open full editor" aria-label="Edit ${esc(bin.name)}">${svgIcon("edit")}</button><button class="danger icon-button" data-action="delete-bin" title="Delete bin" aria-label="Delete ${esc(bin.name)}">${svgIcon("trash")}</button></div>
+              <div class="bin-card-table-scroll"><table class="admin-table compact-table"><thead><tr><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th></tr></thead><tbody>${rows || `<tr><td colspan="3">Empty basket</td></tr>`}</tbody></table></div>
+              <div class="bin-location-actions"><span>${bin.totalUnits} units</span><button class="icon-button" data-action="bin-qr" title="Show basket QR code" aria-label="Show QR code for ${esc(bin.name)}">${svgIcon("qr")}</button><button class="icon-button" data-action="duplicate-bin" title="Duplicate this basket" aria-label="Duplicate ${esc(bin.name)}">${svgIcon("copy")}</button><button class="icon-button professional-action-icon" data-action="edit-bin" title="Edit basket" aria-label="Edit ${esc(bin.name)}">${svgIcon("edit")}</button><button class="danger icon-button professional-action-icon" data-action="delete-bin" title="Delete basket" aria-label="Delete ${esc(bin.name)}">${svgIcon("trash")}</button></div>
             </article>`;
           }).join("")}</div>
         </section>`;
-      }).join("") : `<p class="muted-small">No bins configured.</p>`;
+      }).join("") : `<p class="muted-small">No baskets configured.</p>`;
 
       if (!focusedFromQr) {
         const params = new URLSearchParams(location.search);
@@ -412,7 +412,7 @@
         });
         await refresh();
         resetEditor("custom");
-        status("bin-status", "Bin saved.", true);
+          status("bin-status", "Basket saved.", true);
       } catch (error) { status("bin-status", error.message, false); }
       finally { button.disabled = false; }
     };
@@ -433,7 +433,7 @@
         await FS.admin.duplicateBin($("copy-bin-source").value, $("copy-bin-floor").value, $("copy-bin-name").value);
         $("copy-bin-dialog").close();
         await refresh();
-        status("bin-status", "Copied bin created.", true);
+        status("bin-status", "Copied basket created.", true);
       } catch (error) { status("bin-status", error.message, false); }
     });
 
@@ -445,7 +445,7 @@
         try {
           const count = await FS.admin.renameBinFloor(from, to);
           await refresh();
-          status("bin-status", `${count} bins moved to ${to}.`, true);
+          status("bin-status", `${count} baskets moved to ${to}.`, true);
         } catch (error) { event.target.value = from; status("bin-status", error.message, false); }
         return;
       }
@@ -457,7 +457,7 @@
         try {
           await FS.admin.saveBin(binPayload(bin, { name }));
           await refresh();
-          status("bin-status", "Bin name updated.", true);
+          status("bin-status", "Basket name updated.", true);
         } catch (error) { event.target.value = bin.name; status("bin-status", error.message, false); }
         return;
       }
@@ -532,17 +532,17 @@
           try {
             const count = await FS.admin.duplicateBinFloor(floor, nextFloor);
             await refresh();
-            status("bin-status", `${count} bins duplicated to ${nextFloor.trim()}.`, true);
+            status("bin-status", `${count} baskets duplicated to ${nextFloor.trim()}.`, true);
           } catch (error) { status("bin-status", error.message, false); }
           return;
         }
         if (button.dataset.action === "delete-floor") {
           const binsOnFloor = SNAPSHOT.bins.filter((bin) => bin.floor === floor).length;
-          if (!confirm(`Permanently delete ${floor} and all ${binsOnFloor} bins on it? Every bin on this floor will be removed.`)) return;
+          if (!confirm(`Permanently delete ${floor} and all ${binsOnFloor} baskets on it? Every basket on this floor will be removed.`)) return;
           try {
             const count = await FS.admin.deleteBinFloor(floor);
             await refresh();
-            status("bin-status", `${floor} and ${count} bins deleted.`, true);
+            status("bin-status", `${floor} and ${count} baskets deleted.`, true);
           } catch (error) { status("bin-status", error.message, false); }
           return;
         }
@@ -567,11 +567,11 @@
         } catch (error) { status("bin-status", error.message, false); }
         return;
       }
-      if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this bin"}?`)) return;
+      if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this basket"}?`)) return;
       try {
         await FS.admin.deleteBin(id);
         await refresh();
-        status("bin-status", "Bin deleted.", true);
+        status("bin-status", "Basket deleted.", true);
       } catch (error) { status("bin-status", error.message, false); }
     });
 
@@ -599,6 +599,7 @@
     }
 
     $("inventory-app").addEventListener("dragstart", (event) => {
+      if (event.target.closest("#bin-layout-tree")) return;
       const floorGroup = event.target.closest(".bin-floor-group");
       const floorHeader = event.target.closest(".bin-floor-heading[draggable='true']");
       if (floorGroup && floorHeader && !event.target.closest("button, input, select, a")) {
@@ -676,10 +677,10 @@
       event.preventDefault();
       const ids = [...$("bin-locations").querySelectorAll(".bin-location-card")].map((card) => card.dataset.binId);
       try {
-        status("bin-status", "Saving bin order...", true);
+        status("bin-status", "Saving basket order...", true);
         await FS.admin.saveBinOrder(ids);
         await refresh();
-        status("bin-status", "Bin order saved.", true);
+        status("bin-status", "Basket order saved.", true);
       } catch (error) { status("bin-status", error.message, false); }
     });
 

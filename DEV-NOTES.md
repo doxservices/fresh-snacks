@@ -1,5 +1,12 @@
 # Development notes
 
+## Basket terminology and inventory hierarchy sorting (2026-07-17)
+
+- Customer-facing and administrator-facing copy now uses **basket** instead of **bin**. Existing internal identifiers, function names, query parameters, and Firestore `recordType: "bin"` values remain unchanged for data compatibility.
+- The left inventory hierarchy now owns its drag events; the parent card-grid drag handler no longer cancels drags that begin in the hierarchy.
+- Edit and delete basket actions use dedicated outline SVG icons consistent with the existing copy control.
+- Collapsed transaction customer rows now show purchases, payments, and balance or credit without requiring expansion.
+
 ## Admin sitemap and inventory QR codes (2026-07-17)
 
 - Admin header links no longer receive individual QR buttons. QR generation for application pages is centralized on the admin-only `sitemap.html` page.

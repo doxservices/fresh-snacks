@@ -2327,7 +2327,6 @@ textarea:focus {
   color: #294d38;
   cursor: grab;
   font-size: .86rem;
-  order: var(--bin-order);
 }
 
 .layout-bin-item.dragging {
@@ -2523,7 +2522,6 @@ textarea:focus {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 8px 22px rgba(19, 69, 44, .07);
-  order: var(--bin-order);
 }
 
 .bin-location-card.dragging {
@@ -2856,6 +2854,36 @@ textarea:focus {
 
 .user-ledger-overview .credit { color: #087a46; }
 .user-ledger-overview .due { color: #8a4d16; }
+
+.collapsed-ledger-stats {
+  display: grid;
+  grid-column: 3 / 6;
+  grid-template-columns: repeat(3, minmax(84px, auto));
+  gap: 8px;
+  text-align: right;
+}
+
+.collapsed-ledger-stats > span {
+  display: grid;
+  gap: 1px;
+  color: var(--ink);
+  font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.collapsed-ledger-stats small {
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 500;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.collapsed-ledger-stats .credit { color: #087a46; }
+.collapsed-ledger-stats .due { color: #8a4d16; }
+
+.professional-action-icon svg { stroke-width: 1.8; }
+.professional-action-icon.danger { color: #a63b35; }
 .credit-balance { color: #087a46; font-weight: 500; }
 
 .ledger-type,
@@ -2919,6 +2947,7 @@ textarea:focus {
   }
 
   .user-ledger-overview > button { width: 100%; }
+  .collapsed-ledger-stats { grid-column: 1 / -1; width: 100%; grid-template-columns: repeat(3, 1fr); padding-top: 6px; text-align: left; }
   #txn-groups details > .admin-table { display: block; overflow-x: auto; }
   .payment-ledger-link-card { align-items: stretch; flex-direction: column; }
 }

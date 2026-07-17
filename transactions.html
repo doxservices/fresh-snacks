@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
+  <link rel="stylesheet" href="styles.css?v=20260717-basket-ui" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -108,10 +108,6 @@
       ? `<span class="verdict-badge disputed">Needs review</span>`
       : `<span class="ledger-status ${esc(reviewStatus(t))}">${reviewStatus(t) === "paid" ? "Paid" : reviewStatus(t) === "approved" ? "Approved" : "Neutral"}</span>`;
 
-    const balanceLabel = (amount, currency) => Number(amount || 0) < 0
-      ? `Credit ${FS.money(Math.abs(Number(amount)), currency)}`
-      : `Balance ${FS.money(amount, currency)}`;
-
     function renderTransactions() {
       const cur = SNAPSHOT.settings.currency;
       const byUser = new Map(SNAPSHOT.accounting.map((r) => [r.userId, r]));
@@ -180,7 +176,11 @@
               <summary>
                 <span class="toggle"></span>
                 <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a purchase needing review"' : ""}>${esc(name)}</span> <span class="month-note">${ledger.length} record(s)</span></span>
-                <span class="month-total num-money">${balanceLabel(balance, cur)}</span>
+                <span class="collapsed-ledger-stats" aria-label="Customer balance summary">
+                  <span><small>Purchases</small>${FS.money(snackTotal, cur)}</span>
+                  <span><small>Payments</small>${FS.money(paidTotal, cur)}</span>
+                  <span class="${balance < 0 ? "credit" : "due"}"><small>${balance < 0 ? "Credit" : "Balance"}</small>${FS.money(Math.abs(balance), cur)}</span>
+                </span>
               </summary>
               <div class="user-ledger-overview">
                 <div><span>Purchase value</span>${FS.money(snackTotal, cur)}</div>
