@@ -904,14 +904,22 @@ FS.admin.openAdminTestProfile = async (sourceUserId) => {
   await FS.admin.requireAdmin();
   const targetUserId = "admin-test-profile";
   const targetRef = FS._db.collection("users").doc(targetUserId);
-  const [sourceSnap, targetSnap] = await Promise.all([
-    FS._db.collection("users").doc(sourceUserId).get(),
-    targetRef.get(),
-  ]);
-  if (!sourceSnap.exists) throw new Error("The original VIP Customer tab was not found.");
+  const targetSnap = await targetRef.get();
 
   let viewCode = targetSnap.exists ? targetSnap.data().adminViewCode : null;
   if (!targetSnap.exists) {
+    let sourceSnap = sourceUserId
+      ? await FS._db.collection("users").doc(sourceUserId).get()
+      : null;
+    if (!sourceSnap?.exists) {
+      const candidates = (await FS.admin.getCollection("users"))
+        .filter((record) => record.userId !== targetUserId && record.vipStatus !== "feedback");
+      sourceSnap = candidates.length
+        ? await FS._db.collection("users").doc(candidates[0].id).get()
+        : null;
+      sourceUserId = sourceSnap?.id || null;
+    }
+    if (!sourceSnap?.exists || !sourceUserId) throw new Error("No customer profile is available to create the Admin test tab.");
     const collections = ["transactions", "payments", "adjustments"];
     const sourceRecords = await Promise.all(collections.map((name) =>
       FS._db.collection(name).where("userId", "==", sourceUserId).get()
@@ -970,8 +978,37 @@ FS.admin.openAdminTestProfile = async (sourceUserId) => {
       createdAt: now,
     });
     await batch.commit();
-  } else if (!viewCode) {
-    viewCode = await FS.admin.createLinkInvite(targetUserId);
+  }
+
+  let codeIsValid = false;
+  if (viewCode) {
+    const codeSnap = await FS._db.collection("codes").doc(viewCode).get();
+    codeIsValid = codeSnap.exists
+      && codeSnap.data().active !== false
+      && codeSnap.data().type === "view"
+      && codeSnap.data().userId === targetUserId;
+  }
+  if (!codeIsValid) {
+    viewCode = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const candidate = FS.randomCode(10);
+      const clash = await FS._db.collection("codes").doc(candidate).get();
+      if (!clash.exists) { viewCode = candidate; break; }
+    }
+    if (!viewCode) throw new Error("Could not repair the Admin test profile link.");
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    const batch = FS._db.batch();
+    batch.set(targetRef, { adminViewCode: viewCode, updatedAt: now }, { merge: true });
+    batch.set(FS._db.collection("codes").doc(viewCode), {
+      code: viewCode,
+      userId: targetUserId,
+      type: "view",
+      active: true,
+      purpose: "admin-test-profile",
+      createdBy: FS.admin.user.uid,
+      createdAt: now,
+    });
+    await batch.commit();
   }
 
   await FS._db.collection("claims").doc(FS.admin.user.uid).set({
@@ -981,7 +1018,7 @@ FS.admin.openAdminTestProfile = async (sourceUserId) => {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
   localStorage.setItem(FS.tabCodeKey, viewCode);
-  return `index.html?code=${encodeURIComponent(viewCode)}`;
+  return `index.html?code=${encodeURIComponent(viewCode)}&profile=admin-test`;
 };
 
 // Logs a snack directly onto a customer's tab as the admin - e.g. building

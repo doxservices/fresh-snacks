@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-payment-ledger" />
+  <link rel="stylesheet" href="styles.css?v=20260717-admin-test-profile" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -21,7 +21,7 @@
         </div>
         <div class="header-actions">
           <a class="btn" href="admin.html" aria-current="page">Dashboard</a>
-          <a class="btn" id="admin-profile-page" href="index.html">Profile page</a>
+          <a class="btn" id="admin-profile-page" href="index.html">Test profile</a>
           <a class="btn" href="inventory.html">Baskets</a>
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="accounting.html">Accounting</a>
@@ -52,6 +52,14 @@
     </section>
 
     <section id="admin-app" class="hidden">
+      <section class="card section-card admin-test-profile-card">
+        <div>
+          <h2>Test customer profile</h2>
+          <p class="muted-small">Open the reusable Admin customer tab to review the customer-facing profile with sample activity.</p>
+        </div>
+        <button type="button" class="primary" id="admin-test-profile-open">Open test profile</button>
+        <div class="status" id="profile-status" aria-live="polite"></div>
+      </section>
       <section class="brand-card">
         <div class="brand-grid">
           <div>
@@ -127,7 +135,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js?v=20260717-payment-ledger"></script>
+  <script src="js/firebase-admin.js?v=20260717-admin-test-profile"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -241,21 +249,25 @@
       $("login-panel").classList.remove("hidden");
     };
 
-    $("admin-profile-page").onclick = async (event) => {
-      event.preventDefault();
-      const link = event.currentTarget;
-      const originalLabel = link.textContent;
-      link.textContent = "Opening Admin tab...";
-      link.setAttribute("aria-disabled", "true");
+    async function openTestProfile(trigger, event) {
+      event?.preventDefault();
+      const originalLabel = trigger.textContent;
+      trigger.textContent = "Opening test profile...";
+      trigger.setAttribute("aria-disabled", "true");
+      trigger.disabled = true;
       try {
         const url = await FS.admin.openAdminTestProfile("cust-d9zytpnw");
         location.href = url;
       } catch (e) {
-        link.textContent = originalLabel;
-        link.removeAttribute("aria-disabled");
-        status("login-status", e.message, false);
+        trigger.textContent = originalLabel;
+        trigger.removeAttribute("aria-disabled");
+        trigger.disabled = false;
+        status("profile-status", e.message, false);
       }
-    };
+    }
+
+    $("admin-profile-page").onclick = (event) => openTestProfile(event.currentTarget, event);
+    $("admin-test-profile-open").onclick = (event) => openTestProfile(event.currentTarget, event);
 
     $("adjust-add").onclick = async () => {
       try {

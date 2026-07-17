@@ -1,5 +1,12 @@
 # Development notes
 
+## Admin test profile recovery (2026-07-17)
+
+- The Admin dashboard now presents a visible **Test customer profile** card in addition to the header link.
+- `openAdminTestProfile()` no longer requires the original source customer after the deterministic `admin-test-profile` has already been created.
+- Before opening the customer index, the helper validates the stored view code and recreates it when missing, inactive, the wrong type, or linked to the wrong profile.
+- The customer page URL includes `profile=admin-test` for diagnosis while retaining the private view code used by the existing claim flow.
+
 ## Basket terminology and inventory hierarchy sorting (2026-07-17)
 
 - Customer-facing and administrator-facing copy now uses **basket** instead of **bin**. Existing internal identifiers, function names, query parameters, and Firestore `recordType: "bin"` values remain unchanged for data compatibility.
