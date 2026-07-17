@@ -1778,6 +1778,48 @@ textarea:focus {
   margin-top: 18px;
 }
 
+.confirm-modal {
+  width: min(360px, 100%);
+}
+
+.confirm-modal p {
+  margin-top: 4px;
+}
+
+/* Temporary bottom-sliding "added to basket" toast - hidden below the
+   viewport and slid up on show, auto-dismissed a few seconds later. */
+.cart-toast {
+  background: var(--green-dark);
+  border-radius: 999px;
+  bottom: 24px;
+  box-shadow: 0 12px 30px rgba(24, 79, 42, 0.3);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  left: 50%;
+  opacity: 0;
+  padding: 12px 22px;
+  pointer-events: none;
+  position: fixed;
+  transform: translate(-50%, 140%);
+  transition: transform 220ms ease, opacity 220ms ease;
+  white-space: nowrap;
+  z-index: 80;
+}
+
+.cart-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (max-width: 480px) {
+  .cart-toast {
+    white-space: normal;
+    width: min(300px, calc(100vw - 32px));
+    text-align: center;
+  }
+}
+
 @media (max-width: 620px) {
   .modal-backdrop {
     padding: 8px;
@@ -3357,7 +3399,7 @@ textarea:focus {
 .bins-layout {
   display: grid;
   gap: 24px;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 360px;
 }
 
 .basket-overlay {
@@ -3374,7 +3416,7 @@ textarea:focus {
   background: rgba(255,255,255,0.9);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 18px;
+  padding: 20px;
   box-shadow: 0 10px 28px rgba(24, 79, 42, 0.08);
 }
 
@@ -3430,10 +3472,10 @@ textarea:focus {
     "name subtotal"
     "stepper remove";
   align-items: center;
-  gap: 8px 10px;
-  padding: 10px 0;
+  gap: 10px 12px;
+  padding: 14px 2px;
   border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 .bins-cart-item:last-child {
@@ -3446,6 +3488,7 @@ textarea:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
+  font-weight: 500;
 }
 
 .bins-cart-item-subtotal {
@@ -3457,12 +3500,19 @@ textarea:focus {
 
 .bins-cart-item-remove {
   grid-area: remove;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 50%;
+  align-self: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: #8a2f2f;
   font-size: 13px;
-  line-height: 1;
+  font-weight: 600;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.bins-cart-item-remove:hover {
+  background: rgba(138, 47, 47, 0.08);
 }
 
 .bins-cart-total {
