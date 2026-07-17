@@ -64,6 +64,11 @@
   16px minimum breathing room, grows only to 210px, and remains centered in the
   available margin. It is hidden at 1390px and below because each bin's existing
   duplicate control provides the same copy action on tablet and mobile.
+- Bin cards now use consistent inline SVG icons for the bin identity, drag
+  handle, copy, edit, delete, and Add Bin actions. Viewports at 1390px and below
+  suppress the floating Add Bin target unconditionally because the per-bin SVG
+  copy action remains available. Inventory-specific typography
+  uses regular and medium weights instead of repeated heavy bold treatments.
 
 ## Navigation QR copy controls (2026-07-16)
 

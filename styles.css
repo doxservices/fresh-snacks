@@ -2271,6 +2271,7 @@ textarea:focus {
 .bin-layout-well-heading strong {
   color: #075b35;
   font-size: 1.08rem;
+  font-weight: 600;
 }
 
 .bin-layout-well-heading span {
@@ -2289,7 +2290,7 @@ textarea:focus {
   margin-bottom: 6px;
   color: #284e39;
   font-size: .82rem;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: .02em;
   text-transform: uppercase;
   cursor: grab;
@@ -2305,7 +2306,7 @@ textarea:focus {
 .floor-drag-grip {
   color: #087a46;
   cursor: grab;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: -.18em;
 }
 
@@ -2336,7 +2337,7 @@ textarea:focus {
 
 .layout-grip {
   color: #087a46;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .section-heading-row h2,
@@ -2439,7 +2440,7 @@ textarea:focus {
   background: transparent;
   color: #075b35;
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .inline-name-display,
@@ -2450,7 +2451,7 @@ textarea:focus {
   background: transparent;
   color: #075b35;
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
 }
 
@@ -2472,6 +2473,7 @@ textarea:focus {
 
 .inline-value-display {
   min-width: 54px;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -2499,6 +2501,13 @@ textarea:focus {
 .bin-floor-actions {
   display: flex;
   gap: 8px;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
 }
 
 .bin-location-grid {
@@ -2532,7 +2541,6 @@ textarea:focus {
   border-radius: 999px;
   background: rgba(255, 255, 255, .95);
   color: #0b633c;
-  font-weight: 800;
   line-height: 1;
   cursor: grab;
   user-select: none;
@@ -2557,7 +2565,19 @@ textarea:focus {
 
 .bin-location-heading strong {
   color: #075b35;
+  font-weight: 500;
   white-space: nowrap;
+}
+
+.bin-title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.bin-title-row > .ui-icon {
+  flex: 0 0 auto;
+  color: #4c705b;
 }
 
 .bin-location-card .compact-table {
@@ -2588,9 +2608,28 @@ textarea:focus {
 }
 
 .icon-button {
+  display: inline-grid;
+  place-items: center;
   min-width: 40px;
   padding: 8px 10px;
-  font-size: 1.05rem;
+}
+
+.ui-icon {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bin-location-drag .ui-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: none;
 }
 
 .inline-qty-input {
@@ -2598,7 +2637,7 @@ textarea:focus {
   min-height: 36px;
   padding: 5px 6px;
   text-align: center;
-  font-weight: 750;
+  font-weight: 500;
 }
 
 .floor-analysis {
@@ -2618,7 +2657,7 @@ textarea:focus {
 .floor-analysis-title {
   color: var(--green-dark);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .floor-analysis-grid {
@@ -2639,7 +2678,7 @@ textarea:focus {
 .floor-analysis-name {
   color: var(--green-dark);
   font-size: .92rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .floor-analysis-value {
@@ -2718,7 +2757,7 @@ textarea:focus {
   transform: scale(1.01);
 }
 
-.bin-add-cutout span {
+.bin-add-symbol {
   width: 44px;
   height: 44px;
   display: grid;
@@ -2726,12 +2765,18 @@ textarea:focus {
   border-radius: 50%;
   background: #087a46;
   color: #fff;
-  font-size: 1.85rem;
   line-height: 1;
 }
 
-.bin-add-cutout strong {
+.bin-add-symbol .ui-icon {
+  width: 25px;
+  height: 25px;
+  stroke-width: 1.8;
+}
+
+.bin-add-title {
   font-size: 1.08rem;
+  font-weight: 500;
 }
 
 .bin-add-cutout small {
@@ -2759,8 +2804,10 @@ textarea:focus {
 }
 
 @media (max-width: 1390px) {
-  .bin-add-floating {
-    display: none;
+  #global-add-bin.bin-add-floating {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
   }
 }
 
