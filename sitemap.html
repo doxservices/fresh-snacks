@@ -59,8 +59,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js"></script>
-  <script src="js/firebase-admin.js?v=20260717-basket-ui"></script>
+  <script src="js/firebase-store.js?v=20260717-read-cache"></script>
+  <script src="js/firebase-admin.js?v=20260717-read-cache"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -105,6 +105,19 @@
     }
 
     async function refresh() {
+      // Paint instantly from whatever's already persisted locally (see
+      // FS.initFirebase's enablePersistence) while the authoritative
+      // server-sourced fetch below runs underneath and always wins.
+      try {
+        const cached = await FS.admin.getBinsSnapshot({ source: "cache" });
+        if (cached.bins.length || cached.snacks.length) {
+          SNAPSHOT = cached;
+          $("login-panel").classList.add("hidden");
+          $("sitemap-app").classList.remove("hidden");
+          $("admin-sign-out").classList.remove("hidden");
+          render();
+        }
+      } catch (e) { /* nothing cached yet on this device - fine, the fetch below covers it */ }
       SNAPSHOT = await FS.admin.getBinsSnapshot();
       $("login-panel").classList.add("hidden");
       $("sitemap-app").classList.remove("hidden");

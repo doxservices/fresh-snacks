@@ -122,8 +122,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260716-catalog-order"></script>
-  <script src="js/firebase-admin.js?v=20260716-catalog-order"></script>
+  <script src="js/firebase-store.js?v=20260717-read-cache"></script>
+  <script src="js/firebase-admin.js?v=20260717-read-cache"></script>
   <script>
     let SNAPSHOT = null;
     let CATALOG_VIEW = localStorage.getItem("fresh_snacks_catalog_view") === "gallery" ? "gallery" : "row";
@@ -149,7 +149,7 @@
           <article class="catalog-card" data-id="${esc(s.id)}" draggable="true">
             <div class="catalog-drag-handle" title="Drag to reorder" aria-label="Drag ${esc(s.name)} to reorder">&#8942;&#8942;</div>
             <div class="catalog-card-photo">${s.photo
-              ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
+              ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
               : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
             <div class="catalog-card-body">
               <input type="hidden" data-f="factsId" value="${esc(s.factsId || "")}" />

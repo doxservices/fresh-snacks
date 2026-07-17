@@ -37,6 +37,21 @@ FS.initFirebase = async () => {
     FS._auth = firebase.auth();
     FS._db = firebase.firestore();
     if (firebase.storage) FS._storage = firebase.storage();
+
+    // Persist Firestore reads locally (IndexedDB) across page loads - this is
+    // a plain multi-page app with no shared state between pages, so without
+    // this every navigation re-fetches full collections from the server even
+    // when nothing changed. synchronizeTabs lets multiple admin tabs (e.g.
+    // catalog.html + transactions.html open side by side) share one cache
+    // instead of fighting over it. If the browser can't support persistence
+    // (private browsing, an old browser) we just carry on without it rather
+    // than fail the whole app over a cache optimization.
+    try {
+      await FS._db.enablePersistence({ synchronizeTabs: true });
+    } catch (e) {
+      console.warn("Firestore offline persistence unavailable:", e.code || e.message);
+    }
+
     return FS;
   })();
   return FS._ready;
@@ -508,9 +523,9 @@ FS.updateMyProfile = async (fields) => {
   return FS.getMyProfile();
 };
 
-FS.getSettings = async () => {
+FS.getSettings = async (options = {}) => {
   await FS.initFirebase();
-  const snap = await FS._db.collection("settings").doc("app").get();
+  const snap = await FS._db.collection("settings").doc("app").get(options);
   const settings = snap.exists ? snap.data() : {};
   return {
     brand: settings.brand || FS.appConfig.appName || "Fresh Snacks",
@@ -530,19 +545,19 @@ FS.getSettings = async () => {
 FS.bundledSnackArtwork = {
   chewy: {
     photo: "assets/chewy.jpg",
-    favoritePhoto: "assets/chewy-background.png",
+    favoritePhoto: "assets/chewy-background.webp",
   },
   "kiss-banana-bread": {
-    photo: "assets/kiss-banana-bread.png",
-    favoritePhoto: "assets/kiss-banana-bread-background.png",
+    photo: "assets/kiss-banana-bread.webp",
+    favoritePhoto: "assets/kiss-banana-bread-background.webp",
   },
   "kiss-brownie-rich-dark-chocolate": {
-    photo: "assets/kiss-brownie.png",
-    favoritePhoto: "assets/kiss-brownie-background.png",
+    photo: "assets/kiss-brownie.webp",
+    favoritePhoto: "assets/kiss-brownie-background.webp",
   },
   oreo: {
-    photo: "assets/oreo.png",
-    favoritePhoto: "assets/oreo-background.png",
+    photo: "assets/oreo.webp",
+    favoritePhoto: "assets/oreo-background.webp",
   },
 };
 
@@ -567,12 +582,12 @@ FS.compareSnackOrder = (a, b) => {
   return orderA - orderB || String(a.name || "").localeCompare(String(b.name || ""));
 };
 
-FS.getCatalog = async (includeInactive = false) => {
+FS.getCatalog = async (includeInactive = false, options = {}) => {
   await FS.initFirebase();
   const ref = includeInactive
     ? FS._db.collection("snacks")
     : FS._db.collection("snacks").where("active", "==", true);
-  const snap = await ref.get();
+  const snap = await ref.get(options);
   return snap.docs
     .map((doc) => FS.withBundledSnackArtwork({ id: doc.id, ...doc.data() }))
     .filter((s) => includeInactive || s.active !== false)

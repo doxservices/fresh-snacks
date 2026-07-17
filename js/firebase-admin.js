@@ -75,8 +75,8 @@ FS.admin.currentAdmin = async () => {
   return null;
 };
 
-FS.admin.getCollection = async (name) => {
-  const snap = await FS._db.collection(name).get();
+FS.admin.getCollection = async (name, options = {}) => {
+  const snap = await FS._db.collection(name).get(options);
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
@@ -580,14 +580,22 @@ FS.admin.ensureStandardBins = async (snacks) => {
   return true;
 };
 
-FS.admin.getBinsSnapshot = async () => {
+// options.source: "cache" paints instantly from whatever Firestore already
+// has persisted locally (see FS.initFirebase's enablePersistence), skipping
+// the one-time bin-seeding check entirely - seeding must only ever act on
+// authoritative server data, never on a possibly-incomplete local cache, so
+// callers doing a cache-first paint should always follow up with a normal
+// (server-sourced) call to get the real, authoritative snapshot.
+FS.admin.getBinsSnapshot = async (options = {}) => {
   await FS.admin.requireAdmin();
   const [settings, snacks] = await Promise.all([
-    FS.getSettings(),
-    FS.getCatalog(true),
+    FS.getSettings(options),
+    FS.getCatalog(true, options),
   ]);
-  await FS.admin.ensureStandardBins(snacks);
-  const records = (await FS.admin.getCollection("inventory"))
+  if (options.source !== "cache") {
+    await FS.admin.ensureStandardBins(snacks);
+  }
+  const records = (await FS.admin.getCollection("inventory", options))
     .filter((record) => record.recordType === "bin");
   const bySnack = new Map(snacks.map((snack) => [snack.id, snack]));
   const bins = records.map((bin) => {
