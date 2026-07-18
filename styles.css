@@ -1786,30 +1786,40 @@ textarea:focus {
   margin-top: 4px;
 }
 
-/* Temporary bottom-sliding "added to basket" toast - hidden below the
-   viewport and slid up on show, auto-dismissed a few seconds later. */
+/* Temporary bottom-sliding "added to basket" toast, styled and eased like
+   the site's other modals (same cubic-bezier pop as .modal-backdrop .modal)
+   so it reads as a small modal popup rather than a plain fade. */
 .cart-toast {
+  align-items: center;
   background: var(--green-dark);
-  border-radius: 999px;
-  bottom: 24px;
-  box-shadow: 0 12px 30px rgba(24, 79, 42, 0.3);
+  border-radius: var(--radius);
+  bottom: 28px;
+  box-shadow: 0 18px 44px rgba(24, 79, 42, 0.35);
   color: #fff;
+  display: flex;
   font-size: 14px;
   font-weight: 500;
+  gap: 10px;
   left: 50%;
   opacity: 0;
-  padding: 12px 22px;
+  padding: 14px 22px;
   pointer-events: none;
   position: fixed;
-  transform: translate(-50%, 140%);
-  transition: transform 220ms ease, opacity 220ms ease;
+  transform: translate(-50%, 32px) scale(0.94);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 220ms ease;
   white-space: nowrap;
   z-index: 80;
 }
 
+.cart-toast svg {
+  flex: none;
+  height: 20px;
+  width: 20px;
+}
+
 .cart-toast.show {
   opacity: 1;
-  transform: translate(-50%, 0);
+  transform: translate(-50%, 0) scale(1);
 }
 
 @media (max-width: 480px) {
@@ -3455,10 +3465,49 @@ textarea:focus {
   width: 20px;
 }
 
+/* The cart list scrolls, but a visible scrollbar felt heavy in this small
+   well - instead a soft "bloom" gradient fades in at whichever edge still
+   has more items past it (like a horizon), and the native scrollbar is
+   hidden while the element stays fully scrollable by wheel/touch/drag. */
+.bins-cart-items-wrap {
+  margin-bottom: 12px;
+  position: relative;
+}
+
 .bins-cart-items {
   max-height: 320px;
   overflow-y: auto;
-  margin-bottom: 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bins-cart-items::-webkit-scrollbar {
+  display: none;
+}
+
+.bins-cart-fade {
+  height: 32px;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  transition: opacity 180ms ease;
+}
+
+.bins-cart-fade-top {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0));
+  top: 0;
+}
+
+.bins-cart-fade-bottom {
+  background: linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0));
+  bottom: 0;
+}
+
+.bins-cart-items-wrap.has-more-above .bins-cart-fade-top,
+.bins-cart-items-wrap.has-more-below .bins-cart-fade-bottom {
+  opacity: 1;
 }
 
 .bins-cart-empty {
@@ -3499,20 +3548,27 @@ textarea:focus {
 }
 
 .bins-cart-item-remove {
-  grid-area: remove;
+  align-items: center;
   align-self: center;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: 50%;
   color: #8a2f2f;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 9px;
-  white-space: nowrap;
+  display: inline-flex;
+  grid-area: remove;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.bins-cart-item-remove svg {
+  height: 18px;
+  width: 18px;
 }
 
 .bins-cart-item-remove:hover {
-  background: rgba(138, 47, 47, 0.08);
+  background: rgba(138, 47, 47, 0.1);
 }
 
 .bins-cart-total {

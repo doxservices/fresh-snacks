@@ -19,7 +19,7 @@
     </section>
 
     <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected" aria-controls="basket-panel" aria-expanded="false">
-      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="21" r="1.4" fill="currentColor" stroke="none"/><path d="M1.5 2h2.6l2.2 12.6a2 2 0 0 0 2 1.65h9.7a2 2 0 0 0 2-1.62L22.5 6.5H5.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
 
@@ -111,9 +111,13 @@
         <div class="basket-overlay" id="basket-overlay"></div>
         <aside class="bins-cart-col" id="basket-panel" aria-label="Your basket">
           <div class="bins-cart-sticky">
-            <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="21" r="1.4" fill="currentColor" stroke="none"/><path d="M1.5 2h2.6l2.2 12.6a2 2 0 0 0 2 1.65h9.7a2 2 0 0 0 2-1.62L22.5 6.5H5.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg> Your basket</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
-            <div class="bins-cart-items" id="bins-cart-items">
-              <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+            <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
+            <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+              <div class="bins-cart-items" id="bins-cart-items">
+                <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+              </div>
+              <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+              <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
             </div>
             <div class="bins-cart-total">
               <span>Total</span>
@@ -554,10 +558,18 @@
       return t;
     }
 
+    function updateCartFade() {
+      const el = $id("bins-cart-items");
+      const wrap = $id("bins-cart-items-wrap");
+      wrap.classList.toggle("has-more-above", el.scrollTop > 2);
+      wrap.classList.toggle("has-more-below", el.scrollHeight - el.clientHeight - el.scrollTop > 2);
+    }
+
     function renderCartItems(data) {
       const container = $id("bins-cart-items");
       if (!picked.size) {
         container.innerHTML = `<p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>`;
+        updateCartFade();
         return;
       }
       const cur = data.profile.currency;
@@ -572,15 +584,16 @@
             <span aria-live="polite" aria-atomic="true">${qty}</span>
             <button type="button" data-id="${esc(id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
           </span>
-          <button type="button" class="bins-cart-item-remove" data-id="${esc(id)}" data-name="${esc(s.name)}">Delete</button>
+          <button type="button" class="bins-cart-item-remove" data-id="${esc(id)}" data-name="${esc(s.name)}" aria-label="Remove ${esc(s.name)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>`;
       }).join("");
+      updateCartFade();
     }
 
     let cartToastTimer = null;
     function showCartToast(message) {
       const toast = $id("cart-toast");
-      toast.textContent = message;
+      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
       toast.classList.add("show");
       clearTimeout(cartToastTimer);
       cartToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
@@ -714,6 +727,8 @@
     });
 
     $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
+
+    $id("bins-cart-items").addEventListener("scroll", updateCartFade);
 
     $id("bins-cart-items").addEventListener("click", (ev) => {
       const step = ev.target.closest("button[data-d]");
