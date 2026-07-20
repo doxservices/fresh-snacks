@@ -324,6 +324,20 @@ FS.admin.voidTransaction = async (id) => {
   });
 };
 
+FS.admin.voidPayment = async (id) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("payments").doc(id).update({
+    status: "void",
+    voidedBy: FS.admin.user.uid,
+    voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+FS.admin.deletePayment = async (id) => {
+  await FS.admin.requireAdmin();
+  await FS._db.collection("payments").doc(id).delete();
+};
+
 FS.admin.paymentAllocationPlan = (transactions, paidTotal) => {
   const alreadySettled = transactions
     .filter((record) => record.reviewStatus === "paid")

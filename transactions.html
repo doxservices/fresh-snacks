@@ -160,7 +160,11 @@
                 <td><span class="ledger-type payment">Payment</span>${record.note ? ` <span class="muted-small">${esc(record.note)}</span>` : ""}</td>
                 <td class="num">—</td>
                 <td class="num-money payment-value">−${FS.money(record.amount || 0, cur)}</td>
-                <td><span class="ledger-status paid">Recorded</span></td><td></td>
+                <td><span class="ledger-status paid">Recorded</span></td>
+                <td>
+                  <button data-act="payment-void" title="Remove from balance calculations">Void</button>
+                  <button class="danger" data-act="payment-delete" title="Permanently delete this payment">Delete</button>
+                </td>
               </tr>`
               : `<tr data-id="${esc(record.transactionId || record.id)}"${record.userStatus === "disputed" ? ' class="disputed"' : ""}>
                 <td>${esc(record.createdDate || "-")}</td>
@@ -371,6 +375,22 @@
           );
           if (!ok) return;
           await FS.admin.deleteTransaction(row.dataset.id);
+        } else if (act === "payment-void") {
+          const ok = await AdminModals.confirm(
+            "Void this payment?",
+            "It stops counting toward the customer's paid total and any purchases it settled won't be affected retroactively.",
+            { confirmText: "Void", danger: true }
+          );
+          if (!ok) return;
+          await FS.admin.voidPayment(row.dataset.paymentId);
+        } else if (act === "payment-delete") {
+          const ok = await AdminModals.confirm(
+            "Delete this payment permanently?",
+            "This payment will be removed permanently and cannot be restored. Purchases it already settled stay settled.",
+            { confirmText: "Delete permanently", danger: true }
+          );
+          if (!ok) return;
+          await FS.admin.deletePayment(row.dataset.paymentId);
         } else {
           return;
         }
