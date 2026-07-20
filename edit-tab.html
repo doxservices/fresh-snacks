@@ -105,25 +105,44 @@
         </div>
       </section>
 
-      <section class="card section-card">
+      <section class="card section-card snack-shop-section">
         <h2>Add a snack to this tab</h2>
         <p class="muted-small" style="margin-bottom:10px;">
           Tap what you want to add on this customer's behalf — it's logged with source "admin".
         </p>
-        <div class="bin-grid" id="bins">
-          <p>Loading snacks…</p>
-        </div>
-        <div class="bin-total">
-          <div>
-            <div class="stat-label">Adding to tab</div>
-            <div class="amount" id="bins-total">J$0</div>
+        <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected" aria-controls="basket-panel" aria-expanded="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span id="basket-notification-count" aria-hidden="true">0</span>
+        </button>
+        <div class="bins-layout">
+          <div class="bins-gallery-col">
+            <div class="bin-grid" id="bins">
+              <p>Loading snacks…</p>
+            </div>
           </div>
-          <div style="display:flex; gap:8px;">
-            <button id="bins-reset">Clear</button>
-            <button class="primary" id="bins-submit" disabled>Add to tab</button>
-          </div>
+          <div class="basket-overlay" id="basket-overlay"></div>
+          <aside class="bins-cart-col" id="basket-panel" aria-label="Snacks being added to this tab">
+            <div class="bins-cart-sticky">
+              <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Adding to tab</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
+              <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+                <div class="bins-cart-items" id="bins-cart-items">
+                  <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+                </div>
+                <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+                <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
+              </div>
+              <div class="bins-cart-total">
+                <span>Total</span>
+                <span class="amount" id="bins-total">J$0</span>
+              </div>
+              <div class="bins-cart-actions">
+                <button id="bins-reset">Clear</button>
+                <button class="primary" id="bins-submit" disabled>Add to tab</button>
+              </div>
+              <div class="status" id="bins-status"></div>
+            </div>
+          </aside>
         </div>
-        <div class="status" id="bins-status"></div>
       </section>
 
       <section class="card section-card payment-ledger-link-card">
@@ -214,6 +233,20 @@
       </div>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="confirm-remove-backdrop">
+    <div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-title">
+      <button type="button" class="modal-close" id="confirm-remove-close" aria-label="Close">&times;</button>
+      <h2 id="confirm-remove-title">Remove item?</h2>
+      <p id="confirm-remove-body"></p>
+      <div class="modal-actions">
+        <button type="button" id="confirm-remove-cancel">Cancel</button>
+        <button type="button" class="danger" id="confirm-remove-ok">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cart-toast" id="cart-toast" role="status" aria-live="polite"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -598,49 +631,172 @@
       return t;
     }
 
+    function updateCartFade() {
+      const el = $("bins-cart-items");
+      const wrap = $("bins-cart-items-wrap");
+      wrap.classList.toggle("has-more-above", el.scrollTop > 2);
+      wrap.classList.toggle("has-more-below", el.scrollHeight - el.clientHeight - el.scrollTop > 2);
+    }
+
+    function renderCartItems() {
+      const container = $("bins-cart-items");
+      if (!picked.size) {
+        container.innerHTML = `<p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>`;
+        updateCartFade();
+        return;
+      }
+      const cur = SNAPSHOT.settings.currency;
+      container.innerHTML = [...picked.entries()].map(([id, qty]) => {
+        const s = FS.snackById(SNAPSHOT, id);
+        if (!s) return "";
+        return `<div class="bins-cart-item" data-id="${esc(id)}">
+          <span class="bins-cart-item-name">${esc(s.name)}</span>
+          <span class="bins-cart-item-subtotal">${FS.money(s.price * qty, cur)}</span>
+          <span class="basket-item-stepper" role="group" aria-label="${esc(s.name)} quantity">
+            <button type="button" data-id="${esc(id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+            <span aria-live="polite" aria-atomic="true">${qty}</span>
+            <button type="button" data-id="${esc(id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+          </span>
+          <button type="button" class="bins-cart-item-remove" data-id="${esc(id)}" data-name="${esc(s.name)}" aria-label="Remove ${esc(s.name)}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>`;
+      }).join("");
+      updateCartFade();
+    }
+
+    let cartToastTimer = null;
+    function showCartToast(message) {
+      const toast = $("cart-toast");
+      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
+      toast.classList.add("show");
+      clearTimeout(cartToastTimer);
+      cartToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
     function syncBinsGallery() {
       const cur = SNAPSHOT.settings.currency;
-      for (const s of SNAPSHOT.catalog) {
-        const el = document.querySelector(`#bins .qty[data-id="${s.id}"]`);
-        if (el) el.textContent = picked.get(s.id) || 0;
-      }
       $("bins-total").textContent = FS.money(binsTotal(), cur);
       $("bins-submit").disabled = binsTotal() === 0;
+      $("basket-notification-count").textContent = picked.size;
+      $("basket-notification").setAttribute("aria-label", `View basket, ${picked.size} different snack${picked.size === 1 ? "" : "s"} selected`);
+      renderCartItems();
     }
 
     function renderBinsGallery() {
       if (!SNAPSHOT.catalog.length) {
+        $("basket-notification").classList.add("hidden");
         $("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
+      $("basket-notification").classList.remove("hidden");
       $("bins").innerHTML = SNAPSHOT.catalog.map((s) => `
-        <div class="bin-card">
+        <div class="bin-card" data-id="${esc(s.id)}">
           <div class="bin-photo">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
             : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
-            <div class="bin-price">${FS.money(s.price, SNAPSHOT.settings.currency)} each</div>
-            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
-              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
-              <span class="qty" data-id="${esc(s.id)}">0</span>
-              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
-            </div>
+            <div class="bin-price">${FS.money(s.price, SNAPSHOT.settings.currency)}</div>
+            <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
+            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}">Add to basket</button>
           </div>
         </div>`).join("");
       syncBinsGallery();
     }
 
     $("bins").addEventListener("click", (ev) => {
-      const btn = ev.target.closest("button[data-id]");
+      const btn = ev.target.closest("button[data-add]");
       if (!btn) return;
-      const id = btn.dataset.id;
-      const next = Math.max(0, (picked.get(id) || 0) + Number(btn.dataset.d));
-      if (next === 0) picked.delete(id); else picked.set(id, next);
+      const id = btn.dataset.add;
+      picked.set(id, (picked.get(id) || 0) + 1);
       syncBinsGallery();
+      const s = FS.snackById(SNAPSHOT, id);
+      if (s) showCartToast(`Added ${s.name} to this tab`);
     });
 
     $("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(); };
+
+    $("bins-cart-items").addEventListener("scroll", updateCartFade);
+
+    $("bins-cart-items").addEventListener("click", (ev) => {
+      const step = ev.target.closest("button[data-d]");
+      if (step) {
+        const id = step.dataset.id;
+        const delta = Number(step.dataset.d);
+        const next = Math.max(0, (picked.get(id) || 0) + delta);
+        if (next === 0) picked.delete(id); else picked.set(id, next);
+        syncBinsGallery();
+        if (delta > 0) {
+          const s = FS.snackById(SNAPSHOT, id);
+          if (s) showCartToast(`Added ${s.name} to this tab`);
+        }
+        return;
+      }
+      const btn = ev.target.closest(".bins-cart-item-remove");
+      if (!btn) return;
+      openConfirmRemove(btn.dataset.id, btn.dataset.name);
+    });
+
+    let confirmRemoveId = null;
+    let confirmRemoveReturnFocus = null;
+
+    function openConfirmRemove(id, name) {
+      confirmRemoveId = id;
+      confirmRemoveReturnFocus = document.activeElement;
+      $("confirm-remove-body").textContent = `Remove ${name} from this tab's basket?`;
+      $("confirm-remove-backdrop").classList.add("show");
+      $("confirm-remove-ok").focus();
+    }
+
+    function closeConfirmRemove() {
+      confirmRemoveId = null;
+      $("confirm-remove-backdrop").classList.remove("show");
+      if (confirmRemoveReturnFocus && document.contains(confirmRemoveReturnFocus)) {
+        confirmRemoveReturnFocus.focus();
+      }
+      confirmRemoveReturnFocus = null;
+    }
+
+    $("confirm-remove-ok").onclick = () => {
+      if (!confirmRemoveId) return;
+      picked.delete(confirmRemoveId);
+      syncBinsGallery();
+      closeConfirmRemove();
+    };
+    $("confirm-remove-cancel").onclick = closeConfirmRemove;
+    $("confirm-remove-close").onclick = closeConfirmRemove;
+    $("confirm-remove-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $("confirm-remove-backdrop")) closeConfirmRemove();
+    });
+    $("confirm-remove-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeConfirmRemove();
+      }
+    });
+
+    $("basket-notification").onclick = () => {
+      const panel = $("basket-panel");
+      const opening = !panel.classList.contains("is-open");
+      panel.classList.toggle("is-open", opening);
+      $("basket-overlay").classList.toggle("is-open", opening);
+      $("basket-notification").setAttribute("aria-expanded", String(opening));
+      if (opening) $("basket-panel-close").focus();
+    };
+
+    $("basket-panel-close").onclick = () => {
+      $("basket-panel").classList.remove("is-open");
+      $("basket-overlay").classList.remove("is-open");
+      $("basket-notification").setAttribute("aria-expanded", "false");
+      $("basket-notification").focus();
+    };
+
+    $("basket-overlay").onclick = () => $("basket-panel-close").click();
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && $("basket-panel").classList.contains("is-open")) {
+        $("basket-panel-close").click();
+      }
+    });
 
     $("bins-submit").onclick = async () => {
       const cur = SNAPSHOT.settings.currency;
@@ -673,6 +829,7 @@
       const badge = (t) => t.userStatus
         ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
         : "";
+      const reviewStatus = (t) => t.reviewStatus || "neutral";
       const rows = [...SNAPSHOT.transactions]
         .sort((a, b) =>
           (b.userStatus === "disputed") - (a.userStatus === "disputed")
@@ -685,9 +842,10 @@
           <td>${esc(t.source || "self")} ${badge(t)}</td>
           <td style="white-space:nowrap;">
             ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
+            ${reviewStatus(t) === "approved" || reviewStatus(t) === "paid" ? `<span class="permanent-note">${reviewStatus(t) === "paid" ? "Final" : "Approved"}</span>` : `
             <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
             <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
-            <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>
+            <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
           </td>
         </tr>`).join("");
       $("transaction-list").innerHTML = `<table class="admin-table">

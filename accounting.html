@@ -127,6 +127,20 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="payment-modal-backdrop">
+    <div class="modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+      <h2 id="payment-modal-title">Record payment</h2>
+      <p class="muted-small" id="payment-modal-customer"></p>
+      <form id="payment-form" class="payment-form">
+        <input type="hidden" id="payment-user-id" />
+        <div class="field"><label for="payment-amount">Amount received</label><input id="payment-amount" type="number" min="1" step="1" required /></div>
+        <div class="field"><label for="payment-date">Payment date</label><input id="payment-date" type="date" required /></div>
+        <div class="field"><label for="payment-note">Note <span class="muted-small">(optional)</span></label><input id="payment-note" type="text" maxlength="160" placeholder="Cash, transfer, or reference" /></div>
+        <div class="modal-actions"><button type="button" id="payment-cancel">Cancel</button><button type="submit" class="primary">Review payment</button></div>
+      </form>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -147,6 +161,54 @@
       el.className = "status " + (ok ? "ok" : "err");
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
     }
+
+    function openPaymentModal(userId, amount = "", note = "") {
+      const info = SNAPSHOT.accounting.find((row) => row.userId === userId);
+      $("payment-user-id").value = userId;
+      $("payment-amount").value = amount || "";
+      $("payment-date").value = FS.todayISO();
+      $("payment-note").value = note;
+      $("payment-modal-customer").textContent = `For ${info?.displayName || userId}. Approved purchases will be settled from oldest to newest.`;
+      $("payment-modal-backdrop").classList.add("show");
+      $("payment-amount").focus();
+    }
+
+    function closePaymentModal() {
+      $("payment-modal-backdrop").classList.remove("show");
+    }
+
+    $("payment-cancel").onclick = closePaymentModal;
+    $("payment-modal-backdrop").onclick = (event) => {
+      if (event.target === $("payment-modal-backdrop")) closePaymentModal();
+    };
+    $("payment-form").onsubmit = async (event) => {
+      event.preventDefault();
+      const userId = $("payment-user-id").value;
+      const amount = Number($("payment-amount").value || 0);
+      const info = SNAPSHOT.accounting.find((row) => row.userId === userId);
+      const ok = await AdminModals.confirm(
+        "Confirm this payment?",
+        `You are recording ${FS.money(amount, SNAPSHOT.settings.currency)} for ${info?.displayName || userId}. This payment is permanent. It will settle approved purchases from oldest to newest, and any amount left over will remain as credit for future snacks.`,
+        { confirmText: "Record payment" }
+      );
+      if (!ok) return;
+      try {
+        const result = await FS.admin.recordPermanentPayment({
+          userId,
+          amount,
+          note: $("payment-note").value,
+          createdDate: $("payment-date").value,
+        });
+        closePaymentModal();
+        await refresh();
+        await AdminModals.alert(
+          "Payment recorded",
+          `${result.settledIds.length} approved purchase${result.settledIds.length === 1 ? " was" : "s were"} marked paid. ${result.credit > 0 ? `${FS.money(result.credit, SNAPSHOT.settings.currency)} remains as credit for future snacks.` : "There is no unused credit from this payment."}`
+        );
+      } catch (error) {
+        await AdminModals.alert("Payment could not be recorded", error.message);
+      }
+    };
 
     const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
     $("invite-modal-done").onclick = closeInviteModal;
@@ -521,6 +583,7 @@
               <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="Actions for ${esc(r.displayName)}" aria-haspopup="true">&#8942;</button>
               <div class="row-menu-dropdown">
                 <button data-act="user-edit-tab">Edit tab</button>
+                <button data-act="user-add-payment">Add payment</button>
                 <button data-act="user-view">View transactions</button>
                 <button data-act="user-invite">Generate Invite</button>
                 <button data-act="user-devices">Devices${r.linkedUids.length ? ` (${r.linkedUids.length}/3)` : ""}</button>
@@ -643,6 +706,8 @@
             row.querySelector('[data-f="vipStatus"]').value
           );
           await refresh();
+        } else if (act === "user-add-payment") {
+          openPaymentModal(row.dataset.user);
         } else if (act === "user-view") {
           location.href = `transactions.html?user=${encodeURIComponent(row.dataset.user)}`;
         } else if (act === "user-edit-tab") {

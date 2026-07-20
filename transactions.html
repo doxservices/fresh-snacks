@@ -96,6 +96,11 @@
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+    const svgIcon = (name) => ({
+      check: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`,
+      cash: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M15 10c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 1.3 1.3 1.9 3 2.2s3 .9 3 2.2c0 1.3-1.3 2.3-3 2.3s-3-1.1-3-2.5"/></svg>`,
+    }[name] || "");
+
     function status(id, msg, ok) {
       const el = $(id);
       el.textContent = msg;
@@ -164,9 +169,9 @@
                 <td class="num-money">${FS.money(record.total || 0, cur)}</td>
                 <td>${reviewBadge(record)}</td>
                 <td class="ledger-actions">
-                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button data-act="txn-approve">Approve</button>` : ""}
+                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve-pay" title="Approve and record payment" aria-label="Approve and record payment">${svgIcon("check")}${svgIcon("cash")}</button>` : ""}
                   ${reviewStatus(record) === "approved" ? `<button class="primary" data-act="txn-pay">Mark paid</button><button data-act="txn-neutral">Reset</button>` : ""}
-                  ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : `
+                  ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : reviewStatus(record) === "approved" ? "" : `
                   <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
                   <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
                   <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
@@ -315,8 +320,18 @@
       // open sections stay open across the re-render each action triggers
       const openKeys = [...document.querySelectorAll("#txn-groups details[open]")].map((d) => d.dataset.user);
       try {
-        if (act === "txn-approve") {
+        if (act === "txn-approve-pay") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          const userId = row.closest("details").dataset.user;
+          const amount = t?.total || "";
+          const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
           await FS.admin.setTransactionReviewStatus(row.dataset.id, "approved");
+          SNAPSHOT = await FS.admin.getSnapshot();
+          renderTransactions();
+          document.querySelectorAll("#txn-groups details").forEach((d) =>
+            d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
+          openPaymentModal(userId, amount, note);
+          return;
         } else if (act === "txn-neutral") {
           await FS.admin.setTransactionReviewStatus(row.dataset.id, "neutral");
         } else if (act === "txn-pay") {

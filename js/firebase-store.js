@@ -807,6 +807,13 @@ FS.addTransaction = async (items) => {
       createdAt: now,
       createdDate: today,
       status: "active",
+      // Self-logged purchases don't need anyone's sign-off - the customer
+      // is vouching for their own entry by adding it. Stamping this at
+      // creation lets it flow straight through the existing
+      // reviewStatus==="approved" payment-allocation pipeline without an
+      // admin ever needing to click Approve.
+      reviewStatus: "approved",
+      approvedAt: now,
     };
     batch.set(ref, record);
     saved.push(record);
