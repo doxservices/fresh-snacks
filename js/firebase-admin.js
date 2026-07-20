@@ -329,8 +329,14 @@ FS.admin.paymentAllocationPlan = (transactions, paidTotal) => {
     .filter((record) => record.reviewStatus === "paid")
     .reduce((sum, record) => sum + Number(record.total || record.value || 0), 0);
   let available = Math.max(0, paidTotal - alreadySettled);
+  // Eligible for settlement means "not already paid" - this deliberately
+  // includes neutral (not-yet-reviewed) admin-sourced purchases, not just
+  // ones an admin explicitly approved first. If a recorded payment already
+  // covers a purchase, that money is itself the confirmation - there's no
+  // separate approval step left to wait on. Void/disputed purchases are
+  // already filtered out by the caller before this ever sees them.
   const eligible = transactions
-    .filter((record) => record.reviewStatus === "approved")
+    .filter((record) => record.reviewStatus !== "paid")
     .sort((a, b) => String(a.createdDate || "").localeCompare(String(b.createdDate || ""))
       || String(a.id).localeCompare(String(b.id)));
   const settledIds = [];
@@ -358,13 +364,24 @@ FS.admin.allocateApprovedTransactions = async (userId) => {
     .filter((record) => record.status !== "void");
   const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const plan = FS.admin.paymentAllocationPlan(transactions, paidTotal);
+  const byId = new Map(transactions.map((record) => [record.id, record]));
   const batch = FS._db.batch();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
   for (const id of plan.settledIds) {
-    batch.update(FS._db.collection("transactions").doc(id), {
+    const record = byId.get(id);
+    const payload = {
       reviewStatus: "paid",
-      paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+      paidAt: now,
       paidBy: FS.admin.user.uid,
-    });
+    };
+    // A neutral purchase settled straight from an existing/incoming payment
+    // never went through an explicit Approve click - stamp the approval
+    // fields too so the audit trail still shows it was reviewed.
+    if (record && !record.reviewStatus) {
+      payload.approvedAt = now;
+      payload.approvedBy = FS.admin.user.uid;
+    }
+    batch.update(FS._db.collection("transactions").doc(id), payload);
   }
   if (plan.settledIds.length) await batch.commit();
   return plan;

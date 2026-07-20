@@ -330,7 +330,14 @@
           renderTransactions();
           document.querySelectorAll("#txn-groups details").forEach((d) =>
             d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
-          openPaymentModal(userId, amount, note);
+          // Approving re-runs allocation against any payment/credit already
+          // on file - if that alone was enough to settle it, there's
+          // nothing left to collect and opening the payment modal here
+          // would prompt for (and could record) a second, redundant payment.
+          const updated = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          if (!updated || updated.reviewStatus !== "paid") {
+            openPaymentModal(userId, amount, note);
+          }
           return;
         } else if (act === "txn-neutral") {
           await FS.admin.setTransactionReviewStatus(row.dataset.id, "neutral");
