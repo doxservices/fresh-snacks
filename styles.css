@@ -32,7 +32,13 @@ body {
   line-height: 1.42;
   min-height: 100vh;
   position: relative;
-  overflow-x: hidden;
+  /* overflow-x:hidden lives on <html> only, not here too - setting it on
+     BOTH makes overflow-y compute to "auto" on both per the CSS overflow
+     spec's cross-axis rule (an explicit non-visible overflow-x forces the
+     other axis off "visible"), creating two candidate scroll containers
+     even though only <html> actually scrolls. position:sticky descendants
+     ended up resolving against <body> (the nearer ancestor, but the one
+     that never actually receives scroll deltas) and never stuck. */
   background: #f6faf5;
 }
 
@@ -3397,12 +3403,17 @@ textarea:focus {
    stays in view via position:sticky rather than being hidden behind a
    floating button, so a shopper can always see what they've picked while
    browsing the rest of the gallery. align-items stays at its grid default
-   (stretch) rather than "start" - a sticky child only has room to float
-   while scrolling for as much extra height as its own parent box actually
-   has, and "start" would size the cart column down to just its own content
-   height (no taller than the cart card itself), leaving no range for
-   position:sticky to work with while the much taller gallery column scrolls
-   past beside it.
+   (stretch) rather than "start" so .bins-cart-col (the grid item) stretches
+   to match the gallery column's full height - but the sticky positioning
+   itself lives on .bins-cart-sticky (the inner card), NOT on .bins-cart-col.
+   A sticky element only has room to float for as much extra space as its
+   OWN box is smaller than its containing block; putting sticky directly on
+   .bins-cart-col, which is stretched to be exactly as tall as its own
+   containing block (the grid row), leaves it zero slack to move within -
+   it just scrolls away with the page instead of pinning. Keeping
+   .bins-cart-col a plain stretched (tall) grid item and making the
+   naturally-small .bins-cart-sticky inside it the sticky element gives
+   sticky the room it actually needs.
    Below the 900px breakpoint there's no room for gallery + well side by
    side, so it switches over to the floating button + slide-in drawer
    pattern instead (see that breakpoint below). */
@@ -3416,13 +3427,9 @@ textarea:focus {
   display: none;
 }
 
-.bins-cart-col {
+.bins-cart-sticky {
   position: sticky;
   top: 16px;
-}
-
-.bins-cart-sticky {
-  position: static;
   background: rgba(255,255,255,0.9);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3448,6 +3455,10 @@ textarea:focus {
 }
 
 .basket-panel-close {
+  /* The well is now always visible (persistent on desktop, inline as the
+     third gallery card on mobile) rather than a dismissible drawer, so
+     there's nothing left for a close button to do. */
+  display: none;
   background: transparent;
   border: 0;
   border-radius: 50%;
@@ -3591,6 +3602,29 @@ textarea:focus {
 
 .bins-cart-actions #bins-submit {
   flex: 1;
+}
+
+/* On very wide screens .page-wide stops growing at 1280px, leaving real
+   empty margin on either side - past that point the well shifts out of the
+   gallery's column entirely and floats centered in that right margin
+   instead of taking up width from the content column. The breakpoint
+   isn't just "whenever a margin exists" - it's set to where the margin is
+   actually wide enough (2 * 340px well + a small buffer) to center a
+   340px card inside it without the card's own edge spilling back past the
+   viewport's right edge. Below this the grid+sticky-well layout (the base
+   rules above) stays in place.
+   Kept as a transform on the same sticky element (.bins-cart-sticky), not
+   a separate fixed-position element: a paint-time horizontal offset like
+   this doesn't disturb the vertical sticky mechanics at all, and it
+   sidesteps .card's backdrop-filter (the glassy blur) promoting itself to
+   a new containing block for fixed/absolute descendants, which would
+   otherwise fight any attempt to position this well relative to the
+   viewport directly. */
+@media (min-width: 2000px) {
+  .bins-cart-sticky {
+    transform: translateX(calc((100vw - 1280px) / 4 + 170px));
+    z-index: 20;
+  }
 }
 
 .bin-card {
@@ -4346,55 +4380,48 @@ tr.disputed td {
   }
 
   /* Below this width the gallery + persistent well no longer fit side by
-     side, so the well switches to a floating button that opens a slide-in
-     drawer instead - the desktop base rules above (position:sticky, always
-     visible) are overridden back to the fixed/hidden/toggle pattern here. */
+     side. Instead of hiding the well behind a floating toggle button, it's
+     woven directly into the gallery grid as the third card - .bins-layout
+     becomes the actual 2-column grid (display:contents on the wrapper and
+     the bin-grid promotes the individual snack cards to be its direct
+     items), so the well naturally lands full-width right after the first
+     two cards in normal document flow and scrolls with the page. */
   .bins-layout {
-    display: block;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .basket-notification {
-    display: flex;
+  .bins-gallery-col,
+  .bin-grid {
+    display: contents;
   }
 
+  .basket-notification,
   .basket-overlay {
-    background: rgba(24, 79, 42, 0.28);
-    display: block;
-    inset: 0;
-    opacity: 0;
-    pointer-events: none;
-    position: fixed;
-    transition: opacity 160ms ease;
-    z-index: 41;
+    display: none;
   }
 
-  .basket-overlay.is-open {
-    opacity: 1;
-    pointer-events: auto;
+  /* Grid auto-placement fills cells in DOM order, and the well is DOM-last
+     (after all the snack cards, so the CSS alone would otherwise land it
+     at the very end of the gallery) - "order" reshuffles the VISUAL
+     placement without touching the DOM: the first two cards and the well
+     tie at order:-1 (everything else stays at the default 0, so it sorts
+     after), and ties within that group still fall back to DOM order,
+     which keeps the two cards ahead of the well - landing it exactly as
+     the third card. */
+  .bin-card:nth-child(-n+2) {
+    order: -1;
   }
 
   .bins-cart-col {
-    opacity: 0;
-    pointer-events: none;
-    position: fixed;
-    right: 14px;
-    top: 78px;
-    transform: translateX(calc(100% + 34px));
-    transition: opacity 160ms ease, transform 180ms ease;
-    /* 100vw can measure wider than the actual visible viewport once a
-       vertical scrollbar is present (a well-known browser quirk - vw
-       doesn't subtract the scrollbar's own width), which at narrow phone
-       widths was enough to push this fixed-position panel's left edge past
-       the screen edge. A wider safety margin than the visual gap alone
-       calls for absorbs that discrepancy instead of trying to calculate
-       around it exactly. */
-    width: min(300px, calc(100vw - 44px));
-  }
-
-  .bins-cart-col.is-open {
+    grid-column: 1 / -1;
     opacity: 1;
+    order: -1;
     pointer-events: auto;
-    transform: translateX(0);
+    position: static;
+    transform: none;
+    width: auto;
   }
 
   .favorite-card {
@@ -4414,22 +4441,9 @@ tr.disputed td {
     grid-template-columns: 1fr;
   }
 
-  /* two columns instead of one — the 220px minimum only ever fit a single
-     column on phone widths, making the gallery unnecessarily long to scroll */
-  .bin-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  /* no room to dock a sidebar next to the gallery on phones - stack it below
-     instead, and drop the sticky pin since there's no "side" to hold it to */
-  .bins-layout {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-
   .bins-cart-sticky {
     position: static;
+    transform: none;
   }
 
   .bins-cart-items {
