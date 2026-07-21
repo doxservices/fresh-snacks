@@ -4478,6 +4478,87 @@ tr.disputed td {
   color: #8a2f2f;
 }
 
+.verdict-badge.needs-review {
+  background: #fdf3e2;
+  color: #8a6412;
+}
+
+.notifications-modal {
+  width: min(560px, 100%);
+}
+
+#notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.notif-item {
+  align-items: center;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.notif-item:hover {
+  background: var(--green-light);
+}
+
+.notif-item.disputed {
+  background: rgba(250, 240, 239, 0.9);
+}
+
+.notif-item-photo {
+  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
+  border-radius: var(--radius-sm);
+  flex: none;
+  height: 44px;
+  overflow: hidden;
+  position: relative;
+  width: 44px;
+}
+
+.notif-item-photo img {
+  background: #fff;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+
+.notif-item-photo .bin-placeholder {
+  font-size: 22px;
+}
+
+.notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-item-meta {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 4px;
+}
+
 /* ---- snacks-taken macro chips ---- */
 
 .macro-chips {
