@@ -15,7 +15,8 @@
     "firebase:migrate-legacy": "node scripts/migrate-legacy-user.mjs",
     "deploy:rules": "node scripts/deploy-rules.mjs",
     "deploy:rules:cli": "firebase deploy --only firestore:rules,firestore:indexes",
-    "deploy:hosting": "firebase deploy --only hosting"
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions"
   },
   "devDependencies": {
     "firebase-admin": "^13.4.0",
