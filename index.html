@@ -1041,7 +1041,8 @@
 
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
-      maybeOpenNameCaptureModal(me, anonymous);
+      const nameSet = me.nameSet === true;
+      maybeOpenNameCaptureModal(me, !nameSet);
       $id("us-username").value = anonymous ? "" : (me.displayName || "");
       $id("us-first").value = me.firstName || "";
       $id("us-last").value = me.lastName || "";
@@ -1180,8 +1181,8 @@
       ncmReturnFocus = null;
     }
 
-    function maybeOpenNameCaptureModal(me, anonymous) {
-      if (!anonymous) return;
+    function maybeOpenNameCaptureModal(me, needsName) {
+      if (!needsName) return;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       if (sessionStorage.getItem("fresh_snacks_ncm_dismissed") && !linkCode) return;
       openNameCaptureModal(me);
