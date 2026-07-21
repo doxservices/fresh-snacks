@@ -667,11 +667,12 @@
     function flashCartWell() {
       const sticky = document.querySelector(".bins-cart-sticky");
       if (!sticky) return;
-      sticky.classList.remove("basket-attention");
-      void sticky.offsetWidth; // force reflow so the animation restarts if it's already mid-flash
+      // Only ever adds the class (never removes-then-readds), so repeated
+      // additions extend the glow instead of restarting it and blinking.
+      // It stays lit continuously and only clears 2s after the last add.
       sticky.classList.add("basket-attention");
       clearTimeout(cartFlashTimer);
-      cartFlashTimer = setTimeout(() => sticky.classList.remove("basket-attention"), 700);
+      cartFlashTimer = setTimeout(() => sticky.classList.remove("basket-attention"), 2000);
     }
 
     // Mobile skips the flying toast entirely (the well is already locked in
@@ -681,10 +682,12 @@
     // position, since it sits somewhere different depending on breakpoint
     // - including out in the right margin on very wide screens) rather
     // than centered on the page. Several in a row stack instead of
-    // replacing one another, then each flies up to the well's actual
-    // position - computed fresh per toast since scrolling can move it
-    // within its sticky range - fading out over half a second as it
-    // arrives and triggering the flash.
+    // replacing one another. Each toast still gets its own ~2.4s minimum
+    // read time, but a toast never starts flying until 1s after the
+    // PREVIOUS one finished flying and was removed - so a burst of
+    // additions vanishes one at a time in order, instead of each racing
+    // off on its own click-based timer.
+    let toastVanishChain = Promise.resolve();
     function showCartToast(message) {
       if (window.innerWidth <= 900) {
         flashCartWell();
@@ -703,7 +706,12 @@
       stack.appendChild(toast);
       requestAnimationFrame(() => toast.classList.add("show"));
 
-      setTimeout(() => {
+      const minRead = new Promise((resolve) => setTimeout(resolve, 2400));
+      const afterPrevGone = toastVanishChain.then(() => new Promise((resolve) => setTimeout(resolve, 1000)));
+      let resolveThisGone;
+      toastVanishChain = new Promise((resolve) => { resolveThisGone = resolve; });
+
+      Promise.all([minRead, afterPrevGone]).then(() => {
         const toastRect = toast.getBoundingClientRect();
         const targetRect = sticky.getBoundingClientRect();
         const dx = (targetRect.left + targetRect.width / 2) - (toastRect.left + toastRect.width / 2);
@@ -714,8 +722,9 @@
         toast.addEventListener("transitionend", () => {
           toast.remove();
           flashCartWell();
+          resolveThisGone();
         }, { once: true });
-      }, 2400);
+      });
     }
 
     function syncBinsGallery() {
