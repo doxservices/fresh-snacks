@@ -160,60 +160,6 @@ header {
   top: -4px;
 }
 
-.nav-qr-row {
-  display: inline-flex;
-  align-items: stretch;
-  gap: 4px;
-  min-width: 0;
-}
-
-.header-actions .nav-qr-row > a { flex: 1; }
-
-.nav-qr-copy {
-  min-width: 36px;
-  padding: 7px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--green-dark);
-  cursor: pointer;
-  box-shadow: none;
-  transition: background-color .12s ease, color .12s ease, transform .08s ease;
-}
-
-.nav-qr-copy:hover,
-.nav-qr-copy.copied {
-  background: var(--green-light);
-}
-
-.nav-qr-copy:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 1px;
-  background: var(--green-light);
-}
-
-.nav-qr-copy:active {
-  background: #cfe5d3;
-  color: #0d3f22;
-  transform: translateY(2px) scale(.96);
-}
-
-.nav-qr-copy svg {
-  display: block;
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
-.drawer .nav-qr-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  gap: 4px;
-  width: 100%;
-}
-
-.drawer .nav-qr-row .drawer-link { width: auto; }
-
 #nav-qr-toast {
   position: fixed;
   z-index: 120;
@@ -4494,24 +4440,6 @@ tr.disputed td {
   color: #2c5a8a;
 }
 
-.notif-dismiss {
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  color: var(--muted);
-  cursor: pointer;
-  flex: none;
-  font-size: 18px;
-  height: 26px;
-  line-height: 1;
-  padding: 0;
-  width: 26px;
-}
-
-.notif-dismiss:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--text);
-}
 
 .notifications-modal {
   width: min(560px, 100%);

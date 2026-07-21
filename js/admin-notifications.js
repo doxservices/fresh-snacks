@@ -162,11 +162,15 @@
       handleAction(actionBtn);
       return;
     }
-    const dismissBtn = ev.target.closest(".notif-dismiss");
-    if (dismissBtn) {
-      ev.stopPropagation();
-      dismissKey(dismissBtn.dataset.key);
-      dismissBtn.closest(".notif-item").remove();
+    const item = ev.target.closest(".notif-item");
+    if (!item) return;
+
+    // Activity notices (naming, self-logged checkouts) have no natural
+    // "resolved" state to wait for - clicking anywhere on the row is what
+    // dismisses them, not just a small x button.
+    if (item.dataset.type === "name-added" || item.dataset.type === "items-added") {
+      dismissKey(item.dataset.key);
+      item.remove();
       renderBadge();
       const list = document.getElementById("admin-notifications-list");
       if (!list.querySelector(".notif-item")) {
@@ -174,8 +178,6 @@
       }
       return;
     }
-    const item = ev.target.closest(".notif-item");
-    if (!item) return;
     if (item.dataset.type === "feedback") {
       closePanel();
       location.href = "admin.html#feedback-list";
@@ -209,21 +211,6 @@
         // if that alone settled it, opening the payment modal here would
         // prompt for (and could record) a second, redundant payment.
         if (!updated || updated.reviewStatus !== "paid") openEmbeddedPaymentModal(userId, amount, note);
-      } else if (act === "txn-group-approve-all") {
-        const userId = btn.dataset.user;
-        const ok = await window.AdminModals.confirm(
-          "Approve all?",
-          "Every listed purchase for this customer will be approved and any dispute flags cleared.",
-          { confirmText: "Approve all" }
-        );
-        if (!ok) return;
-        const txns = snapshot.transactions.filter((t) =>
-          (t.userId || t.uid) === userId && ((t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed"));
-        for (const t of txns) {
-          await FS.admin.setTransactionReviewStatus(t.transactionId || t.id, "approved");
-        }
-        await refreshSnapshot();
-        renderList();
       } else if (act === "fb-read") {
         await FS.admin.setFeedbackStatus(btn.dataset.id, "read");
         await refreshSnapshot();
@@ -392,14 +379,14 @@
         </div>`;
       }
       if (it.type === "transaction-group") {
+        // No bulk action here on purpose - clicking the row just navigates
+        // to that customer's transactions.html page (the generic fallback
+        // in onListClick already does this from data-user alone).
         return `<div class="notif-item${it.disputed ? " disputed" : ""}" data-type="transaction-group" data-id="" data-user="${esc(it.userId)}">
           <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128203;</span></div>
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${it.count} items need review</div>
-            <div class="notif-item-actions">
-              <button type="button" class="primary" data-notif-act="txn-group-approve-all" data-user="${esc(it.userId)}">Approve all</button>
-            </div>
           </div>
           <div class="notif-item-meta">
             <span class="muted-small">${esc(it.date)}</span>
@@ -408,7 +395,9 @@
         </div>`;
       }
       if (it.type === "name-added") {
-        return `<div class="notif-item" data-type="name-added" data-user="${esc(it.userId)}">
+        // Activity notice - clicking anywhere on the row dismisses it (see
+        // onListClick), no separate x button needed.
+        return `<div class="notif-item" data-type="name-added" data-key="${esc(it.key)}">
           <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128100;</span></div>
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
@@ -418,13 +407,12 @@
             <span class="muted-small">${esc(it.date)}</span>
             <span class="verdict-badge activity">New profile</span>
           </div>
-          <button type="button" class="notif-dismiss" data-key="${esc(it.key)}" aria-label="Dismiss this notification" title="Dismiss">&times;</button>
         </div>`;
       }
       if (it.type === "items-added") {
         const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
         const itemName = snack ? snack.name : (it.snackName || "Item");
-        return `<div class="notif-item" data-type="items-added" data-user="${esc(it.userId)}">
+        return `<div class="notif-item" data-type="items-added" data-key="${esc(it.key)}">
           <div class="notif-item-photo">${snack && snack.photo
             ? `<img src="${esc(snack.photo)}" alt="${esc(itemName)}" loading="lazy" />`
             : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
@@ -436,7 +424,6 @@
             <span class="muted-small">${esc(it.date)}</span>
             <span class="verdict-badge activity">Logged</span>
           </div>
-          <button type="button" class="notif-dismiss" data-key="${esc(it.key)}" aria-label="Dismiss this notification" title="Dismiss">&times;</button>
         </div>`;
       }
       const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
@@ -449,7 +436,7 @@
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
           <div class="notif-item-actions">
-            <button type="button" class="primary" data-notif-act="txn-approve-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve &amp; pay</button>
+            <button type="button" class="primary" data-notif-act="txn-approve-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Add payment</button>
           </div>
         </div>
         <div class="notif-item-meta">
