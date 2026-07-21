@@ -676,12 +676,15 @@
 
     // Mobile skips the flying toast entirely (the well is already locked in
     // view above the gallery there) - just flash the well directly. Desktop
-    // toasts stack at the bottom of the viewport (several in a row don't
-    // replace one another), matching the well's current on-screen width,
-    // then each flies up to the well's actual position - computed fresh
-    // per toast since the well sits somewhere different depending on
-    // breakpoint and scroll - fading out over half a second as it arrives
-    // and triggering the flash.
+    // toasts stack at the bottom of the viewport, aligned under the well's
+    // own column (left/width tracked to the well's current on-screen
+    // position, since it sits somewhere different depending on breakpoint
+    // - including out in the right margin on very wide screens) rather
+    // than centered on the page. Several in a row stack instead of
+    // replacing one another, then each flies up to the well's actual
+    // position - computed fresh per toast since scrolling can move it
+    // within its sticky range - fading out over half a second as it
+    // arrives and triggering the flash.
     function showCartToast(message) {
       if (window.innerWidth <= 900) {
         flashCartWell();
@@ -691,10 +694,11 @@
       const sticky = document.querySelector(".bins-cart-sticky");
       if (!stack || !sticky) return;
       const cartRect = sticky.getBoundingClientRect();
+      stack.style.left = `${Math.round(cartRect.left)}px`;
+      stack.style.width = `${Math.round(cartRect.width)}px`;
 
       const toast = document.createElement("div");
       toast.className = "cart-toast";
-      toast.style.width = `${Math.round(cartRect.width)}px`;
       toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
       stack.appendChild(toast);
       requestAnimationFrame(() => toast.classList.add("show"));

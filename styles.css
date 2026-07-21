@@ -1793,25 +1793,26 @@ textarea:focus {
 }
 
 /* "Added to basket" toasts (desktop only - mobile just flashes the cart
-   directly, see showCartToast() in the page script). The stack sits at the
-   bottom of the viewport (fixed, so it stays put regardless of scroll
-   position) rather than tracking the well - new toasts enter at the
-   bottom and stack upward above any still visible, matching the well's
-   current width (set inline via JS, since the well is a different width
-   depending on breakpoint). After a moment each toast individually flies
-   up to the well's actual on-screen position (computed fresh per toast)
-   and fades out along the way, triggering a brief flash on the well
-   (.basket-attention, defined further down) once it arrives. */
+   directly, see showCartToast() in the page script). Anchored to the
+   bottom of the viewport (fixed, so it stays put regardless of scroll)
+   but its left/width are set inline via JS to line up under the cart
+   well's own column - including out in the right margin on very wide
+   screens - rather than centering on the whole page. New toasts enter at
+   the bottom and stack upward above any still visible. After a moment
+   each toast individually flies up to the well's actual on-screen
+   position (computed fresh per toast, since scrolling can move it within
+   its sticky range) and fades out along the way, triggering a brief
+   flash on the well (.basket-attention, defined further down) once it
+   arrives. Every toast is a fixed size (matching the well's width) with
+   the message itself truncated with an ellipsis rather than the toast
+   growing to fit longer text. */
 .cart-toast-stack {
-  align-items: center;
   bottom: 28px;
   display: flex;
   flex-direction: column-reverse;
   gap: 8px;
-  left: 50%;
   pointer-events: none;
   position: fixed;
-  transform: translateX(-50%);
   z-index: 80;
 }
 
@@ -1826,11 +1827,18 @@ textarea:focus {
   font-size: 14px;
   font-weight: 500;
   gap: 10px;
-  justify-content: center;
   opacity: 0;
+  overflow: hidden;
   padding: 14px 22px;
   transform: translateY(32px) scale(0.94);
   transition: transform 200ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 180ms ease;
+  width: 100%;
+}
+
+.cart-toast span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
