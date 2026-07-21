@@ -1,5 +1,6 @@
-/* Shared on-demand QR modal. Customer drawer links are enhanced automatically;
- * admin pages call FreshSnacksQR.open() from the protected sitemap/inventory. */
+/* Shared on-demand QR modal, opened only via FreshSnacksQR.open() - the
+ * device-linking flow (index.html) and the protected sitemap/inventory
+ * admin pages. The user profile/hamburger nav does not get this. */
 (function () {
   const QR_SCRIPT_ID = "fresh-snacks-qr-generator";
 
@@ -158,35 +159,5 @@
     await openQr(anchor, button || document.createElement("button"));
   }
 
-  function enhance(anchor) {
-    if (anchor.dataset.qrEnhanced === "true" || !anchor.getAttribute("href")) return;
-    anchor.dataset.qrEnhanced = "true";
-    const label = anchor.textContent.trim() || "navigation link";
-    const row = document.createElement("span");
-    row.className = "nav-qr-row";
-    anchor.before(row);
-    row.appendChild(anchor);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "nav-qr-copy";
-    button.title = `Show QR code for ${label}`;
-    button.setAttribute("aria-label", `Show QR code for ${label}`);
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm4 0h3v7h-3v-3h-3v3h-3v-3h3v-3h3v-1Z"/></svg>';
-    button.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); openQr(anchor, button); });
-    row.appendChild(button);
-  }
-
-  function scan(root = document) {
-    root.querySelectorAll?.("nav.drawer a.drawer-link[href]").forEach(enhance);
-  }
-
-
   window.FreshSnacksQR = { open: openDestination };
-
-  scan();
-  new MutationObserver((records) => records.forEach((record) => record.addedNodes.forEach((node) => {
-    if (node.nodeType !== 1) return;
-    if (node.matches?.("nav.drawer a.drawer-link[href]")) enhance(node);
-    scan(node);
-  }))).observe(document.body, { childList: true, subtree: true });
 })();
