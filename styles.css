@@ -4589,6 +4589,17 @@ tr.disputed td {
   gap: 4px;
 }
 
+.notif-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.notif-item-actions button {
+  font-size: 12.5px;
+  padding: 4px 9px;
+}
+
 /* ---- snacks-taken macro chips ---- */
 
 .macro-chips {

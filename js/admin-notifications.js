@@ -70,11 +70,80 @@
     </div>`;
     document.body.appendChild(backdrop);
 
+    // Its own payment modal (same fields/flow as transactions.html's) so
+    // "Approve & pay" works from the panel on any page, not just
+    // transactions.html - the panel commonly gets used from pages that
+    // never had a payment modal of their own.
+    const paymentBackdrop = document.createElement("div");
+    paymentBackdrop.className = "modal-backdrop";
+    paymentBackdrop.id = "admin-notifications-payment-backdrop";
+    paymentBackdrop.innerHTML = `<div class="modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="anp-title">
+      <h2 id="anp-title">Record payment</h2>
+      <p class="muted-small" id="anp-customer"></p>
+      <form id="anp-form" class="payment-form">
+        <input type="hidden" id="anp-user-id" />
+        <div class="field"><label for="anp-amount">Amount received</label><input id="anp-amount" type="number" min="1" step="1" required /></div>
+        <div class="field"><label for="anp-date">Payment date</label><input id="anp-date" type="date" required /></div>
+        <div class="field"><label for="anp-note">Note <span class="muted-small">(optional)</span></label><input id="anp-note" type="text" maxlength="160" placeholder="Cash, transfer, or reference" /></div>
+        <div class="modal-actions"><button type="button" id="anp-cancel">Cancel</button><button type="submit" class="primary">Review payment</button></div>
+      </form>
+    </div>`;
+    document.body.appendChild(paymentBackdrop);
+
     bell.addEventListener("click", openPanel);
     document.getElementById("admin-notifications-close").addEventListener("click", closePanel);
     backdrop.addEventListener("click", (ev) => { if (ev.target === backdrop) closePanel(); });
-    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closePanel(); });
+    document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") { closePanel(); closeEmbeddedPaymentModal(); } });
     document.getElementById("admin-notifications-list").addEventListener("click", onListClick);
+
+    document.getElementById("anp-cancel").addEventListener("click", closeEmbeddedPaymentModal);
+    paymentBackdrop.addEventListener("click", (ev) => { if (ev.target === paymentBackdrop) closeEmbeddedPaymentModal(); });
+    document.getElementById("anp-form").addEventListener("submit", onPaymentSubmit);
+  }
+
+  function openEmbeddedPaymentModal(userId, amount, note) {
+    const info = snapshot.accounting.find((r) => r.userId === userId);
+    document.getElementById("anp-user-id").value = userId;
+    document.getElementById("anp-amount").value = amount || "";
+    document.getElementById("anp-date").value = FS.todayISO();
+    document.getElementById("anp-note").value = note || "";
+    document.getElementById("anp-customer").textContent = `For ${info?.displayName || userId}. Approved purchases will be settled from oldest to newest.`;
+    document.getElementById("admin-notifications-payment-backdrop").classList.add("show");
+    document.getElementById("anp-amount").focus();
+  }
+
+  function closeEmbeddedPaymentModal() {
+    document.getElementById("admin-notifications-payment-backdrop")?.classList.remove("show");
+  }
+
+  async function onPaymentSubmit(ev) {
+    ev.preventDefault();
+    const userId = document.getElementById("anp-user-id").value;
+    const amount = Number(document.getElementById("anp-amount").value || 0);
+    const info = snapshot.accounting.find((r) => r.userId === userId);
+    const ok = await window.AdminModals.confirm(
+      "Confirm this payment?",
+      `You are recording ${FS.money(amount, snapshot.settings.currency)} for ${info?.displayName || userId}. This payment is permanent. It will settle approved purchases from oldest to newest, and any amount left over will remain as credit for future snacks.`,
+      { confirmText: "Record payment" }
+    );
+    if (!ok) return;
+    try {
+      const result = await FS.admin.recordPermanentPayment({
+        userId,
+        amount,
+        note: document.getElementById("anp-note").value,
+        createdDate: document.getElementById("anp-date").value,
+      });
+      closeEmbeddedPaymentModal();
+      await refreshSnapshot();
+      renderList();
+      await window.AdminModals.alert(
+        "Payment recorded",
+        `${result.settledIds.length} approved purchase${result.settledIds.length === 1 ? " was" : "s were"} marked paid. ${result.credit > 0 ? `${FS.money(result.credit, snapshot.settings.currency)} remains as credit for future snacks.` : "There is no unused credit from this payment."}`
+      );
+    } catch (e) {
+      await window.AdminModals.alert("Payment could not be recorded", e.message);
+    }
   }
 
   function openPanel() {
@@ -87,6 +156,12 @@
   }
 
   function onListClick(ev) {
+    const actionBtn = ev.target.closest("[data-notif-act]");
+    if (actionBtn) {
+      ev.stopPropagation();
+      handleAction(actionBtn);
+      return;
+    }
     const dismissBtn = ev.target.closest(".notif-dismiss");
     if (dismissBtn) {
       ev.stopPropagation();
@@ -109,6 +184,60 @@
     const params = new URLSearchParams({ user: item.dataset.user });
     if (item.dataset.txn) params.set("txn", item.dataset.txn);
     location.href = `transactions.html?${params.toString()}`;
+  }
+
+  // Lets the admin resolve a "needs review" notification right here instead
+  // of having to navigate to transactions.html first - mirrors the exact
+  // same FS.admin.* calls that page's own buttons make.
+  async function handleAction(btn) {
+    const act = btn.dataset.notifAct;
+    const item = btn.closest(".notif-item");
+    const buttons = [...item.querySelectorAll("button")];
+    buttons.forEach((b) => (b.disabled = true));
+    try {
+      if (act === "txn-approve-pay") {
+        const id = btn.dataset.id;
+        const userId = btn.dataset.user;
+        const t = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
+        const amount = t?.total || "";
+        const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
+        await FS.admin.setTransactionReviewStatus(id, "approved");
+        await refreshSnapshot();
+        renderList();
+        const updated = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
+        // Approving re-runs allocation against any credit already on file -
+        // if that alone settled it, opening the payment modal here would
+        // prompt for (and could record) a second, redundant payment.
+        if (!updated || updated.reviewStatus !== "paid") openEmbeddedPaymentModal(userId, amount, note);
+      } else if (act === "txn-group-approve-all") {
+        const userId = btn.dataset.user;
+        const ok = await window.AdminModals.confirm(
+          "Approve all?",
+          "Every listed purchase for this customer will be approved and any dispute flags cleared.",
+          { confirmText: "Approve all" }
+        );
+        if (!ok) return;
+        const txns = snapshot.transactions.filter((t) =>
+          (t.userId || t.uid) === userId && ((t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed"));
+        for (const t of txns) {
+          await FS.admin.setTransactionReviewStatus(t.transactionId || t.id, "approved");
+        }
+        await refreshSnapshot();
+        renderList();
+      } else if (act === "fb-read") {
+        await FS.admin.setFeedbackStatus(btn.dataset.id, "read");
+        await refreshSnapshot();
+        renderList();
+      } else if (act === "fb-archive") {
+        await FS.admin.setFeedbackStatus(btn.dataset.id, "archived");
+        await refreshSnapshot();
+        renderList();
+      }
+    } catch (e) {
+      const alertFn = window.AdminModals?.alert || ((title, msg) => Promise.resolve(alert(`${title}: ${msg}`)));
+      await alertFn("Action failed", e.message);
+      buttons.forEach((b) => (b.disabled = false));
+    }
   }
 
   // One row per customer with >AGGREGATE_THRESHOLD actionable transactions,
@@ -251,6 +380,10 @@
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${esc(String(it.detail).slice(0, 120))}</div>
+            <div class="notif-item-actions">
+              <button type="button" data-notif-act="fb-read" data-id="${esc(it.id)}">Mark read</button>
+              <button type="button" data-notif-act="fb-archive" data-id="${esc(it.id)}">Archive</button>
+            </div>
           </div>
           <div class="notif-item-meta">
             <span class="muted-small">${esc(it.date)}</span>
@@ -264,6 +397,9 @@
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${it.count} items need review</div>
+            <div class="notif-item-actions">
+              <button type="button" class="primary" data-notif-act="txn-group-approve-all" data-user="${esc(it.userId)}">Approve all</button>
+            </div>
           </div>
           <div class="notif-item-meta">
             <span class="muted-small">${esc(it.date)}</span>
@@ -312,6 +448,9 @@
         <div class="notif-item-body">
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
+          <div class="notif-item-actions">
+            <button type="button" class="primary" data-notif-act="txn-approve-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve &amp; pay</button>
+          </div>
         </div>
         <div class="notif-item-meta">
           <span class="muted-small">${esc(it.date)}</span>
