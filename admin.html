@@ -20,10 +20,6 @@
           </div>
         </div>
         <div class="header-actions">
-          <button type="button" class="admin-feedback-badge hidden" id="notifications-bell" aria-label="0 notifications">
-            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a5 5 0 0 0-5 5v3.2c0 .9-.35 1.77-.97 2.42L4.6 15.1c-.6.62-.17 1.65.7 1.65h13.4c.87 0 1.3-1.03.7-1.65l-1.43-1.48A3.5 3.5 0 0 1 17 11.2V8a5 5 0 0 0-5-5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-            <span id="notifications-count" aria-hidden="true">0</span>
-          </button>
           <a class="btn" href="admin.html" aria-current="page">Dashboard</a>
           <a class="btn" id="admin-profile-page" href="index.html">Test profile</a>
           <a class="btn" href="inventory.html">Baskets</a>
@@ -134,20 +130,13 @@
     <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
   </main>
 
-  <div class="modal-backdrop" id="notifications-backdrop">
-    <div class="modal notifications-modal" role="dialog" aria-modal="true" aria-labelledby="notifications-title">
-      <button type="button" class="modal-close" id="notifications-close" aria-label="Close">&times;</button>
-      <h2 id="notifications-title">Notifications</h2>
-      <div id="notifications-list"></div>
-    </div>
-  </div>
-
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260717-read-cache"></script>
   <script src="js/firebase-admin.js?v=20260717-gallery-redesign"></script>
+  <script src="js/admin-notifications.js?v=20260721-notifications-bell"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -214,103 +203,13 @@
       </table>`;
     }
 
-    // Notifications = new feedback + transactions that still need an admin
-    // decision: never-approved admin-logged purchases (reviewStatus
-    // "neutral") and anything a customer has disputed, whatever its
-    // reviewStatus - once handled, an item just drops off this list (no
-    // resolved-history feed, so the count always matches the real backlog).
-    function notificationItems() {
-      const feedbackItems = SNAPSHOT.feedback.filter((f) => f.status === "new").map((f) => ({
-        type: "feedback",
-        id: f.feedbackId || f.id,
-        date: FS.admin.dateFromRecord(f, "createdAt"),
-        name: [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous",
-        detail: f.details != null ? f.details : (f.message || ""),
-      }));
-      const txnItems = SNAPSHOT.transactions.filter((t) => (t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed").map((t) => ({
-        type: "transaction",
-        id: t.transactionId || t.id,
-        date: t.createdDate || FS.admin.dateFromRecord(t, "createdAt"),
-        snackId: t.snackId,
-        snackName: t.snackName,
-        reviewStatus: t.reviewStatus || "neutral",
-        disputed: t.userStatus === "disputed",
-        userId: t.userId,
-      }));
-      return [...feedbackItems, ...txnItems].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    // The shared notifications bell (js/admin-notifications.js) covers new
+    // feedback + transactions needing review across every admin page now -
+    // arriving here via that bell's "feedback" item lands on
+    // admin.html#feedback-list, so scroll to it once the page is ready.
+    if (location.hash === "#feedback-list") {
+      setTimeout(() => $("feedback-list")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
     }
-
-    function renderNotificationsBadge() {
-      const count = notificationItems().length;
-      const badge = $("notifications-bell");
-      badge.classList.toggle("hidden", count === 0);
-      $("notifications-count").textContent = count;
-      badge.setAttribute("aria-label", `${count} notification${count === 1 ? "" : "s"}`);
-    }
-
-    function renderNotificationsList() {
-      const items = notificationItems();
-      if (!items.length) {
-        $("notifications-list").innerHTML = `<p class="muted-small">Nothing needs your attention right now.</p>`;
-        return;
-      }
-      $("notifications-list").innerHTML = items.map((it) => {
-        if (it.type === "feedback") {
-          return `<div class="notif-item" data-type="feedback" data-id="${esc(it.id)}">
-            <div class="notif-item-body">
-              <div class="notif-item-title">${esc(it.name)}</div>
-              <div class="muted-small">${esc(it.detail).slice(0, 120)}</div>
-            </div>
-            <div class="notif-item-meta">
-              <span class="muted-small">${esc(it.date)}</span>
-              <span class="verdict-badge needs-review">New feedback</span>
-            </div>
-          </div>`;
-        }
-        const snack = it.snackId ? SNAPSHOT.snacks.find((s) => s.id === it.snackId) : null;
-        const name = snack ? snack.name : (it.snackName || "Item");
-        return `<div class="notif-item${it.disputed ? " disputed" : ""}" data-type="transaction" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">
-          <div class="notif-item-photo">${snack && snack.photo
-            ? `<img src="${esc(snack.photo)}" alt="${esc(name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
-          <div class="notif-item-body">
-            <div class="notif-item-title">${esc(name)}</div>
-          </div>
-          <div class="notif-item-meta">
-            <span class="muted-small">${esc(it.date)}</span>
-            <span class="verdict-badge ${it.reviewStatus === "approved" ? "agreed" : "needs-review"}">${it.reviewStatus === "approved" ? "Approved" : "Needs your review"}</span>
-          </div>
-        </div>`;
-      }).join("");
-    }
-
-    function openNotifications() {
-      renderNotificationsList();
-      $("notifications-backdrop").classList.add("show");
-    }
-
-    function closeNotifications() {
-      $("notifications-backdrop").classList.remove("show");
-    }
-
-    $("notifications-bell").onclick = openNotifications;
-    $("notifications-close").onclick = closeNotifications;
-    $("notifications-backdrop").addEventListener("click", (ev) => {
-      if (ev.target === $("notifications-backdrop")) closeNotifications();
-    });
-    document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") closeNotifications();
-    });
-    $("notifications-list").addEventListener("click", (ev) => {
-      const item = ev.target.closest(".notif-item");
-      if (!item) return;
-      if (item.dataset.type === "feedback") {
-        closeNotifications();
-        $("feedback-list").scrollIntoView({ behavior: "smooth", block: "start" });
-      } else {
-        location.href = `transactions.html?user=${encodeURIComponent(item.dataset.user)}`;
-      }
-    });
 
     async function refresh() {
       SNAPSHOT = await FS.admin.getSnapshot();
@@ -319,7 +218,6 @@
       $("admin-sign-out").classList.remove("hidden");
       renderDashboard();
       renderFeedback();
-      renderNotificationsBadge();
       $("adjust-user").innerHTML = userOptions();
     }
 

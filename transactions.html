@@ -89,6 +89,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260717-read-cache"></script>
   <script src="js/firebase-admin.js?v=20260717-gallery-redesign"></script>
+  <script src="js/admin-notifications.js?v=20260721-notifications-bell"></script>
   <script src="js/admin-modals.js"></script>
   <script>
     let SNAPSHOT = null;
@@ -209,7 +210,26 @@
         const target = document.querySelector(`#txn-groups details[data-user="${CSS.escape(requestedUser)}"]`);
         if (target) {
           target.setAttribute("open", "");
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+          // A brief pulse marks the group as "this is what the notification
+          // you clicked was about" - separate from `flagged`'s permanent
+          // needs-review styling, which stays regardless of how you got here.
+          const summary = target.querySelector("summary");
+          summary.classList.add("qr-target-highlight");
+          setTimeout(() => summary.classList.remove("qr-target-highlight"), 3000);
+
+          const requestedTxn = new URLSearchParams(location.search).get("txn");
+          if (requestedTxn) {
+            const row = target.querySelector(`tr[data-id="${CSS.escape(requestedTxn)}"]`);
+            if (row) {
+              row.classList.add("qr-target-highlight");
+              setTimeout(() => row.classList.remove("qr-target-highlight"), 3000);
+              row.scrollIntoView({ behavior: "smooth", block: "center" });
+            } else {
+              target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          } else {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         }
       }
     }
