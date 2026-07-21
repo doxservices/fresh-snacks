@@ -4489,6 +4489,30 @@ tr.disputed td {
   color: #8a6412;
 }
 
+.verdict-badge.activity {
+  background: #eaf1fb;
+  color: #2c5a8a;
+}
+
+.notif-dismiss {
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  flex: none;
+  font-size: 18px;
+  height: 26px;
+  line-height: 1;
+  padding: 0;
+  width: 26px;
+}
+
+.notif-dismiss:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
 .notifications-modal {
   width: min(560px, 100%);
 }

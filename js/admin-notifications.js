@@ -1,8 +1,21 @@
 /* Shared admin notifications bell - fixed top-right on every admin page.
- * Covers new feedback + transactions still needing a decision (never-
- * approved admin-logged purchases, plus anything a customer has disputed).
- * Only actionable items are counted/listed; once handled in Firestore, an
- * item just drops off on its own (no resolved-history feed to maintain).
+ * Covers two different kinds of notice:
+ *
+ * 1. Actionable backlog - new feedback, plus transactions still needing a
+ *    decision (never-approved admin-logged purchases, or anything a
+ *    customer has disputed). These resolve themselves: once the underlying
+ *    Firestore state actually changes (approved, read, etc.), the item
+ *    just drops off on its own - no dismiss needed or offered.
+ *
+ * 2. Activity notices - a customer added their name, or logged a purchase
+ *    themselves via the basket's "Add to tab" button. These don't have a
+ *    natural "resolved" state to watch for, so per explicit product
+ *    decision they show immediately (scoped to ACTIVITY_CUTOFF onward, so
+ *    the entire pre-existing history doesn't flood the panel on rollout)
+ *    and stay until the admin manually dismisses them (small x button,
+ *    persisted in this browser's localStorage) - no auto-expiry.
+ *
+ * Both kinds count toward the bell's number (also an explicit decision).
  *
  * A customer with more than AGGREGATE_THRESHOLD actionable transactions
  * collapses into a single "N items need review" row so the panel stays
@@ -12,8 +25,30 @@
  * of what they navigated there to look at. */
 (function () {
   const AGGREGATE_THRESHOLD = 5;
+  // Only self-service activity (naming, self-logged purchases) from this
+  // point onward counts as a notification - without this, the very first
+  // load after shipping this feature would flood the panel with every
+  // customer who was ever named and every purchase ever self-logged.
+  const ACTIVITY_CUTOFF_MS = Date.parse("2026-07-21T00:00:00Z");
+  const DISMISS_STORAGE_KEY = "fresh_snacks_admin_dismissed_notifications";
   const esc = (s) => FS.escapeHtml(s);
   let snapshot = null;
+
+  function getDismissed() {
+    try { return new Set(JSON.parse(localStorage.getItem(DISMISS_STORAGE_KEY) || "[]")); }
+    catch { return new Set(); }
+  }
+
+  function dismissKey(key) {
+    const set = getDismissed();
+    set.add(key);
+    localStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify([...set]));
+  }
+
+  function timestampMs(record, field) {
+    const v = record && record[field];
+    return v && typeof v.toDate === "function" ? v.toDate().getTime() : 0;
+  }
 
   function ensureMarkup() {
     if (document.getElementById("admin-notifications-bell")) return;
@@ -52,6 +87,18 @@
   }
 
   function onListClick(ev) {
+    const dismissBtn = ev.target.closest(".notif-dismiss");
+    if (dismissBtn) {
+      ev.stopPropagation();
+      dismissKey(dismissBtn.dataset.key);
+      dismissBtn.closest(".notif-item").remove();
+      renderBadge();
+      const list = document.getElementById("admin-notifications-list");
+      if (!list.querySelector(".notif-item")) {
+        list.innerHTML = `<p class="muted-small">Nothing needs your attention right now.</p>`;
+      }
+      return;
+    }
     const item = ev.target.closest(".notif-item");
     if (!item) return;
     if (item.dataset.type === "feedback") {
@@ -125,7 +172,56 @@
       }
     }
 
-    return [...feedbackItems, ...txnItems].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const dismissed = getDismissed();
+
+    // "A name was added" - approximated by vipStatus flipping to "named"
+    // with a recent updatedAt, since no dedicated "namedAt" field exists;
+    // a later unrelated profile edit (e.g. email) could occasionally
+    // re-surface one after it's been dismissed, but that's an acceptable,
+    // easily-dismissed edge case rather than a new persisted field/rule.
+    const nameAddedItems = snapshot.users
+      .filter((u) => {
+        const userId = u.userId || u.uid;
+        return userId && u.vipStatus === "named" && u.displayName && timestampMs(u, "updatedAt") >= ACTIVITY_CUTOFF_MS
+          && !dismissed.has(`name:${userId}`);
+      })
+      .map((u) => ({
+        type: "name-added",
+        key: `name:${u.userId || u.uid}`,
+        userId: u.userId || u.uid,
+        name: u.displayName,
+        date: FS.admin.dateFromRecord(u, "updatedAt"),
+      }));
+
+    // "Items were added to a tab" via the basket's own "Add to tab" button -
+    // one notification per checkout, not per line item: FS.addTransaction
+    // writes every item from one basket submission with the identical
+    // server timestamp in the same batch, so grouping by (userId, exact
+    // timestamp) reconstitutes "one Add to tab click" from the flat
+    // transactions list.
+    const selfTxns = snapshot.transactions.filter((t) => t.source === "self" && timestampMs(t, "createdAt") >= ACTIVITY_CUTOFF_MS);
+    const byCheckout = new Map();
+    for (const t of selfTxns) {
+      const groupKey = `${t.userId}|${timestampMs(t, "createdAt")}`;
+      if (!byCheckout.has(groupKey)) byCheckout.set(groupKey, []);
+      byCheckout.get(groupKey).push(t);
+    }
+    const itemsAddedItems = [...byCheckout.entries()]
+      .map(([groupKey, txns]) => ({ groupKey, txns, first: txns[0] }))
+      .filter(({ groupKey }) => !dismissed.has(`items:${groupKey}`))
+      .map(({ groupKey, txns, first }) => ({
+        type: "items-added",
+        key: `items:${groupKey}`,
+        userId: first.userId,
+        name: nameFor(first.userId),
+        count: txns.length,
+        snackId: first.snackId,
+        snackName: first.snackName,
+        date: first.createdDate || FS.admin.dateFromRecord(first, "createdAt"),
+      }));
+
+    return [...feedbackItems, ...txnItems, ...nameAddedItems, ...itemsAddedItems]
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
   }
 
   function statusBadge(reviewStatus) {
@@ -173,6 +269,38 @@
             <span class="muted-small">${esc(it.date)}</span>
             ${statusBadge(it.reviewStatus)}
           </div>
+        </div>`;
+      }
+      if (it.type === "name-added") {
+        return `<div class="notif-item" data-type="name-added" data-user="${esc(it.userId)}">
+          <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128100;</span></div>
+          <div class="notif-item-body">
+            <div class="notif-item-title">${esc(it.name)}</div>
+            <div class="muted-small">Added their name</div>
+          </div>
+          <div class="notif-item-meta">
+            <span class="muted-small">${esc(it.date)}</span>
+            <span class="verdict-badge activity">New profile</span>
+          </div>
+          <button type="button" class="notif-dismiss" data-key="${esc(it.key)}" aria-label="Dismiss this notification" title="Dismiss">&times;</button>
+        </div>`;
+      }
+      if (it.type === "items-added") {
+        const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
+        const itemName = snack ? snack.name : (it.snackName || "Item");
+        return `<div class="notif-item" data-type="items-added" data-user="${esc(it.userId)}">
+          <div class="notif-item-photo">${snack && snack.photo
+            ? `<img src="${esc(snack.photo)}" alt="${esc(itemName)}" loading="lazy" />`
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="notif-item-body">
+            <div class="notif-item-title">${esc(it.name)}</div>
+            <div class="muted-small">${it.count > 1 ? `${it.count} items added to tab` : `Added ${esc(itemName)} to tab`}</div>
+          </div>
+          <div class="notif-item-meta">
+            <span class="muted-small">${esc(it.date)}</span>
+            <span class="verdict-badge activity">Logged</span>
+          </div>
+          <button type="button" class="notif-dismiss" data-key="${esc(it.key)}" aria-label="Dismiss this notification" title="Dismiss">&times;</button>
         </div>`;
       }
       const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
