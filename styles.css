@@ -111,6 +111,49 @@ header {
   justify-content: flex-end;
 }
 
+/* Deliberately its own rule rather than reusing .basket-notification's
+   convention - that one's base rule is `display: none` with no override
+   anywhere that sets it back to flex, so unhiding it via .hidden removal
+   alone never actually shows it. This badge's un-hidden state is its own
+   default (display: flex); JS only ever adds/removes .hidden to toggle it. */
+.admin-feedback-badge {
+  align-items: center;
+  background: var(--green-dark);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(24, 79, 42, 0.24);
+  color: #fff;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 40px;
+}
+
+.admin-feedback-badge svg {
+  height: 20px;
+  width: 20px;
+}
+
+.admin-feedback-badge span {
+  align-items: center;
+  background: #fff;
+  border: 2px solid var(--green-dark);
+  border-radius: 999px;
+  color: var(--green-dark);
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  height: 21px;
+  justify-content: center;
+  min-width: 21px;
+  padding: 0 4px;
+  position: absolute;
+  right: -4px;
+  top: -4px;
+}
+
 .nav-qr-row {
   display: inline-flex;
   align-items: stretch;
@@ -1790,6 +1833,124 @@ textarea:focus {
 
 .confirm-modal p {
   margin-top: 4px;
+}
+
+.name-capture-modal {
+  width: min(680px, 100%);
+}
+
+.name-capture-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ncm-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.ncm-section h3 {
+  margin: 0 0 4px;
+}
+
+/* Horizontal analogue of .bins-cart-items-wrap/.bins-cart-fade (this same
+   file, ~3508-3551): overflow-y -> overflow-x, top/bottom fades -> left/right. */
+.ncm-strip-wrap {
+  position: relative;
+}
+
+.ncm-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+}
+
+.ncm-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.ncm-strip-fade {
+  bottom: 4px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transition: opacity 180ms ease;
+  width: 32px;
+}
+
+.ncm-strip-fade-left {
+  background: linear-gradient(to right, rgba(255,255,255,0.95), rgba(255,255,255,0));
+  left: 0;
+}
+
+.ncm-strip-fade-right {
+  background: linear-gradient(to left, rgba(255,255,255,0.95), rgba(255,255,255,0));
+  right: 0;
+}
+
+.ncm-strip-wrap.has-more-left .ncm-strip-fade-left,
+.ncm-strip-wrap.has-more-right .ncm-strip-fade-right {
+  opacity: 1;
+}
+
+/* Card sized for a horizontal strip, adapted from .bin-card/.bin-photo. */
+.ncm-card {
+  background: rgba(255,255,255,0.88);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 22px rgba(24, 79, 42, 0.07);
+  flex: 0 0 150px;
+  overflow: hidden;
+}
+
+.ncm-card-photo {
+  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
+  border-bottom: 1px solid var(--line);
+  height: 100px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ncm-card-photo img {
+  background: #fff;
+  box-sizing: border-box;
+  height: 100%;
+  inset: 0;
+  object-fit: contain;
+  padding: 4px;
+  position: absolute;
+  width: 100%;
+}
+
+.ncm-card-body {
+  padding: 8px 10px 10px;
+}
+
+.ncm-card-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ncm-card-meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 3px 0 8px;
+}
+
+@media (max-width: 480px) {
+  .name-capture-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* "Added to basket" toasts (desktop only - mobile just flashes the cart

@@ -23,18 +23,6 @@
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
 
-    <section class="card section-card link-invite-card hidden" id="link-invite-card">
-      <h2 id="link-invite-title">Connecting your tab…</h2>
-      <p class="muted-small" id="link-invite-note" style="margin-bottom:12px;">
-        This invite links your device to that snack tab (up to 3 devices can share one tab) — you'll
-        see and log snacks here just like the original device.
-      </p>
-      <div class="status" id="link-invite-status"></div>
-      <div class="row hidden" id="link-invite-fallback-row">
-        <button id="link-invite-continue">Continue without linking</button>
-      </div>
-    </section>
-
     <div id="page-body">
     <section class="brand-card">
       <div class="brand-grid">
@@ -285,6 +273,51 @@
         <button type="button" id="confirm-remove-cancel">Cancel</button>
         <button type="button" class="danger" id="confirm-remove-ok">Remove</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="name-capture-backdrop">
+    <div class="modal name-capture-modal" role="dialog" aria-modal="true" aria-labelledby="ncm-title">
+      <button type="button" class="modal-close" id="ncm-close" aria-label="Close">&times;</button>
+      <h2 id="ncm-title">Let's put a name on this tab</h2>
+      <p class="muted-small">The snack keeper needs your name to keep tabs organized.</p>
+
+      <form id="ncm-name-form" novalidate>
+        <div class="name-capture-fields">
+          <div class="field">
+            <label for="ncm-first">First name</label>
+            <input id="ncm-first" type="text" autocomplete="given-name" required />
+          </div>
+          <div class="field">
+            <label for="ncm-last">Last name</label>
+            <input id="ncm-last" type="text" autocomplete="family-name" required />
+          </div>
+        </div>
+        <div class="status" id="ncm-name-status"></div>
+
+        <section class="ncm-section hidden" id="ncm-pending-section">
+          <h3>A few snacks are waiting on your OK</h3>
+          <p class="muted-small">Confirm or flag each one — scroll to see them all.</p>
+          <div class="ncm-strip-wrap" id="ncm-strip-wrap">
+            <div class="ncm-strip" id="ncm-strip"></div>
+            <div class="ncm-strip-fade ncm-strip-fade-left" aria-hidden="true"></div>
+            <div class="ncm-strip-fade ncm-strip-fade-right" aria-hidden="true"></div>
+          </div>
+        </section>
+
+        <section class="ncm-section hidden" id="ncm-link-section">
+          <h3>Link this device</h3>
+          <p class="muted-small" id="ncm-link-note"></p>
+          <div class="modal-actions">
+            <button type="submit" class="hidden" id="ncm-link-this" data-ncm-action="link-this">Link this device</button>
+            <button type="submit" class="hidden" id="ncm-link-other" data-ncm-action="link-other">Link a different device</button>
+          </div>
+        </section>
+
+        <div class="modal-actions">
+          <button type="submit" class="primary hidden" id="ncm-save-continue" data-ncm-action="save">Save and continue</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1008,6 +1041,7 @@
 
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
+      maybeOpenNameCaptureModal(me, anonymous);
       $id("us-username").value = anonymous ? "" : (me.displayName || "");
       $id("us-first").value = me.firstName || "";
       $id("us-last").value = me.lastName || "";
@@ -1055,33 +1089,177 @@
 
     const linkCode = FS.getLinkCode();
 
-    $id("link-invite-continue").onclick = () => {
-      FS.clearLinkCode();
-      $id("link-invite-card").classList.add("hidden");
-      $id("page-body").classList.remove("hidden");
-      startTabFlow();
-    };
+    // --- Name-capture / device-link modal ---------------------------------
+    // Shown for any user with no name yet (see `anonymous` above), and also
+    // whenever this browser holds a pending, not-yet-accepted invite code
+    // (`linkCode`). Linking now only ever happens on an explicit button
+    // click - there is no more silent auto-accept on page load.
 
-    // An invite link is a direct hand-off, not a public URL someone might
-    // stumble onto - so opening it links this device and shows that tab's
-    // data right away, with no separate confirmation click in between.
-    async function autoAcceptLink() {
-      const st = $id("link-invite-status");
-      st.textContent = "Linking your device…";
+    let ncmReturnFocus = null;
+
+    function pendingUnverifiedEntries(data) {
+      return (data?.entries || []).filter((e) => e.id && !e.userStatus);
+    }
+
+    function updateNcmStripFade() {
+      const el = $id("ncm-strip");
+      const wrap = $id("ncm-strip-wrap");
+      wrap.classList.toggle("has-more-left", el.scrollLeft > 2);
+      wrap.classList.toggle("has-more-right", el.scrollWidth - el.clientWidth - el.scrollLeft > 2);
+    }
+
+    function renderPendingTransactionStrip(container, data) {
+      if (!container) return;
+      const pending = pendingUnverifiedEntries(data);
+      container.innerHTML = pending.map((e) => {
+        const s = e.snackId ? FS.snackById(data, e.snackId) : null;
+        const name = FS.entryName(data, e);
+        return `<div class="ncm-card" data-id="${esc(e.id)}">
+          <div class="ncm-card-photo">${s && s.photo
+            ? `<img src="${esc(s.photo)}" alt="${esc(name)}" loading="lazy" />`
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="ncm-card-body">
+            <div class="ncm-card-name">${esc(name)}</div>
+            <div class="ncm-card-meta">${esc(e.count ?? "")}&times; ${FS.money(e.value, data.profile.currency)}</div>
+            <span class="row-verdict">
+              <button class="verdict-btn agree" data-verdict="agreed" data-id="${esc(e.id)}" aria-label="Confirm">&#10003;</button>
+              <button class="verdict-btn dispute" data-verdict="disputed" data-id="${esc(e.id)}" aria-label="Review">&#10005;</button>
+            </span>
+          </div>
+        </div>`;
+      }).join("");
+      updateNcmStripFade();
+    }
+
+    $id("ncm-strip").addEventListener("scroll", updateNcmStripFade);
+    $id("ncm-strip").addEventListener("click", (ev) => {
+      const vb = ev.target.closest(".verdict-btn");
+      if (!vb) return;
+      vb.disabled = true;
+      FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict)
+        .then(() => {
+          const entry = LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
+          if (vb.dataset.verdict === "disputed") {
+            LAST_DATA.entries = LAST_DATA.entries.filter((x) => x.id !== vb.dataset.id);
+          } else if (entry) entry.userStatus = vb.dataset.verdict;
+          renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
+          $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
+          render(LAST_DATA);
+        })
+        .catch((e) => { vb.disabled = false; alert("Could not save: " + e.message); });
+    });
+
+    function renderDeviceLinkSection(me) {
+      const shareCode = linkCode || me.linkInviteCode || null;
+      $id("ncm-link-this").classList.toggle("hidden", !linkCode);
+      $id("ncm-link-other").classList.toggle("hidden", !shareCode);
+      $id("ncm-link-section").classList.toggle("hidden", !shareCode);
+      $id("ncm-save-continue").classList.toggle("hidden", !!shareCode);
+      $id("ncm-link-note").textContent = linkCode
+        ? "Link this browser to that shared tab, or show this code to scan on another device instead."
+        : "Show this code so another device can join this tab.";
+    }
+
+    function openNameCaptureModal(me) {
+      ncmReturnFocus = document.activeElement;
+      $id("ncm-first").value = me.firstName || "";
+      $id("ncm-last").value = me.lastName || "";
+      $id("ncm-name-status").textContent = "";
+      renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
+      $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
+      renderDeviceLinkSection(me);
+      $id("name-capture-backdrop").classList.add("show");
+      $id("ncm-first").focus();
+    }
+
+    function closeNameCaptureModal() {
+      if (linkCode) FS.clearLinkCode();
+      sessionStorage.setItem("fresh_snacks_ncm_dismissed", "1");
+      $id("name-capture-backdrop").classList.remove("show");
+      if (ncmReturnFocus && document.contains(ncmReturnFocus)) ncmReturnFocus.focus();
+      ncmReturnFocus = null;
+    }
+
+    function maybeOpenNameCaptureModal(me, anonymous) {
+      if (!anonymous) return;
+      if ($id("name-capture-backdrop").classList.contains("show")) return;
+      if (sessionStorage.getItem("fresh_snacks_ncm_dismissed") && !linkCode) return;
+      openNameCaptureModal(me);
+    }
+
+    $id("ncm-close").onclick = closeNameCaptureModal;
+    $id("name-capture-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("name-capture-backdrop")) closeNameCaptureModal();
+    });
+    $id("name-capture-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        closeNameCaptureModal();
+        return;
+      }
+      if (ev.key !== "Tab") return;
+      const controls = [...ev.currentTarget.querySelectorAll("input, button")].filter((el) => !el.disabled && el.offsetParent);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (ev.shiftKey && document.activeElement === first) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && document.activeElement === last) {
+        ev.preventDefault();
+        first.focus();
+      }
+    });
+
+    $id("ncm-name-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const action = ev.submitter?.dataset.ncmAction || "save";
+      const firstName = $id("ncm-first").value.trim();
+      const lastName = $id("ncm-last").value.trim();
+      const btns = [...ev.target.querySelectorAll("button[type=submit]")];
+      btns.forEach((b) => (b.disabled = true));
+      const st = $id("ncm-name-status");
+      st.textContent = "Saving…";
       st.className = "status ok";
       try {
-        await FS.acceptLinkInvite();
-        $id("link-invite-card").classList.add("hidden");
-        $id("page-body").classList.remove("hidden");
-        startTabFlow();
+        if (action === "link-this") {
+          // Accept first so the effective uid is the TARGET profile before
+          // reading/writing the name - otherwise the "existing" email/phone
+          // read back would be THIS device's own (likely blank) profile,
+          // not the target's real ones, and the name would land on this
+          // device's own soon-to-be-abandoned anonymous profile instead of
+          // the shared tab being joined.
+          await FS.acceptLinkInvite();
+          const target = await FS.getMyProfile();
+          await FS.updateMyProfile({ firstName, lastName, email: target.email, phone: target.phone });
+          $id("name-capture-backdrop").classList.remove("show");
+          startTabFlow();
+        } else if (action === "link-other") {
+          // Deliberately does NOT call updateMyProfile here: this browser
+          // may be a brand-new device with no transactions yet, which means
+          // no users/{uid} doc exists for it at all (that doc is only
+          // created lazily on a first snack log) - updateMyProfile requires
+          // one to already exist. This device isn't the one being named;
+          // it's just relaying the invite to a different device, so only
+          // the QR/code needs showing here.
+          const before = await FS.getMyProfile();
+          const shareCode = linkCode || before.linkInviteCode;
+          if (!shareCode) throw new Error("No invite code available to share.");
+          const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${shareCode}`;
+          await FreshSnacksQR.open({ label: "Link a different device", destination: url, button: ev.submitter });
+          st.textContent = "Scan the code on the other device.";
+        } else {
+          const before = await FS.getMyProfile();
+          await FS.updateMyProfile({ firstName, lastName, email: before.email, phone: before.phone });
+          $id("name-capture-backdrop").classList.remove("show");
+          renderUserSettings(await FS.getMyProfile());
+        }
       } catch (e) {
-        $id("link-invite-title").textContent = "Couldn't link this device";
-        $id("link-invite-note").textContent = "";
         st.textContent = e.message;
         st.className = "status err";
-        $id("link-invite-fallback-row").classList.remove("hidden");
+      } finally {
+        btns.forEach((b) => (b.disabled = false));
       }
-    }
+    });
 
     $id("us-save").onclick = async () => {
       const st = $id("us-status");
@@ -1103,12 +1281,12 @@
       }
     };
 
-    // Loads/renders this browser's own effective tab. Deferred until any
-    // pending invite decision is resolved (see below) - calling
-    // FS.loadData() unconditionally used to silently sign this browser in
-    // anonymously and provision its OWN separate guest device/profile the
-    // instant the page loaded, even before the visitor chose to link to the
-    // shared tab the invite actually pointed at.
+    // Loads/renders this browser's own effective tab. FS.loadData() is
+    // read-only when no session/claim exists yet (never creates Auth or
+    // Firestore records), so this is safe to call even when a pending
+    // invite (`linkCode`) hasn't been accepted yet - the name-capture modal
+    // (triggered from renderUserSettings below) is what actually offers to
+    // accept it, on an explicit button click.
     function startTabFlow() {
       withLoadTimeout(FS.loadData())
         .then((data) => {
@@ -1130,18 +1308,7 @@
         });
     }
 
-    if (linkCode) {
-      // Always process a freshly-presented invite link, even if this
-      // browser already happens to be linked elsewhere - acceptLinkInvite()
-      // switches the link over (dropping the old one) rather than this
-      // silently discarding the new invite and leaving the old tab showing,
-      // which is what used to happen whenever alreadyLinkedTo was set.
-      $id("link-invite-card").classList.remove("hidden");
-      $id("page-body").classList.add("hidden");
-      autoAcceptLink();
-    } else {
-      startTabFlow();
-    }
+    startTabFlow();
   </script>
 </body>
 </html>
