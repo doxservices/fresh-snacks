@@ -3261,6 +3261,18 @@ textarea:focus {
   margin-top: 10px;
 }
 
+/* Calories doesn't drive any admin decision here (it's purely a fact shown
+   to customers on their own snack cards) - demoted below the fields that
+   actually matter day-to-day (price, stock, active) instead of sharing
+   equal billing with them. */
+.catalog-card-secondary {
+  margin-top: 8px;
+}
+
+.catalog-card-secondary label {
+  font-weight: 400;
+}
+
 .catalog-card input,
 .catalog-card select {
   width: 100%;
@@ -3687,6 +3699,32 @@ textarea:focus {
   border-bottom: 1px solid var(--line);
   position: relative;
   overflow: hidden;
+}
+
+/* Stock set to exactly 0 on the catalog page (not deactivated, not
+   removed - a bin's own preset amounts are a completely separate concept
+   and are never touched by this) shows this diagonal band across the
+   photo and disables adding it, without hiding the snack from the
+   gallery entirely. */
+.bin-card.sold-out .bin-photo {
+  filter: grayscale(0.6);
+  opacity: 0.75;
+}
+
+.sold-out-ribbon {
+  background: rgba(138, 47, 47, 0.92);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  left: -34px;
+  letter-spacing: 0.04em;
+  padding: 4px 40px;
+  position: absolute;
+  text-align: center;
+  text-transform: uppercase;
+  top: 16px;
+  transform: rotate(-38deg);
+  z-index: 2;
 }
 
 /* absolute + inset so the photo always fills exactly this box regardless

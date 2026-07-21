@@ -730,18 +730,21 @@
         return;
       }
       $("basket-notification").classList.remove("hidden");
-      $("bins").innerHTML = SNAPSHOT.catalog.map((s) => `
-        <div class="bin-card" data-id="${esc(s.id)}">
+      $("bins").innerHTML = SNAPSHOT.catalog.map((s) => {
+        const soldOut = s.stock === 0;
+        return `
+        <div class="bin-card${soldOut ? " sold-out" : ""}" data-id="${esc(s.id)}">
           <div class="bin-photo">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${soldOut ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, SNAPSHOT.settings.currency)}</div>
             <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
-            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}">Add to basket</button>
+            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>
           </div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
       syncBinsGallery();
     }
 

@@ -553,6 +553,14 @@ FS.admin.saveSnack = async (snack) => {
   if (Object.prototype.hasOwnProperty.call(snack, "favoritePhoto")) {
     payload.favoritePhoto = snack.favoritePhoto || null;
   }
+  // null means "not tracked" (always available, the historical behavior
+  // for every snack before this field existed) - 0 specifically means
+  // sold out. Only touched when the caller actually passes a "stock" key,
+  // so callers unaware of this field (the artwork harness, seed scripts)
+  // never accidentally clear an existing count with this merge write.
+  if (Object.prototype.hasOwnProperty.call(snack, "stock")) {
+    payload.stock = snack.stock === "" || snack.stock == null ? null : Math.max(0, Math.floor(Number(snack.stock)));
+  }
   await FS._db.collection("snacks").doc(id).set(payload, { merge: true });
 };
 

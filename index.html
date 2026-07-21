@@ -658,19 +658,22 @@
         return;
       }
       $id("basket-notification").classList.remove("hidden");
-      $id("bins").innerHTML = data.catalog.map((s) => `
-        <div class="bin-card" data-id="${esc(s.id)}">
+      $id("bins").innerHTML = data.catalog.map((s) => {
+        const soldOut = s.stock === 0;
+        return `
+        <div class="bin-card${soldOut ? " sold-out" : ""}" data-id="${esc(s.id)}">
           <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${soldOut ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, data.profile.currency)}</div>
             <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
             ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">View nutrition details <span aria-hidden="true">&rsaquo;</span></a></div>` : `<div class="bin-facts bin-facts-empty" aria-hidden="true">&nbsp;</div>`}
-            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}">Add to basket</button>
+            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>
           </div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
       syncBinsGallery(data);
     }
 
@@ -724,6 +727,9 @@
         : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
+      const soldOut = s.stock === 0;
+      $id("snack-modal-add").disabled = soldOut;
+      $id("snack-modal-add").textContent = soldOut ? "Sold out" : "Add to basket";
       $id("snack-modal-backdrop").classList.add("show");
       $id("snack-modal-add").focus();
     }

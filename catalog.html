@@ -160,8 +160,11 @@
               </div>
               <div class="catalog-card-fields">
                 <div class="field"><label>Price</label><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></div>
-                <div class="field"><label>Calories</label><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></div>
+                <div class="field"><label>Stock</label><input data-f="stock" type="number" min="0" placeholder="Not tracked" value="${s.stock ?? ""}" /></div>
                 <div class="field"><label>Status</label><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></div>
+              </div>
+              <div class="catalog-card-secondary">
+                <div class="field"><label>Calories <span class="muted-small">(shown to customers, not used for admin decisions)</span></label><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></div>
               </div>
               <div class="catalog-card-actions">
                 <button class="primary" data-act="snack-save">Save</button>
@@ -174,14 +177,15 @@
 
       $("catalog-list").innerHTML = `<table class="admin-table catalog-table">
         <colgroup>
-          <col class="cc-name"><col class="cc-price"><col class="cc-cal"><col class="cc-active"><col class="cc-actions">
+          <col class="cc-name"><col class="cc-price"><col class="cc-cal"><col class="cc-active"><col class="cc-cal"><col class="cc-actions">
         </colgroup>
-        <thead><tr><th>Name</th><th>Price</th><th>Calories</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th class="muted-small">Calories</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
           <td><input data-f="name" value="${esc(s.name)}" /><input type="hidden" data-f="factsId" value="${esc(s.factsId || "")}" /><input type="hidden" data-f="photo" value="${esc(s.photo || "")}" /></td>
           <td><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></td>
-          <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
+          <td><input data-f="stock" type="number" min="0" placeholder="Not tracked" value="${s.stock ?? ""}" /></td>
           <td><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></td>
+          <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
           <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
         </tr>`).join("")}</tbody>
       </table>`;
@@ -292,6 +296,7 @@
             name: get("name").trim(),
             price: get("price"),
             calories: get("calories"),
+            stock: get("stock"),
             factsId: get("factsId").trim(),
             photo: get("photo").trim(),
             active: get("active") === "true",
