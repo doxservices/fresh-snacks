@@ -246,7 +246,7 @@
     </div>
   </div>
 
-  <div class="cart-toast" id="cart-toast" role="status" aria-live="polite"></div>
+  <div class="cart-toast-stack" id="cart-toast-stack" role="status" aria-live="polite"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
@@ -663,13 +663,54 @@
       updateCartFade();
     }
 
-    let cartToastTimer = null;
+    let cartFlashTimer = null;
+    function flashCartWell() {
+      const sticky = document.querySelector(".bins-cart-sticky");
+      if (!sticky) return;
+      sticky.classList.remove("basket-attention");
+      void sticky.offsetWidth; // force reflow so the animation restarts if it's already mid-flash
+      sticky.classList.add("basket-attention");
+      clearTimeout(cartFlashTimer);
+      cartFlashTimer = setTimeout(() => sticky.classList.remove("basket-attention"), 700);
+    }
+
+    // Mobile skips the flying toast entirely (the well is already locked in
+    // view above the gallery there) - just flash the well directly. Desktop
+    // toasts stack at the bottom of the viewport, match the well's current
+    // on-screen width, then each flies up to the well's actual position -
+    // computed fresh per toast since the well sits somewhere different
+    // depending on breakpoint - fading out as it arrives and triggering the
+    // flash.
     function showCartToast(message) {
-      const toast = $("cart-toast");
+      if (window.innerWidth <= 900) {
+        flashCartWell();
+        return;
+      }
+      const stack = $("cart-toast-stack");
+      const sticky = document.querySelector(".bins-cart-sticky");
+      if (!stack || !sticky) return;
+      const cartRect = sticky.getBoundingClientRect();
+
+      const toast = document.createElement("div");
+      toast.className = "cart-toast";
+      toast.style.width = `${Math.round(cartRect.width)}px`;
       toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
-      toast.classList.add("show");
-      clearTimeout(cartToastTimer);
-      cartToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+      stack.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add("show"));
+
+      setTimeout(() => {
+        const toastRect = toast.getBoundingClientRect();
+        const targetRect = sticky.getBoundingClientRect();
+        const dx = (targetRect.left + targetRect.width / 2) - (toastRect.left + toastRect.width / 2);
+        const dy = (targetRect.top + targetRect.height / 2) - (toastRect.top + toastRect.height / 2);
+        toast.style.transition = "transform 650ms cubic-bezier(0.4, 0, 0.2, 1), opacity 500ms ease 200ms";
+        toast.style.transform = `translate(${dx}px, ${dy}px) scale(0.35)`;
+        toast.style.opacity = "0";
+        toast.addEventListener("transitionend", () => {
+          toast.remove();
+          flashCartWell();
+        }, { once: true });
+      }, 900);
     }
 
     function syncBinsGallery() {
