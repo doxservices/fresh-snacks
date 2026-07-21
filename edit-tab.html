@@ -708,14 +708,14 @@
         const targetRect = sticky.getBoundingClientRect();
         const dx = (targetRect.left + targetRect.width / 2) - (toastRect.left + toastRect.width / 2);
         const dy = (targetRect.top + targetRect.height / 2) - (toastRect.top + toastRect.height / 2);
-        toast.style.transition = "transform 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 500ms ease";
+        toast.style.transition = "transform 900ms cubic-bezier(0.4, 0, 0.2, 1), opacity 900ms ease";
         toast.style.transform = `translate(${dx}px, ${dy}px) scale(0.35)`;
         toast.style.opacity = "0";
         toast.addEventListener("transitionend", () => {
           toast.remove();
           flashCartWell();
         }, { once: true });
-      }, 1300);
+      }, 2400);
     }
 
     function syncBinsGallery() {
