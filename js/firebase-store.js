@@ -1,8 +1,12 @@
-/* Fresh Snacks Firebase data layer.
+/* Fresh Snacks data layer - client for the Cloud Functions REST API.
  *
- * This replaces browser-side GitHub Contents API writes. Regular snack users
- * browse without an account and only receive an anonymous identity when they
- * deliberately start a tab or accept an invite.
+ * Every function here keeps its original name/signature/return shape from
+ * the pre-migration version (which called Firestore directly from the
+ * browser). Only the *implementation* changed: each one now calls the API
+ * in functions/ instead of touching Firestore/Storage itself. Firebase Auth
+ * stays exactly as it was - the browser still signs in (anonymously for
+ * customers, via Google/Microsoft/email for admins) and the API verifies
+ * that same ID token on every request.
  */
 
 const FS = window.FS || {};
@@ -12,11 +16,16 @@ FS.appConfig = window.FS_APP_CONFIG || {};
 FS.firebaseConfig = window.FS_FIREBASE_CONFIG || {};
 FS._ready = null;
 FS._auth = null;
-FS._db = null;
-FS._storage = null;
 FS.currentUser = null;
 FS.currentDevice = null;
 FS.firebaseConfigStorageKey = "fresh_snacks_firebase_config";
+
+// Local dev serves the site itself over http://127.0.0.1:8800 (see this
+// repo's established test pattern) and points at the local API test
+// server; everywhere else (GitHub Pages) talks to the real deployed API.
+FS.apiBase = /^(127\.0\.0\.1|localhost)$/.test(location.hostname)
+  ? "http://127.0.0.1:5050"
+  : "https://us-central1-fresh-snacks-ee79f.cloudfunctions.net/api";
 
 FS.configured = () =>
   FS.firebaseConfig &&
@@ -35,23 +44,6 @@ FS.initFirebase = async () => {
     }
     if (!firebase.apps.length) firebase.initializeApp(FS.firebaseConfig);
     FS._auth = firebase.auth();
-    FS._db = firebase.firestore();
-    if (firebase.storage) FS._storage = firebase.storage();
-
-    // Persist Firestore reads locally (IndexedDB) across page loads - this is
-    // a plain multi-page app with no shared state between pages, so without
-    // this every navigation re-fetches full collections from the server even
-    // when nothing changed. synchronizeTabs lets multiple admin tabs (e.g.
-    // catalog.html + transactions.html open side by side) share one cache
-    // instead of fighting over it. If the browser can't support persistence
-    // (private browsing, an old browser) we just carry on without it rather
-    // than fail the whole app over a cache optimization.
-    try {
-      await FS._db.enablePersistence({ synchronizeTabs: true });
-    } catch (e) {
-      console.warn("Firestore offline persistence unavailable:", e.code || e.message);
-    }
-
     return FS;
   })();
   return FS._ready;
@@ -131,6 +123,34 @@ FS.signInAnonymous = async () => {
   return FS.currentUser;
 };
 
+/* Every authenticated API call needs the current Firebase ID token - this
+ * is the one thing that replaces "the browser has a live Firestore/Auth
+ * SDK session" from the pre-API version. Anonymous calls simply omit it. */
+FS._idToken = async () => {
+  if (!FS._auth || !FS._auth.currentUser) return null;
+  return FS._auth.currentUser.getIdToken();
+};
+
+FS._apiFetch = async (path, { method = "GET", body, auth = true, query } = {}) => {
+  const url = new URL(`${FS.apiBase}${path}`);
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      if (v != null && v !== "") url.searchParams.set(k, v);
+    }
+  }
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
+  if (auth) {
+    const token = await FS._idToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status}).`);
+  return data;
+};
+
 FS.uid = (prefix) =>
   `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -163,9 +183,6 @@ FS.monthLabel = (key) => {
 
 FS.factsPath = (factsId) => `nutritional-facts/${factsId}.jpg`;
 
-/* Generic grey avatar for anonymous guests, inline so no extra asset file
- * is needed. Named/claimed viewers get profile-icon.png (the "VIP" icon)
- * instead — see FS.avatarFor. */
 FS.greySilhouette =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>" +
   "<rect width='64' height='64' fill='%23d8ded9'/>" +
@@ -173,9 +190,6 @@ FS.greySilhouette =
   "<path d='M10 58c0-13 10-21 22-21s22 8 22 21' fill='%23a9b3ac'/>" +
   "</svg>";
 
-/* A viewer counts as "vip" (gets the nice icon instead of the grey
- * silhouette) once they're either viewing through a claimed tab code or
- * have given themselves a name — i.e. no longer a brand-new anonymous guest. */
 FS.avatarFor = (me, claim) => (claim || (me && me.vipStatus !== "anonymous" && me.displayName))
   ? "profile-icon.png"
   : FS.greySilhouette;
@@ -233,7 +247,6 @@ FS.deviceIdentity = (user) => {
 
 FS.tabCodeKey = "fresh_snacks_tab_code";
 
-/* Reads ?code= from the URL (persisting it) or falls back to the stored one. */
 FS.getTabCode = () => {
   const fromUrl = new URLSearchParams(location.search).get("code");
   if (fromUrl && fromUrl.trim()) {
@@ -244,35 +257,14 @@ FS.getTabCode = () => {
 
 FS.clearTabCode = () => localStorage.removeItem(FS.tabCodeKey);
 
-/* Stores the code in a short-lived authorization claim (not a customer profile;
- * the rules verify it against
- * codes/{code} on every read) and resolves who the code points at. "link"-type
- * codes are handled by the device-linking flow below instead — this only
- * resolves the read-only "view" codes. */
 FS.resolveClaim = async () => {
   const code = FS.getTabCode();
   if (!code) return null;
-  const user = await FS.signInAnonymous();
-  const snap = await FS._db.collection("codes").doc(code).get();
-  if (!snap.exists || snap.data().active === false || !snap.data().userId) return null;
-  if (snap.data().type === "link") return null;
-  await FS._db.collection("claims").doc(user.uid).set({
-    uid: user.uid,
-    code,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
-  const target = snap.data().userId;
-  if (target === user.uid) return null;
-  let displayName = null;
-  try {
-    const u = await FS._db.collection("users").doc(target).get();
-    if (u.exists) displayName = u.data().displayName || null;
-  } catch (e) { /* profile read is cosmetic */ }
-  return { code, userId: target, displayName };
+  await FS.signInAnonymous();
+  return FS._apiFetch("/store/claim/resolve", { method: "POST", body: { code } });
 };
 
-/* ---------- device linking (an invite lets a new browser join a customer's
- * profile as a full member, up to 3 devices, rather than just viewing it) --- */
+/* ---------- device linking ---------- */
 
 FS.linkCodeKey = "fresh_snacks_link_code";
 
@@ -284,11 +276,6 @@ FS.getLinkCode = () => {
   return localStorage.getItem(FS.linkCodeKey) || null;
 };
 
-/* Also strips ?link= from the visible URL, not just localStorage - since
- * getLinkCode() re-derives the code from the URL on every call, leaving the
- * param in place meant a plain reload of this same tab (e.g. right after
- * de-linking) would immediately re-discover the code and re-run the whole
- * accept flow, silently linking the browser right back to the same tab. */
 FS.clearLinkCode = () => {
   localStorage.removeItem(FS.linkCodeKey);
   if (typeof history !== "undefined" && new URLSearchParams(location.search).has("link")) {
@@ -298,35 +285,17 @@ FS.clearLinkCode = () => {
   }
 };
 
-/* This browser's "effective" identity: its own uid normally, or the primary
- * profile's uid once this browser has joined via an invite link. Cached in
- * localStorage after joining, so this is a plain read with no extra
- * round-trip once linked.
- *
- * Self-heals if the admin has since removed this device from the target's
- * linkedUids (the Devices panel's "remove" action only ever touches the
- * server - it has no way to reach into this browser's own localStorage - so
- * without this check a removed device would keep treating itself as linked
- * forever). Verified once per page load and cached for the rest of it. */
-FS._linkVerifyPromise = null;
-
+/* This browser's "effective" identity - its own uid normally, or the
+ * primary profile's uid once linked. The API re-verifies the link on
+ * every call that passes effectiveUid (never trusted blindly server-
+ * side), so this client-side function just reports what's in
+ * localStorage optimistically; any actually-revoked link self-heals the
+ * moment a real data call reveals the server fell back to the own uid
+ * (see FS.getMyProfile). */
 FS.getEffectiveUser = async () => {
   const user = await FS.signInAnonymous();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
   if (!linkedTo || linkedTo === user.uid) return { uid: user.uid, effectiveUid: user.uid, linked: false };
-
-  if (!FS._linkVerifyPromise) {
-    FS._linkVerifyPromise = FS._db.collection("users").doc(linkedTo).get()
-      .then((snap) => snap.exists && (snap.data().linkedUids || []).includes(user.uid))
-      // a genuine removal surfaces as permission-denied (isLinkedMember no
-      // longer holds); anything else (offline, a transient blip) fails open
-      // so a network hiccup can never silently kick a device off its tab
-      .catch((e) => !(e && e.code === "permission-denied"));
-  }
-  if (!(await FS._linkVerifyPromise)) {
-    localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
-    return { uid: user.uid, effectiveUid: user.uid, linked: false };
-  }
   return { uid: user.uid, effectiveUid: linkedTo, linked: true };
 };
 
@@ -335,88 +304,30 @@ FS.isThisBrowserLinked = () => {
   return !!(linkedTo && linkedTo !== FS.currentUser?.uid);
 };
 
-/* Joins this browser to the profile a pending ?link= invite points at.
- * Capped at 3 linked devices per profile (enforced by firestore.rules, not
- * just this check). Safe to call again for an invite already joined. */
 FS.acceptLinkInvite = async () => {
   const code = FS.getLinkCode();
   if (!code) throw new Error("No invite link found.");
-  const user = await FS.signInAnonymous();
-  const codeSnap = await FS._db.collection("codes").doc(code).get();
-  if (!codeSnap.exists || codeSnap.data().active === false || codeSnap.data().type !== "link" || !codeSnap.data().userId) {
-    FS.clearLinkCode();
-    throw new Error("This invite link is no longer valid.");
-  }
-  const targetUid = codeSnap.data().userId;
-  if (targetUid === user.uid) {
-    FS.clearLinkCode();
-    return { alreadySelf: true };
-  }
-
-  // Switching to a different tab than whatever this browser was already
-  // linked to (e.g. testing several invite links from one browser) - drop
-  // the old link first so this device doesn't linger as a phantom slot on
-  // it, taking up one of its 3 device slots forever.
+  await FS.signInAnonymous();
   const priorLinkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
-  if (priorLinkedTo && priorLinkedTo !== user.uid && priorLinkedTo !== targetUid) {
-    await FS._db.collection("users").doc(priorLinkedTo).update({
-      linkedUids: firebase.firestore.FieldValue.arrayRemove(user.uid),
-    }).catch(() => {});
+  const result = await FS._apiFetch("/store/link/accept", { method: "POST", body: { code, priorLinkedTo } });
+  if (!result.alreadySelf) {
+    localStorage.setItem(FS.appConfig.storageKeys.linkedTo, result.userId);
   }
-
-  await FS._db.collection("claims").doc(user.uid).set({
-    uid: user.uid,
-    code,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
-  const targetRef = FS._db.collection("users").doc(targetUid);
-  const targetSnap = await targetRef.get();
-  if (!targetSnap.exists) throw new Error("That tab no longer exists.");
-  const linked = targetSnap.data().linkedUids || [];
-  if (!linked.includes(user.uid)) {
-    if (linked.length >= 3) throw new Error("This tab already has the maximum of 3 linked devices.");
-    await targetRef.update({ linkedUids: firebase.firestore.FieldValue.arrayUnion(user.uid) });
-  }
-  localStorage.setItem(FS.appConfig.storageKeys.linkedTo, targetUid);
   FS.clearLinkCode();
-  return { userId: targetUid, displayName: targetSnap.data().displayName || FS.appConfig.anonUserPrefix || "Guest" };
+  return result;
 };
 
-/* Self-service: forget this browser's link and return it to being its own
- * separate guest identity. Only removes this browser, never other devices. */
 FS.unlinkDevice = async () => {
-  const user = await FS.signInAnonymous();
+  await FS.signInAnonymous();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
-  if (!linkedTo || linkedTo === user.uid) return;
-  await FS._db.collection("users").doc(linkedTo).update({
-    linkedUids: firebase.firestore.FieldValue.arrayRemove(user.uid),
-  });
-  await FS._db.collection("claims").doc(user.uid).delete().catch(() => {});
+  if (!linkedTo) return;
+  await FS._apiFetch("/store/link/unlink", { method: "POST", body: { linkedTo } });
   localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
-  // also drop any invite code still sitting in the URL/localStorage - without
-  // this, a reload right after de-linking (common if the invite link is
-  // still the page's own address) would silently re-link this browser
-  // right back to the tab it just left.
   FS.clearLinkCode();
 };
 
-FS.getUserTransactions = async (userId) => {
-  await FS.initFirebase();
-  const snap = await FS._db.collection("transactions")
-    .where("userId", "==", userId)
-    .where("status", "==", "active")
-    .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-};
-
-FS.getUserPayments = async (userId) => {
-  await FS.initFirebase();
-  const snap = await FS._db.collection("payments")
-    .where("userId", "==", userId)
-    .where("status", "==", "active")
-    .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-};
+FS.getUserTransactions = async (userId) => FS._apiFetch("/store/user-transactions", { query: { userId } });
+FS.getUserPayments = async (userId) => FS._apiFetch("/store/user-payments", { query: { userId } });
 
 /* ---------- feedback ---------- */
 
@@ -429,136 +340,44 @@ FS.feedbackCategories = [
   { id: "other", label: "Something else" },
 ];
 
-FS.submitFeedback = async ({ firstName, lastName, email, phone, category, amount, requestType, requestedSnack, contactConsent, details }) => {
-  const user = await FS.signInAnonymous();
-  const clean = (v) => {
-    const s = (v ?? "").toString().trim();
-    return s || null;
-  };
-  const detailsText = clean(details) || "";
-  const id = FS.uid("fs_fb");
-  const now = firebase.firestore.FieldValue.serverTimestamp();
-  const feedbackName = [clean(firstName), clean(lastName)].filter(Boolean).join(" ") || "Feedback User";
-  const payload = {
-    feedbackId: id,
-    uid: user.uid,
-    firstName: clean(firstName),
-    lastName: clean(lastName),
-    email: clean(email),
-    phone: clean(phone),
-    contactConsent: !!phone && !!contactConsent,
-    amount: amount > 0 ? Number(amount) : null,
-    requestType: clean(requestType),
-    requestedSnack: clean(requestedSnack),
-    category: category || "other",
-    details: detailsText,
-    status: "new",
-    createdAt: now,
-  };
-
-  // Submitting feedback is a deliberate contact event. Create the minimal
-  // inviteable tab identity in the same batch as the feedback so neither can
-  // be orphaned. No device, transaction, payment, or balance record is made.
-  const userRef = FS._db.collection("users").doc(user.uid);
-  const userSnap = await userRef.get();
-  const batch = FS._db.batch();
-  batch.set(FS._db.collection("feedback").doc(id), payload);
-  batch.set(userRef, userSnap.exists ? {
-    tabId: user.uid,
-    lastFeedbackAt: now,
-  } : {
-    userId: user.uid,
-    uid: user.uid,
-    tabId: user.uid,
-    displayName: feedbackName,
-    vipStatus: "feedback",
-    profileSource: "feedback",
-    createdAt: now,
-    lastFeedbackAt: now,
-  }, { merge: true });
-  await batch.commit();
-  return payload;
+FS.submitFeedback = async (fields) => {
+  await FS.signInAnonymous();
+  return FS._apiFetch("/store/feedback", { method: "POST", body: fields });
 };
 
-/* ---------- user identity (optional, anonymous by default) ---------- */
+/* ---------- user identity ---------- */
 
 FS.getMyProfile = async () => {
   const restored = await FS.restoreSession();
   if (!restored) return { userId: null, vipStatus: "anonymous" };
-  const eff = await FS.getEffectiveUser();
-  const snap = await FS._db.collection("users").doc(eff.effectiveUid).get();
-  return { userId: eff.effectiveUid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) };
-};
-
-/* Users start as an anonymous guest profile. Adding a name (and optionally
- * email/phone) is opt-in; leaving the name blank keeps the guest identity.
- * Writes to the effective profile, so a linked device edits the shared tab. */
-FS.updateMyProfile = async (fields) => {
-  const restored = await FS.restoreSession();
-  if (!restored) throw new Error("Start a tab before saving a profile.");
-  const eff = await FS.getEffectiveUser();
-  const existing = await FS._db.collection("users").doc(eff.effectiveUid).get();
-  if (!existing.exists) throw new Error("Start a tab before saving a profile.");
-  const clean = (v) => {
-    const s = (v ?? "").toString().trim();
-    return s || null;
-  };
-  const firstName = clean(fields.firstName);
-  const lastName = clean(fields.lastName);
-  // username wins; otherwise compose a display name from first/last
-  const displayName = clean(fields.displayName)
-    || clean(`${firstName || ""} ${lastName || ""}`);
-  const payload = {
-    firstName,
-    lastName,
-    email: clean(fields.email),
-    phone: clean(fields.phone),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  };
-  if (displayName) {
-    payload.displayName = displayName;
-    payload.vipStatus = "named";
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const profile = await FS._apiFetch("/store/profile", { query: linkedTo ? { effectiveUid: linkedTo } : undefined });
+  // Self-heal: if we asked for a linked profile but the server fell back to
+  // our own uid (the link was revoked server-side since we last checked),
+  // forget the stale link locally too - mirrors the old client-side
+  // isLinkedMember() re-check that used to run on every page load.
+  if (linkedTo && profile.userId !== linkedTo) {
+    localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
   }
-  await FS._db.collection("users").doc(eff.effectiveUid).set(payload, { merge: true });
-  return FS.getMyProfile();
+  return profile;
 };
 
-FS.getSettings = async (options = {}) => {
-  await FS.initFirebase();
-  const snap = await FS._db.collection("settings").doc("app").get(options);
-  const settings = snap.exists ? snap.data() : {};
-  return {
-    brand: settings.brand || FS.appConfig.appName || "Fresh Snacks",
-    subtitle: settings.subtitle || "Private snack profile",
-    currency: settings.currency || FS.appConfig.currency || "J$",
-    openingLabel: settings.openingLabel || "Previous Period",
-    openingNote: settings.openingNote || "Before daily records",
-    favoriteSnackId: settings.favoriteSnackId || null,
-    favoriteName: settings.favoriteName || "Favorite snack",
-    favoriteDescription: settings.favoriteDescription || "",
-  };
+FS.updateMyProfile = async (fields) => {
+  await FS.getEffectiveUser();
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  return FS._apiFetch("/store/profile", {
+    method: "PATCH",
+    body: { ...fields, effectiveUid: linkedTo || undefined },
+  });
 };
 
-// Bundled artwork that supersedes older catalog paths. `photo` is the normal
-// bin/catalog image; `favoritePhoto` is the wider composition used only when
-// that snack becomes the customer's favorite.
+FS.getSettings = async () => FS._apiFetch("/store/settings", { auth: false });
+
 FS.bundledSnackArtwork = {
-  chewy: {
-    photo: "assets/chewy.jpg",
-    favoritePhoto: "assets/chewy-background.webp",
-  },
-  "kiss-banana-bread": {
-    photo: "assets/kiss-banana-bread.webp",
-    favoritePhoto: "assets/kiss-banana-bread-background.webp",
-  },
-  "kiss-brownie-rich-dark-chocolate": {
-    photo: "assets/kiss-brownie.webp",
-    favoritePhoto: "assets/kiss-brownie-background.webp",
-  },
-  oreo: {
-    photo: "assets/oreo.webp",
-    favoritePhoto: "assets/oreo-background.webp",
-  },
+  chewy: { photo: "assets/chewy.jpg", favoritePhoto: "assets/chewy-background.webp" },
+  "kiss-banana-bread": { photo: "assets/kiss-banana-bread.webp", favoritePhoto: "assets/kiss-banana-bread-background.webp" },
+  "kiss-brownie-rich-dark-chocolate": { photo: "assets/kiss-brownie.webp", favoritePhoto: "assets/kiss-brownie-background.webp" },
+  oreo: { photo: "assets/oreo.webp", favoritePhoto: "assets/oreo-background.webp" },
 };
 
 FS.withBundledSnackArtwork = (snack) => {
@@ -582,17 +401,8 @@ FS.compareSnackOrder = (a, b) => {
   return orderA - orderB || String(a.name || "").localeCompare(String(b.name || ""));
 };
 
-FS.getCatalog = async (includeInactive = false, options = {}) => {
-  await FS.initFirebase();
-  const ref = includeInactive
-    ? FS._db.collection("snacks")
-    : FS._db.collection("snacks").where("active", "==", true);
-  const snap = await ref.get(options);
-  return snap.docs
-    .map((doc) => FS.withBundledSnackArtwork({ id: doc.id, ...doc.data() }))
-    .filter((s) => includeInactive || s.active !== false)
-    .sort(FS.compareSnackOrder);
-};
+FS.getCatalog = async (includeInactive = false) =>
+  FS._apiFetch("/store/catalog", { auth: false, query: { includeInactive: includeInactive ? "true" : undefined } });
 
 FS.snackById = (data, id) => (data.catalog || []).find((s) => s.id === id) || null;
 
@@ -637,24 +447,12 @@ FS.entryPillClass = (data, entry) => {
 
 FS.getOwnTransactions = async () => {
   const eff = await FS.getEffectiveUser();
-  // filtered by userId (not uid) to match what the transactions read rule's
-  // claim/link check inspects — Firestore rejects a list query whose filter
-  // field doesn't align with what the security rule reads, even though uid
-  // and userId are always equal on every transaction doc in this schema.
-  const snap = await FS._db.collection("transactions")
-    .where("userId", "==", eff.effectiveUid)
-    .where("status", "==", "active")
-    .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return FS.getUserTransactions(eff.effectiveUid);
 };
 
 FS.getOwnPayments = async () => {
   const eff = await FS.getEffectiveUser();
-  const snap = await FS._db.collection("payments")
-    .where("userId", "==", eff.effectiveUid)
-    .where("status", "==", "active")
-    .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return FS.getUserPayments(eff.effectiveUid);
 };
 
 FS.toEntry = (t) => ({
@@ -668,28 +466,18 @@ FS.toEntry = (t) => ({
   userStatus: t.userStatus || null,
 });
 
-/* Tab-member verdict on a listing: "agreed", "disputed", or null to clear
- * back to neutral. Rules restrict customer writes to verdict/date fields. */
 FS.setEntryStatus = async (transactionId, verdict) => {
   await FS.signInAnonymous();
-  const payload = verdict
-    ? {
-        userStatus: verdict,
-        userStatusAt: firebase.firestore.FieldValue.serverTimestamp(),
-      }
-    : {
-        userStatus: firebase.firestore.FieldValue.delete(),
-        userStatusAt: firebase.firestore.FieldValue.delete(),
-      };
-  await FS._db.collection("transactions").doc(transactionId).update(payload);
+  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/status`, {
+    method: "PATCH", body: { verdict },
+  });
 };
 
 FS.setEntryDate = async (transactionId, createdDate) => {
   await FS.signInAnonymous();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw new Error("Choose a valid date.");
-  await FS._db.collection("transactions").doc(transactionId).update({
-    createdDate,
-    dateEditedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/date`, {
+    method: "PATCH", body: { createdDate },
   });
 };
 
@@ -701,42 +489,21 @@ FS.toPayment = (p) => ({
 });
 
 FS.loadData = async () => {
-  // Public browsing is account-free: restore an existing session if this
-  // browser already owns a tab, but never create Auth or Firestore records.
   const user = await FS.restoreSession();
-  const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog()]);
-  if (!user && !FS.getTabCode()) {
+  const tabCode = FS.getTabCode();
+  if (!user && !tabCode) {
+    const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog()]);
     return { profile, catalog, claim: null, entries: [], payments: [] };
   }
-  const claim = FS.getTabCode() ? await FS.resolveClaim().catch(() => null) : null;
-  if (!user && !claim) {
-    return { profile, catalog, claim: null, entries: [], payments: [] };
-  }
-  const [transactions, payments] = await Promise.all([FS.getOwnTransactions(), FS.getOwnPayments()]);
-  let entries = transactions.map(FS.toEntry);
-  let pays = payments.map(FS.toPayment);
-  if (claim) {
-    // merge the claimed tab's history (e.g. the migrated legacy data) with
-    // whatever this browser has logged itself
-    const [ct, cp] = await Promise.all([
-      FS.getUserTransactions(claim.userId),
-      FS.getUserPayments(claim.userId),
-    ]);
-    entries = entries.concat(ct.map(FS.toEntry));
-    pays = pays.concat(cp.map(FS.toPayment));
-  }
-  // A customer dispute removes the listing from that customer's history and
-  // balance immediately. The document remains active so admins can review,
-  // correct, approve, void, or permanently delete it.
-  entries = entries.filter((entry) => entry.userStatus !== "disputed");
-  const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
-  return {
-    profile,
-    catalog,
-    claim,
-    entries: entries.sort(byDate),
-    payments: pays.sort(byDate),
-  };
+  if (tabCode) await FS.signInAnonymous();
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  // Note: unlike FS.getMyProfile, this response doesn't echo back which uid
+  // it actually resolved effectiveUid to, so a revoked link isn't self-
+  // healed from here - startTabFlow() always calls FS.getMyProfile() too
+  // on every page load, and that's where the self-heal actually happens.
+  return FS._apiFetch("/store/data", {
+    query: { tabCode: tabCode || undefined, effectiveUid: linkedTo || undefined },
+  });
 };
 
 FS.addTransaction = async (items) => {
@@ -747,78 +514,17 @@ FS.addTransaction = async (items) => {
   }).filter(({ snack, quantity }) => snack && snack.id && quantity > 0 && Number(snack.price || 0) > 0);
   if (!validItems.length) throw new Error("Choose at least one priced snack.");
 
-  const user = await FS.signInAnonymous();
-  const device = FS.deviceIdentity(user);
-  const eff = await FS.getEffectiveUser();
-  const batch = FS._db.batch();
-  const today = FS.todayISO();
-  const now = firebase.firestore.FieldValue.serverTimestamp();
-  const deviceRef = FS._db.collection("devices").doc(device.deviceId);
-  batch.set(deviceRef, {
-    deviceId: device.deviceId,
-    uid: user.uid,
-    visitorId: device.visitorId,
-    userId: eff.effectiveUid,
-    deviceLabel: FS.deviceLabel(),
-    status: "active",
-    lastSeenAt: now,
-    userAgentBrief: FS.userAgentBrief(),
-    source: "web",
-  }, { merge: true });
-
-  const userRef = FS._db.collection("users").doc(eff.effectiveUid);
-  const userSnap = await userRef.get();
-  const userBase = {
-    userId: eff.effectiveUid,
-    uid: eff.effectiveUid,
-    lastSeenAt: now,
-    linkedDevices: firebase.firestore.FieldValue.arrayUnion(device.deviceId),
-  };
-  if (userSnap.exists) {
-    batch.set(userRef, userBase, { merge: true });
-  } else {
-    batch.set(userRef, {
-      ...userBase,
-      displayName: `${FS.appConfig.anonUserPrefix || "Guest"} ${FS.randomCode(4)}`,
-      vipStatus: "anonymous",
-      email: null,
-      phone: null,
-      favoriteSnackId: null,
-      createdAt: now,
-    });
-  }
-  const saved = [];
-  for (const { snack, quantity } of validItems) {
-    const transactionId = FS.uid("fs_txn");
-    const ref = FS._db.collection("transactions").doc(transactionId);
-    const record = {
-      transactionId,
-      uid: eff.effectiveUid,
-      userId: eff.effectiveUid,
-      deviceId: device.deviceId,
-      visitorId: device.visitorId,
-      snackId: snack.id,
-      snackName: snack.name,
-      quantity,
-      unitPrice: Number(snack.price || 0),
-      total: Number(snack.price || 0) * quantity,
-      calories: snack.calories ?? null,
-      source: "self",
-      createdAt: now,
-      createdDate: today,
-      status: "active",
-      // Self-logged purchases don't need anyone's sign-off - the customer
-      // is vouching for their own entry by adding it. Stamping this at
-      // creation lets it flow straight through the existing
-      // reviewStatus==="approved" payment-allocation pipeline without an
-      // admin ever needing to click Approve.
-      reviewStatus: "approved",
-      approvedAt: now,
-    };
-    batch.set(ref, record);
-    saved.push(record);
-  }
-  await batch.commit();
+  await FS.signInAnonymous();
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const saved = await FS._apiFetch("/store/transactions", {
+    method: "POST",
+    body: {
+      items: validItems,
+      effectiveUid: linkedTo || undefined,
+      deviceLabel: FS.deviceLabel(),
+    },
+  });
+  const device = FS.deviceIdentity(FS.currentUser);
   localStorage.setItem(FS.appConfig.storageKeys.deviceId, device.deviceId);
   localStorage.setItem(FS.appConfig.storageKeys.visitorId, device.visitorId);
   localStorage.setItem("fresh_snacks_device_started", "1");
