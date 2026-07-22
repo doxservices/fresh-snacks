@@ -4528,6 +4528,30 @@ tr.disputed td {
   padding: 4px 9px;
 }
 
+.notif-dismiss {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font-size: 20px;
+  height: 26px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 26px;
+}
+
+.notif-dismiss:hover,
+.notif-dismiss:focus-visible {
+  background: rgba(0,0,0,0.08);
+  color: var(--text);
+}
+
 /* ---- snacks-taken macro chips ---- */
 
 .macro-chips {

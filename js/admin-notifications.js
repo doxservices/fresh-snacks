@@ -3,17 +3,20 @@
  *
  * 1. Actionable backlog - new feedback, plus transactions still needing a
  *    decision (never-approved admin-logged purchases, or anything a
- *    customer has disputed). These resolve themselves: once the underlying
- *    Firestore state actually changes (approved, read, etc.), the item
- *    just drops off on its own - no dismiss needed or offered.
+ *    customer has disputed). These normally resolve themselves once the
+ *    underlying Firestore state changes (approved, read, etc.), but the
+ *    admin can also close one out manually with its x button without
+ *    acting on it - that's a local dismiss only (see DISMISS_STORAGE_KEY),
+ *    it doesn't touch Firestore, so it stays gone from the panel even
+ *    though the underlying record is still unresolved.
  *
  * 2. Activity notices - a customer added their name, or logged a purchase
  *    themselves via the basket's "Add to tab" button. These don't have a
  *    natural "resolved" state to watch for, so per explicit product
  *    decision they show immediately (scoped to ACTIVITY_CUTOFF onward, so
  *    the entire pre-existing history doesn't flood the panel on rollout)
- *    and stay until the admin manually dismisses them (small x button,
- *    persisted in this browser's localStorage) - no auto-expiry.
+ *    and stay until dismissed (their x button, or clicking anywhere on
+ *    the row) - no auto-expiry.
  *
  * Both kinds count toward the bell's number (also an explicit decision).
  *
@@ -47,7 +50,10 @@
 
   function timestampMs(record, field) {
     const v = record && record[field];
-    return v && typeof v.toDate === "function" ? v.toDate().getTime() : 0;
+    if (!v) return 0;
+    if (typeof v._seconds === "number") return v._seconds * 1000;
+    if (typeof v.toDate === "function") return v.toDate().getTime();
+    return 0;
   }
 
   function ensureMarkup() {
@@ -162,12 +168,26 @@
       handleAction(actionBtn);
       return;
     }
+    const dismissEl = ev.target.closest("[data-notif-dismiss]");
+    if (dismissEl) {
+      ev.stopPropagation();
+      const item = dismissEl.closest(".notif-item");
+      dismissKey(dismissEl.dataset.notifDismiss);
+      item.remove();
+      renderBadge();
+      const list = document.getElementById("admin-notifications-list");
+      if (!list.querySelector(".notif-item")) {
+        list.innerHTML = `<p class="muted-small">Nothing needs your attention right now.</p>`;
+      }
+      return;
+    }
+
     const item = ev.target.closest(".notif-item");
     if (!item) return;
 
     // Activity notices (naming, self-logged checkouts) have no natural
-    // "resolved" state to wait for - clicking anywhere on the row is what
-    // dismisses them, not just a small x button.
+    // "resolved" state to wait for - clicking anywhere on the row also
+    // dismisses them, in addition to their own x button.
     if (item.dataset.type === "name-added" || item.dataset.type === "items-added") {
       dismissKey(item.dataset.key);
       item.remove();
@@ -235,14 +255,18 @@
     if (!snapshot) return [];
     const byUser = new Map(snapshot.accounting.map((r) => [r.userId, r]));
     const nameFor = (userId) => byUser.get(userId)?.displayName || userId || "Unknown";
+    const dismissed = getDismissed();
 
-    const feedbackItems = snapshot.feedback.filter((f) => f.status === "new").map((f) => ({
-      type: "feedback",
-      id: f.feedbackId || f.id,
-      date: FS.admin.dateFromRecord(f, "createdAt"),
-      name: [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous",
-      detail: f.details != null ? f.details : (f.message || ""),
-    }));
+    const feedbackItems = snapshot.feedback
+      .filter((f) => f.status === "new" && !dismissed.has(`feedback:${f.feedbackId || f.id}`))
+      .map((f) => ({
+        type: "feedback",
+        id: f.feedbackId || f.id,
+        key: `feedback:${f.feedbackId || f.id}`,
+        date: FS.admin.dateFromRecord(f, "createdAt"),
+        name: [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous",
+        detail: f.details != null ? f.details : (f.message || ""),
+      }));
 
     const actionableTxns = snapshot.transactions.filter((t) => (t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed");
     const byCustomer = new Map();
@@ -262,9 +286,12 @@
       const anyDisputed = txns.some((t) => t.userStatus === "disputed");
       const anyApproved = txns.some((t) => (t.reviewStatus || "neutral") === "approved");
       if (txns.length > AGGREGATE_THRESHOLD) {
+        const key = `txn-group:${userId}`;
+        if (dismissed.has(key)) continue;
         txnItems.push({
           type: "transaction-group",
           userId,
+          key,
           name: nameFor(userId),
           count: txns.length,
           date: mostRecent.createdDate || FS.admin.dateFromRecord(mostRecent, "createdAt"),
@@ -273,9 +300,13 @@
         });
       } else {
         for (const t of txns) {
+          const id = t.transactionId || t.id;
+          const key = `txn:${id}`;
+          if (dismissed.has(key)) continue;
           txnItems.push({
             type: "transaction",
-            id: t.transactionId || t.id,
+            id,
+            key,
             userId,
             name: nameFor(userId),
             date: t.createdDate || FS.admin.dateFromRecord(t, "createdAt"),
@@ -287,8 +318,6 @@
         }
       }
     }
-
-    const dismissed = getDismissed();
 
     // "A name was added" - approximated by vipStatus flipping to "named"
     // with a recent updatedAt, since no dedicated "namedAt" field exists;
@@ -354,6 +383,10 @@
     bell.setAttribute("aria-label", `${count} notification${count === 1 ? "" : "s"}`);
   }
 
+  function dismissBtn(key) {
+    return `<button type="button" class="notif-dismiss" data-notif-dismiss="${esc(key)}" aria-label="Dismiss notification" title="Dismiss">&times;</button>`;
+  }
+
   function renderList() {
     const items = notificationItems();
     const list = document.getElementById("admin-notifications-list");
@@ -376,6 +409,7 @@
             <span class="muted-small">${esc(it.date)}</span>
             <span class="verdict-badge needs-review">New feedback</span>
           </div>
+          ${dismissBtn(it.key)}
         </div>`;
       }
       if (it.type === "transaction-group") {
@@ -392,11 +426,12 @@
             <span class="muted-small">${esc(it.date)}</span>
             ${statusBadge(it.reviewStatus)}
           </div>
+          ${dismissBtn(it.key)}
         </div>`;
       }
       if (it.type === "name-added") {
-        // Activity notice - clicking anywhere on the row dismisses it (see
-        // onListClick), no separate x button needed.
+        // Activity notice - clicking anywhere on the row also dismisses it
+        // (see onListClick), in addition to its own x button.
         return `<div class="notif-item" data-type="name-added" data-key="${esc(it.key)}">
           <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128100;</span></div>
           <div class="notif-item-body">
@@ -407,6 +442,7 @@
             <span class="muted-small">${esc(it.date)}</span>
             <span class="verdict-badge activity">New profile</span>
           </div>
+          ${dismissBtn(it.key)}
         </div>`;
       }
       if (it.type === "items-added") {
@@ -424,6 +460,7 @@
             <span class="muted-small">${esc(it.date)}</span>
             <span class="verdict-badge activity">Logged</span>
           </div>
+          ${dismissBtn(it.key)}
         </div>`;
       }
       const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
@@ -443,6 +480,7 @@
           <span class="muted-small">${esc(it.date)}</span>
           ${statusBadge(it.reviewStatus)}
         </div>
+        ${dismissBtn(it.key)}
       </div>`;
     }).join("");
   }
