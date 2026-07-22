@@ -67,18 +67,43 @@ router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   const existing = await ref.get();
   const firstName = clean(req.body.firstName);
   const lastName = clean(req.body.lastName);
+  const email = clean(req.body.email);
+  const phone = clean(req.body.phone);
   const displayName = clean(req.body.displayName) || clean(`${firstName || ""} ${lastName || ""}`);
   const payload = {
     firstName,
     lastName,
-    email: clean(req.body.email),
-    phone: clean(req.body.phone),
+    email,
+    phone,
     updatedAt: FieldValue.serverTimestamp(),
   };
-  if (displayName) {
-    payload.displayName = displayName;
+  if (displayName) payload.displayName = displayName;
+
+  // A tab only counts as "opened" once a real name AND real contact info
+  // are on file - this is the actual accountability backstop that
+  // POST /transactions checks before allowing a self-logged purchase (see
+  // below), not just a UX nicety, so it takes all four fields rather than
+  // a name alone. Existing profiles that already earned nameSet under the
+  // old (name-only) rule are untouched, since this only ever sets the
+  // field forward, never clears it.
+  if (displayName && email && phone) {
     payload.vipStatus = "named";
     payload.nameSet = true;
+    // Referral/de-link origin is only worth capturing the moment a tab is
+    // actually opened, and only for the caller's own identity - not while
+    // editing a linked target's shared profile.
+    if (effectiveUid === req.uid) {
+      const referredBy = clean(req.body.referredBy);
+      if (referredBy && !(existing.exists && existing.data().referredBy)) {
+        payload.referredBy = referredBy;
+      }
+      const claimSnap = await db().collection("claims").doc(req.uid).get();
+      if (claimSnap.exists && claimSnap.data().active === false) {
+        payload.previousLinkedTo = claimSnap.data().unlinkedFrom || null;
+        payload.previousLinkCode = claimSnap.data().code || null;
+        payload.previousLinkUnlinkedAt = claimSnap.data().unlinkedAt || null;
+      }
+    }
   }
   if (!existing.exists) {
     payload.userId = effectiveUid;
@@ -230,6 +255,24 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
   if (!validItems.length) throw Object.assign(new Error("Choose at least one priced snack."), { status: 400 });
 
   const effectiveUid = await resolveEffectiveUid(req);
+  const userRef = db().collection("users").doc(effectiveUid);
+  const userSnap = await userRef.get();
+
+  // A device acting as its own (not a linked/effective) identity must have
+  // actually opened a tab - name, email, and phone all on file - before it
+  // can self-log a purchase. This is the real enforcement; index.html's
+  // visitor-only gallery is just the UX for it. A device linked onto an
+  // already-complete target profile is unaffected, and so is any profile an
+  // admin already set up in person (createdByAdmin) - that's already a
+  // vetted, accountable tab, not an anonymous one hiding behind this gate.
+  if (effectiveUid === req.uid) {
+    const self = userSnap.exists ? userSnap.data() : null;
+    const complete = !!(self && (self.nameSet === true || self.createdByAdmin));
+    if (!complete) {
+      throw Object.assign(new Error("Open a tab first - add your name, email, and phone to start logging snacks."), { status: 403 });
+    }
+  }
+
   const deviceId = `fs_dev-${req.uid}`;
   const visitorId = `fs_guest-${req.uid}`;
   const batch = db().batch();
@@ -248,8 +291,6 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
     source: "web",
   }, { merge: true });
 
-  const userRef = db().collection("users").doc(effectiveUid);
-  const userSnap = await userRef.get();
   const userBase = {
     userId: effectiveUid,
     uid: effectiveUid,
@@ -399,7 +440,15 @@ router.post("/link/unlink", requireAuth, asyncRoute(async (req, res) => {
   await db().collection("users").doc(linkedTo).update({
     linkedUids: FieldValue.arrayRemove(req.uid),
   });
-  await db().collection("claims").doc(req.uid).delete().catch(() => {});
+  // Keep the claims doc around as de-link history instead of deleting it -
+  // surfaced later if this device ever opens its own tab (see PATCH
+  // /profile). myClaimedCode() in authz.js already treats an inactive claim
+  // as no claim at all, so this doesn't restore any access.
+  await db().collection("claims").doc(req.uid).set({
+    active: false,
+    unlinkedFrom: linkedTo,
+    unlinkedAt: FieldValue.serverTimestamp(),
+  }, { merge: true }).catch(() => {});
   res.json({ ok: true });
 }));
 

@@ -14,7 +14,8 @@ async function isLinkedMember(uid, ownerId) {
 
 async function myClaimedCode(uid) {
   const snap = await admin.firestore().collection("claims").doc(uid).get();
-  return snap.exists ? (snap.data().code || "") : "";
+  if (!snap.exists || snap.data().active === false) return "";
+  return snap.data().code || "";
 }
 
 async function hasClaimOn(uid, ownerId) {
