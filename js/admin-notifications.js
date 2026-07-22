@@ -404,6 +404,22 @@
     return `<button type="button" class="notif-dismiss" data-notif-dismiss="${esc(key)}" aria-label="Dismiss notification" title="Dismiss">&times;</button>`;
   }
 
+  // Single-color line icons (no emoji) for the notification photo slot -
+  // the "tone-*" class on the wrapping .notif-item-photo sets both the
+  // pastel background and the icon's own color via currentColor, mirroring
+  // the same blue/amber/red used by .verdict-badge so a row's icon and its
+  // badge always agree on urgency.
+  const ICONS = {
+    person: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.25"/><path d="M5.75 18.75c1.1-3.3 3.9-5 6.25-5s5.15 1.7 6.25 5"/></svg>`,
+    clipboard: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4.5" width="14" height="16" rx="2"/><rect x="9" y="3" width="6" height="3" rx="1.2"/><path d="M8.5 11.5h7M8.5 15h7M8.5 18h4.2"/></svg>`,
+    package: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.2 12 4l8 4.2v7.6L12 20l-8-4.2Z"/><path d="M4 8.2 12 12l8-3.8M12 12v8"/></svg>`,
+    message: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 5.5h15v10h-8.5l-3.5 3v-3h-3Z"/></svg>`,
+  };
+
+  function iconBox(iconName, tone) {
+    return `<div class="notif-item-photo tone-${tone}">${ICONS[iconName]}</div>`;
+  }
+
   function renderList() {
     const items = notificationItems();
     const list = document.getElementById("admin-notifications-list");
@@ -414,6 +430,7 @@
     list.innerHTML = items.map((it) => {
       if (it.type === "feedback") {
         return `<div class="notif-item" data-type="feedback" data-id="${esc(it.id)}">
+          ${iconBox("message", "amber")}
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${esc(String(it.detail).slice(0, 120))}</div>
@@ -434,7 +451,7 @@
         // to that customer's transactions.html page (the generic fallback
         // in onListClick already does this from data-user alone).
         return `<div class="notif-item${it.disputed ? " disputed" : ""}" data-type="transaction-group" data-id="" data-user="${esc(it.userId)}">
-          <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128203;</span></div>
+          ${iconBox("clipboard", it.disputed ? "red" : "amber")}
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${it.count} items need review</div>
@@ -450,7 +467,7 @@
         // Activity notice - clicking anywhere on the row also dismisses it
         // (see onListClick), in addition to its own x button.
         return `<div class="notif-item" data-type="name-added" data-key="${esc(it.key)}">
-          <div class="notif-item-photo"><img src="profile-icon.png" alt="" /></div>
+          ${iconBox("person", "blue")}
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">Added their name</div>
@@ -466,9 +483,9 @@
         const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
         const itemName = snack ? snack.name : (it.snackName || "Item");
         return `<div class="notif-item" data-type="items-added" data-key="${esc(it.key)}">
-          <div class="notif-item-photo">${snack && snack.photo
+          <div class="notif-item-photo${snack && snack.photo ? "" : " tone-blue"}">${snack && snack.photo
             ? `<img src="${esc(snack.photo)}" alt="${esc(itemName)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+            : ICONS.package}</div>
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">${it.count > 1 ? `${it.count} items added to tab` : `Added ${esc(itemName)} to tab`}</div>
@@ -483,9 +500,9 @@
       const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
       const itemName = snack ? snack.name : (it.snackName || "Item");
       return `<div class="notif-item${it.disputed ? " disputed" : ""}" data-type="transaction" data-id="${esc(it.id)}" data-txn="${esc(it.id)}" data-user="${esc(it.userId)}">
-        <div class="notif-item-photo">${snack && snack.photo
+        <div class="notif-item-photo${snack && snack.photo ? "" : (it.disputed ? " tone-red" : " tone-amber")}">${snack && snack.photo
           ? `<img src="${esc(snack.photo)}" alt="${esc(itemName)}" loading="lazy" />`
-          : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          : ICONS.package}</div>
         <div class="notif-item-body">
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>

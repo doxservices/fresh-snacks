@@ -4417,9 +4417,10 @@ tr.disputed td {
 
 .verdict-badge {
   display: inline-block;
-  border-radius: var(--radius-sm);
-  padding: 2px 7px;
+  border-radius: 999px;
+  padding: 3px 10px;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .verdict-badge.agreed {
@@ -4447,29 +4448,50 @@ tr.disputed td {
   width: min(560px, 100%);
 }
 
-#notifications-list {
+#admin-notifications-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin-top: 12px;
   max-height: 60vh;
   overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--green) transparent;
+  scrollbar-width: thin;
+}
+
+#admin-notifications-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+#admin-notifications-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#admin-notifications-list::-webkit-scrollbar-thumb {
+  background: var(--green);
+  border-radius: 999px;
+}
+
+#admin-notifications-list::-webkit-scrollbar-thumb:hover {
+  background: var(--green-dark);
 }
 
 .notif-item {
   align-items: center;
-  background: rgba(255,255,255,0.9);
+  background: #fff;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(24, 79, 42, 0.04);
   cursor: pointer;
   display: flex;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 14px;
+  padding: 14px 16px;
   text-align: left;
 }
 
 .notif-item:hover {
-  background: var(--green-light);
+  background: var(--green-soft);
 }
 
 .notif-item.disputed {
@@ -4477,13 +4499,37 @@ tr.disputed td {
 }
 
 .notif-item-photo {
-  background: linear-gradient(160deg, rgba(244,250,243,0.9), rgba(227,239,225,0.9));
-  border-radius: var(--radius-sm);
+  align-items: center;
+  background: var(--green-light);
+  border-radius: 14px;
+  color: var(--green-dark);
+  display: flex;
   flex: none;
-  height: 44px;
+  height: 52px;
+  justify-content: center;
   overflow: hidden;
   position: relative;
-  width: 44px;
+  width: 52px;
+}
+
+.notif-item-photo svg {
+  height: 26px;
+  width: 26px;
+}
+
+.notif-item-photo.tone-blue {
+  background: #eaf1fb;
+  color: #2c5a8a;
+}
+
+.notif-item-photo.tone-amber {
+  background: #fdf3e2;
+  color: #8a6412;
+}
+
+.notif-item-photo.tone-red {
+  background: #faf0ef;
+  color: #8a2f2f;
 }
 
 .notif-item-photo img {
@@ -4495,17 +4541,14 @@ tr.disputed td {
   width: 100%;
 }
 
-.notif-item-photo .bin-placeholder {
-  font-size: 22px;
-}
-
 .notif-item-body {
   flex: 1;
   min-width: 0;
 }
 
 .notif-item-title {
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4516,7 +4559,7 @@ tr.disputed td {
   display: flex;
   flex-direction: column;
   flex: none;
-  gap: 4px;
+  gap: 6px;
 }
 
 .notif-item-actions {
@@ -4544,6 +4587,7 @@ tr.disputed td {
   height: 26px;
   justify-content: center;
   line-height: 1;
+  margin-left: 4px;
   padding: 0;
   width: 26px;
 }
