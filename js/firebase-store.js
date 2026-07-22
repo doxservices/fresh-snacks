@@ -157,6 +157,12 @@ FS.uid = (prefix) =>
 FS.randomCode = (len = 4) =>
   Math.random().toString(36).slice(2, 2 + len).toUpperCase();
 
+// A profile counts as "opened" (visitor gate cleared) once it either
+// completed the customer-facing Open-a-Tab flow (nameSet) or was already
+// set up in person by an admin (createdByAdmin) - mirrors the same check
+// POST /store/transactions enforces server-side.
+FS.profileComplete = (profile) => !!(profile && (profile.nameSet === true || profile.createdByAdmin));
+
 FS.money = (n, currency) => `${currency || FS.appConfig.currency || "J$"}${Number(n || 0).toLocaleString("en-US")}`;
 
 FS.todayISO = () => {
@@ -281,6 +287,30 @@ FS.clearLinkCode = () => {
   if (typeof history !== "undefined" && new URLSearchParams(location.search).has("link")) {
     const url = new URL(location.href);
     url.searchParams.delete("link");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }
+};
+
+/* ---------- referral tracking ---------- */
+
+// A ?ref=<uid> from the "Tell a Friend" QR (a real Firebase uid, so unlike
+// FS.getLinkCode this is case-sensitive and never uppercased) - captured
+// once on load and carried through to the eventual "Open a tab" submit.
+FS.referralCodeKey = "fresh_snacks_referral_code";
+
+FS.getReferralCode = () => {
+  const fromUrl = new URLSearchParams(location.search).get("ref");
+  if (fromUrl && fromUrl.trim()) {
+    localStorage.setItem(FS.referralCodeKey, fromUrl.trim());
+  }
+  return localStorage.getItem(FS.referralCodeKey) || null;
+};
+
+FS.clearReferralCode = () => {
+  localStorage.removeItem(FS.referralCodeKey);
+  if (typeof history !== "undefined" && new URLSearchParams(location.search).has("ref")) {
+    const url = new URL(location.href);
+    url.searchParams.delete("ref");
     history.replaceState(null, "", url.pathname + url.search + url.hash);
   }
 };

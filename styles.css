@@ -3567,6 +3567,15 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) 360px;
 }
 
+.bins-layout:has(#basket-panel.hidden) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.visitor-intro p {
+  margin: 8px 0 16px;
+  max-width: 60ch;
+}
+
 .basket-overlay {
   display: none;
 }

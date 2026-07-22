@@ -35,7 +35,7 @@
           <div class="brand-subtitle" id="brand-subtitle">Private snack profile</div>
         </div>
 
-        <div class="brand-stats">
+        <div class="brand-stats" id="brand-stats">
           <div class="stat-box balance-stat">
             <div class="stat-label" id="stat-balance-label">Current tab</div>
             <div class="stat-value warm" id="stat-balance">–</div>
@@ -46,6 +46,13 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="card section-card visitor-intro hidden" id="visitor-intro">
+      <span class="snack-shop-kicker">Welcome to Fresh Snacks</span>
+      <h2>Snack now, pay later</h2>
+      <p>Browse what's in the baskets below. When you're ready to start your own tab, tap "Open a tab" and we'll get you set up in a minute.</p>
+      <button type="button" class="primary" id="visitor-open-tab">Open a tab</button>
     </section>
 
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
@@ -85,7 +92,7 @@
     </section>
 
     <section class="card section-card snack-shop-section" id="snack-shop">
-      <div class="snack-shop-heading">
+      <div class="snack-shop-heading" id="snack-shop-heading">
         <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
         <h2>Snack now, pay later</h2>
         <p>Took a snack? Choose it below and add it to your tab.</p>
@@ -279,8 +286,8 @@
   <div class="modal-backdrop" id="name-capture-backdrop">
     <div class="modal name-capture-modal" role="dialog" aria-modal="true" aria-labelledby="ncm-title">
       <button type="button" class="modal-close" id="ncm-close" aria-label="Close">&times;</button>
-      <h2 id="ncm-title">Let's put a name on this tab</h2>
-      <p class="muted-small">The snack keeper needs your name to keep tabs organized.</p>
+      <h2 id="ncm-title">Open your tab</h2>
+      <p class="muted-small">The snack keeper needs your name and contact info to open a tab for you.</p>
 
       <form id="ncm-name-form" novalidate>
         <div class="name-capture-fields">
@@ -291,6 +298,14 @@
           <div class="field">
             <label for="ncm-last">Last name</label>
             <input id="ncm-last" type="text" autocomplete="family-name" required />
+          </div>
+          <div class="field">
+            <label for="ncm-email">Work email</label>
+            <input id="ncm-email" type="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="ncm-phone">Phone</label>
+            <input id="ncm-phone" type="tel" autocomplete="tel" required />
           </div>
         </div>
         <div class="status" id="ncm-name-status"></div>
@@ -471,13 +486,28 @@
       const favorite = FS.favoriteSnack(data);
       const fav = favorite && favorite.snack;
 
+      // A visitor (no completed "Open a tab" yet - see functions/src/routes/
+      // store.js's PATCH /profile) gets a browse-only gallery: no balance,
+      // no Snack Log, no basket, no Tell a Friend - just the catalogue and a
+      // clear "Open a tab" call to action. This is the UX side of the same
+      // gate POST /transactions enforces server-side.
+      const isVisitor = !FS.profileComplete(data.myProfile);
+      $id("visitor-intro").classList.toggle("hidden", !isVisitor);
+      $id("brand-stats").classList.toggle("hidden", isVisitor);
+      $id("tell-a-friend").classList.toggle("hidden", isVisitor);
+      if (!isVisitor) renderJoinQr(data.myProfile.userId);
+      $id("snack-shop-heading").classList.toggle("hidden", isVisitor);
+      $id("basket-panel").classList.toggle("hidden", isVisitor);
+      $id("basket-overlay").classList.toggle("hidden", isVisitor);
+      $id("basket-notification").classList.toggle("hidden", isVisitor);
+
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
       // who was linked but hasn't taken a snack) - keep the page to just
       // the gallery + QR until there's a real tab to show.
-      $id("tab-activity").classList.toggle("hidden", data.entries.length === 0);
-      $id("favorite-section").classList.toggle("hidden", !favorite);
-      renderRecommendations(data, favorite);
+      $id("tab-activity").classList.toggle("hidden", isVisitor || data.entries.length === 0);
+      $id("favorite-section").classList.toggle("hidden", isVisitor || !favorite);
+      renderRecommendations(data, isVisitor ? null : favorite);
 
       const dated = data.entries.filter((e) => e.date);
       const monthKey = FS.todayISO().slice(0, 7);
@@ -731,14 +761,18 @@
     }
 
     function renderBinsGallery(data) {
+      const isVisitor = !FS.profileComplete(data.myProfile);
       if (!data.catalog.length) {
         $id("basket-notification").classList.add("hidden");
         $id("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
-      $id("basket-notification").classList.remove("hidden");
+      $id("basket-notification").classList.toggle("hidden", isVisitor);
       $id("bins").innerHTML = data.catalog.map((s) => {
         const soldOut = s.stock === 0;
+        const actionButton = isVisitor
+          ? `<button type="button" class="primary bin-add-button" data-visitor-cta>Open a tab to add</button>`
+          : `<button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>`;
         return `
         <div class="bin-card${soldOut ? " sold-out" : ""}" data-id="${esc(s.id)}">
           <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details">${s.photo
@@ -749,7 +783,7 @@
             <div class="bin-price">${FS.money(s.price, data.profile.currency)}</div>
             <div class="bin-meta">${s.calories != null ? `${esc(s.calories)} calories` : "Priced per item"}</div>
             ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">View nutrition details <span aria-hidden="true">&rsaquo;</span></a></div>` : `<div class="bin-facts bin-facts-empty" aria-hidden="true">&nbsp;</div>`}
-            <button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>
+            ${actionButton}
           </div>
         </div>`;
       }).join("");
@@ -767,6 +801,11 @@
       if (facts) {
         ev.preventDefault();
         FS.showFacts(facts.dataset.facts, facts.dataset.name);
+        return;
+      }
+      const visitorCta = ev.target.closest("button[data-visitor-cta]");
+      if (visitorCta) {
+        openNameCaptureModal(LAST_DATA.myProfile);
         return;
       }
       const btn = ev.target.closest("button[data-add]");
@@ -807,8 +846,9 @@
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
       const soldOut = s.stock === 0;
+      const isVisitor = !FS.profileComplete(LAST_DATA.myProfile);
       $id("snack-modal-add").disabled = soldOut;
-      $id("snack-modal-add").textContent = soldOut ? "Sold out" : "Add to basket";
+      $id("snack-modal-add").textContent = soldOut ? "Sold out" : isVisitor ? "Open a tab to add" : "Add to basket";
       $id("snack-modal-backdrop").classList.add("show");
       $id("snack-modal-add").focus();
     }
@@ -825,6 +865,11 @@
 
     $id("snack-modal-add").onclick = () => {
       if (!modalSnackId) return;
+      if (!FS.profileComplete(LAST_DATA.myProfile)) {
+        closeSnackModal();
+        openNameCaptureModal(LAST_DATA.myProfile);
+        return;
+      }
       picked.set(modalSnackId, (picked.get(modalSnackId) || 0) + 1);
       syncBinsGallery(LAST_DATA);
       const s = FS.snackById(LAST_DATA, modalSnackId);
@@ -1029,22 +1074,18 @@
         });
     });
 
-    // QR to start a fresh tab (plain site URL — never includes a tab code)
-    (function () {
-      const renderJoinQr = () => {
-        if (typeof window.qrcode !== "function") return;
-        const joinUrl = location.origin + location.pathname.replace(/[^/]*$/, "");
-        const qr = window.qrcode(0, "M");
-        qr.addData(joinUrl);
-        qr.make();
-        document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
-      };
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", renderJoinQr, { once: true });
-      } else {
-        renderJoinQr();
-      }
-    })();
+    // QR to start a fresh tab - carries ?ref=<referrer's own uid> so a new
+    // visitor who opens a tab after scanning it can be traced back to
+    // whoever showed them the code (see PATCH /profile's referredBy).
+    function renderJoinQr(referrerUid) {
+      if (typeof window.qrcode !== "function") return;
+      const base = location.origin + location.pathname.replace(/[^/]*$/, "");
+      const joinUrl = referrerUid ? `${base}?ref=${encodeURIComponent(referrerUid)}` : base;
+      const qr = window.qrcode(0, "M");
+      qr.addData(joinUrl);
+      qr.make();
+      document.getElementById("qr").innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    }
 
     /* ---------- user settings right well (anonymous by default, identity opt-in) ---------- */
 
@@ -1199,6 +1240,8 @@
       ncmReturnFocus = document.activeElement;
       $id("ncm-first").value = me.firstName || "";
       $id("ncm-last").value = me.lastName || "";
+      $id("ncm-email").value = me.email || "";
+      $id("ncm-phone").value = me.phone || "";
       $id("ncm-name-status").textContent = "";
       renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
       $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
@@ -1209,19 +1252,23 @@
 
     function closeNameCaptureModal() {
       if (linkCode) FS.clearLinkCode();
-      sessionStorage.setItem("fresh_snacks_ncm_dismissed", "1");
       $id("name-capture-backdrop").classList.remove("show");
       if (ncmReturnFocus && document.contains(ncmReturnFocus)) ncmReturnFocus.focus();
       ncmReturnFocus = null;
     }
 
+    // Only auto-opens for an in-progress device-link invite (an explicit
+    // action the visitor already took by following that link) - a plain
+    // incomplete/anonymous visitor is never force-interrupted with this
+    // modal on a calm page load. They get an explicit "Open a tab" button
+    // on the visitor gallery instead (see the isVisitor branch in render()).
     function maybeOpenNameCaptureModal(me, needsName) {
-      if (!needsName) return;
+      if (!needsName || !linkCode) return;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
-      if (sessionStorage.getItem("fresh_snacks_ncm_dismissed") && !linkCode) return;
       openNameCaptureModal(me);
     }
 
+    $id("visitor-open-tab").onclick = () => openNameCaptureModal(LAST_DATA.myProfile);
     $id("ncm-close").onclick = closeNameCaptureModal;
     $id("name-capture-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("name-capture-backdrop")) closeNameCaptureModal();
@@ -1284,9 +1331,23 @@
           st.textContent = "Scan the code on the other device.";
         } else {
           const before = await FS.getMyProfile();
-          await FS.updateMyProfile({ firstName, lastName, email: before.email, phone: before.phone });
+          // Opening a tab for the first time needs a real email and phone,
+          // not just a name - that's the whole point of this gate, so this
+          // is the one branch that actually enforces all four fields
+          // (link-this/link-other don't touch this device's own contact
+          // info at all, so they're deliberately left as-is above).
+          const email = $id("ncm-email").value.trim();
+          const phone = $id("ncm-phone").value.trim();
+          if (!firstName || !lastName || !email || !phone) {
+            throw new Error("Please add your name, email, and phone to open a tab.");
+          }
+          await FS.updateMyProfile({
+            firstName, lastName, email, phone,
+            referredBy: before.nameSet ? undefined : FS.getReferralCode(),
+          });
+          FS.clearReferralCode();
           $id("name-capture-backdrop").classList.remove("show");
-          renderUserSettings(await FS.getMyProfile());
+          startTabFlow();
         }
       } catch (e) {
         st.textContent = e.message;
@@ -1323,14 +1384,20 @@
     // (triggered from renderUserSettings below) is what actually offers to
     // accept it, on an explicit button click.
     function startTabFlow() {
-      withLoadTimeout(FS.loadData())
-        .then((data) => {
+      // FS.loadData()'s own "profile" field is actually app-wide settings
+      // (brand/currency/etc, from GET /store/settings) - NOT this visitor's
+      // own Firestore user doc. The real profile (nameSet, displayName...)
+      // only ever comes from FS.getMyProfile(), so it's fetched alongside
+      // and stashed on data.myProfile for render()/renderBinsGallery() to
+      // use for the visitor-vs-guest gate.
+      withLoadTimeout(Promise.all([FS.loadData(), FS.getMyProfile()]))
+        .then(([data, me]) => {
           CLAIM = data.claim || null;
+          data.myProfile = me;
           LAST_DATA = data;
           render(data);
-          return FS.getMyProfile();
+          renderUserSettings(me);
         })
-        .then(renderUserSettings)
         .catch((e) => {
           showAppFailure(e);
           if (String(e.message).includes("Firebase is not configured")) {

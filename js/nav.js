@@ -110,8 +110,8 @@
         const activeProfile = !!(
           profile &&
           profile.userId &&
-          profile.displayName &&
-          profile.vipStatus !== "feedback"
+          profile.vipStatus !== "feedback" &&
+          window.FS.profileComplete(profile)
         );
         if (activeProfile) {
           localStorage.setItem(activeProfileKey, "1");
