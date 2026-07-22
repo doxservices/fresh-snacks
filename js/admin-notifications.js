@@ -56,6 +56,22 @@
     return 0;
   }
 
+  // Notification rows need the actual time something happened, not just the
+  // day - "Jul 20, 4:32 PM" vs. a bare day date - since an admin comparing
+  // several same-day notices (or checking how long ago one landed) needs
+  // more than day granularity. Falls back to a day-only string (e.g.
+  // createdDate) only for old/legacy records with no raw timestamp field.
+  function formatDateTime(record, field, fallbackDay) {
+    const ms = timestampMs(record, field);
+    if (!ms) return fallbackDay || "";
+    const d = new Date(ms);
+    const includeYear = d.getFullYear() !== new Date().getFullYear();
+    return d.toLocaleString("en", {
+      month: "short", day: "numeric", year: includeYear ? "numeric" : undefined,
+      hour: "numeric", minute: "2-digit",
+    });
+  }
+
   function ensureMarkup() {
     if (document.getElementById("admin-notifications-bell")) return;
     const bell = document.createElement("button");
@@ -263,7 +279,8 @@
         type: "feedback",
         id: f.feedbackId || f.id,
         key: `feedback:${f.feedbackId || f.id}`,
-        date: FS.admin.dateFromRecord(f, "createdAt"),
+        date: formatDateTime(f, "createdAt"),
+        ms: timestampMs(f, "createdAt"),
         name: [f.firstName, f.lastName].filter(Boolean).join(" ") || "Anonymous",
         detail: f.details != null ? f.details : (f.message || ""),
       }));
@@ -278,11 +295,7 @@
 
     const txnItems = [];
     for (const [userId, txns] of byCustomer) {
-      const mostRecent = txns.reduce((a, b) => {
-        const da = a.createdDate || FS.admin.dateFromRecord(a, "createdAt");
-        const db = b.createdDate || FS.admin.dateFromRecord(b, "createdAt");
-        return String(db).localeCompare(String(da)) > 0 ? b : a;
-      });
+      const mostRecent = txns.reduce((a, b) => (timestampMs(b, "createdAt") > timestampMs(a, "createdAt") ? b : a));
       const anyDisputed = txns.some((t) => t.userStatus === "disputed");
       const anyApproved = txns.some((t) => (t.reviewStatus || "neutral") === "approved");
       if (txns.length > AGGREGATE_THRESHOLD) {
@@ -294,7 +307,8 @@
           key,
           name: nameFor(userId),
           count: txns.length,
-          date: mostRecent.createdDate || FS.admin.dateFromRecord(mostRecent, "createdAt"),
+          date: formatDateTime(mostRecent, "createdAt", mostRecent.createdDate),
+          ms: timestampMs(mostRecent, "createdAt"),
           disputed: anyDisputed,
           reviewStatus: anyApproved ? "approved" : "neutral",
         });
@@ -309,7 +323,8 @@
             key,
             userId,
             name: nameFor(userId),
-            date: t.createdDate || FS.admin.dateFromRecord(t, "createdAt"),
+            date: formatDateTime(t, "createdAt", t.createdDate),
+            ms: timestampMs(t, "createdAt"),
             snackId: t.snackId,
             snackName: t.snackName,
             reviewStatus: t.reviewStatus || "neutral",
@@ -335,7 +350,8 @@
         key: `name:${u.userId || u.uid}`,
         userId: u.userId || u.uid,
         name: u.displayName,
-        date: FS.admin.dateFromRecord(u, "updatedAt"),
+        date: formatDateTime(u, "updatedAt"),
+        ms: timestampMs(u, "updatedAt"),
       }));
 
     // "Items were added to a tab" via the basket's own "Add to tab" button -
@@ -362,11 +378,12 @@
         count: txns.length,
         snackId: first.snackId,
         snackName: first.snackName,
-        date: first.createdDate || FS.admin.dateFromRecord(first, "createdAt"),
+        date: formatDateTime(first, "createdAt", first.createdDate),
+        ms: timestampMs(first, "createdAt"),
       }));
 
     return [...feedbackItems, ...txnItems, ...nameAddedItems, ...itemsAddedItems]
-      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      .sort((a, b) => (b.ms || 0) - (a.ms || 0));
   }
 
   function statusBadge(reviewStatus) {
