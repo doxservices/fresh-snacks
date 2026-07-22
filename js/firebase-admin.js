@@ -160,6 +160,9 @@ FS.admin.deleteUserData = async (userId) => {
 FS.admin.getUserTransactionHistory = async (userId) =>
   FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/transaction-history`);
 
+FS.admin.getUserAdjustments = async (userId) =>
+  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/adjustments`);
+
 FS.admin.addInventory = async ({ snackId, quantity, note }) => {
   await FS._apiFetch("/admin/inventory-ledger", { method: "POST", body: { snackId, quantity, note } });
 };

@@ -277,6 +277,11 @@ router.get("/users/:userId/transaction-history", asyncRoute(async (req, res) => 
   res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((t) => t.status !== "void"));
 }));
 
+router.get("/users/:userId/adjustments", asyncRoute(async (req, res) => {
+  const snap = await db().collection("adjustments").where("userId", "==", req.params.userId).get();
+  res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((a) => a.status !== "void"));
+}));
+
 router.post("/inventory-ledger", asyncRoute(async (req, res) => {
   const { snackId, quantity, note } = req.body;
   const qty = Number(quantity);

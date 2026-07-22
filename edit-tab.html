@@ -167,6 +167,8 @@
           <button class="primary" id="adjust-add">Add adjustment</button>
         </div>
         <div class="status" id="adjust-status"></div>
+        <p class="muted-small">Negative amount = discount off the tab. Positive amount = cash back / credit.</p>
+        <div id="adjustment-list"></div>
       </section>
 
       <section class="card section-card">
@@ -917,7 +919,8 @@
       const cur = SNAPSHOT.settings.currency;
       const snackTotal = SNAPSHOT.transactions.reduce((n, t) => n + Number(t.total || 0), 0);
       const paidTotal = SNAPSHOT.payments.reduce((n, p) => n + Number(p.amount || 0), 0);
-      const balance = snackTotal - paidTotal;
+      const adjustmentTotal = SNAPSHOT.adjustments.reduce((n, a) => n + Number(a.amount || 0), 0);
+      const balance = snackTotal + adjustmentTotal - paidTotal;
 
       $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
       $("profile-subtitle").textContent = `Tab id: ${SNAPSHOT.profile.id}`;
@@ -932,17 +935,36 @@
 
       renderBinsGallery();
       renderTransactionTable();
+      renderAdjustmentList();
+    }
+
+    // Negative amount = discount off the tab, positive amount = cash back /
+    // credit toward future snacks - see "Add adjustment" above.
+    function renderAdjustmentList() {
+      const cur = SNAPSHOT.settings.currency;
+      const rows = [...SNAPSHOT.adjustments]
+        .sort((a, b) => String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+        .map((a) => `<tr>
+          <td>${esc(a.createdDate || "-")}</td>
+          <td class="num-money">${Number(a.amount || 0) < 0 ? "-" : ""}${FS.money(Math.abs(Number(a.amount || 0)), cur)}</td>
+          <td>${esc(a.reason || "-")}</td>
+        </tr>`).join("");
+      $("adjustment-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Day</th><th class="num-money">Amount</th><th>Reason</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="3" class="muted-small">No adjustments yet.</td></tr>`}</tbody>
+      </table>`;
     }
 
     async function refresh() {
-      const [settings, catalog, profile, transactions, payments] = await Promise.all([
+      const [settings, catalog, profile, transactions, payments, adjustments] = await Promise.all([
         FS.getSettings(),
         FS.getCatalog(),
         FS.admin.getUserProfile(TARGET_USER_ID),
         FS.admin.getUserTransactionHistory(TARGET_USER_ID),
         FS.getUserPayments(TARGET_USER_ID),
+        FS.admin.getUserAdjustments(TARGET_USER_ID),
       ]);
-      SNAPSHOT = { settings, catalog, profile, transactions, payments };
+      SNAPSHOT = { settings, catalog, profile, transactions, payments, adjustments };
       $("login-panel").classList.add("hidden");
       $("no-user-panel").classList.add("hidden");
       $("edit-tab-app").classList.remove("hidden");

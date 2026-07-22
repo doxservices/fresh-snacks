@@ -55,7 +55,11 @@ current_balance = transactions.total + adjustments.amount - payments.amount
 ```
 
 Transactions are snack activity. Payments are money received. Adjustments are
-admin corrections. Keep those records separate.
+admin corrections, entered manually (edit-tab.html's "Add adjustment" form,
+per customer) - there's no automatic trigger for these. The `amount` sign is
+the whole convention: negative is a discount off the tab, positive is cash
+back / credit toward future snacks. Keep those records separate from
+transactions and payments.
 
 ## Firebase setup
 
