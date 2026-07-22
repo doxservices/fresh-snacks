@@ -20,9 +20,12 @@
 
   const profileItems = [
         { label: "My tab", href: "index.html" },
+        { label: "Your balance", href: "index.html#activity-summary" },
+        { label: "Transaction history", href: "index.html#snack-log" },
         { label: "Log my snacks", href: "bins.html" },
         { label: "Invoice Me", href: "invoice.html" },
         { label: "User settings", href: "index.html#user-settings" },
+        { label: "Tell a friend", href: "index.html#tell-a-friend" },
         { label: "Feedback", href: "feedback.html" },
         { label: "Privacy Policy", href: "privacy.html" },
       ];

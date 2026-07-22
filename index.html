@@ -84,7 +84,7 @@
       <div class="recommendations-grid" id="recommendations-grid"></div>
     </section>
 
-    <section class="card section-card snack-shop-section">
+    <section class="card section-card snack-shop-section" id="snack-shop">
       <div class="snack-shop-heading">
         <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
         <h2>Snack now, pay later</h2>
@@ -122,7 +122,7 @@
     </section>
 
     <div id="tab-activity" class="hidden">
-    <section class="activity-summary">
+    <section class="activity-summary" id="activity-summary">
       <aside class="summary-grid">
         <div class="card">
           <div class="stat-label">Total snack value</div>
@@ -144,7 +144,7 @@
       </aside>
     </section>
 
-    <section class="card section-card">
+    <section class="card section-card" id="snack-log">
       <div class="section-head">
         <h2>Snack Log</h2>
         <div class="log-controls">
@@ -191,7 +191,7 @@
     </section>
     </div>
 
-    <section class="card section-card">
+    <section class="card section-card" id="tell-a-friend">
       <h2>Tell a Friend</h2>
       <div class="qr-wrap">
         <div id="qr" aria-hidden="true"></div>
@@ -582,6 +582,39 @@
 
     const picked = new Map();
 
+    // Basket contents only ever become a real transaction on a successful
+    // "Add to my tab" submit - until then they lived purely in memory, so a
+    // refresh, an accidental navigation, or a mobile browser reclaiming the
+    // tab in the background silently threw away real revenue. Mirroring
+    // `picked` into localStorage (via syncBinsGallery, called after every
+    // add/remove/qty change) means a returning visitor gets their basket
+    // back instead of having to notice, remember, and redo it.
+    const BASKET_STORAGE_KEY = "fresh_snacks_basket_draft";
+    const BASKET_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+    function saveBasketDraft() {
+      if (!picked.size) { localStorage.removeItem(BASKET_STORAGE_KEY); return; }
+      localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify({ items: [...picked.entries()], savedAt: Date.now() }));
+    }
+
+    function restoreBasketDraft() {
+      try {
+        const raw = localStorage.getItem(BASKET_STORAGE_KEY);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (!draft || !Array.isArray(draft.items) || Date.now() - (draft.savedAt || 0) > BASKET_DRAFT_MAX_AGE_MS) {
+          localStorage.removeItem(BASKET_STORAGE_KEY);
+          return;
+        }
+        for (const [id, qty] of draft.items) {
+          if (id && Number(qty) > 0) picked.set(id, Number(qty));
+        }
+      } catch {
+        localStorage.removeItem(BASKET_STORAGE_KEY);
+      }
+    }
+    restoreBasketDraft();
+
     function binsTotal(data) {
       let t = 0;
       for (const [id, qty] of picked) {
@@ -694,6 +727,7 @@
       $id("basket-notification-count").textContent = picked.size;
       $id("basket-notification").setAttribute("aria-label", `View basket, ${picked.size} different snack${picked.size === 1 ? "" : "s"} selected`);
       renderCartItems(data);
+      saveBasketDraft();
     }
 
     function renderBinsGallery(data) {
