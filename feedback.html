@@ -69,7 +69,6 @@
           <span class="request-arrow" aria-hidden="true"></span>
         </button>
       </div>
-      <div class="status" id="fb-status" style="margin-top:14px;"></div>
     </section>
 
     <footer class="feedback-footer">
@@ -170,6 +169,21 @@
       const el = $(id);
       el.textContent = msg;
       el.className = "status " + (ok ? "ok" : "err");
+    }
+
+    function showToast(message) {
+      let toast = $("feedback-toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "feedback-toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2400);
     }
 
     $("rq-category").innerHTML = FS.feedbackCategories
@@ -355,7 +369,7 @@
           details,
         });
         closeRequestModal();
-        status("fb-status", "Thank you — your request has been sent! 🎉", true);
+        showToast("Thanks for your feedback! 🎉");
       } catch (e) {
         status("rq-status", e.message, false);
       } finally {

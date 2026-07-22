@@ -450,7 +450,7 @@
         // Activity notice - clicking anywhere on the row also dismisses it
         // (see onListClick), in addition to its own x button.
         return `<div class="notif-item" data-type="name-added" data-key="${esc(it.key)}">
-          <div class="notif-item-photo"><span class="bin-placeholder" aria-hidden="true">&#128100;</span></div>
+          <div class="notif-item-photo"><img src="profile-icon.png" alt="" /></div>
           <div class="notif-item-body">
             <div class="notif-item-title">${esc(it.name)}</div>
             <div class="muted-small">Added their name</div>

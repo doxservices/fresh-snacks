@@ -160,7 +160,8 @@ header {
   top: -4px;
 }
 
-#nav-qr-toast {
+#nav-qr-toast,
+#feedback-toast {
   position: fixed;
   z-index: 120;
   right: 18px;
@@ -179,7 +180,8 @@ header {
 
 #nav-qr-toast.error { background: #7b2323; }
 
-#nav-qr-toast.show {
+#nav-qr-toast.show,
+#feedback-toast.show {
   opacity: 1;
   transform: translateY(0);
 }
