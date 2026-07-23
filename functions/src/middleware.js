@@ -43,21 +43,40 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+/* Recover an active device link from server-side records when this known
+ * browser has lost only its localStorage `linkedTo` marker. A claim alone is
+ * not enough: it must point to an active link code AND the target profile
+ * must still list this exact authenticated uid in linkedUids. */
+async function linkedTargetFromClaim(uid) {
+  const firestore = admin.firestore();
+  const claimSnap = await firestore.collection("claims").doc(uid).get();
+  if (!claimSnap.exists || claimSnap.data().active === false || !claimSnap.data().code) return null;
+
+  const codeSnap = await firestore.collection("codes").doc(claimSnap.data().code).get();
+  if (!codeSnap.exists || codeSnap.data().active === false || codeSnap.data().type !== "link") return null;
+  const targetUid = codeSnap.data().userId;
+  if (!targetUid || targetUid === uid) return null;
+
+  const targetSnap = await firestore.collection("users").doc(targetUid).get();
+  if (!targetSnap.exists || !(targetSnap.data().linkedUids || []).includes(uid)) return null;
+  return targetUid;
+}
+
 /* Resolves + VERIFIES the "effective" uid a customer request wants to act
- * as, mirroring firestore.rules' isLinkedMember(): the caller's own uid
- * always works; a different uid only works if the caller is actually
- * listed in that target's linkedUids. Never trust the client's claim
- * blindly - a browser that used to be linked but was removed server-side
- * must silently fall back to its own uid here, same self-healing the
- * client used to do locally. */
+ * as, mirroring firestore.rules' isLinkedMember(). A different requested uid
+ * only works when the target still lists this caller. When no usable target
+ * was supplied, an existing active link can be recovered from server state;
+ * otherwise the request safely falls back to the caller's own uid. */
 async function resolveEffectiveUid(req) {
   const requested = req.query.effectiveUid || req.body?.effectiveUid;
-  if (!requested || requested === req.uid) return req.uid;
-  const snap = await admin.firestore().collection("users").doc(requested).get();
-  if (!snap.exists || !(snap.data().linkedUids || []).includes(req.uid)) {
+  if (requested && requested !== req.uid) {
+    const snap = await admin.firestore().collection("users").doc(requested).get();
+    if (snap.exists && (snap.data().linkedUids || []).includes(req.uid)) {
+      return requested;
+    }
     return req.uid;
   }
-  return requested;
+  return (await linkedTargetFromClaim(req.uid)) || req.uid;
 }
 
 /* Same token verification as requireAuth, but never rejects a missing/

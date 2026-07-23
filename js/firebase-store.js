@@ -157,11 +157,18 @@ FS.uid = (prefix) =>
 FS.randomCode = (len = 4) =>
   Math.random().toString(36).slice(2, 2 + len).toUpperCase();
 
-// A profile counts as "opened" (visitor gate cleared) once it either
-// completed the customer-facing Open-a-Tab flow (nameSet) or was already
-// set up in person by an admin (createdByAdmin) - mirrors the same check
-// POST /store/transactions enforces server-side.
-FS.profileComplete = (profile) => !!(profile && (profile.nameSet === true || profile.createdByAdmin));
+// A profile counts as "opened" once it was explicitly marked complete,
+// created by an admin, or already contains the real name/contact fields the
+// Open-a-Tab flow collects. The field-based fallback keeps older profiles
+// from being treated as brand-new merely because they predate `nameSet`.
+// POST /store/transactions mirrors this exact compatibility rule.
+FS.profileComplete = (profile) => !!(profile && (
+  profile.nameSet === true
+  || profile.createdByAdmin
+  || ((profile.displayName || `${profile.firstName || ""} ${profile.lastName || ""}`.trim())
+    && profile.email
+    && profile.phone)
+));
 
 FS.money = (n, currency) => `${currency || FS.appConfig.currency || "J$"}${Number(n || 0).toLocaleString("en-US")}`;
 
@@ -388,6 +395,12 @@ FS.getMyProfile = async () => {
   // isLinkedMember() re-check that used to run on every page load.
   if (linkedTo && profile.userId !== linkedTo) {
     localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
+  } else if (!linkedTo && profile.userId && profile.userId !== restored.uid) {
+    // Recover a known linked browser whose local `linkedTo` marker was lost
+    // while its authenticated uid is still an active member of the profile.
+    // The API only resolves this way from a verified active link claim plus
+    // target membership, so a view-only code can never become a device link.
+    localStorage.setItem(FS.appConfig.storageKeys.linkedTo, profile.userId);
   }
   return profile;
 };

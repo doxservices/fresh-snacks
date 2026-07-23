@@ -19,6 +19,15 @@ const APP_NAME = "Fresh Snacks";
 const CURRENCY = "J$";
 const ANON_PREFIX = "Guest";
 
+function profileComplete(profile) {
+  if (!profile) return false;
+  const displayName = clean(profile.displayName)
+    || clean(`${profile.firstName || ""} ${profile.lastName || ""}`);
+  return profile.nameSet === true
+    || !!profile.createdByAdmin
+    || !!(displayName && clean(profile.email) && clean(profile.phone));
+}
+
 async function getSettingsData() {
   const snap = await db().collection("settings").doc("app").get();
   const settings = snap.exists ? snap.data() : {};
@@ -267,8 +276,7 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
   // vetted, accountable tab, not an anonymous one hiding behind this gate.
   if (effectiveUid === req.uid) {
     const self = userSnap.exists ? userSnap.data() : null;
-    const complete = !!(self && (self.nameSet === true || self.createdByAdmin));
-    if (!complete) {
+    if (!profileComplete(self)) {
       throw Object.assign(new Error("Open a tab first - add your name, email, and phone to start logging snacks."), { status: 403 });
     }
   }
@@ -407,26 +415,44 @@ router.post("/link/accept", requireAuth, asyncRoute(async (req, res) => {
   if (targetUid === req.uid) { res.json({ alreadySelf: true }); return; }
 
   const priorLinkedTo = req.body.priorLinkedTo;
-  if (priorLinkedTo && priorLinkedTo !== req.uid && priorLinkedTo !== targetUid) {
-    await db().collection("users").doc(priorLinkedTo).update({
-      linkedUids: FieldValue.arrayRemove(req.uid),
-    }).catch(() => {});
-  }
-
-  await db().collection("claims").doc(req.uid).set({
-    uid: req.uid,
-    code,
-    createdAt: FieldValue.serverTimestamp(),
-  });
   const targetRef = db().collection("users").doc(targetUid);
-  const targetSnap = await targetRef.get();
-  if (!targetSnap.exists) throw Object.assign(new Error("That tab no longer exists."), { status: 404 });
-  const linked = targetSnap.data().linkedUids || [];
-  if (!linked.includes(req.uid)) {
-    if (linked.length >= 3) throw Object.assign(new Error("This tab already has the maximum of 3 linked devices."), { status: 400 });
-    await targetRef.update({ linkedUids: FieldValue.arrayUnion(req.uid) });
-  }
-  res.json({ userId: targetUid, displayName: targetSnap.data().displayName || ANON_PREFIX });
+  const claimRef = db().collection("claims").doc(req.uid);
+  const priorRef = priorLinkedTo && priorLinkedTo !== req.uid && priorLinkedTo !== targetUid
+    ? db().collection("users").doc(priorLinkedTo)
+    : null;
+  let targetData;
+
+  // Capacity check, new membership, claim activation, and removal from a
+  // genuinely different prior profile are one transaction. Previously the
+  // old membership was removed before checking the destination's 3-device
+  // limit, so a failed switch could strand a known browser on neither tab.
+  await db().runTransaction(async (transaction) => {
+    const targetSnap = await transaction.get(targetRef);
+    const priorSnap = priorRef ? await transaction.get(priorRef) : null;
+    if (!targetSnap.exists) throw Object.assign(new Error("That tab no longer exists."), { status: 404 });
+
+    targetData = targetSnap.data();
+    const linked = [...new Set(targetData.linkedUids || [])];
+    if (!linked.includes(req.uid) && linked.length >= 3) {
+      throw Object.assign(new Error("This tab already has the maximum of 3 linked devices."), { status: 400 });
+    }
+
+    if (!linked.includes(req.uid)) {
+      transaction.update(targetRef, { linkedUids: FieldValue.arrayUnion(req.uid) });
+    }
+    transaction.set(claimRef, {
+      uid: req.uid,
+      code,
+      active: true,
+      linkedTo: targetUid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    if (priorRef && priorSnap?.exists && (priorSnap.data().linkedUids || []).includes(req.uid)) {
+      transaction.update(priorRef, { linkedUids: FieldValue.arrayRemove(req.uid) });
+    }
+  });
+
+  res.json({ userId: targetUid, displayName: targetData.displayName || ANON_PREFIX });
 }));
 
 router.post("/link/unlink", requireAuth, asyncRoute(async (req, res) => {

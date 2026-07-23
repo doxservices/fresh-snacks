@@ -342,7 +342,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260717-read-cache"></script>
+  <script src="js/firebase-store.js?v=20260723-link-recovery"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260716-admin-return"></script>
   <script>
@@ -1116,8 +1116,11 @@
 
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
-      const nameSet = me.nameSet === true;
-      maybeOpenNameCaptureModal(me, !nameSet);
+      // Older and admin-created profiles may already contain all required
+      // identity fields without carrying the newer `nameSet` marker. Use the
+      // shared completeness rule so an already-known linked customer is not
+      // repeatedly asked to enter information that is already on the profile.
+      maybeOpenNameCaptureModal(me, !FS.profileComplete(me));
       $id("us-username").value = anonymous ? "" : (me.displayName || "");
       $id("us-first").value = me.firstName || "";
       $id("us-last").value = me.lastName || "";
@@ -1163,7 +1166,7 @@
       }
     };
 
-    const linkCode = FS.getLinkCode();
+    let linkCode = FS.getLinkCode();
 
     // --- Name-capture / device-link modal ---------------------------------
     // Shown for any user with no name yet (see `anonymous` above), and also
@@ -1251,7 +1254,10 @@
     }
 
     function closeNameCaptureModal() {
-      if (linkCode) FS.clearLinkCode();
+      if (linkCode) {
+        FS.clearLinkCode();
+        linkCode = null;
+      }
       $id("name-capture-backdrop").classList.remove("show");
       if (ncmReturnFocus && document.contains(ncmReturnFocus)) ncmReturnFocus.focus();
       ncmReturnFocus = null;
@@ -1263,6 +1269,10 @@
     // modal on a calm page load. They get an explicit "Open a tab" button
     // on the visitor gallery instead (see the isVisitor branch in render()).
     function maybeOpenNameCaptureModal(me, needsName) {
+      // Re-read the pending code instead of trusting the page-load snapshot:
+      // acceptLinkInvite() clears it. This prevents startTabFlow() from
+      // reopening the modal immediately after a successful link.
+      linkCode = FS.getLinkCode();
       if (!needsName || !linkCode) return;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       openNameCaptureModal(me);
@@ -1311,8 +1321,12 @@
           // device's own soon-to-be-abandoned anonymous profile instead of
           // the shared tab being joined.
           await FS.acceptLinkInvite();
-          const target = await FS.getMyProfile();
-          await FS.updateMyProfile({ firstName, lastName, email: target.email, phone: target.phone });
+          linkCode = null;
+          // Joining a complete shared profile is read-only. Previously this
+          // wrote the new browser's blank modal name fields onto an existing
+          // customer's profile. If the shared profile itself is incomplete,
+          // the normal visitor gate will offer its owner the explicit
+          // Open-a-Tab flow after the linked profile reloads.
           $id("name-capture-backdrop").classList.remove("show");
           startTabFlow();
         } else if (action === "link-other") {
