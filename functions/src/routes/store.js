@@ -28,6 +28,20 @@ function profileComplete(profile) {
     || !!(displayName && clean(profile.email) && clean(profile.phone));
 }
 
+async function profileHasRecordedActivity(userId) {
+  if (!userId) return false;
+  const [transactionSnap, paymentSnap] = await Promise.all([
+    db().collection("transactions").where("userId", "==", userId).limit(1).get(),
+    db().collection("payments").where("userId", "==", userId).limit(1).get(),
+  ]);
+  return !transactionSnap.empty || !paymentSnap.empty;
+}
+
+async function profileHasActiveTab(userId, profile) {
+  if (!profile || profile.vipStatus === "feedback") return false;
+  return profileComplete(profile) || profileHasRecordedActivity(userId);
+}
+
 async function getSettingsData() {
   const snap = await db().collection("settings").doc("app").get();
   const settings = snap.exists ? snap.data() : {};
@@ -64,10 +78,12 @@ router.get("/catalog", asyncRoute(async (req, res) => {
 }));
 
 router.get("/profile", optionalAuth, asyncRoute(async (req, res) => {
-  if (!req.uid) { res.json({ userId: null, vipStatus: "anonymous" }); return; }
+  if (!req.uid) { res.json({ userId: null, vipStatus: "anonymous", hasTab: false }); return; }
   const effectiveUid = await resolveEffectiveUid(req);
   const snap = await db().collection("users").doc(effectiveUid).get();
-  res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(snap.exists ? snap.data() : {}) });
+  const profile = snap.exists ? snap.data() : null;
+  const hasTab = await profileHasActiveTab(effectiveUid, profile);
+  res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(profile || {}), hasTab });
 }));
 
 router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
@@ -276,8 +292,8 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
   // vetted, accountable tab, not an anonymous one hiding behind this gate.
   if (effectiveUid === req.uid) {
     const self = userSnap.exists ? userSnap.data() : null;
-    if (!profileComplete(self)) {
-      throw Object.assign(new Error("Open a tab first - add your name, email, and phone to start logging snacks."), { status: 403 });
+    if (!(await profileHasActiveTab(effectiveUid, self))) {
+      throw Object.assign(new Error("Open a tab to start adding snacks."), { status: 403 });
     }
   }
 

@@ -170,6 +170,15 @@ FS.profileComplete = (profile) => !!(profile && (
     && profile.phone)
 ));
 
+// One source of truth for visitor versus active-tab presentation. The API
+// also marks older profiles with recorded activity as active tabs even when
+// they predate today's profile-completion fields.
+FS.hasActiveTab = (profile) => !!(
+  profile
+  && profile.vipStatus !== "feedback"
+  && (profile.hasTab === true || FS.profileComplete(profile))
+);
+
 FS.money = (n, currency) => `${currency || FS.appConfig.currency || "J$"}${Number(n || 0).toLocaleString("en-US")}`;
 
 FS.todayISO = () => {

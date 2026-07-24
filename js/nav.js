@@ -111,7 +111,7 @@
           profile &&
           profile.userId &&
           profile.vipStatus !== "feedback" &&
-          window.FS.profileComplete(profile)
+          window.FS.hasActiveTab(profile)
         );
         if (activeProfile) {
           localStorage.setItem(activeProfileKey, "1");
