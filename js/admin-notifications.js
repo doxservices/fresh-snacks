@@ -233,20 +233,17 @@
     const buttons = [...item.querySelectorAll("button")];
     buttons.forEach((b) => (b.disabled = true));
     try {
-      if (act === "txn-approve-pay") {
+      if (act === "txn-approve") {
         const id = btn.dataset.id;
-        const userId = btn.dataset.user;
-        const t = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
-        const amount = t?.total || "";
-        const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
         await FS.admin.setTransactionReviewStatus(id, "approved");
         await refreshSnapshot();
         renderList();
-        const updated = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
-        // Approving re-runs allocation against any credit already on file -
-        // if that alone settled it, opening the payment modal here would
-        // prompt for (and could record) a second, redundant payment.
-        if (!updated || updated.reviewStatus !== "paid") openEmbeddedPaymentModal(userId, amount, note);
+      } else if (act === "txn-pay") {
+        const id = btn.dataset.id;
+        const t = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
+        const amount = t?.total || "";
+        const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
+        openEmbeddedPaymentModal(btn.dataset.user, amount, note);
       } else if (act === "fb-read") {
         await FS.admin.setFeedbackStatus(btn.dataset.id, "read");
         await refreshSnapshot();
@@ -286,8 +283,7 @@
       }));
 
     const actionableTxns = snapshot.transactions.filter((t) =>
-      (t.reviewStatus || "neutral") !== "paid"
-      && ((t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed"));
+      (t.reviewStatus || "neutral") !== "paid");
     const byCustomer = new Map();
     for (const t of actionableTxns) {
       const userId = t.userId || t.uid || "unassigned";
@@ -511,7 +507,9 @@
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
           <div class="notif-item-actions">
-            <button type="button" class="primary" data-notif-act="txn-approve-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Add payment</button>
+            ${it.reviewStatus === "approved"
+              ? `<button type="button" class="primary" data-notif-act="txn-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Record payment</button>`
+              : `<button type="button" class="primary" data-notif-act="txn-approve" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>`}
           </div>
         </div>
         <div class="notif-item-meta">

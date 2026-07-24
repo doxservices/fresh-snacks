@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-paid-approval" />
+  <link rel="stylesheet" href="styles.css?v=20260724-final-alignment" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -89,7 +89,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
   <script src="js/firebase-admin.js?v=20260724-payment-order"></script>
-  <script src="js/admin-notifications.js?v=20260724-final-transactions"></script>
+  <script src="js/admin-notifications.js?v=20260724-approval-flow"></script>
   <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
@@ -177,7 +177,7 @@
                 <td class="num-money">${FS.money(record.total || 0, cur)}</td>
                 <td>${reviewBadge(record)}</td>
                 <td class="ledger-actions">
-                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve" title="Approve transaction" aria-label="Approve transaction">${svgIcon("check")}</button>` : ""}
+                  ${reviewStatus(record) !== "paid" && (reviewStatus(record) === "neutral" || record.userStatus === "disputed") ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve" title="Approve transaction" aria-label="Approve transaction">${svgIcon("check")}</button>` : ""}
                   ${reviewStatus(record) === "approved" ? `<button type="button" class="icon-button action-button professional-action-icon payment-action-icon" data-act="txn-pay" title="Record payment" aria-label="Record payment">${svgIcon("cash")}</button><button data-act="txn-neutral">Reset</button>` : ""}
                   ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : reviewStatus(record) === "approved" ? "" : `
                   <button data-act="txn-edit" title="Change quantity or date">Change</button>

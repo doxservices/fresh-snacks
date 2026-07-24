@@ -5643,12 +5643,6 @@ tr.disputed td {
   color: #28613a;
 }
 
-.paid-customer-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .entry-date-final {
   color: var(--text);
   cursor: default;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-paid-approval" />
+  <link rel="stylesheet" href="styles.css?v=20260724-final-alignment" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -463,10 +463,7 @@
         const isCustomerLocked = isFinal || isCustomerConfirmed;
         const verdict = e.id
           ? isFinal
-            ? `<span class="paid-customer-state">
-                ${isCustomerConfirmed ? "" : `<button class="verdict-btn agree" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this paid transaction" aria-label="Confirm paid transaction">&#10003;</button>`}
-                <span class="customer-final-status${isCustomerConfirmed ? " confirmed" : ""}" title="This transaction is paid and cannot be sent for review">${isCustomerConfirmed ? "Approved · Paid" : "Paid"}</span>
-              </span>`
+            ? `<span class="customer-final-status confirmed" title="This transaction is approved, paid, and final">Approved · Paid</span>`
             : isCustomerConfirmed
               ? `<span class="customer-final-status confirmed" title="You confirmed this transaction">Confirmed</span>`
               : `<span class="row-verdict">
@@ -1192,12 +1189,9 @@
       if (vb) {
         ev.preventDefault();
         const entry0 = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
-        if (!entry0) return;
-        if (entry0.reviewStatus === "paid" && vb.dataset.verdict !== "agreed") return;
+        if (!entry0 || entry0.reviewStatus === "paid") return;
         // clicking the already-selected option clears back to neutral
-        const next = entry0.reviewStatus === "paid"
-          ? "agreed"
-          : entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
+        const next = entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
         if (next === "disputed" && !(await confirmTransactionReview(entry0))) return;
         vb.disabled = true;
         try {

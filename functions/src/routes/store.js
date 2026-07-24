@@ -401,19 +401,7 @@ router.patch("/transactions/:id/status", requireAuth, asyncRoute(async (req, res
     throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
   }
   if (record.reviewStatus === "paid") {
-    if (verdict !== "agreed") {
-      throw Object.assign(new Error("This transaction is paid and cannot be sent for review."), { status: 409 });
-    }
-    if (record.userStatus === "agreed") {
-      res.json({ ok: true });
-      return;
-    }
-    await ref.update({
-      userStatus: "agreed",
-      userStatusAt: FieldValue.serverTimestamp(),
-    });
-    res.json({ ok: true });
-    return;
+    throw Object.assign(new Error("This transaction is approved, paid, and final."), { status: 409 });
   }
   if (record.userStatus === "agreed") {
     throw Object.assign(new Error("You already confirmed this transaction."), { status: 409 });
