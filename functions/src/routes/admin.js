@@ -273,27 +273,47 @@ async function allocateApprovedTransactions(userId, uid) {
   const byId = new Map(transactions.map((record) => [record.id, record]));
   const batch = db().batch();
   const now = FieldValue.serverTimestamp();
-  const approvedBackfillIds = transactions
-    .filter((record) => record.reviewStatus === "paid" && !record.approvedAt)
+  const finalizedRepairIds = transactions
+    .filter((record) => record.reviewStatus === "paid"
+      && (!record.approvedAt
+        || Object.hasOwn(record, "userStatus")
+        || Object.hasOwn(record, "userStatusAt")))
     .map((record) => record.id);
-  for (const id of approvedBackfillIds) {
+  const approvedBackfillIds = [];
+  const customerStatusCleanupIds = [];
+  for (const id of finalizedRepairIds) {
     const record = byId.get(id);
-    batch.update(db().collection("transactions").doc(id), {
-      approvedAt: record.paidAt || now,
-      approvedBy: record.paidBy || uid,
-    });
+    const payload = {
+      userStatus: FieldValue.delete(),
+      userStatusAt: FieldValue.delete(),
+    };
+    if (!record.approvedAt) {
+      payload.approvedAt = record.paidAt || now;
+      payload.approvedBy = record.paidBy || uid;
+      approvedBackfillIds.push(id);
+    }
+    if (Object.hasOwn(record, "userStatus") || Object.hasOwn(record, "userStatusAt")) {
+      customerStatusCleanupIds.push(id);
+    }
+    batch.update(db().collection("transactions").doc(id), payload);
   }
   for (const id of plan.settledIds) {
     const record = byId.get(id);
-    const payload = { reviewStatus: "paid", paidAt: now, paidBy: uid };
+    const payload = {
+      reviewStatus: "paid",
+      paidAt: now,
+      paidBy: uid,
+      userStatus: FieldValue.delete(),
+      userStatusAt: FieldValue.delete(),
+    };
     if (record && record.reviewStatus !== "approved") {
       payload.approvedAt = now;
       payload.approvedBy = uid;
     }
     batch.update(db().collection("transactions").doc(id), payload);
   }
-  if (plan.settledIds.length || approvedBackfillIds.length) await batch.commit();
-  return { ...plan, approvedBackfillIds };
+  if (plan.settledIds.length || finalizedRepairIds.length) await batch.commit();
+  return { ...plan, approvedBackfillIds, customerStatusCleanupIds };
 }
 
 router.post("/payments/reconcile", asyncRoute(async (req, res) => {
@@ -305,13 +325,17 @@ router.post("/payments/reconcile", asyncRoute(async (req, res) => {
   const results = [];
   for (const userId of userIds) {
     const plan = await allocateApprovedTransactions(userId, req.uid);
-    if (plan.settledIds.length || plan.approvedBackfillIds.length) results.push({ userId, ...plan });
+    if (plan.settledIds.length
+      || plan.approvedBackfillIds.length
+      || plan.customerStatusCleanupIds.length) results.push({ userId, ...plan });
   }
   res.json({
     checkedUsers: userIds.length,
     reconciledUsers: results.length,
     settledCount: results.reduce((sum, result) => sum + result.settledIds.length, 0),
     approvalBackfillCount: results.reduce((sum, result) => sum + result.approvedBackfillIds.length, 0),
+    customerStatusCleanupCount: results.reduce((sum, result) =>
+      sum + result.customerStatusCleanupIds.length, 0),
     results,
   });
 }));
