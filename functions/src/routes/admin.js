@@ -101,16 +101,76 @@ router.post("/users/:userId/link-invite", asyncRoute(async (req, res) => {
 
 router.get("/users/:userId/linked-devices", asyncRoute(async (req, res) => {
   const userSnap = await db().collection("users").doc(req.params.userId).get();
-  const linkedUids = userSnap.exists ? (userSnap.data().linkedUids || []) : [];
-  const info = await Promise.all(linkedUids.map(async (uid) => {
-    const snap = await db().collection("devices").where("uid", "==", uid).limit(1).get();
-    const device = snap.empty ? null : snap.docs[0].data();
+  const profile = userSnap.exists ? userSnap.data() : {};
+  const linkedUids = [...new Set(profile.linkedUids || [])].filter(Boolean);
+  const linkedDeviceIds = [...new Set(profile.linkedDevices || [])].filter(Boolean);
+  const deviceDocs = new Map();
+  const remember = (doc) => {
+    if (doc?.exists) deviceDocs.set(doc.id, doc);
+  };
+  const [ownedSnap, linkedDeviceDocs, linkedUidSnaps] = await Promise.all([
+    db().collection("devices").where("userId", "==", req.params.userId).get(),
+    Promise.all(linkedDeviceIds.map((id) => db().collection("devices").doc(id).get())),
+    Promise.all(linkedUids.map((uid) =>
+      db().collection("devices").where("uid", "==", uid).get())),
+  ]);
+  ownedSnap.docs.forEach(remember);
+  linkedDeviceDocs.forEach(remember);
+  linkedUidSnaps.forEach((snapshot) => snapshot.docs.forEach(remember));
+
+  const describeUserAgent = (value = "") => {
+    const ua = String(value);
+    const browser = /Edg\//i.test(ua) ? "Microsoft Edge"
+      : /OPR\//i.test(ua) ? "Opera"
+        : /CriOS|Chrome\//i.test(ua) ? "Google Chrome"
+          : /FxiOS|Firefox\//i.test(ua) ? "Mozilla Firefox"
+            : /Safari\//i.test(ua) ? "Safari" : "";
+    const platform = /iPhone/i.test(ua) ? "iPhone"
+      : /iPad/i.test(ua) ? "iPad"
+        : /Android/i.test(ua) ? "Android"
+          : /Windows/i.test(ua) ? "Windows"
+            : /Mac OS X|Macintosh/i.test(ua) ? "macOS"
+              : /Linux/i.test(ua) ? "Linux" : "";
+    return { browser, platform };
+  };
+  const info = [...deviceDocs.values()].map((doc) => {
+    const device = doc.data();
+    const { browser, platform } = describeUserAgent(device.userAgentBrief);
+    const recordId = doc.id;
+    const deviceId = device.deviceId || recordId;
+    const uid = device.uid || null;
     return {
       uid,
-      deviceLabel: device?.deviceLabel || "Unknown device",
-      lastSeenDate: device ? dateFromRecord(device, "lastSeenAt") : "",
+      recordId,
+      deviceId,
+      deviceLabel: device.deviceLabel
+        || [browser, platform].filter(Boolean).join(" on ")
+        || deviceId || recordId || uid,
+      browser,
+      platform,
+      source: device.source || "",
+      userAgentBrief: device.userAgentBrief || "",
+      lastSeenDate: dateFromRecord(device, "lastSeenAt"),
     };
-  }));
+  });
+  const representedUids = new Set(info.map((device) => device.uid).filter(Boolean));
+  for (const uid of linkedUids) {
+    if (!representedUids.has(uid)) {
+      info.push({
+        uid,
+        recordId: null,
+        deviceId: null,
+        deviceLabel: `Linked device ${uid.slice(0, 8)}`,
+        browser: "",
+        platform: "",
+        source: "",
+        userAgentBrief: "",
+        lastSeenDate: "",
+      });
+    }
+  }
+  info.sort((a, b) => String(a.deviceLabel).localeCompare(String(b.deviceLabel))
+    || String(a.deviceId || a.uid).localeCompare(String(b.deviceId || b.uid)));
   res.json(info);
 }));
 

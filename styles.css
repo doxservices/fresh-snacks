@@ -2781,9 +2781,31 @@ textarea:focus {
 }
 
 .device-row-label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--green-dark);
   font-size: 14px;
+}
+
+.device-row-details {
+  min-width: 0;
+}
+
+.device-row-context {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.device-row-id {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.device-row-id code {
+  color: var(--text);
+  font-size: 11px;
 }
 
 .admin-table {

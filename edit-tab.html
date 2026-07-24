@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260723-customer-logout" />
+  <link rel="stylesheet" href="styles.css?v=20260724-device-details" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -554,12 +554,15 @@
         return;
       }
       $("devices-list").innerHTML = devices.map((d) => `
-        <div class="device-row" data-uid="${esc(d.uid)}">
-          <div>
+        <div class="device-row" data-uid="${esc(d.uid || "")}">
+          <div class="device-row-details">
             <div class="device-row-label">${esc(d.deviceLabel)}</div>
-            <div class="muted-small">${d.lastSeenDate ? `Last seen ${esc(d.lastSeenDate)}` : "Last seen unknown"}</div>
+            ${d.browser || d.platform ? `<div class="device-row-context">${esc([d.browser, d.platform].filter(Boolean).join(" · "))}</div>` : ""}
+            <div class="device-row-id">Device ID: <code>${esc(d.deviceId || d.uid || "Not recorded")}</code></div>
+            <div class="device-row-id">Record ID: <code>${esc(d.recordId || "No device record")}</code></div>
+            <div class="muted-small">${d.lastSeenDate ? `Last seen ${esc(d.lastSeenDate)}` : "Last seen not recorded"}</div>
           </div>
-          <button class="danger" data-unlink="${esc(d.uid)}">Unlink</button>
+          ${d.uid ? `<button class="danger" data-unlink="${esc(d.uid)}">Unlink</button>` : ""}
         </div>
       `).join("");
       $("devices-list").querySelectorAll("[data-unlink]").forEach((btn) => {
