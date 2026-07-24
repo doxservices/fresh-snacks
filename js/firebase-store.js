@@ -612,9 +612,7 @@ FS.toEntry = (t) => {
     count: Number(t.quantity || t.count || 1),
     value: Number(t.total || t.value || 0),
     source: t.source || "self",
-    // A paid transaction is final. Ignore any older contradictory review
-    // flag so it remains visible in the customer's history and totals.
-    userStatus: reviewStatus === "paid" ? "agreed" : (t.userStatus || null),
+    userStatus: t.userStatus || null,
     reviewStatus,
   };
 };

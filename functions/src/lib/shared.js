@@ -177,6 +177,7 @@ const toEntry = (t) => ({
   value: Number(t.total || t.value || 0),
   source: t.source || "self",
   userStatus: t.userStatus || null,
+  reviewStatus: t.reviewStatus || "neutral",
 });
 
 const toPayment = (p) => ({

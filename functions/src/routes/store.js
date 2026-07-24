@@ -275,7 +275,8 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     pays = pays.concat(claimed.payments.map(toPayment));
   }
 
-  entries = entries.filter((entry) => entry.userStatus !== "disputed");
+  entries = entries.filter((entry) =>
+    entry.userStatus !== "disputed" || entry.reviewStatus === "paid");
   const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
   res.json({
     profile,
@@ -400,7 +401,19 @@ router.patch("/transactions/:id/status", requireAuth, asyncRoute(async (req, res
     throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
   }
   if (record.reviewStatus === "paid") {
-    throw Object.assign(new Error("This transaction is final and can no longer be changed."), { status: 409 });
+    if (verdict !== "agreed") {
+      throw Object.assign(new Error("This transaction is paid and cannot be sent for review."), { status: 409 });
+    }
+    if (record.userStatus === "agreed") {
+      res.json({ ok: true });
+      return;
+    }
+    await ref.update({
+      userStatus: "agreed",
+      userStatusAt: FieldValue.serverTimestamp(),
+    });
+    res.json({ ok: true });
+    return;
   }
   if (record.userStatus === "agreed") {
     throw Object.assign(new Error("You already confirmed this transaction."), { status: 409 });

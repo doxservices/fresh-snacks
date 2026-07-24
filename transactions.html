@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-transaction-review" />
+  <link rel="stylesheet" href="styles.css?v=20260724-paid-approval" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -111,7 +111,7 @@
 
     const reviewStatus = (t) => t.reviewStatus || "neutral";
     const reviewBadge = (t) => reviewStatus(t) === "paid"
-      ? `<span class="ledger-status paid">Paid</span>`
+      ? `<span class="ledger-status approved">Approved</span> <span class="ledger-status paid">Paid</span>`
       : t.userStatus === "disputed"
         ? `<span class="verdict-badge disputed">Needs review</span>`
         : `<span class="ledger-status ${esc(reviewStatus(t))}">${reviewStatus(t) === "approved" ? "Approved" : "Neutral"}</span>`;

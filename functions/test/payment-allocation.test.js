@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { paymentAllocationPlan } = require("../src/lib/shared");
+const { paymentAllocationPlan, toEntry } = require("../src/lib/shared");
 
 const transactions = [
   { id: "older-neutral", total: 100, reviewStatus: "neutral", createdDate: "2026-06-01" },
@@ -33,6 +33,23 @@ assert.deepEqual(paymentAllocationPlan(withExistingSettlement, 450), {
   settledIds: ["older-neutral", "first-approved"],
   credit: 0,
   paidTotal: 450,
+});
+
+assert.deepEqual(toEntry({
+  transactionId: "paid-needs-customer-approval",
+  createdDate: "2026-07-21",
+  total: 200,
+  reviewStatus: "paid",
+}), {
+  id: "paid-needs-customer-approval",
+  date: "2026-07-21",
+  snackId: null,
+  label: null,
+  count: 1,
+  value: 200,
+  source: "self",
+  userStatus: null,
+  reviewStatus: "paid",
 });
 
 console.log("payment allocation regression checks passed");
