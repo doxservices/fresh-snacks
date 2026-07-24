@@ -602,16 +602,22 @@ FS.getOwnPayments = async () => {
   return FS.getUserPayments(eff.effectiveUid);
 };
 
-FS.toEntry = (t) => ({
-  id: t.transactionId || t.id,
-  date: t.createdDate || null,
-  snackId: t.snackId || null,
-  label: t.snackName || t.label || null,
-  count: Number(t.quantity || t.count || 1),
-  value: Number(t.total || t.value || 0),
-  source: t.source || "self",
-  userStatus: t.userStatus || null,
-});
+FS.toEntry = (t) => {
+  const reviewStatus = t.reviewStatus || "neutral";
+  return {
+    id: t.transactionId || t.id,
+    date: t.createdDate || null,
+    snackId: t.snackId || null,
+    label: t.snackName || t.label || null,
+    count: Number(t.quantity || t.count || 1),
+    value: Number(t.total || t.value || 0),
+    source: t.source || "self",
+    // A paid transaction is final. Ignore any older contradictory review
+    // flag so it remains visible in the customer's history and totals.
+    userStatus: reviewStatus === "paid" ? "agreed" : (t.userStatus || null),
+    reviewStatus,
+  };
+};
 
 FS.setEntryStatus = async (transactionId, verdict) => {
   await FS.signInAnonymous();

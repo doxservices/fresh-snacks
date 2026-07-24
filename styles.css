@@ -2200,6 +2200,32 @@ textarea:focus {
   margin-top: 4px;
 }
 
+.transaction-review-modal {
+  width: min(440px, 100%);
+  border-top: 4px solid #a34c45;
+}
+
+.transaction-review-modal h2 {
+  margin-top: 12px;
+}
+
+.transaction-review-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #faefed;
+  color: #8a2f2f;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.transaction-review-modal .muted-small {
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
 .name-capture-modal {
   width: min(680px, 100%);
 }
@@ -3727,6 +3753,11 @@ textarea:focus {
 
 .professional-action-icon svg { stroke-width: 1.8; }
 .professional-action-icon.danger { color: #a63b35; }
+.professional-action-icon.payment-action-icon {
+  color: #17623a;
+  background: #eef7f0;
+  border-color: #b9d2c0;
+}
 .credit-balance { color: #087a46; font-weight: 500; }
 
 .ledger-type,
@@ -5589,6 +5620,32 @@ tr.disputed td {
   .bottom-summary td {
     padding: 9px 5px;
   }
+}
+
+.customer-final-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid #ccd7ce;
+  border-radius: 999px;
+  background: #f2f5f2;
+  color: #536157;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.customer-final-status.confirmed {
+  border-color: #b8d1bf;
+  background: #edf6ef;
+  color: #28613a;
+}
+
+.entry-date-final {
+  color: var(--text);
+  cursor: default;
 }
 
 @media (max-width: 640px) {

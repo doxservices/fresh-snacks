@@ -262,7 +262,8 @@ async function allocateApprovedTransactions(userId, uid) {
   ]);
   const transactions = transactionSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((record) => record.status !== "void" && record.userStatus !== "disputed");
+    .filter((record) => record.status !== "void"
+      && (record.userStatus !== "disputed" || record.reviewStatus === "paid"));
   const payments = paymentSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");

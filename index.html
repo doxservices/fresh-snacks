@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-profile-identity" />
+  <link rel="stylesheet" href="styles.css?v=20260724-transaction-review" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -294,6 +294,20 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="transaction-review-backdrop">
+    <div class="modal transaction-review-modal" role="alertdialog" aria-modal="true" aria-labelledby="transaction-review-title" aria-describedby="transaction-review-body">
+      <button type="button" class="modal-close" id="transaction-review-close" aria-label="Close">&times;</button>
+      <div class="transaction-review-icon" aria-hidden="true">!</div>
+      <h2 id="transaction-review-title">Send this purchase for review?</h2>
+      <p id="transaction-review-body"></p>
+      <p class="muted-small">It will be hidden from your tab totals while Fresh Snacks reviews it. You can contact us if you need to add more information.</p>
+      <div class="modal-actions">
+        <button type="button" id="transaction-review-cancel">Keep transaction</button>
+        <button type="button" class="danger" id="transaction-review-ok">Send for review</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="profile-info-backdrop">
     <div class="modal profile-info-modal" role="dialog" aria-modal="true" aria-labelledby="profile-info-title">
       <button type="button" class="modal-close" id="profile-info-close" aria-label="Close">&times;</button>
@@ -395,9 +409,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260724-visitor-account"></script>
+  <script src="js/firebase-store.js?v=20260724-final-transactions"></script>
   <script src="js/banner.js"></script>
-  <script src="js/nav.js?v=20260723-tab-state"></script>
+  <script src="js/nav.js?v=20260724-gallery-nav"></script>
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -444,12 +458,24 @@
         const facts = s && s.factsId
           ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
           : "";
-        const verdict = e.id ? `<span class="row-verdict">
-            <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
-            <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
-          </span>` : "";
+        const isFinal = e.reviewStatus === "paid";
+        const isCustomerConfirmed = e.userStatus === "agreed";
+        const isCustomerLocked = isFinal || isCustomerConfirmed;
+        const verdict = e.id
+          ? isFinal
+            ? `<span class="customer-final-status" title="This transaction is complete and cannot be changed">Final</span>`
+            : isCustomerConfirmed
+              ? `<span class="customer-final-status confirmed" title="You confirmed this transaction">Confirmed</span>`
+              : `<span class="row-verdict">
+                <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
+                <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
+              </span>`
+          : "";
+        const dateControl = isCustomerLocked
+          ? `<span class="entry-date-final" title="${isFinal ? "Final transaction" : "Confirmed transaction"}">${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span>`
+          : `<span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span>`;
         rows.push(`<tr class="tracker-entry">
-          <td class="tracker-date" data-label="Date"><span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span></td>
+          <td class="tracker-date" data-label="Date">${dateControl}</td>
           <td class="tracker-snack" data-label="Snack"><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
           <td class="num tracker-qty" data-label="Quantity">${esc(e.count ?? "—")}</td>
           <td class="num-money tracker-value" data-label="Value"><span class="mv">${FS.money(e.value, cur)}</span></td>
@@ -1120,36 +1146,70 @@
     };
 
     let LAST_DATA = null;
+    let transactionReviewResolve = null;
+    let transactionReviewReturnFocus = null;
+
+    function closeTransactionReview(confirmed = false) {
+      $id("transaction-review-backdrop").classList.remove("show");
+      const resolve = transactionReviewResolve;
+      transactionReviewResolve = null;
+      if (transactionReviewReturnFocus && document.contains(transactionReviewReturnFocus)) {
+        transactionReviewReturnFocus.focus();
+      }
+      transactionReviewReturnFocus = null;
+      if (resolve) resolve(confirmed);
+    }
+
+    function confirmTransactionReview(entry) {
+      transactionReviewReturnFocus = document.activeElement;
+      const name = LAST_DATA && entry ? FS.entryName(LAST_DATA, entry) : "This purchase";
+      $id("transaction-review-body").textContent = `${name} will be sent to Fresh Snacks for review.`;
+      $id("transaction-review-backdrop").classList.add("show");
+      $id("transaction-review-ok").focus();
+      return new Promise((resolve) => { transactionReviewResolve = resolve; });
+    }
+
+    $id("transaction-review-ok").onclick = () => closeTransactionReview(true);
+    $id("transaction-review-cancel").onclick = () => closeTransactionReview(false);
+    $id("transaction-review-close").onclick = () => closeTransactionReview(false);
+    $id("transaction-review-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("transaction-review-backdrop")) closeTransactionReview(false);
+    });
+    $id("transaction-review-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeTransactionReview(false);
+    });
 
     document.getElementById("expand-all").onclick = () =>
       document.querySelectorAll("#log details").forEach((d) => d.setAttribute("open", ""));
     document.getElementById("collapse-all").onclick = () =>
       document.querySelectorAll("#log details").forEach((d) => d.removeAttribute("open"));
 
-    document.getElementById("log").addEventListener("click", (ev) => {
+    document.getElementById("log").addEventListener("click", async (ev) => {
       const vb = ev.target.closest(".verdict-btn");
       if (vb) {
         ev.preventDefault();
-        vb.disabled = true;
         const entry0 = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
+        if (!entry0 || entry0.reviewStatus === "paid") return;
         // clicking the already-selected option clears back to neutral
         const next = entry0 && entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
-        FS.setEntryStatus(vb.dataset.id, next)
-          .then(() => {
-            if (next === "disputed") {
-              LAST_DATA.entries = LAST_DATA.entries.filter((entry) => entry.id !== vb.dataset.id);
-            } else if (entry0) {
-              entry0.userStatus = next;
-            }
-            const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
-            render(LAST_DATA);
-            document.querySelectorAll("#log details").forEach((d) =>
-              d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
-          })
-          .catch((e) => {
-            vb.disabled = false;
-            alert("Could not save: " + e.message);
-          });
+        if (next === "disputed" && !(await confirmTransactionReview(entry0))) return;
+        vb.disabled = true;
+        try {
+          await FS.setEntryStatus(vb.dataset.id, next);
+          if (next === "disputed") {
+            LAST_DATA.entries = LAST_DATA.entries.filter((entry) => entry.id !== vb.dataset.id);
+          } else {
+            entry0.userStatus = next;
+          }
+          const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
+          render(LAST_DATA);
+          document.querySelectorAll("#log details").forEach((d) =>
+            d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
+        } catch (e) {
+          vb.disabled = false;
+          $id("app-health-message").textContent = e.message;
+          $id("app-health").classList.remove("hidden");
+        }
         return;
       }
       const el = ev.target.closest("[data-facts]");
@@ -1367,7 +1427,7 @@
     let ncmReturnFocus = null;
 
     function pendingUnverifiedEntries(data) {
-      return (data?.entries || []).filter((e) => e.id && !e.userStatus);
+      return (data?.entries || []).filter((e) => e.id && !e.userStatus && e.reviewStatus !== "paid");
     }
 
     function updateNcmStripFade() {
@@ -1401,21 +1461,28 @@
     }
 
     $id("ncm-strip").addEventListener("scroll", updateNcmStripFade);
-    $id("ncm-strip").addEventListener("click", (ev) => {
+    $id("ncm-strip").addEventListener("click", async (ev) => {
       const vb = ev.target.closest(".verdict-btn");
       if (!vb) return;
+      const entry = LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
+      if (!entry || entry.reviewStatus === "paid") return;
+      if (vb.dataset.verdict === "disputed" && !(await confirmTransactionReview(entry))) return;
       vb.disabled = true;
-      FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict)
-        .then(() => {
-          const entry = LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
-          if (vb.dataset.verdict === "disputed") {
-            LAST_DATA.entries = LAST_DATA.entries.filter((x) => x.id !== vb.dataset.id);
-          } else if (entry) entry.userStatus = vb.dataset.verdict;
-          renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
-          $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
-          render(LAST_DATA);
-        })
-        .catch((e) => { vb.disabled = false; alert("Could not save: " + e.message); });
+      try {
+        await FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict);
+        if (vb.dataset.verdict === "disputed") {
+          LAST_DATA.entries = LAST_DATA.entries.filter((x) => x.id !== vb.dataset.id);
+        } else {
+          entry.userStatus = vb.dataset.verdict;
+        }
+        renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
+        $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
+        render(LAST_DATA);
+      } catch (e) {
+        vb.disabled = false;
+        $id("ncm-name-status").textContent = e.message;
+        $id("ncm-name-status").className = "status err";
+      }
     });
 
     function renderDeviceLinkSection(me) {

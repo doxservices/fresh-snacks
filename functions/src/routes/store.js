@@ -399,6 +399,12 @@ router.patch("/transactions/:id/status", requireAuth, asyncRoute(async (req, res
   if (!(await canAccessTab(req.uid, record.userId))) {
     throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
   }
+  if (record.reviewStatus === "paid") {
+    throw Object.assign(new Error("This transaction is final and can no longer be changed."), { status: 409 });
+  }
+  if (record.userStatus === "agreed") {
+    throw Object.assign(new Error("You already confirmed this transaction."), { status: 409 });
+  }
   const payload = verdict
     ? { userStatus: verdict, userStatusAt: FieldValue.serverTimestamp() }
     : { userStatus: FieldValue.delete(), userStatusAt: FieldValue.delete() };
@@ -416,6 +422,12 @@ router.patch("/transactions/:id/date", requireAuth, asyncRoute(async (req, res) 
   const record = snap.data();
   if (!(await canAccessTab(req.uid, record.userId))) {
     throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
+  }
+  if (record.reviewStatus === "paid") {
+    throw Object.assign(new Error("This transaction is final and its date can no longer be changed."), { status: 409 });
+  }
+  if (record.userStatus === "agreed") {
+    throw Object.assign(new Error("A confirmed transaction can no longer be changed."), { status: 409 });
   }
   await ref.update({ createdDate, dateEditedAt: FieldValue.serverTimestamp() });
   res.json({ ok: true });

@@ -285,7 +285,9 @@
         detail: f.details != null ? f.details : (f.message || ""),
       }));
 
-    const actionableTxns = snapshot.transactions.filter((t) => (t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed");
+    const actionableTxns = snapshot.transactions.filter((t) =>
+      (t.reviewStatus || "neutral") !== "paid"
+      && ((t.reviewStatus || "neutral") === "neutral" || t.userStatus === "disputed"));
     const byCustomer = new Map();
     for (const t of actionableTxns) {
       const userId = t.userId || t.uid || "unassigned";

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260723-customer-logout" />
+  <link rel="stylesheet" href="styles.css?v=20260724-transaction-review" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -89,7 +89,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
   <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-notifications.js?v=20260724-final-transactions"></script>
   <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
@@ -110,9 +110,11 @@
     }
 
     const reviewStatus = (t) => t.reviewStatus || "neutral";
-    const reviewBadge = (t) => t.userStatus === "disputed"
-      ? `<span class="verdict-badge disputed">Needs review</span>`
-      : `<span class="ledger-status ${esc(reviewStatus(t))}">${reviewStatus(t) === "paid" ? "Paid" : reviewStatus(t) === "approved" ? "Approved" : "Neutral"}</span>`;
+    const reviewBadge = (t) => reviewStatus(t) === "paid"
+      ? `<span class="ledger-status paid">Paid</span>`
+      : t.userStatus === "disputed"
+        ? `<span class="verdict-badge disputed">Needs review</span>`
+        : `<span class="ledger-status ${esc(reviewStatus(t))}">${reviewStatus(t) === "approved" ? "Approved" : "Neutral"}</span>`;
 
     function renderTransactions() {
       const cur = SNAPSHOT.settings.currency;
@@ -131,8 +133,8 @@
 
       const requestedUser = new URLSearchParams(location.search).get("user");
       const sorted = [...groups.entries()].sort(([keyA, groupA], [keyB, groupB]) => {
-        const disputedA = groupA.transactions.some((t) => t.userStatus === "disputed");
-        const disputedB = groupB.transactions.some((t) => t.userStatus === "disputed");
+        const disputedA = groupA.transactions.some((t) => t.userStatus === "disputed" && reviewStatus(t) !== "paid");
+        const disputedB = groupB.transactions.some((t) => t.userStatus === "disputed" && reviewStatus(t) !== "paid");
         if (disputedA !== disputedB) return disputedA ? -1 : 1;
         const nameA = byUser.get(keyA)?.displayName || keyA;
         const nameB = byUser.get(keyB)?.displayName || keyB;
@@ -145,15 +147,16 @@
             const name = info?.displayName || userId;
             const txns = group.transactions;
             const payments = group.payments;
-            const snackTotal = txns.filter((t) => t.userStatus !== "disputed").reduce((n, t) => n + Number(t.total || 0), 0);
+            const snackTotal = txns.filter((t) => t.userStatus !== "disputed" || reviewStatus(t) === "paid").reduce((n, t) => n + Number(t.total || 0), 0);
             const paidTotal = info?.paidTotal ?? payments.reduce((n, p) => n + Number(p.amount || 0), 0);
             const balance = snackTotal + Number(info?.adjustmentTotal || 0) - paidTotal;
-            const flagged = txns.some((t) => t.userStatus === "disputed");
+            const flagged = txns.some((t) => t.userStatus === "disputed" && reviewStatus(t) !== "paid");
             const shouldOpen = flagged || userId === requestedUser;
             const ledger = [
               ...txns.map((record) => ({ kind: "purchase", date: record.createdDate || "", record })),
               ...payments.map((record) => ({ kind: "payment", date: record.createdDate || "", record })),
-            ].sort((a, b) => (b.record.userStatus === "disputed") - (a.record.userStatus === "disputed")
+            ].sort((a, b) => ((b.record.userStatus === "disputed" && reviewStatus(b.record) !== "paid")
+                - (a.record.userStatus === "disputed" && reviewStatus(a.record) !== "paid"))
               || String(b.date).localeCompare(String(a.date)));
             const rows = ledger.map(({ kind, record }) => kind === "payment"
               ? `<tr class="payment-row" data-payment-id="${esc(record.paymentId || record.id)}">
@@ -167,15 +170,15 @@
                   <button class="danger" data-act="payment-delete" title="Permanently delete this payment">Delete</button>
                 </td>
               </tr>`
-              : `<tr data-id="${esc(record.transactionId || record.id)}"${record.userStatus === "disputed" ? ' class="disputed"' : ""}>
+              : `<tr data-id="${esc(record.transactionId || record.id)}"${record.userStatus === "disputed" && reviewStatus(record) !== "paid" ? ' class="disputed"' : ""}>
                 <td>${esc(record.createdDate || "-")}</td>
                 <td><span class="ledger-type purchase">Purchase</span> ${esc(record.snackName || record.label || record.snackId || "-")}</td>
                 <td class="num">${esc(record.quantity || 1)}</td>
                 <td class="num-money">${FS.money(record.total || 0, cur)}</td>
                 <td>${reviewBadge(record)}</td>
                 <td class="ledger-actions">
-                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve-pay" title="Approve and record payment" aria-label="Approve and record payment">${svgIcon("check")}${svgIcon("cash")}</button>` : ""}
-                  ${reviewStatus(record) === "approved" ? `<button class="primary" data-act="txn-pay">Mark paid</button><button data-act="txn-neutral">Reset</button>` : ""}
+                  ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve" title="Approve transaction" aria-label="Approve transaction">${svgIcon("check")}</button>` : ""}
+                  ${reviewStatus(record) === "approved" ? `<button type="button" class="icon-button action-button professional-action-icon payment-action-icon" data-act="txn-pay" title="Record payment" aria-label="Record payment">${svgIcon("cash")}</button><button data-act="txn-neutral">Reset</button>` : ""}
                   ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : reviewStatus(record) === "approved" ? "" : `
                   <button data-act="txn-edit" title="Change quantity or date">Change</button>
                   <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
@@ -344,25 +347,8 @@
       // open sections stay open across the re-render each action triggers
       const openKeys = [...document.querySelectorAll("#txn-groups details[open]")].map((d) => d.dataset.user);
       try {
-        if (act === "txn-approve-pay") {
-          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          const userId = row.closest("details").dataset.user;
-          const amount = t?.total || "";
-          const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
+        if (act === "txn-approve") {
           await FS.admin.setTransactionReviewStatus(row.dataset.id, "approved");
-          SNAPSHOT = await FS.admin.getSnapshot();
-          renderTransactions();
-          document.querySelectorAll("#txn-groups details").forEach((d) =>
-            d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
-          // Approving re-runs allocation against any payment/credit already
-          // on file - if that alone was enough to settle it, there's
-          // nothing left to collect and opening the payment modal here
-          // would prompt for (and could record) a second, redundant payment.
-          const updated = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
-          if (!updated || updated.reviewStatus !== "paid") {
-            openPaymentModal(userId, amount, note);
-          }
-          return;
         } else if (act === "txn-neutral") {
           await FS.admin.setTransactionReviewStatus(row.dataset.id, "neutral");
         } else if (act === "txn-pay") {
