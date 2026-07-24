@@ -119,9 +119,9 @@
           </div>
         </div>
         <div class="basket-overlay" id="basket-overlay"></div>
-        <aside class="bins-cart-col" id="basket-panel" aria-label="Your basket">
+        <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
           <div class="bins-cart-sticky">
-            <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="false" aria-controls="bins-cart-body">
+            <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
               <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
               <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
@@ -703,6 +703,11 @@
     }
     restoreBasketDraft();
 
+    const basketUnitCount = () => [...picked.values()].reduce((total, qty) => total + Number(qty || 0), 0);
+    let previousBasketUnitCount = basketUnitCount();
+    let mobileBasketOriginY = null;
+    let mobileBasketAutoCollapseArmed = true;
+
     function binsTotal(data) {
       let t = 0;
       for (const [id, qty] of picked) {
@@ -810,14 +815,24 @@
 
     function syncBinsGallery(data) {
       const cur = data.profile.currency;
+      const unitCount = basketUnitCount();
       $id("bins-total").textContent = FS.money(binsTotal(data), cur);
       $id("bins-submit").disabled = binsTotal(data) === 0;
-      $id("basket-notification-count").textContent = picked.size;
-      $id("mobile-basket-count").textContent = picked.size;
-      $id("basket-notification").setAttribute("aria-label", `View basket, ${picked.size} different snack${picked.size === 1 ? "" : "s"} selected`);
+      $id("basket-notification-count").textContent = unitCount;
+      $id("mobile-basket-count").textContent = unitCount;
+      $id("basket-notification").setAttribute("aria-label", `View basket, ${unitCount} item${unitCount === 1 ? "" : "s"} selected`);
       renderCartItems(data);
       saveBasketDraft();
-      if (!picked.size) setBasketPanelOpen(false);
+      if (previousBasketUnitCount > 0 && unitCount === 0) setBasketPanelOpen(false);
+      previousBasketUnitCount = unitCount;
+      if (mobileBasketOriginY == null && window.innerWidth <= 900) {
+        requestAnimationFrame(() => {
+          const panel = $id("basket-panel");
+          if (panel && !panel.classList.contains("hidden")) {
+            mobileBasketOriginY = panel.getBoundingClientRect().top + window.scrollY;
+          }
+        });
+      }
     }
 
     function renderBinsGallery(data) {
@@ -1045,6 +1060,7 @@
 
     $id("mobile-basket-toggle").onclick = () => {
       if (window.innerWidth > 900) return;
+      mobileBasketAutoCollapseArmed = false;
       setBasketPanelOpen(!$id("basket-panel").classList.contains("is-open"));
     };
 
@@ -1053,6 +1069,13 @@
     );
 
     $id("basket-overlay").onclick = () => setBasketPanelOpen(false);
+
+    window.addEventListener("scroll", () => {
+      if (!mobileBasketAutoCollapseArmed || window.innerWidth > 900 || mobileBasketOriginY == null) return;
+      if (window.scrollY + 8 < mobileBasketOriginY) return;
+      mobileBasketAutoCollapseArmed = false;
+      setBasketPanelOpen(false);
+    }, { passive: true });
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
