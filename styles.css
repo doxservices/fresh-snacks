@@ -696,6 +696,60 @@ header.banner {
   margin: 8px 0 0;
 }
 
+.account-menu-item {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 2px 14px;
+  padding: 13px 14px;
+  text-align: left;
+  width: calc(100% - 4px);
+}
+
+.account-menu-item strong,
+.account-menu-item small {
+  display: block;
+}
+
+.account-menu-item strong {
+  color: var(--green-dark);
+  font-weight: 600;
+}
+
+.account-menu-item small {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.profile-attention {
+  align-items: center;
+  background: #b23b32;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 24px;
+  font-weight: 700;
+  height: 24px;
+  justify-content: center;
+}
+
+.saved-invite {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.saved-invite .quiet-button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  margin-top: 8px;
+  width: 100%;
+}
+
 .brand-subtitle {
   margin-top: 7px;
   font-size: 15px;
@@ -1924,6 +1978,21 @@ textarea:focus {
   width: min(680px, 100%);
 }
 
+.profile-info-modal {
+  width: min(620px, 100%);
+}
+
+.profile-info-fields {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 18px;
+}
+
+.profile-display-field {
+  grid-column: 1 / -1;
+}
+
 .name-capture-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2033,8 +2102,13 @@ textarea:focus {
 }
 
 @media (max-width: 480px) {
-  .name-capture-fields {
+  .name-capture-fields,
+  .profile-info-fields {
     grid-template-columns: 1fr;
+  }
+
+  .profile-display-field {
+    grid-column: auto;
   }
 }
 

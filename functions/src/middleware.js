@@ -57,9 +57,26 @@ async function linkedTargetFromClaim(uid) {
   const targetUid = codeSnap.data().userId;
   if (!targetUid || targetUid === uid) return null;
 
+  const claim = claimSnap.data();
+  if (claim.accessMode === "session" && claim.linkedTo === targetUid) return targetUid;
+
   const targetSnap = await firestore.collection("users").doc(targetUid).get();
   if (!targetSnap.exists || !(targetSnap.data().linkedUids || []).includes(uid)) return null;
   return targetUid;
+}
+
+async function hasInviteSession(uid, targetUid) {
+  if (!uid || !targetUid || uid === targetUid) return false;
+  const firestore = admin.firestore();
+  const claimSnap = await firestore.collection("claims").doc(uid).get();
+  if (!claimSnap.exists) return false;
+  const claim = claimSnap.data();
+  if (claim.active === false || claim.accessMode !== "session" || claim.linkedTo !== targetUid || !claim.code) return false;
+  const codeSnap = await firestore.collection("codes").doc(claim.code).get();
+  return codeSnap.exists
+    && codeSnap.data().active !== false
+    && codeSnap.data().type === "link"
+    && codeSnap.data().userId === targetUid;
 }
 
 /* Resolves + VERIFIES the "effective" uid a customer request wants to act
@@ -74,6 +91,7 @@ async function resolveEffectiveUid(req) {
     if (snap.exists && (snap.data().linkedUids || []).includes(req.uid)) {
       return requested;
     }
+    if (await hasInviteSession(req.uid, requested)) return requested;
     return req.uid;
   }
   return (await linkedTargetFromClaim(req.uid)) || req.uid;
@@ -106,4 +124,4 @@ function asyncRoute(handler) {
   };
 }
 
-module.exports = { requireAuth, optionalAuth, requireAdmin, resolveEffectiveUid, asyncRoute };
+module.exports = { requireAuth, optionalAuth, requireAdmin, resolveEffectiveUid, hasInviteSession, asyncRoute };

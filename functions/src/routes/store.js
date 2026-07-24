@@ -80,10 +80,13 @@ router.get("/catalog", asyncRoute(async (req, res) => {
 router.get("/profile", optionalAuth, asyncRoute(async (req, res) => {
   if (!req.uid) { res.json({ userId: null, vipStatus: "anonymous", hasTab: false }); return; }
   const effectiveUid = await resolveEffectiveUid(req);
+  const accessMode = effectiveUid === req.uid
+    ? "self"
+    : await isLinkedMember(req.uid, effectiveUid) ? "linked" : "session";
   const snap = await db().collection("users").doc(effectiveUid).get();
   const profile = snap.exists ? snap.data() : null;
   const hasTab = await profileHasActiveTab(effectiveUid, profile);
-  res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(profile || {}), hasTab });
+  res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(profile || {}), hasTab, accessMode });
 }));
 
 router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
@@ -456,7 +459,10 @@ router.post("/link/accept", requireAuth, asyncRoute(async (req, res) => {
     targetData = targetSnap.data();
     const linked = [...new Set(targetData.linkedUids || [])];
     if (!linked.includes(req.uid) && linked.length >= 3) {
-      throw Object.assign(new Error("This tab already has the maximum of 3 linked devices."), { status: 400 });
+      throw Object.assign(new Error("This tab already has the maximum of 3 linked devices. You can still log in for this session."), {
+        status: 409,
+        code: "device-limit",
+      });
     }
 
     if (!linked.includes(req.uid)) {
@@ -466,6 +472,7 @@ router.post("/link/accept", requireAuth, asyncRoute(async (req, res) => {
       uid: req.uid,
       code,
       active: true,
+      accessMode: "linked",
       linkedTo: targetUid,
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -477,17 +484,48 @@ router.post("/link/accept", requireAuth, asyncRoute(async (req, res) => {
   res.json({ userId: targetUid, displayName: targetData.displayName || ANON_PREFIX });
 }));
 
+router.post("/link/session", requireAuth, asyncRoute(async (req, res) => {
+  const code = String(req.body.code || "").trim().toUpperCase();
+  if (!code) throw Object.assign(new Error("No saved invite was found."), { status: 400 });
+  const codeSnap = await db().collection("codes").doc(code).get();
+  if (!codeSnap.exists || codeSnap.data().active === false || codeSnap.data().type !== "link" || !codeSnap.data().userId) {
+    throw Object.assign(new Error("This saved invite is no longer valid."), { status: 400, code: "invalid-invite" });
+  }
+  const targetUid = codeSnap.data().userId;
+  if (targetUid === req.uid) { res.json({ userId: targetUid, alreadySelf: true }); return; }
+  const targetSnap = await db().collection("users").doc(targetUid).get();
+  if (!targetSnap.exists) throw Object.assign(new Error("That tab no longer exists."), { status: 404 });
+  const linked = [...new Set(targetSnap.data().linkedUids || [])];
+  if (!linked.includes(req.uid) && linked.length < 3) {
+    throw Object.assign(new Error("A permanent device space is available. Link this browser instead."), {
+      status: 409,
+      code: "link-available",
+    });
+  }
+
+  await db().collection("claims").doc(req.uid).set({
+    uid: req.uid,
+    code,
+    active: true,
+    accessMode: "session",
+    linkedTo: targetUid,
+    sessionStartedAt: FieldValue.serverTimestamp(),
+  });
+  res.json({
+    userId: targetUid,
+    displayName: targetSnap.data().displayName || ANON_PREFIX,
+    accessMode: "session",
+  });
+}));
+
 router.post("/link/unlink", requireAuth, asyncRoute(async (req, res) => {
   const linkedTo = req.body.linkedTo;
   if (!linkedTo || linkedTo === req.uid) { res.json({ ok: true }); return; }
-  if (!(await isLinkedMember(req.uid, linkedTo))) {
-    // already not a member - nothing to do, mirrors the client's own no-op guard
-    res.json({ ok: true });
-    return;
+  if (await isLinkedMember(req.uid, linkedTo)) {
+    await db().collection("users").doc(linkedTo).update({
+      linkedUids: FieldValue.arrayRemove(req.uid),
+    });
   }
-  await db().collection("users").doc(linkedTo).update({
-    linkedUids: FieldValue.arrayRemove(req.uid),
-  });
   // Keep the claims doc around as de-link history instead of deleting it -
   // surfaced later if this device ever opens its own tab (see PATCH
   // /profile). myClaimedCode() in authz.js already treats an inactive claim

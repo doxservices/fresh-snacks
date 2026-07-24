@@ -35,7 +35,10 @@ app.use("/store", storeRoutes);
 app.use("/admin", adminRoutes);
 
 app.use((err, req, res, next) => {
-  res.status(err.status || 500).json({ error: err.message || "Internal error." });
+  res.status(err.status || 500).json({
+    error: err.message || "Internal error.",
+    ...(err.code ? { code: err.code } : {}),
+  });
 });
 
 // CORS is handled by the `cors` middleware above (origin allow-list), not

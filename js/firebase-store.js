@@ -147,7 +147,12 @@ FS._apiFetch = async (path, { method = "GET", body, auth = true, query } = {}) =
   const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status}).`);
+  if (!res.ok) {
+    const error = new Error((data && data.error) || `Request failed (${res.status}).`);
+    error.status = res.status;
+    error.code = data && data.code;
+    throw error;
+  }
   return data;
 };
 
@@ -289,11 +294,32 @@ FS.resolveClaim = async () => {
 /* ---------- device linking ---------- */
 
 FS.linkCodeKey = "fresh_snacks_link_code";
+FS.inviteCookieKey = "fresh_snacks_invite";
+
+FS.setInviteCookie = (code) => {
+  const value = String(code || "").trim().toUpperCase();
+  if (!value) return;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${FS.inviteCookieKey}=${encodeURIComponent(value)}; Max-Age=2592000; Path=/; SameSite=Lax${secure}`;
+};
+
+FS.getRememberedInviteCode = () => {
+  const prefix = `${FS.inviteCookieKey}=`;
+  const part = document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(prefix));
+  return part ? decodeURIComponent(part.slice(prefix.length)).trim().toUpperCase() : null;
+};
+
+FS.forgetInviteCode = () => {
+  document.cookie = `${FS.inviteCookieKey}=; Max-Age=0; Path=/; SameSite=Lax`;
+  localStorage.removeItem(FS.linkCodeKey);
+};
 
 FS.getLinkCode = () => {
   const fromUrl = new URLSearchParams(location.search).get("link");
   if (fromUrl && fromUrl.trim()) {
-    localStorage.setItem(FS.linkCodeKey, fromUrl.trim().toUpperCase());
+    const code = fromUrl.trim().toUpperCase();
+    localStorage.setItem(FS.linkCodeKey, code);
+    FS.setInviteCookie(code);
   }
   return localStorage.getItem(FS.linkCodeKey) || null;
 };
@@ -336,7 +362,8 @@ FS.signOutCustomer = async () => {
   // A linked browser must release its server-side membership before its
   // Firebase identity is discarded, otherwise it would continue occupying
   // one of the profile's three device slots with no way to use that uid.
-  if (localStorage.getItem(FS.appConfig.storageKeys.linkedTo)) {
+  if (localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo)) {
     await FS.unlinkDevice();
   }
   await FS._auth.signOut();
@@ -348,6 +375,7 @@ FS.signOutCustomer = async () => {
     FS.appConfig.storageKeys.deviceId,
     FS.appConfig.storageKeys.visitorId,
     FS.appConfig.storageKeys.linkedTo,
+    FS.appConfig.storageKeys.sessionTo,
     "fresh_snacks_device_started",
     "fresh_snacks_profile_active",
     FS.tabCodeKey,
@@ -366,8 +394,10 @@ FS.signOutCustomer = async () => {
 FS.getEffectiveUser = async () => {
   const user = await FS.signInAnonymous();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
-  if (!linkedTo || linkedTo === user.uid) return { uid: user.uid, effectiveUid: user.uid, linked: false };
-  return { uid: user.uid, effectiveUid: linkedTo, linked: true };
+  const sessionTo = localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
+  const effectiveUid = linkedTo || sessionTo;
+  if (!effectiveUid || effectiveUid === user.uid) return { uid: user.uid, effectiveUid: user.uid, linked: false, session: false };
+  return { uid: user.uid, effectiveUid, linked: !!linkedTo, session: !!sessionTo };
 };
 
 FS.isThisBrowserLinked = () => {
@@ -383,17 +413,50 @@ FS.acceptLinkInvite = async () => {
   const result = await FS._apiFetch("/store/link/accept", { method: "POST", body: { code, priorLinkedTo } });
   if (!result.alreadySelf) {
     localStorage.setItem(FS.appConfig.storageKeys.linkedTo, result.userId);
+    localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
   }
+  FS.clearLinkCode();
+  return result;
+};
+
+FS.loginWithInvite = async (code = FS.getRememberedInviteCode()) => {
+  const invite = String(code || "").trim().toUpperCase();
+  if (!invite) throw new Error("No saved invite was found on this browser.");
+  await FS.signInAnonymous();
+  let result;
+  try {
+    result = await FS._apiFetch("/store/link/accept", {
+      method: "POST",
+      body: {
+        code: invite,
+        priorLinkedTo: localStorage.getItem(FS.appConfig.storageKeys.linkedTo),
+      },
+    });
+    if (!result.alreadySelf) {
+      localStorage.setItem(FS.appConfig.storageKeys.linkedTo, result.userId);
+      localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
+    }
+  } catch (error) {
+    if (error.code !== "device-limit") throw error;
+    result = await FS._apiFetch("/store/link/session", { method: "POST", body: { code: invite } });
+    if (!result.alreadySelf) {
+      localStorage.setItem(FS.appConfig.storageKeys.sessionTo, result.userId);
+      localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
+    }
+  }
+  FS.setInviteCookie(invite);
   FS.clearLinkCode();
   return result;
 };
 
 FS.unlinkDevice = async () => {
   await FS.signInAnonymous();
-  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
   if (!linkedTo) return;
   await FS._apiFetch("/store/link/unlink", { method: "POST", body: { linkedTo } });
   localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
+  localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
   FS.clearLinkCode();
 };
 
@@ -422,19 +485,25 @@ FS.getMyProfile = async () => {
   const restored = await FS.restoreSession();
   if (!restored) return { userId: null, vipStatus: "anonymous" };
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
-  const profile = await FS._apiFetch("/store/profile", { query: linkedTo ? { effectiveUid: linkedTo } : undefined });
+  const sessionTo = localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
+  const expected = linkedTo || sessionTo;
+  const profile = await FS._apiFetch("/store/profile", { query: expected ? { effectiveUid: expected } : undefined });
   // Self-heal: if we asked for a linked profile but the server fell back to
   // our own uid (the link was revoked server-side since we last checked),
   // forget the stale link locally too - mirrors the old client-side
   // isLinkedMember() re-check that used to run on every page load.
-  if (linkedTo && profile.userId !== linkedTo) {
+  if (expected && profile.userId !== expected) {
     localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
-  } else if (!linkedTo && profile.userId && profile.userId !== restored.uid) {
+    localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
+  } else if (!expected && profile.userId && profile.userId !== restored.uid) {
     // Recover a known linked browser whose local `linkedTo` marker was lost
     // while its authenticated uid is still an active member of the profile.
     // The API only resolves this way from a verified active link claim plus
     // target membership, so a view-only code can never become a device link.
-    localStorage.setItem(FS.appConfig.storageKeys.linkedTo, profile.userId);
+    const key = profile.accessMode === "session"
+      ? FS.appConfig.storageKeys.sessionTo
+      : FS.appConfig.storageKeys.linkedTo;
+    localStorage.setItem(key, profile.userId);
   }
   return profile;
 };
@@ -442,9 +511,10 @@ FS.getMyProfile = async () => {
 FS.updateMyProfile = async (fields) => {
   await FS.getEffectiveUser();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const sessionTo = localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
   return FS._apiFetch("/store/profile", {
     method: "PATCH",
-    body: { ...fields, effectiveUid: linkedTo || undefined },
+    body: { ...fields, effectiveUid: linkedTo || sessionTo || undefined },
   });
 };
 
@@ -573,7 +643,8 @@ FS.loadData = async () => {
     return { profile, catalog, claim: null, entries: [], payments: [] };
   }
   if (tabCode) await FS.signInAnonymous();
-  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
   // Note: unlike FS.getMyProfile, this response doesn't echo back which uid
   // it actually resolved effectiveUid to, so a revoked link isn't self-
   // healed from here - startTabFlow() always calls FS.getMyProfile() too
@@ -592,7 +663,8 @@ FS.addTransaction = async (items) => {
   if (!validItems.length) throw new Error("Choose at least one priced snack.");
 
   await FS.signInAnonymous();
-  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo);
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
   const saved = await FS._apiFetch("/store/transactions", {
     method: "POST",
     body: {

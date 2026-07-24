@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260723-customer-logout" />
+  <link rel="stylesheet" href="styles.css?v=20260723-account-access" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -236,36 +236,24 @@
   <div class="drawer-backdrop" id="settings-backdrop"></div>
   <aside class="drawer right" id="settings-drawer" aria-label="User settings">
     <div class="drawer-brand">User Settings</div>
+    <button type="button" class="account-menu-item" id="us-profile-open">
+      <span>
+        <strong>Profile information</strong>
+        <small id="us-profile-summary">View or update your details</small>
+      </span>
+      <span class="profile-attention hidden" id="us-profile-attention" aria-label="Profile information required">!</span>
+    </button>
     <div class="link-status hidden" id="us-link-status-box">
       <p class="drawer-note" id="us-link-status"></p>
       <button type="button" class="hidden" id="us-delink-btn">De-link this browser</button>
     </div>
     <p class="drawer-note" id="us-current"></p>
-    <div class="field">
-      <label for="us-username">Username / display name</label>
-      <input id="us-username" type="text" placeholder="e.g. SnackFan" />
+    <div class="saved-invite hidden" id="us-saved-invite">
+      <p class="drawer-note">A Fresh Snacks invite is saved on this browser.</p>
+      <button type="button" class="primary" id="us-invite-login">Log in with saved invite</button>
+      <button type="button" class="quiet-button" id="us-forget-invite">Forget saved invite</button>
     </div>
-    <div class="field">
-      <label for="us-first">First name</label>
-      <input id="us-first" type="text" autocomplete="given-name" />
-    </div>
-    <div class="field">
-      <label for="us-last">Last name</label>
-      <input id="us-last" type="text" autocomplete="family-name" />
-    </div>
-    <div class="field">
-      <label for="us-email">Email (optional)</label>
-      <input id="us-email" type="email" autocomplete="email" />
-    </div>
-    <div class="field">
-      <label for="us-phone">Phone (optional)</label>
-      <input id="us-phone" type="tel" autocomplete="tel" />
-    </div>
-    <button class="primary" id="us-save">Save my profile</button>
     <div class="status" id="us-status"></div>
-    <p class="drawer-note">
-      Your profile details help Fresh Snacks identify your tab. Update them whenever needed.
-    </p>
     <div class="settings-session-actions">
       <button type="button" id="us-logout">Log out</button>
       <p class="drawer-note">This removes the profile session from this browser without deleting the tab.</p>
@@ -297,6 +285,43 @@
         <button type="button" id="confirm-remove-cancel">Cancel</button>
         <button type="button" class="danger" id="confirm-remove-ok">Remove</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="profile-info-backdrop">
+    <div class="modal profile-info-modal" role="dialog" aria-modal="true" aria-labelledby="profile-info-title">
+      <button type="button" class="modal-close" id="profile-info-close" aria-label="Close">&times;</button>
+      <h2 id="profile-info-title">Profile information</h2>
+      <p class="muted-small">Keep your contact details current so Fresh Snacks can identify your tab.</p>
+      <form id="profile-info-form">
+        <div class="profile-info-fields">
+          <div class="field profile-display-field">
+            <label for="us-username">Username / display name</label>
+            <input id="us-username" type="text" placeholder="e.g. SnackFan" />
+          </div>
+          <div class="field">
+            <label for="us-first">First name</label>
+            <input id="us-first" type="text" autocomplete="given-name" />
+          </div>
+          <div class="field">
+            <label for="us-last">Last name</label>
+            <input id="us-last" type="text" autocomplete="family-name" />
+          </div>
+          <div class="field">
+            <label for="us-phone">Phone</label>
+            <input id="us-phone" type="tel" autocomplete="tel" />
+          </div>
+          <div class="field">
+            <label for="us-email">Email</label>
+            <input id="us-email" type="email" autocomplete="email" />
+          </div>
+        </div>
+        <div class="status" id="profile-info-status"></div>
+        <div class="modal-actions">
+          <button type="button" id="profile-info-cancel">Cancel</button>
+          <button type="submit" class="primary" id="us-save">Save profile</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -343,6 +368,7 @@
           <div class="modal-actions">
             <button type="submit" class="hidden" id="ncm-link-this" data-ncm-action="link-this">Link this device</button>
             <button type="submit" class="hidden" id="ncm-link-other" data-ncm-action="link-other">Link a different device</button>
+            <button type="submit" class="primary hidden" id="ncm-session-login" data-ncm-action="session-login">Log in for this session</button>
           </div>
         </section>
 
@@ -359,7 +385,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
+  <script src="js/firebase-store.js?v=20260723-account-access"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260723-tab-state"></script>
   <script>
@@ -1166,6 +1192,13 @@
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
       $id("us-logout").classList.toggle("hidden", !me.userId);
+      const profileComplete = FS.profileComplete(me);
+      $id("us-profile-attention").classList.toggle("hidden", profileComplete || !me.userId);
+      $id("us-profile-summary").textContent = profileComplete
+        ? (me.email || "View or update your details")
+        : me.userId ? "Complete your profile" : "Add your details when you open a tab";
+      const rememberedInvite = FS.getRememberedInviteCode();
+      const temporarySession = !!localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
       $id("us-current").textContent = isSharedTabView
         ? `You are viewing ${(CLAIM.displayName || "a shared customer")}'s tab.`
         : hasTab
@@ -1174,10 +1207,13 @@
 
       const thisBrowserLinked = FS.isThisBrowserLinked();
       const linkedCount = (me.linkedUids || []).length;
-      $id("us-link-status-box").classList.toggle("hidden", !thisBrowserLinked && linkedCount === 0);
+      $id("us-saved-invite").classList.toggle("hidden", !rememberedInvite || hasTab || temporarySession || thisBrowserLinked);
+      $id("us-link-status-box").classList.toggle("hidden", !thisBrowserLinked && !temporarySession && linkedCount === 0);
       $id("us-delink-btn").classList.toggle("hidden", !thisBrowserLinked);
       $id("us-link-status").textContent = thisBrowserLinked
         ? `This browser is linked to “${me.displayName || "Guest"}”'s tab (${linkedCount}/3 devices linked).`
+        : temporarySession
+          ? `You are logged in to ${me.displayName || "this tab"} for this browser session.`
         : linkedCount > 0
           ? `${linkedCount}/3 other device${linkedCount === 1 ? " is" : "s are"} linked to this tab.`
           : "";
@@ -1209,6 +1245,48 @@
     };
 
     let linkCode = FS.getLinkCode();
+
+    // Profile fields live in a focused modal; the drawer is the account menu.
+    let profileInfoReturnFocus = null;
+    function openProfileInfoModal() {
+      profileInfoReturnFocus = document.activeElement;
+      closeSettings();
+      $id("profile-info-status").textContent = "";
+      $id("profile-info-backdrop").classList.add("show");
+      $id("us-username").focus();
+    }
+    function closeProfileInfoModal() {
+      $id("profile-info-backdrop").classList.remove("show");
+      if (profileInfoReturnFocus && document.contains(profileInfoReturnFocus)) profileInfoReturnFocus.focus();
+      profileInfoReturnFocus = null;
+    }
+    $id("us-profile-open").onclick = openProfileInfoModal;
+    $id("profile-info-close").onclick = closeProfileInfoModal;
+    $id("profile-info-cancel").onclick = closeProfileInfoModal;
+    $id("profile-info-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("profile-info-backdrop")) closeProfileInfoModal();
+    });
+
+    $id("us-invite-login").onclick = async () => {
+      const button = $id("us-invite-login");
+      button.disabled = true;
+      button.textContent = "Logging inâ€¦";
+      try {
+        await FS.loginWithInvite();
+        location.reload();
+      } catch (error) {
+        $id("us-status").textContent = error.message;
+        $id("us-status").className = "status err";
+        button.disabled = false;
+        button.textContent = "Log in with saved invite";
+      }
+    };
+    $id("us-forget-invite").onclick = () => {
+      FS.forgetInviteCode();
+      $id("us-saved-invite").classList.add("hidden");
+      $id("us-status").textContent = "Saved invite removed from this browser.";
+      $id("us-status").className = "status ok";
+    };
 
     // --- Name-capture / device-link modal ---------------------------------
     // Shown for any user with no name yet (see `anonymous` above), and also
@@ -1274,6 +1352,7 @@
       const shareCode = linkCode || me.linkInviteCode || null;
       $id("ncm-link-this").classList.toggle("hidden", !linkCode);
       $id("ncm-link-other").classList.toggle("hidden", !shareCode);
+      $id("ncm-session-login").classList.add("hidden");
       $id("ncm-link-section").classList.toggle("hidden", !shareCode);
       $id("ncm-save-continue").classList.toggle("hidden", !!shareCode);
       $id("ncm-link-note").textContent = linkCode
@@ -1315,7 +1394,9 @@
       // acceptLinkInvite() clears it. This prevents startTabFlow() from
       // reopening the modal immediately after a successful link.
       linkCode = FS.getLinkCode();
-      if (!needsName || !linkCode) return;
+      // A followed invite must always be actionable, including on a browser
+      // that already has a complete profile of its own.
+      if (!linkCode) return;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       openNameCaptureModal(me);
     }
@@ -1371,6 +1452,11 @@
           // Open-a-Tab flow after the linked profile reloads.
           $id("name-capture-backdrop").classList.remove("show");
           startTabFlow();
+        } else if (action === "session-login") {
+          await FS.loginWithInvite(linkCode || FS.getRememberedInviteCode());
+          linkCode = null;
+          $id("name-capture-backdrop").classList.remove("show");
+          startTabFlow();
         } else if (action === "link-other") {
           // Deliberately does NOT call updateMyProfile here: this browser
           // may be a brand-new device with no transactions yet, which means
@@ -1408,13 +1494,21 @@
       } catch (e) {
         st.textContent = e.message;
         st.className = "status err";
+        if (e.code === "device-limit") {
+          $id("ncm-session-login").classList.remove("hidden");
+          $id("ncm-link-this").classList.add("hidden");
+          $id("ncm-link-note").textContent = "The three permanent device spaces are in use. Log in temporarily without adding another linked device.";
+        }
       } finally {
         btns.forEach((b) => (b.disabled = false));
       }
     });
 
-    $id("us-save").onclick = async () => {
-      const st = $id("us-status");
+    $id("profile-info-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const st = $id("profile-info-status");
+      const button = $id("us-save");
+      button.disabled = true;
       st.textContent = "Saving…";
       st.className = "status ok";
       try {
@@ -1426,12 +1520,15 @@
           phone: $id("us-phone").value,
         });
         renderUserSettings(me);
+        setTimeout(closeProfileInfoModal, 550);
         st.textContent = "Profile saved ✓";
       } catch (e) {
         st.textContent = e.message;
         st.className = "status err";
+      } finally {
+        button.disabled = false;
       }
-    };
+    });
 
     $id("us-logout").onclick = async () => {
       if (!confirm("Log out of Fresh Snacks on this browser? Your tab and transaction history will not be deleted.")) return;

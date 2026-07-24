@@ -38,6 +38,17 @@ async function hasLinkOn(uid, ownerId) {
   return (await claimedCodeType(uid)) === "link";
 }
 
+async function hasInviteSession(uid, ownerId) {
+  if (!ownerId) return false;
+  const snap = await admin.firestore().collection("claims").doc(uid).get();
+  if (!snap.exists) return false;
+  const claim = snap.data();
+  return claim.active !== false
+    && claim.accessMode === "session"
+    && claim.linkedTo === ownerId
+    && await hasLinkOn(uid, ownerId);
+}
+
 async function isAdmin(uid) {
   if (!uid) return false;
   const snap = await admin.firestore().collection("admins").doc(uid).get();
@@ -56,7 +67,8 @@ async function canAccessTab(uid, ownerId) {
   if (await isAdmin(uid)) return true;
   if (await hasClaimOn(uid, ownerId)) return true;
   if (await isLinkedMember(uid, ownerId)) return true;
+  if (await hasInviteSession(uid, ownerId)) return true;
   return false;
 }
 
-module.exports = { isLinkedMember, hasClaimOn, hasLinkOn, canAccessTab, isAdmin, myClaimedCode };
+module.exports = { isLinkedMember, hasClaimOn, hasLinkOn, hasInviteSession, canAccessTab, isAdmin, myClaimedCode };
