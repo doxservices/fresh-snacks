@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-gallery-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260723-admin-workflow" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -147,9 +147,9 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-tab-state"></script>
-  <script src="js/firebase-admin.js?v=20260717-customer-analytics"></script>
-  <script src="js/admin-notifications.js?v=20260721-notifications-bell"></script>
-  <script src="js/admin-modals.js"></script>
+  <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-notifications.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -667,11 +667,42 @@
       return !n || /^guest\s+[a-z0-9]{4}$/i.test(n) || n.toLowerCase() === "new guest";
     }
 
+    const accountingSaveTimers = new Map();
+    async function saveAccountingRow(row, { refreshAfter = false } = {}) {
+      const userId = row.dataset.user;
+      clearTimeout(accountingSaveTimers.get(userId));
+      accountingSaveTimers.delete(userId);
+      const displayName = row.querySelector('[data-f="displayName"]').value.trim();
+      const vipStatus = row.querySelector('[data-f="vipStatus"]').value;
+      await FS.admin.renameUser(userId, displayName, vipStatus);
+      const record = SNAPSHOT.accounting.find((item) => item.userId === userId);
+      if (record) {
+        record.displayName = displayName;
+        record.vipStatus = vipStatus;
+      }
+      status("acct-status", `Saved all changes for ${displayName || "this customer"}.`, true);
+      if (refreshAfter) await refresh();
+    }
+    function scheduleAccountingSave(row) {
+      const userId = row.dataset.user;
+      clearTimeout(accountingSaveTimers.get(userId));
+      status("acct-status", "Saving customer changes…", true);
+      accountingSaveTimers.set(userId, setTimeout(() => {
+        saveAccountingRow(row).catch((error) => status("acct-status", error.message, false));
+      }, 3000));
+    }
+
     document.body.addEventListener("change", (ev) => {
       const sel = ev.target.closest('select[data-f="vipStatus"]');
-      if (!sel || sel.value !== "vip") return;
-      const nameInput = sel.closest("tr").querySelector('[data-f="displayName"]');
-      if (isDefaultGuestName(nameInput.value)) nameInput.value = "VIP Customer";
+      if (!sel) return;
+      const row = sel.closest("tr");
+      const nameInput = row.querySelector('[data-f="displayName"]');
+      if (sel.value === "vip" && isDefaultGuestName(nameInput.value)) nameInput.value = "VIP Customer";
+      scheduleAccountingSave(row);
+    });
+    document.body.addEventListener("input", (ev) => {
+      const input = ev.target.closest('input[data-f="displayName"]');
+      if (input) scheduleAccountingSave(input.closest("tr"));
     });
 
     document.body.addEventListener("click", (ev) => {
@@ -701,12 +732,7 @@
       if (menu) menu.classList.remove("open");
       try {
         if (act === "user-save") {
-          await FS.admin.renameUser(
-            row.dataset.user,
-            row.querySelector('[data-f="displayName"]').value.trim(),
-            row.querySelector('[data-f="vipStatus"]').value
-          );
-          await refresh();
+          await saveAccountingRow(row, { refreshAfter: true });
         } else if (act === "user-add-payment") {
           openPaymentModal(row.dataset.user);
         } else if (act === "user-view") {

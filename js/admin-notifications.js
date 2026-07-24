@@ -395,7 +395,9 @@
   function renderBadge() {
     const count = notificationItems().length;
     const bell = document.getElementById("admin-notifications-bell");
-    bell.classList.toggle("hidden", count === 0);
+    // Keep the notification centre available to a verified admin even when
+    // the current count is zero; the badge communicates the empty state.
+    bell.classList.remove("hidden");
     document.getElementById("admin-notifications-count").textContent = count;
     bell.setAttribute("aria-label", `${count} notification${count === 1 ? "" : "s"}`);
   }

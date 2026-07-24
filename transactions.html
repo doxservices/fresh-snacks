@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-gallery-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260723-admin-workflow" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -88,9 +88,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-tab-state"></script>
-  <script src="js/firebase-admin.js?v=20260717-gallery-redesign"></script>
-  <script src="js/admin-notifications.js?v=20260721-notifications-bell"></script>
-  <script src="js/admin-modals.js"></script>
+  <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-notifications.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -177,7 +177,7 @@
                   ${reviewStatus(record) === "neutral" || record.userStatus === "disputed" ? `<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve-pay" title="Approve and record payment" aria-label="Approve and record payment">${svgIcon("check")}${svgIcon("cash")}</button>` : ""}
                   ${reviewStatus(record) === "approved" ? `<button class="primary" data-act="txn-pay">Mark paid</button><button data-act="txn-neutral">Reset</button>` : ""}
                   ${reviewStatus(record) === "paid" ? `<span class="permanent-note">Final</span>` : reviewStatus(record) === "approved" ? "" : `
-                  <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
+                  <button data-act="txn-edit" title="Change quantity or date">Change</button>
                   <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
                   <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
                 </td>
@@ -374,7 +374,6 @@
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
           const result = await AdminModals.editListing({
             quantity: t ? t.quantity || 1 : 1,
-            total: t ? t.total || 0 : 0,
             createdDate: t ? t.createdDate || "" : "",
           });
           if (!result) return;

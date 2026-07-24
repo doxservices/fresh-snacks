@@ -101,8 +101,10 @@ function paymentAllocationPlan(transactions, paidTotal) {
     .reduce((sum, record) => sum + Number(record.total || record.value || 0), 0);
   let available = Math.max(0, paidTotal - alreadySettled);
   const eligible = transactions
-    .filter((record) => record.reviewStatus !== "paid")
+    .filter((record) => record.reviewStatus === "approved")
     .sort((a, b) => String(a.createdDate || "").localeCompare(String(b.createdDate || ""))
+      || Number(a.createdAt?.toMillis?.() || a.createdAt?._seconds * 1000 || 0)
+        - Number(b.createdAt?.toMillis?.() || b.createdAt?._seconds * 1000 || 0)
       || String(a.id).localeCompare(String(b.id)));
   const settledIds = [];
   for (const record of eligible) {

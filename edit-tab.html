@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-gallery-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260723-admin-workflow" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -135,6 +135,10 @@
                 <span>Total</span>
                 <span class="amount" id="bins-total">J$0</span>
               </div>
+              <label class="transaction-diffuser">
+                <input id="split-transactions" type="checkbox" />
+                <span>Save each quantity as a separate listing</span>
+              </label>
               <div class="bins-cart-actions">
                 <button id="bins-reset">Clear</button>
                 <button class="primary" id="bins-submit" disabled>Add to tab</button>
@@ -256,9 +260,9 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-tab-state"></script>
-  <script src="js/firebase-admin.js?v=20260717-gallery-redesign"></script>
-  <script src="js/admin-notifications.js?v=20260721-notifications-bell"></script>
-  <script src="js/admin-modals.js"></script>
+  <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-notifications.js?v=20260723-admin-workflow"></script>
+  <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
     const picked = new Map();
@@ -874,8 +878,11 @@
       $("bins-submit").disabled = true;
       status("bins-status", "Adding...", true);
       try {
-        await FS.admin.addTransactionFor(TARGET_USER_ID, items);
+        await FS.admin.addTransactionFor(TARGET_USER_ID, items, {
+          splitQuantities: $("split-transactions").checked,
+        });
         picked.clear();
+        $("split-transactions").checked = false;
         status("bins-status", `Added ${summary}.`, true);
         await refresh();
       } catch (e) {
@@ -895,7 +902,9 @@
         .sort((a, b) =>
           (b.userStatus === "disputed") - (a.userStatus === "disputed")
           || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
-        .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}"${t.userStatus === "disputed" ? ' class="disputed"' : ""}>
+        .map((t) => {
+          const movable = reviewStatus(t) === "neutral" && !t.userStatus;
+          return `<tr data-id="${esc(t.transactionId || t.id)}" data-snack-id="${esc(t.snackId || "")}" data-date="${esc(t.createdDate || "")}"${movable ? ' draggable="true" class="transaction-draggable"' : t.userStatus === "disputed" ? ' class="disputed"' : ""}>
           <td>${esc(t.createdDate || "-")}</td>
           <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
           <td class="num">${esc(t.quantity || 1)}</td>
@@ -904,11 +913,12 @@
           <td style="white-space:nowrap;">
             ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
             ${reviewStatus(t) === "approved" || reviewStatus(t) === "paid" ? `<span class="permanent-note">${reviewStatus(t) === "paid" ? "Final" : "Approved"}</span>` : `
-            <button data-act="txn-edit" title="Change quantity, value, or date">Change</button>
+            <button data-act="txn-edit" title="Change quantity or date">Change</button>
             <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
             <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
           </td>
-        </tr>`).join("");
+        </tr>`;
+        }).join("");
       $("transaction-list").innerHTML = `<table class="admin-table">
         <thead><tr><th>Day</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows || `<tr><td colspan="6" class="muted-small">No listings yet.</td></tr>`}</tbody>
@@ -973,14 +983,35 @@
     }
 
     $("profile-save").onclick = async () => {
+      await saveVisibleProfileFields();
+    };
+
+    let profileSaveTimer = null;
+    let profileSaveInFlight = false;
+    async function saveVisibleProfileFields() {
+      if (profileSaveInFlight || !SNAPSHOT) return;
+      profileSaveInFlight = true;
+      clearTimeout(profileSaveTimer);
       try {
-        await FS.admin.renameUser(TARGET_USER_ID, $("profile-name").value.trim(), $("profile-vip").value);
-        status("profile-status", "Profile saved.", true);
-        await refresh();
+        const displayName = $("profile-name").value.trim();
+        const vipStatus = $("profile-vip").value;
+        await FS.admin.renameUser(TARGET_USER_ID, displayName, vipStatus);
+        SNAPSHOT.profile.displayName = displayName;
+        SNAPSHOT.profile.vipStatus = vipStatus;
+        status("profile-status", "All profile changes saved.", true);
       } catch (e) {
         status("profile-status", e.message, false);
+      } finally {
+        profileSaveInFlight = false;
       }
-    };
+    }
+    function scheduleProfileSave() {
+      clearTimeout(profileSaveTimer);
+      status("profile-status", "Saving changes…", true);
+      profileSaveTimer = setTimeout(saveVisibleProfileFields, 3000);
+    }
+    $("profile-name").addEventListener("input", scheduleProfileSave);
+    $("profile-vip").addEventListener("change", scheduleProfileSave);
 
     // "Guest XXXX" (FS.randomCode's format) or blank counts as never having
     // been given a real name - only then does picking VIP auto-fill the
@@ -994,6 +1025,51 @@
     $("profile-vip").addEventListener("change", () => {
       if ($("profile-vip").value === "vip" && isDefaultGuestName($("profile-name").value)) {
         $("profile-name").value = "VIP Customer";
+      }
+    });
+
+    let draggedTransactionId = null;
+    $("transaction-list").addEventListener("dragstart", (event) => {
+      const row = event.target.closest("tr.transaction-draggable");
+      if (!row) return;
+      draggedTransactionId = row.dataset.id;
+      row.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedTransactionId);
+    });
+    $("transaction-list").addEventListener("dragend", (event) => {
+      event.target.closest("tr")?.classList.remove("is-dragging");
+      $("transaction-list").querySelectorAll(".is-drop-target").forEach((row) => row.classList.remove("is-drop-target"));
+      draggedTransactionId = null;
+    });
+    $("transaction-list").addEventListener("dragover", (event) => {
+      const row = event.target.closest("tr.transaction-draggable");
+      if (!row || !draggedTransactionId || row.dataset.id === draggedTransactionId) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      $("transaction-list").querySelectorAll(".is-drop-target").forEach((candidate) => candidate.classList.toggle("is-drop-target", candidate === row));
+    });
+    $("transaction-list").addEventListener("drop", async (event) => {
+      const targetRow = event.target.closest("tr.transaction-draggable");
+      const sourceId = draggedTransactionId || event.dataTransfer.getData("text/plain");
+      if (!targetRow || !sourceId || targetRow.dataset.id === sourceId) return;
+      event.preventDefault();
+      const sourceRow = $("transaction-list").querySelector(`tr[data-id="${CSS.escape(sourceId)}"]`);
+      const sameSnack = sourceRow?.dataset.snackId && sourceRow.dataset.snackId === targetRow.dataset.snackId;
+      if (sameSnack) {
+        const ok = await AdminModals.confirm(
+          "Combine these listings?",
+          `Both listings will become one ${targetRow.dataset.date} entry using the catalogue price.`,
+          { confirmText: "Combine" }
+        );
+        if (!ok) return;
+      }
+      try {
+        await FS.admin.mergeOrMoveTransaction(sourceId, targetRow.dataset.id);
+        await refresh();
+        status("profile-status", sameSnack ? "Listings combined." : `Listing moved to ${targetRow.dataset.date}.`, true);
+      } catch (e) {
+        await AdminModals.alert("Could not move listing", e.message);
       }
     });
 
@@ -1027,7 +1103,6 @@
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
           const result = await AdminModals.editListing({
             quantity: t ? t.quantity || 1 : 1,
-            total: t ? t.total || 0 : 0,
             createdDate: t ? t.createdDate || "" : "",
           });
           if (!result) return;

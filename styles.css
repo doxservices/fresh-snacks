@@ -2452,6 +2452,84 @@ textarea:focus {
   font-size: 13px;
 }
 
+.transaction-diffuser {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.transaction-diffuser input {
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  flex: 0 0 auto;
+}
+
+.transaction-draggable {
+  cursor: grab;
+}
+
+.transaction-draggable:active {
+  cursor: grabbing;
+}
+
+.transaction-draggable.is-dragging {
+  opacity: 0.45;
+}
+
+.transaction-draggable.is-drop-target td {
+  border-top-color: var(--green);
+  border-bottom-color: var(--green);
+  background: var(--green-light);
+}
+
+#accounting-list,
+#transaction-list,
+#adjustment-list {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+  #accounting-list .admin-table {
+    min-width: 1120px;
+  }
+
+  #transaction-list .admin-table {
+    min-width: 760px;
+  }
+
+  #adjustment-list .admin-table {
+    min-width: 560px;
+  }
+
+  #accounting-list,
+  #transaction-list,
+  #adjustment-list {
+    margin-inline: -10px;
+    padding: 0 10px 8px;
+    scrollbar-width: thin;
+  }
+
+  .transaction-diffuser {
+    padding-block: 12px 7px;
+  }
+
+  .admin-table td:last-child {
+    white-space: normal !important;
+  }
+
+  .admin-table td:last-child button {
+    margin: 2px;
+  }
+}
+
 /* Snack catalog row view keeps only the fields used during routine edits.
    Photo and facts IDs are preserved as hidden values so the useful columns
    can take the full width. */

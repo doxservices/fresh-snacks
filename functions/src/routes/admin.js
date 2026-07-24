@@ -153,11 +153,26 @@ router.post("/transactions/:id/resolve", asyncRoute(async (req, res) => {
 }));
 
 router.patch("/transactions/:id", asyncRoute(async (req, res) => {
-  const { quantity, total, createdDate } = req.body;
+  const { quantity, createdDate } = req.body;
+  const qty = Math.floor(Number(quantity));
+  if (!Number.isFinite(qty) || qty < 1) throw bad("Quantity must be at least one.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw bad("Choose a valid date.");
-  await db().collection("transactions").doc(req.params.id).update({
-    quantity: Number(quantity),
-    total: Number(total),
+  const transactionRef = db().collection("transactions").doc(req.params.id);
+  const transactionSnap = await transactionRef.get();
+  if (!transactionSnap.exists) throw bad("Transaction not found.", 404);
+  const transaction = transactionSnap.data();
+  if (transaction.reviewStatus === "paid") throw bad("Paid transactions are permanent and cannot be changed.");
+  const snackSnap = await db().collection("snacks").doc(transaction.snackId).get();
+  if (!snackSnap.exists || snackSnap.data().active === false) throw bad("This snack is no longer available in the catalogue.");
+  const snack = snackSnap.data();
+  const unitPrice = Number(snack.price || 0);
+  if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw bad("This catalogue item does not have a valid price.");
+  await transactionRef.update({
+    quantity: qty,
+    unitPrice,
+    total: unitPrice * qty,
+    snackName: snack.name || transaction.snackName,
+    calories: snack.calories ?? null,
     createdDate,
     userStatus: FieldValue.delete(),
     userStatusAt: FieldValue.delete(),
@@ -165,6 +180,60 @@ router.patch("/transactions/:id", asyncRoute(async (req, res) => {
     editedAt: FieldValue.serverTimestamp(),
   });
   res.json({ ok: true });
+}));
+
+router.post("/transactions/:id/merge-or-move", asyncRoute(async (req, res) => {
+  const sourceId = req.params.id;
+  const targetId = String(req.body.targetId || "");
+  if (!targetId || sourceId === targetId) throw bad("Choose a different destination listing.");
+  const sourceRef = db().collection("transactions").doc(sourceId);
+  const targetRef = db().collection("transactions").doc(targetId);
+  let result = null;
+
+  await db().runTransaction(async (transaction) => {
+    const [sourceSnap, targetSnap] = await Promise.all([
+      transaction.get(sourceRef),
+      transaction.get(targetRef),
+    ]);
+    if (!sourceSnap.exists || !targetSnap.exists) throw bad("One of these listings no longer exists.", 404);
+    const source = sourceSnap.data();
+    const target = targetSnap.data();
+    if ((source.userId || source.uid) !== (target.userId || target.uid)) {
+      throw bad("Listings can only be moved within the same customer tab.");
+    }
+    if ((source.reviewStatus || "neutral") !== "neutral" || (target.reviewStatus || "neutral") !== "neutral") {
+      throw bad("Only unapproved listings can be moved or combined.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(target.createdDate || "")) throw bad("The destination listing needs a valid date.");
+
+    if (source.snackId === target.snackId) {
+      const snackRef = db().collection("snacks").doc(source.snackId);
+      const snackSnap = await transaction.get(snackRef);
+      if (!snackSnap.exists || snackSnap.data().active === false) throw bad("This snack is no longer available in the catalogue.");
+      const snack = snackSnap.data();
+      const quantity = Math.floor(Number(source.quantity || 1)) + Math.floor(Number(target.quantity || 1));
+      const unitPrice = Number(snack.price || 0);
+      transaction.update(targetRef, {
+        quantity,
+        unitPrice,
+        total: unitPrice * quantity,
+        snackName: snack.name || target.snackName,
+        calories: snack.calories ?? null,
+        editedBy: req.uid,
+        editedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.delete(sourceRef);
+      result = { action: "merged", targetId, quantity };
+    } else {
+      transaction.update(sourceRef, {
+        createdDate: target.createdDate,
+        editedBy: req.uid,
+        editedAt: FieldValue.serverTimestamp(),
+      });
+      result = { action: "moved", targetId, createdDate: target.createdDate };
+    }
+  });
+  res.json(result);
 }));
 
 router.post("/transactions/:id/void", asyncRoute(async (req, res) => {
@@ -733,28 +802,44 @@ router.post("/test-profile", asyncRoute(async (req, res) => {
 router.post("/users/:userId/transactions", asyncRoute(async (req, res) => {
   const { userId } = req.params;
   const items = req.body.items || [];
+  const splitQuantities = req.body.splitQuantities === true;
+  const requested = items.map((item) => {
+    const raw = item.snack || item;
+    return { snackId: raw?.id, quantity: Math.floor(Number(item.qty || item.quantity || 1)) };
+  }).filter((item) => item.snackId && item.quantity > 0);
+  const totalUnits = requested.reduce((sum, item) => sum + item.quantity, 0);
+  if (!requested.length) throw bad("Choose at least one snack.");
+  if (splitQuantities && totalUnits > 200) throw bad("Split orders are limited to 200 individual listings at a time.");
+  const snackEntries = await Promise.all([...new Set(requested.map((item) => item.snackId))].map(async (snackId) => {
+    const snap = await db().collection("snacks").doc(snackId).get();
+    return [snackId, snap.exists ? snap.data() : null];
+  }));
+  const catalogue = new Map(snackEntries);
   const batch = db().batch();
   const today = todayISO();
   const now = FieldValue.serverTimestamp();
   const saved = [];
-  for (const item of items) {
-    const snack = item.snack || item;
-    const quantity = Number(item.qty || item.quantity || 1);
-    if (!snack || !snack.id || quantity < 1) continue;
-    const transactionId = genId("fs_txn");
-    const record = {
-      transactionId, uid: userId, userId,
-      deviceId: "admin", visitorId: null,
-      snackId: snack.id, snackName: snack.name, quantity,
-      unitPrice: Number(snack.price || 0),
-      total: Number(snack.price || 0) * quantity,
-      calories: snack.calories ?? null,
-      source: "admin", createdAt: now, createdDate: today, status: "active",
-    };
-    batch.set(db().collection("transactions").doc(transactionId), record);
-    saved.push(record);
+  for (const item of requested) {
+    const snack = catalogue.get(item.snackId);
+    if (!snack || snack.active === false) throw bad("Every order item must be an active catalogue snack.");
+    const unitPrice = Number(snack.price || 0);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw bad(`${snack.name || item.snackId} does not have a valid catalogue price.`);
+    const quantities = splitQuantities ? Array(item.quantity).fill(1) : [item.quantity];
+    for (const quantity of quantities) {
+      const transactionId = genId("fs_txn");
+      const record = {
+        transactionId, uid: userId, userId,
+        deviceId: "admin", visitorId: null,
+        snackId: item.snackId, snackName: snack.name, quantity,
+        unitPrice,
+        total: unitPrice * quantity,
+        calories: snack.calories ?? null,
+        source: "admin", createdAt: now, createdDate: today, status: "active",
+      };
+      batch.set(db().collection("transactions").doc(transactionId), record);
+      saved.push(record);
+    }
   }
-  if (!saved.length) throw bad("Choose at least one snack.");
   await batch.commit();
   res.json(saved);
 }));

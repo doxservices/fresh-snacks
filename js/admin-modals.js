@@ -34,10 +34,6 @@
             <input id="am-edit-qty" type="number" min="0" step="1" />
           </div>
           <div class="field">
-            <label for="am-edit-total">Total value</label>
-            <input id="am-edit-total" type="number" min="0" step="1" />
-          </div>
-          <div class="field">
             <label for="am-edit-date">Date</label>
             <input id="am-edit-date" type="date" />
           </div>
@@ -98,11 +94,12 @@
       });
     },
 
-    // Promise<{quantity, total, createdDate}|null> - null if cancelled
+    // Price/value always comes from the catalogue on the server. Admins may
+    // change only the quantity and date of an existing snack listing.
+    // Promise<{quantity, createdDate}|null> - null if cancelled
     editListing(current) {
       return new Promise((resolve) => {
         $("am-edit-qty").value = current.quantity ?? 1;
-        $("am-edit-total").value = current.total ?? 0;
         $("am-edit-date").value = current.createdDate || "";
         const backdrop = $("am-edit-backdrop");
         const saveBtn = $("am-edit-save");
@@ -116,7 +113,6 @@
         };
         saveBtn.onclick = () => cleanup({
           quantity: $("am-edit-qty").value,
-          total: $("am-edit-total").value,
           createdDate: $("am-edit-date").value,
         });
         cancelBtn.onclick = () => cleanup(null);

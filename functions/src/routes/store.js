@@ -272,12 +272,18 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
 
 router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
   const items = req.body.items || [];
+  const catalogue = new Map((await getCatalogData(false)).map((snack) => [snack.id, snack]));
   const validItems = items.map((item) => {
-    const snack = item.snack || item;
-    const quantity = Number(item.qty || item.quantity || 1);
+    const submitted = item.snack || item;
+    const snack = catalogue.get(submitted?.id);
+    const quantity = Math.floor(Number(item.qty || item.quantity || 1));
     return { snack, quantity };
-  }).filter(({ snack, quantity }) => snack && snack.id && quantity > 0 && Number(snack.price || 0) > 0);
-  if (!validItems.length) throw Object.assign(new Error("Choose at least one priced snack."), { status: 400 });
+  });
+  if (!validItems.length || validItems.some(({ snack, quantity }) =>
+    !snack || quantity <= 0 || !Number.isFinite(Number(snack.price)) || Number(snack.price) <= 0
+  )) {
+    throw Object.assign(new Error("Every order item must be an active, priced catalogue snack."), { status: 400 });
+  }
 
   const effectiveUid = await resolveEffectiveUid(req);
   const userRef = db().collection("users").doc(effectiveUid);

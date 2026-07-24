@@ -12,8 +12,22 @@ FS.admin = {
   profile: null,
 };
 
-FS.admin.signInWithGoogle = async () => {
+FS.admin._persistenceReady = null;
+FS.admin._ensurePersistence = async () => {
   await FS.initFirebase();
+  if (!FS.admin._persistenceReady) {
+    FS.admin._persistenceReady = FS._auth
+      .setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch((error) => {
+        FS.admin._persistenceReady = null;
+        throw error;
+      });
+  }
+  return FS.admin._persistenceReady;
+};
+
+FS.admin.signInWithGoogle = async () => {
+  await FS.admin._ensurePersistence();
   const provider = new firebase.auth.GoogleAuthProvider();
   const result = await FS._auth.signInWithPopup(provider);
   FS.admin.user = result.user;
@@ -21,7 +35,7 @@ FS.admin.signInWithGoogle = async () => {
 };
 
 FS.admin.signInWithMicrosoft = async () => {
-  await FS.initFirebase();
+  await FS.admin._ensurePersistence();
   const provider = new firebase.auth.OAuthProvider("microsoft.com");
   provider.setCustomParameters({ tenant: "common" });
   const result = await FS._auth.signInWithPopup(provider);
@@ -30,7 +44,7 @@ FS.admin.signInWithMicrosoft = async () => {
 };
 
 FS.admin.signInWithEmail = async (email, password) => {
-  await FS.initFirebase();
+  await FS.admin._ensurePersistence();
   const result = await FS._auth.signInWithEmailAndPassword(email, password);
   FS.admin.user = result.user;
   return FS.admin.requireAdmin();
@@ -69,7 +83,7 @@ FS.admin._waitForAuthRestore = () => {
 };
 
 FS.admin.currentAdmin = async () => {
-  await FS.initFirebase();
+  await FS.admin._ensurePersistence();
   await FS.admin._waitForAuthRestore();
   const user = FS._auth.currentUser;
   if (user && !user.isAnonymous) return FS.admin.requireAdmin();
@@ -121,11 +135,16 @@ FS.admin.resolveTransaction = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/resolve`, { method: "POST" });
 };
 
-FS.admin.updateTransaction = async (id, { quantity, total, createdDate }) => {
+FS.admin.updateTransaction = async (id, { quantity, createdDate }) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}`, {
-    method: "PATCH", body: { quantity, total, createdDate },
+    method: "PATCH", body: { quantity, createdDate },
   });
 };
+
+FS.admin.mergeOrMoveTransaction = async (sourceId, targetId) =>
+  FS._apiFetch(`/admin/transactions/${encodeURIComponent(sourceId)}/merge-or-move`, {
+    method: "POST", body: { targetId },
+  });
 
 FS.admin.voidTransaction = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/void`, { method: "POST" });
@@ -338,5 +357,7 @@ FS.admin.openAdminTestProfile = async (sourceUserId) => {
   return url;
 };
 
-FS.admin.addTransactionFor = async (userId, items) =>
-  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/transactions`, { method: "POST", body: { items } });
+FS.admin.addTransactionFor = async (userId, items, options = {}) =>
+  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/transactions`, {
+    method: "POST", body: { items, splitQuantities: !!options.splitQuantities },
+  });
