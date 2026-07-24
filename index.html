@@ -511,15 +511,17 @@
       // no Snack Log, no basket, no Tell a Friend - just the catalogue and a
       // clear "Open a tab" call to action. This is the UX side of the same
       // gate POST /transactions enforces server-side.
-      const isVisitor = !FS.hasActiveTab(data.myProfile);
+      const hasOwnTab = FS.hasActiveTab(data.myProfile);
+      const isSharedTabView = !!data.claim;
+      const isVisitor = !hasOwnTab && !isSharedTabView;
       $id("visitor-intro").classList.toggle("hidden", !isVisitor);
       $id("brand-stats").classList.toggle("hidden", isVisitor);
-      $id("tell-a-friend").classList.toggle("hidden", isVisitor);
-      if (!isVisitor) renderJoinQr(data.myProfile.userId);
+      $id("tell-a-friend").classList.toggle("hidden", !hasOwnTab);
+      if (hasOwnTab) renderJoinQr(data.myProfile.userId);
       $id("snack-shop-heading").classList.toggle("hidden", isVisitor);
-      $id("basket-panel").classList.toggle("hidden", isVisitor);
-      $id("basket-overlay").classList.toggle("hidden", isVisitor);
-      $id("basket-notification").classList.toggle("hidden", isVisitor);
+      $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
+      $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
+      $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
@@ -781,18 +783,21 @@
     }
 
     function renderBinsGallery(data) {
-      const isVisitor = !FS.hasActiveTab(data.myProfile);
+      const hasOwnTab = FS.hasActiveTab(data.myProfile);
+      const isVisitor = !hasOwnTab && !data.claim;
       if (!data.catalog.length) {
         $id("basket-notification").classList.add("hidden");
         $id("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
-      $id("basket-notification").classList.toggle("hidden", isVisitor);
+      $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
       $id("bins").innerHTML = data.catalog.map((s) => {
         const soldOut = s.stock === 0;
         const actionButton = isVisitor
           ? `<button type="button" class="primary bin-add-button" data-visitor-cta>Open a tab</button>`
-          : `<button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>`;
+          : hasOwnTab
+            ? `<button type="button" class="primary bin-add-button" data-add="${esc(s.id)}"${soldOut ? " disabled" : ""}>${soldOut ? "Sold out" : "Add to basket"}</button>`
+            : "";
         return `
         <div class="bin-card${soldOut ? " sold-out" : ""}" data-id="${esc(s.id)}">
           <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details">${s.photo
@@ -866,9 +871,16 @@
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
       const soldOut = s.stock === 0;
-      const isVisitor = !FS.hasActiveTab(LAST_DATA.myProfile);
-      $id("snack-modal-add").disabled = soldOut;
-      $id("snack-modal-add").textContent = soldOut ? "Sold out" : isVisitor ? "Open a tab" : "Add to basket";
+      const hasOwnTab = FS.hasActiveTab(LAST_DATA.myProfile);
+      const isVisitor = !hasOwnTab && !LAST_DATA.claim;
+      $id("snack-modal-add").disabled = soldOut || (!hasOwnTab && !isVisitor);
+      $id("snack-modal-add").textContent = soldOut
+        ? "Sold out"
+        : isVisitor
+          ? "Open a tab"
+          : hasOwnTab
+            ? "Add to basket"
+            : "Shared tab";
       $id("snack-modal-backdrop").classList.add("show");
       $id("snack-modal-add").focus();
     }
@@ -886,6 +898,7 @@
     $id("snack-modal-add").onclick = () => {
       if (!modalSnackId) return;
       if (!FS.hasActiveTab(LAST_DATA.myProfile)) {
+        if (LAST_DATA.claim) return;
         closeSnackModal();
         openNameCaptureModal(LAST_DATA.myProfile);
         return;
@@ -1137,6 +1150,7 @@
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
       const hasTab = FS.hasActiveTab(me);
+      const isSharedTabView = !!CLAIM;
       // Older and admin-created profiles may already contain all required
       // identity fields without carrying the newer `nameSet` marker. Use the
       // shared completeness rule so an already-known linked customer is not
@@ -1147,7 +1161,9 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
-      $id("us-current").textContent = hasTab
+      $id("us-current").textContent = isSharedTabView
+        ? `You are viewing ${(CLAIM.displayName || "a shared customer")}'s tab.`
+        : hasTab
         ? (anonymous ? "This tab does not have a display name yet." : `This tab belongs to ${me.displayName}.`)
         : "You are browsing as a visitor.";
 
