@@ -4,15 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260717-profile-recommendations" />
+  <link rel="stylesheet" href="styles.css?v=20260723-auth-loader" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
-<body>
+<body class="auth-pending">
   <main class="page page-wide">
     <header class="banner" id="site-banner"></header>
 
     <div id="firebase-auth-prompt"></div>
+    <section class="auth-loader" id="auth-loader" role="status" aria-live="polite" aria-label="Loading your Fresh Snacks profile">
+      <div class="auth-loader-mark" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="auth-loader-copy">
+        <h1>Preparing your snack profile</h1>
+        <p>Securely connecting this device and loading your tab.</p>
+      </div>
+      <div class="auth-loader-skeleton" aria-hidden="true">
+        <span class="auth-skeleton-avatar"></span>
+        <span class="auth-skeleton-line auth-skeleton-line-long"></span>
+        <span class="auth-skeleton-line"></span>
+      </div>
+    </section>
     <section class="card section-card app-health-alert hidden" id="app-health" role="alert" aria-live="assertive">
       <div><strong>Fresh Snacks did not finish loading.</strong><span id="app-health-message">Please retry. If this continues, share the message below with Fresh Snacks.</span></div>
       <button type="button" id="app-health-retry">Retry</button>
@@ -350,7 +364,14 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const $id = (id) => document.getElementById(id);
 
+    function setAppLoadState(state) {
+      document.body.classList.remove("auth-pending", "auth-ready", "auth-failed");
+      document.body.classList.add(`auth-${state}`);
+      $id("auth-loader").setAttribute("aria-hidden", state === "pending" ? "false" : "true");
+    }
+
     function showAppFailure(error) {
+      setAppLoadState("failed");
       const message = String(error?.message || error || "Unknown loading error");
       $id("app-health-message").textContent = message;
       $id("app-health").classList.remove("hidden");
@@ -1411,6 +1432,7 @@
           LAST_DATA = data;
           render(data);
           renderUserSettings(me);
+          setAppLoadState("ready");
         })
         .catch((e) => {
           showAppFailure(e);

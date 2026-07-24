@@ -78,6 +78,115 @@ body::after {
   width: min(1280px, calc(100% - 28px));
 }
 
+/* Keep customer/profile controls out of view until Firebase Auth and the
+   effective linked profile have both resolved. This prevents blank or stale
+   fields from flashing briefly before the correct profile is rendered. */
+body.auth-pending #page-body,
+body.auth-failed #page-body {
+  display: none;
+}
+
+.auth-loader {
+  min-height: 330px;
+  margin-top: 18px;
+  padding: 58px 28px 42px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+body.auth-pending .auth-loader {
+  display: grid;
+}
+
+.auth-loader-mark {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+}
+
+.auth-loader-mark span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: auth-loader-rise 1s ease-in-out infinite;
+}
+
+.auth-loader-mark span:nth-child(2) { animation-delay: 0.14s; }
+.auth-loader-mark span:nth-child(3) { animation-delay: 0.28s; }
+
+.auth-loader-copy h1 {
+  margin: 0 0 5px;
+  color: var(--green-dark);
+  font-size: clamp(1.3rem, 3vw, 1.75rem);
+  font-weight: 600;
+}
+
+.auth-loader-copy p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.auth-loader-skeleton {
+  width: min(410px, 88vw);
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 9px 13px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.auth-skeleton-avatar,
+.auth-skeleton-line {
+  display: block;
+  background: linear-gradient(100deg, #e9f1e9 25%, #f7faf7 45%, #e9f1e9 65%);
+  background-size: 220% 100%;
+  animation: auth-skeleton-shimmer 1.35s linear infinite;
+}
+
+.auth-skeleton-avatar {
+  grid-row: 1 / span 2;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.auth-skeleton-line {
+  width: 62%;
+  height: 9px;
+  border-radius: 6px;
+}
+
+.auth-skeleton-line-long {
+  width: 100%;
+}
+
+@keyframes auth-loader-rise {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+@keyframes auth-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-loader-mark span,
+  .auth-skeleton-avatar,
+  .auth-skeleton-line {
+    animation: none;
+  }
+}
+
 header,
 .brand-card,
 .card,
