@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260723-account-access" />
+  <link rel="stylesheet" href="styles.css?v=20260724-visitor-account" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -36,6 +36,7 @@
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
+    <button type="button" class="primary account-signup hidden" id="us-signup">Sign up</button>
 
     <div id="page-body">
     <section class="brand-card">
@@ -250,11 +251,11 @@
     <p class="drawer-note" id="us-current"></p>
     <div class="saved-invite hidden" id="us-saved-invite">
       <p class="drawer-note">A Fresh Snacks invite is saved on this browser.</p>
-      <button type="button" class="primary" id="us-invite-login">Log in with saved invite</button>
+      <button type="button" class="primary" id="us-invite-login">Re-link with saved invite</button>
       <button type="button" class="quiet-button" id="us-forget-invite">Forget saved invite</button>
     </div>
     <div class="status" id="us-status"></div>
-    <div class="settings-session-actions">
+    <div class="settings-session-actions hidden" id="us-session-actions">
       <button type="button" id="us-logout">Log out</button>
       <p class="drawer-note">This removes the profile session from this browser without deleting the tab.</p>
     </div>
@@ -312,7 +313,7 @@
             <input id="us-phone" type="tel" autocomplete="tel" />
           </div>
           <div class="field">
-            <label for="us-email">Email</label>
+            <label for="us-email">Work email</label>
             <input id="us-email" type="email" autocomplete="email" />
           </div>
         </div>
@@ -385,7 +386,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260723-account-access"></script>
+  <script src="js/firebase-store.js?v=20260724-visitor-account"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260723-tab-state"></script>
   <script>
@@ -1191,7 +1192,6 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
-      $id("us-logout").classList.toggle("hidden", !me.userId);
       const profileComplete = FS.profileComplete(me);
       $id("us-profile-attention").classList.toggle("hidden", profileComplete || !me.userId);
       $id("us-profile-summary").textContent = profileComplete
@@ -1207,6 +1207,11 @@
 
       const thisBrowserLinked = FS.isThisBrowserLinked();
       const linkedCount = (me.linkedUids || []).length;
+      const hasProfileSession = hasTab || thisBrowserLinked || temporarySession;
+      $id("us-profile-open").classList.toggle("hidden", !hasProfileSession);
+      $id("us-signup").classList.toggle("hidden", hasProfileSession);
+      $id("us-session-actions").classList.toggle("hidden", !hasProfileSession);
+      $id("us-logout").classList.toggle("hidden", !hasProfileSession);
       $id("us-saved-invite").classList.toggle("hidden", !rememberedInvite || hasTab || temporarySession || thisBrowserLinked);
       $id("us-link-status-box").classList.toggle("hidden", !thisBrowserLinked && !temporarySession && linkedCount === 0);
       $id("us-delink-btn").classList.toggle("hidden", !thisBrowserLinked);
@@ -1261,6 +1266,12 @@
       profileInfoReturnFocus = null;
     }
     $id("us-profile-open").onclick = openProfileInfoModal;
+    $id("us-signup").onclick = () => {
+      closeSettings();
+      openNameCaptureModal(LAST_DATA.myProfile || {});
+      $id("ncm-title").textContent = "Sign up for Fresh Snacks";
+      $id("ncm-save-continue").textContent = "Sign up";
+    };
     $id("profile-info-close").onclick = closeProfileInfoModal;
     $id("profile-info-cancel").onclick = closeProfileInfoModal;
     $id("profile-info-backdrop").addEventListener("click", (ev) => {
@@ -1278,7 +1289,7 @@
         $id("us-status").textContent = error.message;
         $id("us-status").className = "status err";
         button.disabled = false;
-        button.textContent = "Log in with saved invite";
+        button.textContent = "Re-link with saved invite";
       }
     };
     $id("us-forget-invite").onclick = () => {
@@ -1481,7 +1492,14 @@
           const email = $id("ncm-email").value.trim();
           const phone = $id("ncm-phone").value.trim();
           if (!firstName || !lastName || !email || !phone) {
-            throw new Error("Please add your name, email, and phone to open a tab.");
+            throw new Error("Please add your full name, work email, and phone number to sign up.");
+          }
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            throw new Error("Enter a valid work email address.");
+          }
+          const phoneDigits = phone.replace(/\D/g, "");
+          if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+            throw new Error("Enter a valid phone number with 7 to 15 digits.");
           }
           await FS.updateMyProfile({
             firstName, lastName, email, phone,

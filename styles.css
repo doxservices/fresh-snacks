@@ -709,6 +709,11 @@ header.banner {
   width: calc(100% - 4px);
 }
 
+.account-signup {
+  margin: 4px 2px 14px;
+  width: calc(100% - 4px);
+}
+
 .account-menu-item strong,
 .account-menu-item small {
   display: block;
