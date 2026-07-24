@@ -88,7 +88,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
-  <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
+  <script src="js/firebase-admin.js?v=20260724-payment-order"></script>
   <script src="js/admin-notifications.js?v=20260724-final-transactions"></script>
   <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
@@ -291,6 +291,7 @@
     };
 
     async function refresh() {
+      await FS.admin.reconcilePayments();
       SNAPSHOT = await FS.admin.getSnapshot();
       $("login-panel").classList.add("hidden");
       $("transactions-app").classList.remove("hidden");

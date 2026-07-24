@@ -161,6 +161,9 @@ FS.admin.deletePayment = async (id) => {
 FS.admin.recordPermanentPayment = async ({ userId, amount, note, createdDate }) =>
   FS._apiFetch("/admin/payments/permanent", { method: "POST", body: { userId, amount, note, createdDate } });
 
+FS.admin.reconcilePayments = async () =>
+  FS._apiFetch("/admin/payments/reconcile", { method: "POST" });
+
 FS.admin.setTransactionReviewStatus = async (id, reviewStatus) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/review-status`, {
     method: "PATCH", body: { reviewStatus },
