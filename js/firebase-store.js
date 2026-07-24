@@ -331,6 +331,31 @@ FS.clearReferralCode = () => {
   }
 };
 
+FS.signOutCustomer = async () => {
+  await FS.initFirebase();
+  // A linked browser must release its server-side membership before its
+  // Firebase identity is discarded, otherwise it would continue occupying
+  // one of the profile's three device slots with no way to use that uid.
+  if (localStorage.getItem(FS.appConfig.storageKeys.linkedTo)) {
+    await FS.unlinkDevice();
+  }
+  await FS._auth.signOut();
+  FS.currentUser = null;
+  FS.currentDevice = null;
+  FS._sessionReady = null;
+  [
+    FS.appConfig.storageKeys.uid,
+    FS.appConfig.storageKeys.deviceId,
+    FS.appConfig.storageKeys.visitorId,
+    FS.appConfig.storageKeys.linkedTo,
+    "fresh_snacks_device_started",
+    "fresh_snacks_profile_active",
+    FS.tabCodeKey,
+    FS.linkCodeKey,
+    FS.referralCodeKey,
+  ].filter(Boolean).forEach((key) => localStorage.removeItem(key));
+};
+
 /* This browser's "effective" identity - its own uid normally, or the
  * primary profile's uid once linked. The API re-verifies the link on
  * every call that passes effectiveUid (never trusted blindly server-

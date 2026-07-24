@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260723-admin-workflow" />
+  <link rel="stylesheet" href="styles.css?v=20260723-customer-logout" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -266,6 +266,10 @@
     <p class="drawer-note">
       Your profile details help Fresh Snacks identify your tab. Update them whenever needed.
     </p>
+    <div class="settings-session-actions">
+      <button type="button" id="us-logout">Log out</button>
+      <p class="drawer-note">This removes the profile session from this browser without deleting the tab.</p>
+    </div>
   </aside>
 
   <div class="modal-backdrop" id="snack-modal-backdrop">
@@ -355,7 +359,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260723-tab-state"></script>
+  <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260723-tab-state"></script>
   <script>
@@ -1161,6 +1165,7 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
+      $id("us-logout").classList.toggle("hidden", !me.userId);
       $id("us-current").textContent = isSharedTabView
         ? `You are viewing ${(CLAIM.displayName || "a shared customer")}'s tab.`
         : hasTab
@@ -1424,6 +1429,23 @@
         st.textContent = "Profile saved ✓";
       } catch (e) {
         st.textContent = e.message;
+        st.className = "status err";
+      }
+    };
+
+    $id("us-logout").onclick = async () => {
+      if (!confirm("Log out of Fresh Snacks on this browser? Your tab and transaction history will not be deleted.")) return;
+      const button = $id("us-logout");
+      button.disabled = true;
+      button.textContent = "Logging out…";
+      try {
+        await FS.signOutCustomer();
+        location.href = "index.html";
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Log out";
+        const st = $id("us-status");
+        st.textContent = error.message;
         st.className = "status err";
       }
     };

@@ -10,6 +10,11 @@
 - Customer name/status edits on Accounting and Edit Tab debounce for three seconds and save all visible fields together; explicit Save uses the same whole-form operation.
 - The verified-admin notification bell remains visible at a zero count, and affected admin ledgers now have touch-friendly horizontal mobile scrolling.
 
+## Customer session controls (2026-07-23)
+
+- User Settings exposes Log out whenever a Firebase customer/device session is present. Logging out signs out Firebase Auth and clears only this browser's customer, invite, and navigation markers; it never deletes the customer tab or transactions.
+- The banner profile/dropdown control now uses a fully rounded pill edge with a separate circular chevron surface.
+
 ## Linked-device recovery and profile prompt compatibility (2026-07-23)
 
 - A known linked browser can now recover its target profile from its active server-side link claim when only the browser's local `linkedTo` marker is missing. Recovery requires both an active link-type code and current membership in the target profile's `linkedUids`; view-only claims cannot become device links.

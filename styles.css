@@ -666,12 +666,34 @@ header.banner {
 .banner-profile {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  border-radius: 999px;
+  overflow: hidden;
 }
 
 .banner-profile .chev {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green-light);
   color: var(--green-dark);
   font-size: 11px;
+}
+
+.settings-session-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-session-actions button {
+  width: 100%;
+}
+
+.settings-session-actions .drawer-note {
+  margin: 8px 0 0;
 }
 
 .brand-subtitle {
