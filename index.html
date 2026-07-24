@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-mobile-basket" />
+  <link rel="stylesheet" href="styles.css?v=20260724-profile-identity" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -302,8 +302,12 @@
       <form id="profile-info-form">
         <div class="profile-info-fields">
           <div class="field profile-display-field">
-            <label for="us-username">Username / display name</label>
+            <label for="us-username">Display Name</label>
             <input id="us-username" type="text" placeholder="e.g. SnackFan" />
+          </div>
+          <div class="field profile-status-field">
+            <label for="us-profile-status">Profile status</label>
+            <input id="us-profile-status" type="text" value="Guest Profile" readonly tabindex="-1" data-profile-tone="guest" />
           </div>
           <div class="field">
             <label for="us-first">First name</label>
@@ -1214,10 +1218,32 @@
     window.addEventListener("hashchange", maybeOpenFromHash);
     maybeOpenFromHash();
 
+    function profilePresentation(me, claim) {
+      const profileMode = new URLSearchParams(location.search).get("profile");
+      const isAdminTest = profileMode === "admin-test" || claim?.profileSource === "admin-test";
+      const ownName = me.displayName
+        || [me.firstName, me.lastName].filter(Boolean).join(" ").trim();
+
+      if (isAdminTest) {
+        return { name: ownName || "Administrator", label: "Admin Profile", tone: "admin" };
+      }
+
+      const viewedProfile = claim || me;
+      const viewedName = claim ? (claim.displayName || "Guest") : (ownName || "Guest");
+      if (viewedProfile.vipStatus === "vip") {
+        return { name: viewedName, label: "VIP Profile", tone: "vip" };
+      }
+      if (claim || FS.hasActiveTab(me)) {
+        return { name: viewedName, label: "Guest Profile", tone: "guest" };
+      }
+      return { name: "Fresh Snacks", label: "Visitor browsing", tone: "guest" };
+    }
+
     function renderUserSettings(me) {
       const anonymous = me.vipStatus === "anonymous" || !me.displayName;
       const hasTab = FS.hasActiveTab(me);
       const isSharedTabView = !!CLAIM;
+      const presentation = profilePresentation(me, CLAIM);
       // Older and admin-created profiles may already contain all required
       // identity fields without carrying the newer `nameSet` marker. Use the
       // shared completeness rule so an already-known linked customer is not
@@ -1228,6 +1254,8 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
+      $id("us-profile-status").value = presentation.label;
+      $id("us-profile-status").dataset.profileTone = presentation.tone;
       const profileComplete = FS.profileComplete(me);
       $id("us-profile-attention").classList.toggle("hidden", profileComplete || !me.userId);
       $id("us-profile-summary").textContent = profileComplete
@@ -1258,14 +1286,9 @@
         : linkedCount > 0
           ? `${linkedCount}/3 other device${linkedCount === 1 ? " is" : "s are"} linked to this tab.`
           : "";
-      // the person is the headline; the brand lives in the page header
-      const identity = CLAIM
-        ? (CLAIM.displayName || me.displayName || "Guest")
-        : (me.displayName || "Guest");
-      $id("brand-title").textContent = identity;
-      $id("brand-subtitle").textContent = (CLAIM || hasTab)
-        ? "Private snack profile"
-        : "Visitor browsing";
+      // Keep the person's identity separate from the profile role.
+      $id("brand-title").textContent = presentation.name;
+      $id("brand-subtitle").textContent = presentation.label;
 
       // this device's own identity: vip icon once claimed or named,
       // grey silhouette for a brand-new anonymous guest

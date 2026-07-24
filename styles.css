@@ -2211,12 +2211,35 @@ textarea:focus {
 .profile-info-fields {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(170px, 0.65fr);
   margin-top: 18px;
 }
 
 .profile-display-field {
-  grid-column: 1 / -1;
+  grid-column: auto;
+}
+
+.profile-status-field input[readonly] {
+  cursor: default;
+  font-weight: 600;
+}
+
+.profile-status-field input[data-profile-tone="guest"] {
+  background: #edf6ee;
+  border-color: #afcbb5;
+  color: #245f35;
+}
+
+.profile-status-field input[data-profile-tone="vip"] {
+  background: #fbf4df;
+  border-color: #d9bf72;
+  color: #725313;
+}
+
+.profile-status-field input[data-profile-tone="admin"] {
+  background: #edf4fb;
+  border-color: #a8c4df;
+  color: #24577f;
 }
 
 .name-capture-fields {

@@ -241,9 +241,15 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
       const target = codeSnap.data().userId;
       if (target !== req.uid) {
         let displayName = null;
+        let vipStatus = "anonymous";
+        let profileSource = null;
         const u = await db().collection("users").doc(target).get();
-        if (u.exists) displayName = u.data().displayName || null;
-        claim = { code: tabCode, userId: target, displayName };
+        if (u.exists) {
+          displayName = u.data().displayName || null;
+          vipStatus = u.data().vipStatus || "anonymous";
+          profileSource = u.data().profileSource || null;
+        }
+        claim = { code: tabCode, userId: target, displayName, vipStatus, profileSource };
       }
     }
   }
