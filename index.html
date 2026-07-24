@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-visitor-account" />
+  <link rel="stylesheet" href="styles.css?v=20260724-mobile-tables" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -439,23 +439,23 @@
             <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
             <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
           </span>` : "";
-        rows.push(`<tr>
-          <td><span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span></td>
-          <td><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
-          <td class="num">${esc(e.count ?? "—")}</td>
-          <td class="num-money"><span class="mv">${FS.money(e.value, cur)}</span></td>
-          <td class="num-money">—</td>
-          <td class="verdict-cell">${verdict}</td>
+        rows.push(`<tr class="tracker-entry">
+          <td class="tracker-date" data-label="Date"><span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span></td>
+          <td class="tracker-snack" data-label="Snack"><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
+          <td class="num tracker-qty" data-label="Quantity">${esc(e.count ?? "—")}</td>
+          <td class="num-money tracker-value" data-label="Value"><span class="mv">${FS.money(e.value, cur)}</span></td>
+          <td class="num-money tracker-payment" data-label="Payment">—</td>
+          <td class="verdict-cell tracker-actions" data-label="Confirm or review">${verdict}</td>
         </tr>`);
       }
       for (const p of group.payments) {
-        rows.push(`<tr>
-          <td>${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
-          <td><span class="nv"><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></span></td>
-          <td class="num">—</td>
-          <td class="num-money">—</td>
-          <td class="num-money"><span class="mv">${FS.money(p.amount, cur)}</span></td>
-          <td></td>
+        rows.push(`<tr class="tracker-entry tracker-payment-entry">
+          <td class="tracker-date" data-label="Date">${p.date ? esc(FS.fmtDay(p.date)) : "—"}</td>
+          <td class="tracker-snack" data-label="Record"><span class="nv"><span class="snack-pill pay-pill">Payment${p.note ? " - " + esc(p.note) : ""}</span></span></td>
+          <td class="num tracker-qty" data-label="Quantity">—</td>
+          <td class="num-money tracker-value" data-label="Value">—</td>
+          <td class="num-money tracker-payment" data-label="Payment"><span class="mv">${FS.money(p.amount, cur)}</span></td>
+          <td class="tracker-actions"></td>
         </tr>`);
       }
       rows.push(`<tr class="month-line">
