@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-mobile-tables" />
+  <link rel="stylesheet" href="styles.css?v=20260724-mobile-basket" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -121,23 +121,28 @@
         <div class="basket-overlay" id="basket-overlay"></div>
         <aside class="bins-cart-col" id="basket-panel" aria-label="Your basket">
           <div class="bins-cart-sticky">
-            <div class="bins-cart-header"><span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket</span><button type="button" class="basket-panel-close" id="basket-panel-close" aria-label="Close basket">&times;</button></div>
-            <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
-              <div class="bins-cart-items" id="bins-cart-items">
-                <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+            <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="false" aria-controls="bins-cart-body">
+              <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
+              <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="bins-cart-body" id="bins-cart-body">
+              <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+                <div class="bins-cart-items" id="bins-cart-items">
+                  <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+                </div>
+                <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+                <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
               </div>
-              <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
-              <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
+              <div class="bins-cart-total">
+                <span>Total</span>
+                <span class="amount" id="bins-total">J$0</span>
+              </div>
+              <div class="bins-cart-actions">
+                <button id="bins-reset">Clear</button>
+                <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+              </div>
+              <div class="status" id="bins-status"></div>
             </div>
-            <div class="bins-cart-total">
-              <span>Total</span>
-              <span class="amount" id="bins-total">J$0</span>
-            </div>
-            <div class="bins-cart-actions">
-              <button id="bins-reset">Clear</button>
-              <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-            </div>
-            <div class="status" id="bins-status"></div>
           </div>
         </aside>
       </div>
@@ -808,9 +813,11 @@
       $id("bins-total").textContent = FS.money(binsTotal(data), cur);
       $id("bins-submit").disabled = binsTotal(data) === 0;
       $id("basket-notification-count").textContent = picked.size;
+      $id("mobile-basket-count").textContent = picked.size;
       $id("basket-notification").setAttribute("aria-label", `View basket, ${picked.size} different snack${picked.size === 1 ? "" : "s"} selected`);
       renderCartItems(data);
       saveBasketDraft();
+      if (!picked.size) setBasketPanelOpen(false);
     }
 
     function renderBinsGallery(data) {
@@ -963,7 +970,11 @@
       }
     });
 
-    $id("bins-reset").onclick = () => { picked.clear(); syncBinsGallery(LAST_DATA); };
+    $id("bins-reset").onclick = () => {
+      picked.clear();
+      syncBinsGallery(LAST_DATA);
+      setBasketPanelOpen(false);
+    };
 
     $id("bins-cart-items").addEventListener("scroll", updateCartFade);
 
@@ -1024,27 +1035,28 @@
       }
     });
 
-    $id("basket-notification").onclick = () => {
+    function setBasketPanelOpen(opening) {
       const panel = $id("basket-panel");
-      const opening = !panel.classList.contains("is-open");
       panel.classList.toggle("is-open", opening);
       $id("basket-overlay").classList.toggle("is-open", opening);
       $id("basket-notification").setAttribute("aria-expanded", String(opening));
-      if (opening) $id("basket-panel-close").focus();
+      $id("mobile-basket-toggle").setAttribute("aria-expanded", String(opening));
+    }
+
+    $id("mobile-basket-toggle").onclick = () => {
+      if (window.innerWidth > 900) return;
+      setBasketPanelOpen(!$id("basket-panel").classList.contains("is-open"));
     };
 
-    $id("basket-panel-close").onclick = () => {
-      $id("basket-panel").classList.remove("is-open");
-      $id("basket-overlay").classList.remove("is-open");
-      $id("basket-notification").setAttribute("aria-expanded", "false");
-      $id("basket-notification").focus();
-    };
+    $id("basket-notification").onclick = () => setBasketPanelOpen(
+      !$id("basket-panel").classList.contains("is-open")
+    );
 
-    $id("basket-overlay").onclick = () => $id("basket-panel-close").click();
+    $id("basket-overlay").onclick = () => setBasketPanelOpen(false);
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
-        $id("basket-panel-close").click();
+        setBasketPanelOpen(false);
       }
     });
 
@@ -1064,6 +1076,7 @@
       try {
         await FS.addTransaction(items);
         picked.clear();
+        setBasketPanelOpen(false);
         binsStatus(`Added ${summary} to your tab.`, true);
         const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
         LAST_DATA = await FS.loadData();

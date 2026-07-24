@@ -4101,7 +4101,10 @@ textarea:focus {
 
 .bins-cart-header {
   align-items: center;
+  background: transparent;
+  border: 0;
   border-bottom: 2px solid rgba(47, 122, 68, 0.18);
+  border-radius: 0;
   font-size: 18px;
   font-weight: 500;
   color: var(--green-dark);
@@ -4109,6 +4112,8 @@ textarea:focus {
   padding-bottom: 12px;
   display: flex;
   justify-content: space-between;
+  text-align: left;
+  width: 100%;
 }
 
 .bins-cart-header > span {
@@ -4136,6 +4141,15 @@ textarea:focus {
   height: 20px;
   margin-right: 7px;
   width: 20px;
+}
+
+.mobile-basket-count,
+.mobile-basket-chevron {
+  display: none;
+}
+
+.bins-cart-body {
+  min-width: 0;
 }
 
 /* The cart list scrolls, but a visible scrollbar felt heavy in this small
@@ -5304,10 +5318,69 @@ tr.disputed td {
   .bins-cart-sticky {
     position: static;
     transform: none;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 13px;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .bins-cart-header {
+    border-bottom: 0;
+    cursor: pointer;
+    margin: 0;
+    min-height: 54px;
+    padding: 12px 15px;
+  }
+
+  .mobile-basket-count {
+    align-items: center;
+    background: var(--green-dark);
+    border-radius: 999px;
+    color: #fff;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 600;
+    height: 24px;
+    justify-content: center;
+    margin-left: 9px;
+    min-width: 24px;
+    padding: 0 7px;
+  }
+
+  .mobile-basket-chevron {
+    display: block;
+    height: 22px;
+    transition: transform 180ms ease;
+    width: 22px;
+  }
+
+  .bins-cart-body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding: 0 15px;
+    pointer-events: none;
+    transition: max-height 260ms ease, opacity 180ms ease, padding 260ms ease;
+  }
+
+  .bins-cart-col.is-open .bins-cart-header {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .bins-cart-col.is-open .mobile-basket-chevron {
+    transform: rotate(180deg);
+  }
+
+  .bins-cart-col.is-open .bins-cart-body {
+    max-height: min(68vh, 560px);
+    opacity: 1;
+    overflow: visible;
+    padding: 14px 15px 16px;
+    pointer-events: auto;
   }
 
   .bins-cart-items {
-    max-height: 200px;
+    max-height: min(34vh, 260px);
   }
 
   .bin-photo {
