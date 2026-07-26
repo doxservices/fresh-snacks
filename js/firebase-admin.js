@@ -111,10 +111,11 @@ FS.admin.dateFromRecord = (record, field) => {
 
 FS.admin.maxDate = (a, b) => (String(a || "") > String(b || "") ? a : b);
 
-FS.admin.createLinkInvite = async (userId) => {
-  const { code } = await FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/link-invite`, { method: "POST" });
-  return code;
-};
+FS.admin.createLinkInvite = async (userId) =>
+  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/link-invite`, { method: "POST" });
+
+FS.admin.setLinkInviteActive = async (userId, active) =>
+  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/link-invite`, { method: "PATCH", body: { active } });
 
 FS.admin.getLinkedDevicesInfo = async (userId) =>
   FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/linked-devices`);
@@ -131,8 +132,11 @@ FS.admin.addAdjustment = async ({ userId, amount, reason }) => {
   await FS._apiFetch("/admin/adjustments", { method: "POST", body: { userId, amount, reason } });
 };
 
-FS.admin.resolveTransaction = async (id) => {
-  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/resolve`, { method: "POST" });
+// "Approve" (spec section 18) - admin accepts a disputed item back into the
+// workflow with no content changes. Use updateTransaction (Edit/Edit and
+// Resend) instead when the item itself needs to change.
+FS.admin.approveItem = async (id) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/approve-item`, { method: "POST" });
 };
 
 FS.admin.updateTransaction = async (id, { quantity, createdDate }) => {
@@ -146,8 +150,11 @@ FS.admin.mergeOrMoveTransaction = async (sourceId, targetId) =>
     method: "POST", body: { targetId },
   });
 
-FS.admin.voidTransaction = async (id) => {
-  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/void`, { method: "POST" });
+// "Cancel" - allowed while a listing is still pending confirmation, under
+// review, or confirmed-but-unpaid; blocked once payment is reported or the
+// transaction is finalized (see functions/src/lib/transactionStatus.js).
+FS.admin.cancelTransaction = async (id, reason) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/cancel`, { method: "POST", body: { reason } });
 };
 
 FS.admin.voidPayment = async (id) => {
@@ -164,10 +171,29 @@ FS.admin.recordPermanentPayment = async ({ userId, amount, note, createdDate }) 
 FS.admin.reconcilePayments = async () =>
   FS._apiFetch("/admin/payments/reconcile", { method: "POST" });
 
-FS.admin.setTransactionReviewStatus = async (id, reviewStatus) => {
-  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/review-status`, {
-    method: "PATCH", body: { reviewStatus },
-  });
+// Admin directly records a confirmed-unpaid listing as paid (e.g. cash
+// handed over on the spot) - finalizes immediately.
+FS.admin.markTransactionPaid = async (id) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/mark-paid`, { method: "POST" });
+};
+
+// Admin accepts a user-reported payment as legitimate - finalizes the
+// transaction, whether it was still PAYMENT_PENDING_ADMIN_CONFIRMATION or
+// already PAYMENT_UNDER_REVIEW.
+FS.admin.confirmPayment = async (id) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/confirm-payment`, { method: "POST" });
+};
+
+// Admin puts a user-reported payment under active scrutiny instead of
+// accepting it outright.
+FS.admin.reviewPayment = async (id, reason) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/review-payment`, { method: "POST", body: { reason } });
+};
+
+// Admin rejects a claimed payment under review - the transaction returns
+// to CONFIRMED_UNPAID rather than being finalized.
+FS.admin.rejectPaymentClaim = async (id, reason) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/reject-payment`, { method: "POST", body: { reason } });
 };
 
 FS.admin.deleteTransaction = async (id) => {

@@ -2274,6 +2274,17 @@ textarea:focus {
   gap: 12px;
 }
 
+/* Red asterisk follows the input's live `required` state rather than a
+   hand-toggled span - required/not-required flips in JS (self opening a
+   tab vs. an invitee joining someone else's already-accountable tab just
+   editing shared profile fields), and the mark should always match it
+   without a second place to keep in sync. */
+.name-capture-fields .field label:has(+ input:required)::after,
+.profile-info-fields .field label:has(+ input:required)::after {
+  content: " *";
+  color: #b3261e;
+}
+
 .ncm-section {
   margin-top: 18px;
   padding-top: 14px;
@@ -2727,6 +2738,21 @@ textarea:focus {
   max-width: 15px;
   max-height: 15px;
   flex-shrink: 0;
+}
+
+.invite-state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.invite-state-row .invite-state-label.deactivated {
+  color: #8a2f2f;
+  font-weight: 600;
 }
 
 /* diagnostic-only: add ?debug=1 to the URL to outline every overlay
@@ -4851,6 +4877,20 @@ textarea:focus {
   margin-bottom: 10px;
 }
 
+.drawer-section-label {
+  padding: 14px 14px 4px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.drawer-section-label:first-of-type {
+  padding-top: 2px;
+}
+
 .drawer-link {
   display: block;
   width: 100%;
@@ -5663,6 +5703,33 @@ tr.disputed td {
   border-color: #b8d1bf;
   background: #edf6ef;
   color: #28613a;
+}
+
+.mark-paid-btn {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mark-paid-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+.mark-paid-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 .entry-date-final {

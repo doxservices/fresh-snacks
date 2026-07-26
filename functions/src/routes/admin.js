@@ -6,8 +6,13 @@ const admin = require("firebase-admin");
 const { requireAuth, requireAdmin, asyncRoute } = require("../middleware");
 const {
   uid: genId, todayISO, dateFromRecord, accounting, paymentAllocationPlan,
-  binTemplates, seasonalSnackIds, templateBinItems, randomCode,
+  binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean,
 } = require("../lib/shared");
+const {
+  STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus,
+  availableActions: resolveAvailableActions,
+} = require("../lib/transactionStatus");
+const { buildTransactionEvent } = require("../lib/transactionEvents");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -44,9 +49,14 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
   ]);
   const settingsData = settings.exists ? settings.data() : {};
   const snacks = snacksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const activeTransactions = transactions.filter((x) => x.status !== "void");
-  const balanceTransactions = activeTransactions.filter((x) =>
-    x.userStatus !== "disputed" || x.reviewStatus === "paid");
+  // Every admin page renders its row actions from this - the same
+  // server-computed availableActions() the customer side gets via toEntry(),
+  // just for ROLE.ADMIN, so "what buttons show for this status" only ever
+  // has one implementation to keep in sync.
+  const activeTransactions = transactions.filter((x) => x.status !== "void").map((t) => {
+    const workflowStatus = deriveWorkflowStatus(t);
+    return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
+  });
   const activePayments = payments.filter((x) => x.status !== "void");
   const activeAdjustments = adjustments.filter((x) => x.status !== "void");
   res.json({
@@ -62,7 +72,7 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
     payments: activePayments,
     adjustments: activeAdjustments,
     feedback: feedback.sort((a, b) => dateFromRecord(b, "createdAt").localeCompare(dateFromRecord(a, "createdAt"))),
-    accounting: accounting(users, devices, balanceTransactions, activePayments, activeAdjustments),
+    accounting: accounting(users, devices, activeTransactions, activePayments, activeAdjustments),
   });
 }));
 
@@ -82,7 +92,7 @@ router.post("/users/:userId/link-invite", asyncRoute(async (req, res) => {
   const existing = userSnap.exists ? userSnap.data().linkInviteCode : null;
   if (existing) {
     const codeSnap = await db().collection("codes").doc(existing).get();
-    if (codeSnap.exists && codeSnap.data().active !== false) { res.json({ code: existing }); return; }
+    if (codeSnap.exists && codeSnap.data().active !== false) { res.json({ code: existing, active: true }); return; }
   }
   let code;
   for (let i = 0; i < 6; i++) {
@@ -96,7 +106,30 @@ router.post("/users/:userId/link-invite", asyncRoute(async (req, res) => {
     createdBy: req.uid, createdAt: FieldValue.serverTimestamp(),
   });
   await userRef.set({ linkInviteCode: code }, { merge: true });
-  res.json({ code });
+  res.json({ code, active: true });
+}));
+
+/* Flips the *existing* invite code active/inactive without replacing it -
+ * lets an admin temporarily shut off joining (or re-open the same link
+ * later) instead of only ever being able to mint a brand new code. An
+ * inactive code immediately blocks new claims (POST /link/accept,
+ * /link/session both check codes.active) and cuts off any device only
+ * holding a view/session claim through it (see authz.js's hasClaimOn) - a
+ * fully linked device is unaffected here; that needs the per-device
+ * Unlink control instead. */
+router.patch("/users/:userId/link-invite", asyncRoute(async (req, res) => {
+  const { userId } = req.params;
+  const active = req.body.active !== false;
+  const userSnap = await db().collection("users").doc(userId).get();
+  const code = userSnap.exists ? userSnap.data().linkInviteCode : null;
+  if (!code) throw bad("No invite link exists yet for this tab. Generate one first.", 404);
+  await db().collection("codes").doc(code).set({
+    active,
+    ...(active
+      ? { reactivatedBy: req.uid, reactivatedAt: FieldValue.serverTimestamp() }
+      : { deactivatedBy: req.uid, deactivatedAt: FieldValue.serverTimestamp() }),
+  }, { merge: true });
+  res.json({ code, active });
 }));
 
 router.get("/users/:userId/linked-devices", asyncRoute(async (req, res) => {
@@ -178,6 +211,17 @@ router.delete("/users/:userId/linked-devices/:deviceUid", asyncRoute(async (req,
   await db().collection("users").doc(req.params.userId).update({
     linkedUids: FieldValue.arrayRemove(req.params.deviceUid),
   });
+  // Removing membership alone doesn't revoke access - canAccessTab() grants
+  // it from an active claims doc before it ever checks linkedUids. The
+  // claim must be deactivated too, or the "unlinked" device keeps full
+  // read/write access to this tab indefinitely (mirrors the deactivation
+  // POST /store/link/unlink already does for a customer's own self-unlink).
+  await db().collection("claims").doc(req.params.deviceUid).set({
+    active: false,
+    unlinkedFrom: req.params.userId,
+    unlinkedBy: req.uid,
+    unlinkedAt: FieldValue.serverTimestamp(),
+  }, { merge: true }).catch(() => {});
   res.json({ ok: true });
 }));
 
@@ -203,42 +247,93 @@ router.post("/adjustments", asyncRoute(async (req, res) => {
   res.json({ adjustmentId });
 }));
 
-router.post("/transactions/:id/resolve", asyncRoute(async (req, res) => {
-  await db().collection("transactions").doc(req.params.id).update({
-    userStatus: FieldValue.delete(),
-    userStatusAt: FieldValue.delete(),
-    resolvedBy: req.uid,
-    resolvedAt: FieldValue.serverTimestamp(),
+/* "Approve" (spec section 18): admin accepts a disputed item back into the
+ * workflow with no content changes. Use PATCH /transactions/:id (Edit and
+ * Resend) instead when the item itself needs to change - that always
+ * routes back through the user for a fresh confirmation. */
+router.post("/transactions/:id/approve-item", asyncRoute(async (req, res) => {
+  const ref = db().collection("transactions").doc(req.params.id);
+  await db().runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw bad("Transaction not found.", 404);
+    const current = deriveWorkflowStatus(snap.data());
+    const next = assertTransition(current, ROLE.ADMIN, ACTION.APPROVE_ITEM);
+    transaction.update(ref, {
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      itemReviewedAt: FieldValue.delete(),
+      itemReviewedBy: FieldValue.delete(),
+      itemReviewReason: FieldValue.delete(),
+      resolvedBy: req.uid,
+      resolvedAt: FieldValue.serverTimestamp(),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: req.params.id,
+      eventType: EVENT_TYPE.ITEM_APPROVED_BY_ADMIN,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: req.uid,
+      actorRole: ROLE.ADMIN,
+    });
+    transaction.set(event.ref, event.data);
   });
   res.json({ ok: true });
 }));
 
+/* Covers both spec actions "Edit" (PENDING_USER_CONFIRMATION -> itself) and
+ * "Edit and Resend" (ITEM_UNDER_REVIEW -> PENDING_USER_CONFIRMATION) - both
+ * land on PENDING_USER_CONFIRMATION, and per product decision an edit to an
+ * already-CONFIRMED_UNPAID listing resets it there too, since the user only
+ * ever owes what they actually confirmed. Any prior confirmation/review is
+ * cleared because the transaction has changed and needs a fresh look. */
 router.patch("/transactions/:id", asyncRoute(async (req, res) => {
   const { quantity, createdDate } = req.body;
   const qty = Math.floor(Number(quantity));
   if (!Number.isFinite(qty) || qty < 1) throw bad("Quantity must be at least one.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(createdDate || "")) throw bad("Choose a valid date.");
   const transactionRef = db().collection("transactions").doc(req.params.id);
-  const transactionSnap = await transactionRef.get();
-  if (!transactionSnap.exists) throw bad("Transaction not found.", 404);
-  const transaction = transactionSnap.data();
-  if (transaction.reviewStatus === "paid") throw bad("Paid transactions are permanent and cannot be changed.");
-  const snackSnap = await db().collection("snacks").doc(transaction.snackId).get();
-  if (!snackSnap.exists || snackSnap.data().active === false) throw bad("This snack is no longer available in the catalogue.");
-  const snack = snackSnap.data();
-  const unitPrice = Number(snack.price || 0);
-  if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw bad("This catalogue item does not have a valid price.");
-  await transactionRef.update({
-    quantity: qty,
-    unitPrice,
-    total: unitPrice * qty,
-    snackName: snack.name || transaction.snackName,
-    calories: snack.calories ?? null,
-    createdDate,
-    userStatus: FieldValue.delete(),
-    userStatusAt: FieldValue.delete(),
-    editedBy: req.uid,
-    editedAt: FieldValue.serverTimestamp(),
+  await db().runTransaction(async (transaction) => {
+    const transactionSnap = await transaction.get(transactionRef);
+    if (!transactionSnap.exists) throw bad("Transaction not found.", 404);
+    const record = transactionSnap.data();
+    const current = deriveWorkflowStatus(record);
+    if (current !== STATUS.PENDING_USER_CONFIRMATION && current !== STATUS.ITEM_UNDER_REVIEW && current !== STATUS.CONFIRMED_UNPAID) {
+      throw bad("This transaction can no longer be edited.", 409);
+    }
+    const action = current === STATUS.ITEM_UNDER_REVIEW ? ACTION.EDIT_AND_RESEND : ACTION.EDIT;
+    const next = assertTransition(current, ROLE.ADMIN, action);
+    const snackSnap = await transaction.get(db().collection("snacks").doc(record.snackId));
+    if (!snackSnap.exists || snackSnap.data().active === false) throw bad("This snack is no longer available in the catalogue.");
+    const snack = snackSnap.data();
+    const unitPrice = Number(snack.price || 0);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) throw bad("This catalogue item does not have a valid price.");
+    transaction.update(transactionRef, {
+      quantity: qty,
+      unitPrice,
+      total: unitPrice * qty,
+      snackName: snack.name || record.snackName,
+      calories: snack.calories ?? null,
+      createdDate,
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      userConfirmedAt: FieldValue.delete(),
+      userConfirmedBy: FieldValue.delete(),
+      itemReviewedAt: FieldValue.delete(),
+      itemReviewedBy: FieldValue.delete(),
+      itemReviewReason: FieldValue.delete(),
+      editedBy: req.uid,
+      editedAt: FieldValue.serverTimestamp(),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: req.params.id,
+      eventType: EVENT_TYPE.ITEM_EDITED_BY_ADMIN,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: req.uid,
+      actorRole: ROLE.ADMIN,
+      payload: { quantity: qty, createdDate, total: unitPrice * qty },
+    });
+    transaction.set(event.ref, event.data);
   });
   res.json({ ok: true });
 }));
@@ -262,8 +357,8 @@ router.post("/transactions/:id/merge-or-move", asyncRoute(async (req, res) => {
     if ((source.userId || source.uid) !== (target.userId || target.uid)) {
       throw bad("Listings can only be moved within the same customer tab.");
     }
-    if ((source.reviewStatus || "neutral") !== "neutral" || (target.reviewStatus || "neutral") !== "neutral") {
-      throw bad("Only unapproved listings can be moved or combined.");
+    if (deriveWorkflowStatus(source) !== STATUS.PENDING_USER_CONFIRMATION || deriveWorkflowStatus(target) !== STATUS.PENDING_USER_CONFIRMATION) {
+      throw bad("Only listings still awaiting the customer's confirmation can be moved or combined.");
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(target.createdDate || "")) throw bad("The destination listing needs a valid date.");
 
@@ -297,9 +392,38 @@ router.post("/transactions/:id/merge-or-move", asyncRoute(async (req, res) => {
   res.json(result);
 }));
 
-router.post("/transactions/:id/void", asyncRoute(async (req, res) => {
-  await db().collection("transactions").doc(req.params.id).update({
-    status: "void", voidedBy: req.uid, voidedAt: FieldValue.serverTimestamp(),
+/* "Cancel" (spec section 6/8) - allowed from any pre-payment status. Also
+ * sets the legacy `status: "void"` soft-delete marker so every existing
+ * `.where("status", "==", "active")` query keeps excluding it with no
+ * changes needed there; CANCELLED is the workflow-level record of *why*. */
+router.post("/transactions/:id/cancel", asyncRoute(async (req, res) => {
+  const ref = db().collection("transactions").doc(req.params.id);
+  const reason = clean(req.body.reason);
+  await db().runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw bad("Transaction not found.", 404);
+    const current = deriveWorkflowStatus(snap.data());
+    const next = assertTransition(current, ROLE.ADMIN, ACTION.CANCEL);
+    transaction.update(ref, {
+      status: "void",
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      cancelledAt: FieldValue.serverTimestamp(),
+      cancelledBy: req.uid,
+      cancellationReason: reason,
+      voidedBy: req.uid,
+      voidedAt: FieldValue.serverTimestamp(),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: req.params.id,
+      eventType: EVENT_TYPE.ITEM_CANCELLED,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: req.uid,
+      actorRole: ROLE.ADMIN,
+      payload: { reason },
+    });
+    transaction.set(event.ref, event.data);
   });
   res.json({ ok: true });
 }));
@@ -316,15 +440,21 @@ router.delete("/payments/:id", asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-async function allocateApprovedTransactions(userId, uid) {
+/* Runs the oldest-first settlement plan against every payment on file for
+ * this customer, and finalizes whatever it covers. A transaction already
+ * CONFIRMED_UNPAID settles via the admin's own Mark as Paid; one already
+ * PAYMENT_PENDING_ADMIN_CONFIRMATION (the user reported paying) settles via
+ * Confirm Payment instead - either way the destination is PAID_FINALIZED,
+ * so the same pass safely covers both without needing to know which path
+ * a given payment actually arrived through. */
+async function allocateApprovedTransactions(userId, adminUid) {
   const [transactionSnap, paymentSnap] = await Promise.all([
     db().collection("transactions").where("userId", "==", userId).get(),
     db().collection("payments").where("userId", "==", userId).get(),
   ]);
   const transactions = transactionSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((record) => record.status !== "void"
-      && (record.userStatus !== "disputed" || record.reviewStatus === "paid"));
+    .filter((record) => record.status !== "void");
   const payments = paymentSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
@@ -333,47 +463,32 @@ async function allocateApprovedTransactions(userId, uid) {
   const byId = new Map(transactions.map((record) => [record.id, record]));
   const batch = db().batch();
   const now = FieldValue.serverTimestamp();
-  const finalizedRepairIds = transactions
-    .filter((record) => record.reviewStatus === "paid"
-      && (!record.approvedAt
-        || Object.hasOwn(record, "userStatus")
-        || Object.hasOwn(record, "userStatusAt")))
-    .map((record) => record.id);
-  const approvedBackfillIds = [];
-  const customerStatusCleanupIds = [];
-  for (const id of finalizedRepairIds) {
-    const record = byId.get(id);
-    const payload = {
-      userStatus: FieldValue.delete(),
-      userStatusAt: FieldValue.delete(),
-    };
-    if (!record.approvedAt) {
-      payload.approvedAt = record.paidAt || now;
-      payload.approvedBy = record.paidBy || uid;
-      approvedBackfillIds.push(id);
-    }
-    if (Object.hasOwn(record, "userStatus") || Object.hasOwn(record, "userStatusAt")) {
-      customerStatusCleanupIds.push(id);
-    }
-    batch.update(db().collection("transactions").doc(id), payload);
-  }
   for (const id of plan.settledIds) {
-    const record = byId.get(id);
-    const payload = {
-      reviewStatus: "paid",
-      paidAt: now,
-      paidBy: uid,
-      userStatus: FieldValue.delete(),
-      userStatusAt: FieldValue.delete(),
-    };
-    if (record && record.reviewStatus !== "approved") {
-      payload.approvedAt = now;
-      payload.approvedBy = uid;
-    }
-    batch.update(db().collection("transactions").doc(id), payload);
+    const current = deriveWorkflowStatus(byId.get(id));
+    const action = current === STATUS.CONFIRMED_UNPAID ? ACTION.MARK_AS_PAID : ACTION.CONFIRM_PAYMENT;
+    const next = assertTransition(current, ROLE.ADMIN, action);
+    batch.update(db().collection("transactions").doc(id), {
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      finalizedAt: now,
+      paymentConfirmedAt: now,
+      paymentConfirmedByAdminId: adminUid,
+      ...(action === ACTION.MARK_AS_PAID
+        ? { paymentMarkedAt: now, paymentMarkedBy: adminUid, paymentMarkedByRole: ROLE.ADMIN }
+        : {}),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: id,
+      eventType: action === ACTION.MARK_AS_PAID ? EVENT_TYPE.PAYMENT_MARKED_BY_ADMIN : EVENT_TYPE.PAYMENT_CONFIRMED_BY_ADMIN,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: adminUid,
+      actorRole: ROLE.ADMIN,
+    });
+    batch.set(event.ref, event.data);
   }
-  if (plan.settledIds.length || finalizedRepairIds.length) await batch.commit();
-  return { ...plan, approvedBackfillIds, customerStatusCleanupIds };
+  if (plan.settledIds.length) await batch.commit();
+  return plan;
 }
 
 router.post("/payments/reconcile", asyncRoute(async (req, res) => {
@@ -385,17 +500,12 @@ router.post("/payments/reconcile", asyncRoute(async (req, res) => {
   const results = [];
   for (const userId of userIds) {
     const plan = await allocateApprovedTransactions(userId, req.uid);
-    if (plan.settledIds.length
-      || plan.approvedBackfillIds.length
-      || plan.customerStatusCleanupIds.length) results.push({ userId, ...plan });
+    if (plan.settledIds.length) results.push({ userId, ...plan });
   }
   res.json({
     checkedUsers: userIds.length,
     reconciledUsers: results.length,
     settledCount: results.reduce((sum, result) => sum + result.settledIds.length, 0),
-    approvalBackfillCount: results.reduce((sum, result) => sum + result.approvedBackfillIds.length, 0),
-    customerStatusCleanupCount: results.reduce((sum, result) =>
-      sum + result.customerStatusCleanupIds.length, 0),
     results,
   });
 }));
@@ -416,27 +526,116 @@ router.post("/payments/permanent", asyncRoute(async (req, res) => {
   res.json({ paymentId, ...allocation });
 }));
 
-router.patch("/transactions/:id/review-status", asyncRoute(async (req, res) => {
+/* Shared body for the four admin-side payment-pipeline actions (mark-paid,
+ * confirm-payment, review-payment, reject-payment) - same shape as
+ * store.js's applyUserAction, just for the ADMIN role. `extraWrites` lets a
+ * caller add more writes to the SAME Firestore transaction (used to create
+ * the actual `payments` doc a finalization needs - see the comment on
+ * mark-paid/confirm-payment below for why that's required, not optional). */
+async function applyAdminAction(req, res, { action, eventType, extraFields = () => ({}), extraWrites = () => {} }) {
   const { id } = req.params;
-  const { reviewStatus } = req.body;
-  if (!["neutral", "approved"].includes(reviewStatus)) throw bad("Choose a valid transaction status.");
   const ref = db().collection("transactions").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) throw bad("Transaction not found.", 404);
-  const record = snap.data();
-  if (record.reviewStatus === "paid") throw bad("Paid transactions are permanent and cannot be changed.");
-  const payload = reviewStatus === "neutral"
-    ? { reviewStatus: FieldValue.delete(), approvedAt: FieldValue.delete(), approvedBy: FieldValue.delete() }
-    : {
-        reviewStatus: "approved",
-        userStatus: FieldValue.delete(),
-        userStatusAt: FieldValue.delete(),
-        approvedAt: FieldValue.serverTimestamp(),
-        approvedBy: req.uid,
-      };
-  await ref.update(payload);
-  if (reviewStatus === "approved") await allocateApprovedTransactions(record.userId || record.uid, req.uid);
+  await db().runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw bad("Transaction not found.", 404);
+    const record = snap.data();
+    const current = deriveWorkflowStatus(record);
+    const next = assertTransition(current, ROLE.ADMIN, action);
+    transaction.update(ref, {
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      ...extraFields(next),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: id,
+      eventType,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: req.uid,
+      actorRole: ROLE.ADMIN,
+    });
+    transaction.set(event.ref, event.data);
+    extraWrites(transaction, record);
+  });
   res.json({ ok: true });
+}
+
+/* Finalizing a transaction only means something for the customer's overall
+ * balance if a matching `payments` doc exists too - accounting()/balance
+ * math nets snackTotal against the separate payments collection, not
+ * against which transactions happen to be flagged paid, so confirming or
+ * directly marking one paid without also recording its payment would leave
+ * it displaying "Paid" while still counting against the customer's balance. */
+function settlementPaymentWrite(transaction, record, { userId, uid, source }) {
+  const paymentId = genId("fs_pay");
+  transaction.set(db().collection("payments").doc(paymentId), {
+    paymentId, userId, amount: Number(record.total || 0), note: `Settles ${record.snackName || record.snackId || "a snack purchase"}`,
+    source, settlesTransactionId: record.transactionId || null,
+    createdBy: uid, createdAt: FieldValue.serverTimestamp(), createdDate: todayISO(), status: "active",
+  });
+}
+
+// Admin directly records a confirmed-unpaid listing as paid (e.g. cash
+// handed over on the spot) - finalizes immediately, no separate customer
+// confirmation of the payment is needed since the admin observed it.
+router.post("/transactions/:id/mark-paid", asyncRoute(async (req, res) => {
+  const now = FieldValue.serverTimestamp();
+  await applyAdminAction(req, res, {
+    action: ACTION.MARK_AS_PAID,
+    eventType: EVENT_TYPE.PAYMENT_MARKED_BY_ADMIN,
+    extraFields: () => ({
+      paymentMarkedAt: now, paymentMarkedBy: req.uid, paymentMarkedByRole: ROLE.ADMIN,
+      paymentConfirmedAt: now, paymentConfirmedByAdminId: req.uid,
+      finalizedAt: now,
+    }),
+    extraWrites: (transaction, record) => settlementPaymentWrite(transaction, record, {
+      userId: record.userId || record.uid, uid: req.uid, source: "admin",
+    }),
+  });
+}));
+
+router.post("/transactions/:id/confirm-payment", asyncRoute(async (req, res) => {
+  const now = FieldValue.serverTimestamp();
+  await applyAdminAction(req, res, {
+    action: ACTION.CONFIRM_PAYMENT,
+    eventType: EVENT_TYPE.PAYMENT_CONFIRMED_BY_ADMIN,
+    extraFields: () => ({ paymentConfirmedAt: now, paymentConfirmedByAdminId: req.uid, finalizedAt: now }),
+    extraWrites: (transaction, record) => settlementPaymentWrite(transaction, record, {
+      userId: record.userId || record.uid, uid: req.uid, source: "customer-reported",
+    }),
+  });
+}));
+
+router.post("/transactions/:id/review-payment", asyncRoute(async (req, res) => {
+  const reason = clean(req.body.reason);
+  await applyAdminAction(req, res, {
+    action: ACTION.REVIEW_PAYMENT,
+    eventType: EVENT_TYPE.PAYMENT_REVIEW_REQUESTED_BY_ADMIN,
+    extraFields: () => ({
+      paymentReviewedAt: FieldValue.serverTimestamp(),
+      paymentReviewedByAdminId: req.uid,
+      paymentReviewReason: reason,
+    }),
+  });
+}));
+
+router.post("/transactions/:id/reject-payment", asyncRoute(async (req, res) => {
+  const reason = clean(req.body.reason);
+  await applyAdminAction(req, res, {
+    action: ACTION.REJECT_PAYMENT_CLAIM,
+    eventType: EVENT_TYPE.PAYMENT_CLAIM_REJECTED_BY_ADMIN,
+    extraFields: () => ({
+      paymentReviewedAt: FieldValue.delete(),
+      paymentReviewedByAdminId: FieldValue.delete(),
+      paymentReviewReason: FieldValue.delete(),
+      paymentMarkedAt: FieldValue.delete(),
+      paymentMarkedBy: FieldValue.delete(),
+      paymentMarkedByRole: FieldValue.delete(),
+      paymentClaimRejectedAt: FieldValue.serverTimestamp(),
+      paymentClaimRejectedBy: req.uid,
+      paymentClaimRejectReason: reason,
+    }),
+  });
 }));
 
 router.delete("/transactions/:id", asyncRoute(async (req, res) => {
@@ -459,7 +658,12 @@ router.delete("/users/:userId/data", asyncRoute(async (req, res) => {
 
 router.get("/users/:userId/transaction-history", asyncRoute(async (req, res) => {
   const snap = await db().collection("transactions").where("uid", "==", req.params.userId).get();
-  res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((t) => t.status !== "void"));
+  res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((t) => t.status !== "void")
+    .map((t) => {
+      const workflowStatus = deriveWorkflowStatus(t);
+      return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
+    }));
 }));
 
 router.get("/users/:userId/adjustments", asyncRoute(async (req, res) => {
@@ -951,8 +1155,21 @@ router.post("/users/:userId/transactions", asyncRoute(async (req, res) => {
         total: unitPrice * quantity,
         calories: snack.calories ?? null,
         source: "admin", createdAt: now, createdDate: today, status: "active",
+        createdByRole: ROLE.ADMIN,
+        workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
+        version: 1,
       };
       batch.set(db().collection("transactions").doc(transactionId), record);
+      const event = buildTransactionEvent(db(), {
+        transactionId,
+        eventType: EVENT_TYPE.TRANSACTION_CREATED_BY_ADMIN,
+        fromStatus: null,
+        toStatus: STATUS.PENDING_USER_CONFIRMATION,
+        actorUserId: req.uid,
+        actorRole: ROLE.ADMIN,
+        payload: { snackId: item.snackId, quantity, total: record.total },
+      });
+      batch.set(event.ref, event.data);
       saved.push(record);
     }
   }

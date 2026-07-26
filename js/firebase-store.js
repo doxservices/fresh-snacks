@@ -419,6 +419,15 @@ FS.acceptLinkInvite = async () => {
   return result;
 };
 
+// Self-service invite for adding one more device to *this* tab - works for
+// the tab's own primary device, a fully linked device, or a session member,
+// since all three already have full access via resolveEffectiveUid() on the
+// API side. Reuses the same code every call as long as it's still active.
+FS.getOrCreateLinkInvite = async () => {
+  await FS.signInAnonymous();
+  return FS._apiFetch("/store/link/invite", { method: "POST" });
+};
+
 FS.loginWithInvite = async (code = FS.getRememberedInviteCode()) => {
   const invite = String(code || "").trim().toUpperCase();
   if (!invite) throw new Error("No saved invite was found on this browser.");
@@ -564,7 +573,7 @@ FS.entryName = (data, entry) => {
 FS.favoriteSnack = (data) => {
   const totals = new Map();
   for (const entry of data.entries || []) {
-    if (!entry || entry.userStatus === "disputed") continue;
+    if (!entry || entry.workflowStatus === "ITEM_UNDER_REVIEW") continue;
     const name = FS.entryName(data, entry);
     const key = entry.snackId || `name:${String(name).trim().toLowerCase()}`;
     const current = totals.get(key) || {
@@ -602,26 +611,36 @@ FS.getOwnPayments = async () => {
   return FS.getUserPayments(eff.effectiveUid);
 };
 
-FS.toEntry = (t) => {
-  const reviewStatus = t.reviewStatus || "neutral";
-  return {
-    id: t.transactionId || t.id,
-    date: t.createdDate || null,
-    snackId: t.snackId || null,
-    label: t.snackName || t.label || null,
-    count: Number(t.quantity || t.count || 1),
-    value: Number(t.total || t.value || 0),
-    source: t.source || "self",
-    userStatus: t.userStatus || null,
-    reviewStatus,
-  };
+// Section 15's user action resolver, ported client-side purely so the UI
+// can decide what to render without waiting on a round trip - the server's
+// own toEntry() (functions/src/lib/shared.js) computes the authoritative
+// `availableActions` on every entry already, so this only matters for
+// optimistic local updates between reloads.
+FS.workflowStatus = Object.freeze({
+  PENDING_USER_CONFIRMATION: "PENDING_USER_CONFIRMATION",
+  ITEM_UNDER_REVIEW: "ITEM_UNDER_REVIEW",
+  CONFIRMED_UNPAID: "CONFIRMED_UNPAID",
+  PAYMENT_PENDING_ADMIN_CONFIRMATION: "PAYMENT_PENDING_ADMIN_CONFIRMATION",
+  PAYMENT_UNDER_REVIEW: "PAYMENT_UNDER_REVIEW",
+  PAID_FINALIZED: "PAID_FINALIZED",
+  CANCELLED: "CANCELLED",
+});
+
+FS.confirmItem = async (transactionId) => {
+  await FS.signInAnonymous();
+  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/confirm-item`, { method: "POST" });
 };
 
-FS.setEntryStatus = async (transactionId, verdict) => {
+FS.reviewItem = async (transactionId, { reason, note } = {}) => {
   await FS.signInAnonymous();
-  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/status`, {
-    method: "PATCH", body: { verdict },
+  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/review-item`, {
+    method: "POST", body: { reviewReason: reason, note },
   });
+};
+
+FS.markPaid = async (transactionId) => {
+  await FS.signInAnonymous();
+  await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/mark-paid`, { method: "POST" });
 };
 
 FS.setEntryDate = async (transactionId, createdDate) => {

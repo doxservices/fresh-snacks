@@ -10,6 +10,8 @@ const {
   uid: genId, todayISO, withBundledSnackArtwork, compareSnackOrder,
   bundledSnackArtwork, toEntry, toPayment, clean, randomCode,
 } = require("../lib/shared");
+const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus } = require("../lib/transactionStatus");
+const { buildTransactionEvent } = require("../lib/transactionEvents");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -275,8 +277,10 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     pays = pays.concat(claimed.payments.map(toPayment));
   }
 
-  entries = entries.filter((entry) =>
-    entry.userStatus !== "disputed" || entry.reviewStatus === "paid");
+  // An item under review stays visible with its own status message rather
+  // than disappearing from the customer's own log - it's still their
+  // transaction, just paused pending an admin's Approve/Edit and Resend/
+  // Cancel decision (see ITEM_UNDER_REVIEW in js/firebase-store.js).
   const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
   res.json({
     profile,
@@ -377,40 +381,104 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
       createdAt: now,
       createdDate: today,
       status: "active",
-      reviewStatus: "approved",
-      approvedAt: now,
+      createdByRole: ROLE.USER,
+      workflowStatus: STATUS.CONFIRMED_UNPAID,
+      userConfirmedAt: now,
+      userConfirmedBy: req.uid,
+      version: 1,
     };
     batch.set(db().collection("transactions").doc(transactionId), record);
+    const event = buildTransactionEvent(db(), {
+      transactionId,
+      eventType: EVENT_TYPE.TRANSACTION_CREATED_BY_USER,
+      fromStatus: null,
+      toStatus: STATUS.CONFIRMED_UNPAID,
+      actorUserId: req.uid,
+      actorRole: ROLE.USER,
+      payload: { autoConfirmed: true, snackId: snack.id, quantity, total: record.total },
+    });
+    batch.set(event.ref, event.data);
     saved.push(record);
   }
   await batch.commit();
   res.json(saved);
 }));
 
-router.patch("/transactions/:id/status", requireAuth, asyncRoute(async (req, res) => {
+/* Shared body for the three user-side workflow actions (confirm/review/
+ * mark-paid): load, authorize, validate the transition, apply it, log the
+ * event - all inside one Firestore transaction so a concurrent admin edit
+ * or a second tab of the same action can't race past the status check. */
+async function applyUserAction(req, res, { action, eventType, extraPayload = {}, extraFields = () => ({}) }) {
   const { id } = req.params;
-  const verdict = req.body.verdict || null;
-  if (verdict && !["agreed", "disputed"].includes(verdict)) {
-    throw Object.assign(new Error("Choose a valid verdict."), { status: 400 });
-  }
   const ref = db().collection("transactions").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) throw Object.assign(new Error("Transaction not found."), { status: 404 });
-  const record = snap.data();
-  if (!(await canAccessTab(req.uid, record.userId))) {
-    throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
-  }
-  if (record.reviewStatus === "paid") {
-    throw Object.assign(new Error("This transaction is approved, paid, and final."), { status: 409 });
-  }
-  if (record.userStatus === "agreed") {
-    throw Object.assign(new Error("You already confirmed this transaction."), { status: 409 });
-  }
-  const payload = verdict
-    ? { userStatus: verdict, userStatusAt: FieldValue.serverTimestamp() }
-    : { userStatus: FieldValue.delete(), userStatusAt: FieldValue.delete() };
-  await ref.update(payload);
+  await db().runTransaction(async (transaction) => {
+    const snap = await transaction.get(ref);
+    if (!snap.exists) throw Object.assign(new Error("Transaction not found."), { status: 404 });
+    const record = snap.data();
+    if (!(await canAccessTab(req.uid, record.userId))) {
+      throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
+    }
+    const current = deriveWorkflowStatus(record);
+    const next = assertTransition(current, ROLE.USER, action);
+    transaction.update(ref, {
+      workflowStatus: next,
+      version: FieldValue.increment(1),
+      ...extraFields(next),
+    });
+    const event = buildTransactionEvent(db(), {
+      transactionId: id,
+      eventType,
+      fromStatus: current,
+      toStatus: next,
+      actorUserId: req.uid,
+      actorRole: ROLE.USER,
+      payload: extraPayload,
+    });
+    transaction.set(event.ref, event.data);
+  });
   res.json({ ok: true });
+}
+
+router.post("/transactions/:id/confirm-item", requireAuth, asyncRoute(async (req, res) => {
+  await applyUserAction(req, res, {
+    action: ACTION.CONFIRM_ITEM,
+    eventType: EVENT_TYPE.ITEM_CONFIRMED_BY_USER,
+    extraFields: () => ({
+      userConfirmedAt: FieldValue.serverTimestamp(),
+      userConfirmedBy: req.uid,
+      itemReviewedAt: FieldValue.delete(),
+      itemReviewedBy: FieldValue.delete(),
+      itemReviewReason: FieldValue.delete(),
+    }),
+  });
+}));
+
+router.post("/transactions/:id/review-item", requireAuth, asyncRoute(async (req, res) => {
+  const reason = clean(req.body.reviewReason) || clean(req.body.reason);
+  if (!reason) throw Object.assign(new Error("Choose a reason for sending this for review."), { status: 400 });
+  const note = clean(req.body.note);
+  await applyUserAction(req, res, {
+    action: ACTION.REVIEW_ITEM,
+    eventType: EVENT_TYPE.ITEM_REVIEW_REQUESTED_BY_USER,
+    extraPayload: { reviewReason: reason, note },
+    extraFields: () => ({
+      itemReviewedAt: FieldValue.serverTimestamp(),
+      itemReviewedBy: req.uid,
+      itemReviewReason: note ? `${reason}: ${note}` : reason,
+    }),
+  });
+}));
+
+router.post("/transactions/:id/mark-paid", requireAuth, asyncRoute(async (req, res) => {
+  await applyUserAction(req, res, {
+    action: ACTION.MARK_AS_PAID,
+    eventType: EVENT_TYPE.PAYMENT_MARKED_BY_USER,
+    extraFields: () => ({
+      paymentMarkedAt: FieldValue.serverTimestamp(),
+      paymentMarkedBy: req.uid,
+      paymentMarkedByRole: ROLE.USER,
+    }),
+  });
 }));
 
 router.patch("/transactions/:id/date", requireAuth, asyncRoute(async (req, res) => {
@@ -424,11 +492,9 @@ router.patch("/transactions/:id/date", requireAuth, asyncRoute(async (req, res) 
   if (!(await canAccessTab(req.uid, record.userId))) {
     throw Object.assign(new Error("Not authorized for this transaction."), { status: 403 });
   }
-  if (record.reviewStatus === "paid") {
-    throw Object.assign(new Error("This transaction is final and its date can no longer be changed."), { status: 409 });
-  }
-  if (record.userStatus === "agreed") {
-    throw Object.assign(new Error("A confirmed transaction can no longer be changed."), { status: 409 });
+  const current = deriveWorkflowStatus(record);
+  if (current !== STATUS.PENDING_USER_CONFIRMATION && current !== STATUS.CONFIRMED_UNPAID) {
+    throw Object.assign(new Error("This transaction's date can no longer be changed."), { status: 409, code: "TRANSACTION_STATE_CHANGED", currentStatus: current });
   }
   await ref.update({ createdDate, dateEditedAt: FieldValue.serverTimestamp() });
   res.json({ ok: true });
@@ -453,6 +519,35 @@ router.post("/claim/resolve", requireAuth, asyncRoute(async (req, res) => {
   const u = await db().collection("users").doc(target).get();
   if (u.exists) displayName = u.data().displayName || null;
   res.json({ code, userId: target, displayName });
+}));
+
+/* Self-service version of admin.js's POST /users/:userId/link-invite -
+ * lets whoever already has full access to a tab (self, a linked device, or
+ * a session member) fetch/create the invite code for adding one more
+ * device to it, without needing an admin to hand it out. Scoped to the
+ * caller's own effective tab only - never accepts a target uid. */
+router.post("/link/invite", requireAuth, asyncRoute(async (req, res) => {
+  const effectiveUid = await resolveEffectiveUid(req);
+  const userRef = db().collection("users").doc(effectiveUid);
+  const userSnap = await userRef.get();
+  const existing = userSnap.exists ? userSnap.data().linkInviteCode : null;
+  if (existing) {
+    const codeSnap = await db().collection("codes").doc(existing).get();
+    if (codeSnap.exists && codeSnap.data().active !== false) { res.json({ code: existing, active: true }); return; }
+  }
+  let code;
+  for (let i = 0; i < 6; i++) {
+    const candidate = randomCode(8);
+    const clash = await db().collection("codes").doc(candidate).get();
+    if (!clash.exists) { code = candidate; break; }
+  }
+  if (!code) throw Object.assign(new Error("Could not generate a unique invite code, try again."), { status: 400 });
+  await db().collection("codes").doc(code).set({
+    code, userId: effectiveUid, type: "link", active: true,
+    createdBy: req.uid, createdAt: FieldValue.serverTimestamp(),
+  });
+  await userRef.set({ linkInviteCode: code }, { merge: true });
+  res.json({ code, active: true });
 }));
 
 router.post("/link/accept", requireAuth, asyncRoute(async (req, res) => {

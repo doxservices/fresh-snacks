@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-device-details" />
+  <link rel="stylesheet" href="styles.css?v=20260726-transaction-workflow" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -221,6 +221,11 @@
         </button>
       </div>
 
+      <div class="invite-state-row">
+        <span class="muted-small invite-state-label" id="invite-state-label">This invite link is active.</span>
+        <button type="button" class="danger" id="invite-toggle-active">Deactivate this invite</button>
+      </div>
+
       <canvas id="invite-canvas" width="543" height="794" class="hidden" aria-hidden="true"></canvas>
 
       <div class="status" id="invite-modal-status"></div>
@@ -259,9 +264,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260723-customer-logout"></script>
-  <script src="js/firebase-admin.js?v=20260723-admin-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260724-approval-flow"></script>
+  <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
+  <script src="js/firebase-admin.js?v=20260726-transaction-workflow"></script>
+  <script src="js/admin-notifications.js?v=20260726-transaction-workflow"></script>
   <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
   <script>
     let SNAPSHOT = null;
@@ -278,6 +283,29 @@
       el.className = "status " + (ok ? "ok" : "err");
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
     }
+
+    function setInviteActiveUi(active) {
+      const label = $("invite-state-label");
+      const toggle = $("invite-toggle-active");
+      label.textContent = active ? "This invite link is active." : "This invite link is deactivated - it can no longer be used to link a device.";
+      label.classList.toggle("deactivated", !active);
+      toggle.textContent = active ? "Deactivate this invite" : "Reactivate this invite";
+      toggle.classList.toggle("danger", active);
+      toggle.dataset.active = active ? "1" : "0";
+    }
+    $("invite-toggle-active").onclick = async () => {
+      const nextActive = $("invite-toggle-active").dataset.active !== "1";
+      $("invite-toggle-active").disabled = true;
+      try {
+        const result = await FS.admin.setLinkInviteActive(TARGET_USER_ID, nextActive);
+        setInviteActiveUi(result.active);
+        status("invite-modal-status", nextActive ? "Invite reactivated." : "Invite deactivated. Any device only holding a view or session claim through it has lost access.", true);
+      } catch (e) {
+        status("invite-modal-status", e.message, false);
+      } finally {
+        $("invite-toggle-active").disabled = false;
+      }
+    };
 
     const closeInviteModal = () => $("invite-modal-backdrop").classList.remove("show");
     $("invite-modal-done").onclick = closeInviteModal;
@@ -607,8 +635,9 @@
           await FS.admin.renameUser(TARGET_USER_ID, name, "vip");
           await refresh();
         }
-        const code = await FS.admin.createLinkInvite(TARGET_USER_ID);
+        const { code, active } = await FS.admin.createLinkInvite(TARGET_USER_ID);
         const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
+        setInviteActiveUi(active !== false);
         $("invite-link-url").value = url;
         $("invite-modal-status").textContent = "";
         await drawInviteCard(url, name);
@@ -895,31 +924,53 @@
       }
     };
 
+    // Same section 9/15/19 mapping as transactions.html - see its comment
+    // for why this is driven entirely by the server-computed
+    // `availableActions`/`workflowStatus` rather than re-derived here.
+    const STATUS_BADGE = {
+      PENDING_USER_CONFIRMATION: { label: "Needs customer confirmation", cls: "verdict-badge needs-review" },
+      ITEM_UNDER_REVIEW: { label: "Disputed", cls: "verdict-badge disputed" },
+      CONFIRMED_UNPAID: { label: "Confirmed", cls: "verdict-badge agreed" },
+      PAYMENT_PENDING_ADMIN_CONFIRMATION: { label: "Payment reported", cls: "verdict-badge needs-review" },
+      PAYMENT_UNDER_REVIEW: { label: "Payment under review", cls: "verdict-badge disputed" },
+      PAID_FINALIZED: { label: "Paid", cls: "ledger-status paid" },
+    };
+    const needsAttention = (t) =>
+      ["ITEM_UNDER_REVIEW", "PAYMENT_PENDING_ADMIN_CONFIRMATION", "PAYMENT_UNDER_REVIEW"].includes(t.workflowStatus);
+    function renderTxnActions(t) {
+      const actions = t.availableActions || [];
+      const parts = [];
+      if (actions.includes("APPROVE_ITEM")) parts.push(`<button data-act="txn-approve-item" title="Approve this disputed item">Approve</button>`);
+      if (actions.includes("CONFIRM_PAYMENT")) parts.push(`<button data-act="txn-confirm-payment" title="Confirm this reported payment">Confirm payment</button>`);
+      if (actions.includes("REVIEW_PAYMENT")) parts.push(`<button data-act="txn-review-payment" title="Put this claimed payment under review">Review payment</button>`);
+      if (actions.includes("REJECT_PAYMENT_CLAIM")) parts.push(`<button class="danger" data-act="txn-reject-payment" title="Reject this payment claim">Reject claim</button>`);
+      if (actions.includes("MARK_AS_PAID")) parts.push(`<button class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`);
+      if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) parts.push(`<button data-act="txn-edit" title="Change quantity or date">Change</button>`);
+      if (actions.includes("CANCEL")) parts.push(`<button class="danger" data-act="txn-cancel" title="Remove from the tab">Cancel</button>`);
+      if (t.workflowStatus === "PAID_FINALIZED") parts.push(`<span class="permanent-note">Final</span>`);
+      parts.push(`<button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`);
+      return parts.join("");
+    }
+
     function renderTransactionTable() {
       const cur = SNAPSHOT.settings.currency;
-      const badge = (t) => t.userStatus
-        ? `<span class="verdict-badge ${esc(t.userStatus)}">${t.userStatus === "agreed" ? "&#10003; agreed" : "&#10005; disputed"}</span>`
-        : "";
-      const reviewStatus = (t) => t.reviewStatus || "neutral";
+      const badge = (t) => {
+        const s = STATUS_BADGE[t.workflowStatus] || STATUS_BADGE.CONFIRMED_UNPAID;
+        return `<span class="${s.cls}">${esc(s.label)}</span>`;
+      };
       const rows = [...SNAPSHOT.transactions]
         .sort((a, b) =>
-          (b.userStatus === "disputed") - (a.userStatus === "disputed")
+          (needsAttention(b) - needsAttention(a))
           || String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
         .map((t) => {
-          const movable = reviewStatus(t) === "neutral" && !t.userStatus;
-          return `<tr data-id="${esc(t.transactionId || t.id)}" data-snack-id="${esc(t.snackId || "")}" data-date="${esc(t.createdDate || "")}"${movable ? ' draggable="true" class="transaction-draggable"' : t.userStatus === "disputed" ? ' class="disputed"' : ""}>
+          const movable = t.workflowStatus === "PENDING_USER_CONFIRMATION";
+          return `<tr data-id="${esc(t.transactionId || t.id)}" data-snack-id="${esc(t.snackId || "")}" data-date="${esc(t.createdDate || "")}"${movable ? ' draggable="true" class="transaction-draggable"' : needsAttention(t) ? ' class="disputed"' : ""}>
           <td>${esc(t.createdDate || "-")}</td>
           <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
           <td class="num">${esc(t.quantity || 1)}</td>
           <td class="num-money">${FS.money(t.total || 0, cur)}</td>
           <td>${esc(t.source || "self")} ${badge(t)}</td>
-          <td style="white-space:nowrap;">
-            ${t.userStatus === "disputed" ? `<button data-act="txn-approve" title="Keep the listing as-is and clear the flag">Approve</button>` : ""}
-            ${reviewStatus(t) === "approved" || reviewStatus(t) === "paid" ? `<span class="permanent-note">${reviewStatus(t) === "paid" ? "Final" : "Approved"}</span>` : `
-            <button data-act="txn-edit" title="Change quantity or date">Change</button>
-            <button class="danger" data-act="txn-void" title="Remove from the tab">Void</button>
-            <button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`}
-          </td>
+          <td style="white-space:nowrap;">${renderTxnActions(t)}</td>
         </tr>`;
         }).join("");
       $("transaction-list").innerHTML = `<table class="admin-table">
@@ -930,7 +981,7 @@
 
     function render() {
       const cur = SNAPSHOT.settings.currency;
-      const snackTotal = SNAPSHOT.transactions.reduce((n, t) => n + Number(t.total || 0), 0);
+      const snackTotal = SNAPSHOT.transactions.filter((t) => t.workflowStatus !== "ITEM_UNDER_REVIEW").reduce((n, t) => n + Number(t.total || 0), 0);
       const paidTotal = SNAPSHOT.payments.reduce((n, p) => n + Number(p.amount || 0), 0);
       const adjustmentTotal = SNAPSHOT.adjustments.reduce((n, a) => n + Number(a.amount || 0), 0);
       const balance = snackTotal + adjustmentTotal - paidTotal;
@@ -1099,8 +1150,50 @@
       const row = btn.closest("tr");
       const act = btn.dataset.act;
       try {
-        if (act === "txn-approve") {
-          await FS.admin.setTransactionReviewStatus(row.dataset.id, "approved");
+        if (act === "txn-approve-item") {
+          const ok = await AdminModals.confirm(
+            "Approve this item?",
+            "It returns to Confirmed - unpaid with no changes, and the customer is not asked to confirm it again.",
+            { confirmText: "Approve" }
+          );
+          if (!ok) return;
+          await FS.admin.approveItem(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-confirm-payment") {
+          const ok = await AdminModals.confirm(
+            "Confirm this payment?",
+            "The transaction becomes Paid and final. This cannot be undone through a normal action.",
+            { confirmText: "Confirm payment" }
+          );
+          if (!ok) return;
+          await FS.admin.confirmPayment(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-review-payment") {
+          const ok = await AdminModals.confirm(
+            "Put this claimed payment under review?",
+            "Use this if you need to look into it before confirming or rejecting it.",
+            { confirmText: "Review payment" }
+          );
+          if (!ok) return;
+          await FS.admin.reviewPayment(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-reject-payment") {
+          const ok = await AdminModals.confirm(
+            "Reject this payment claim?",
+            "The transaction returns to Confirmed - unpaid instead of being finalized.",
+            { confirmText: "Reject claim", danger: true }
+          );
+          if (!ok) return;
+          await FS.admin.rejectPaymentClaim(row.dataset.id);
+          await refresh();
+        } else if (act === "txn-mark-paid") {
+          const ok = await AdminModals.confirm(
+            "Mark this transaction as paid?",
+            "This records the payment immediately and finalizes the transaction - no separate customer confirmation is needed.",
+            { confirmText: "Mark paid" }
+          );
+          if (!ok) return;
+          await FS.admin.markTransactionPaid(row.dataset.id);
           await refresh();
         } else if (act === "txn-edit") {
           const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
@@ -1111,14 +1204,14 @@
           if (!result) return;
           await FS.admin.updateTransaction(row.dataset.id, result);
           await refresh();
-        } else if (act === "txn-void") {
+        } else if (act === "txn-cancel") {
           const ok = await AdminModals.confirm(
-            "Void this listing?",
-            "It disappears from the tab and totals.",
-            { confirmText: "Void", danger: true }
+            "Cancel this listing?",
+            "It disappears from the tab and totals. This cannot be undone.",
+            { confirmText: "Cancel listing", danger: true }
           );
           if (!ok) return;
-          await FS.admin.voidTransaction(row.dataset.id);
+          await FS.admin.cancelTransaction(row.dataset.id);
           await refresh();
         } else if (act === "txn-delete") {
           const ok = await AdminModals.confirm(

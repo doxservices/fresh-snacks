@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260724-final-alignment" />
+  <link rel="stylesheet" href="styles.css?v=20260726-transaction-workflow" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -249,6 +249,12 @@
       </span>
       <span class="profile-attention hidden" id="us-profile-attention" aria-label="Profile information required">!</span>
     </button>
+    <button type="button" class="account-menu-item hidden" id="us-link-device">
+      <span>
+        <strong>Link a device</strong>
+        <small>Add another browser to this tab</small>
+      </span>
+    </button>
     <div class="link-status hidden" id="us-link-status-box">
       <p class="drawer-note" id="us-link-status"></p>
       <button type="button" class="hidden" id="us-delink-btn">De-link this browser</button>
@@ -300,10 +306,39 @@
       <div class="transaction-review-icon" aria-hidden="true">!</div>
       <h2 id="transaction-review-title">Send this purchase for review?</h2>
       <p id="transaction-review-body"></p>
-      <p class="muted-small">It will be hidden from your tab totals while Fresh Snacks reviews it. You can contact us if you need to add more information.</p>
+      <div class="field">
+        <label for="transaction-review-reason">Reason</label>
+        <select id="transaction-review-reason">
+          <option value="Item was not received">Item was not received</option>
+          <option value="Quantity is incorrect">Quantity is incorrect</option>
+          <option value="Price is incorrect">Price is incorrect</option>
+          <option value="Duplicate transaction">Duplicate transaction</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="transaction-review-note">Additional details <span class="muted-small">(optional)</span></label>
+        <textarea id="transaction-review-note" rows="2" maxlength="300"></textarea>
+      </div>
+      <p class="muted-small">It stays visible on your tab, marked as under review, until Fresh Snacks resolves it.</p>
+      <div class="status" id="transaction-review-status"></div>
       <div class="modal-actions">
         <button type="button" id="transaction-review-cancel">Keep transaction</button>
         <button type="button" class="danger" id="transaction-review-ok">Send for review</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="mark-paid-backdrop">
+    <div class="modal mark-paid-modal" role="dialog" aria-modal="true" aria-labelledby="mark-paid-title" aria-describedby="mark-paid-body">
+      <button type="button" class="modal-close" id="mark-paid-close" aria-label="Close">&times;</button>
+      <h2 id="mark-paid-title">Mark this purchase as paid?</h2>
+      <p id="mark-paid-body"></p>
+      <p class="muted-small">This will notify Fresh Snacks that you have paid. The transaction will remain pending until the payment is confirmed.</p>
+      <div class="status" id="mark-paid-status"></div>
+      <div class="modal-actions">
+        <button type="button" id="mark-paid-cancel">Not yet</button>
+        <button type="button" class="primary" id="mark-paid-ok">Mark as Paid</button>
       </div>
     </div>
   </div>
@@ -409,9 +444,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260724-paid-approval"></script>
+  <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
   <script src="js/banner.js"></script>
-  <script src="js/nav.js?v=20260724-gallery-nav"></script>
+  <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
     const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -448,6 +483,41 @@
     window.addEventListener("error", (event) => showAppFailure(event.error || event.message));
     window.addEventListener("unhandledrejection", (event) => showAppFailure(event.reason));
 
+    // Section 15's user action resolver + section 19's status copy, purely
+    // driven by the server-computed `availableActions`/`workflowStatus` on
+    // each entry - never re-derived from source/createdByRole here, so a
+    // user-created transaction (which never visits PENDING_USER_CONFIRMATION)
+    // simply never has CONFIRM_ITEM/REVIEW_ITEM in its action list to render.
+    function entryStatusTitle(e) {
+      switch (e.workflowStatus) {
+        case "ITEM_UNDER_REVIEW": return e.itemReviewReason ? `Under review: ${e.itemReviewReason}` : "Under review";
+        case "PAYMENT_PENDING_ADMIN_CONFIRMATION": return "Payment awaiting admin confirmation";
+        case "PAYMENT_UNDER_REVIEW": return "Payment under review";
+        case "PAID_FINALIZED": return "Paid and final";
+        default: return "Confirmed transaction";
+      }
+    }
+    function entryStatusCell(e) {
+      if (!e.id) return "";
+      const actions = e.availableActions || [];
+      if (actions.includes("CONFIRM_ITEM")) {
+        return `<span class="row-verdict">
+          <button class="verdict-btn agree" data-act="confirm-item" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
+          <button class="verdict-btn dispute" data-act="review-item" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
+        </span>`;
+      }
+      if (actions.includes("MARK_AS_PAID")) {
+        return `<button type="button" class="mark-paid-btn" data-act="mark-paid" data-id="${esc(e.id)}" title="Report this transaction as paid">Mark as Paid</button>`;
+      }
+      const label = {
+        ITEM_UNDER_REVIEW: "Under review",
+        PAYMENT_PENDING_ADMIN_CONFIRMATION: "Awaiting confirmation",
+        PAYMENT_UNDER_REVIEW: "Payment under review",
+        PAID_FINALIZED: "Paid",
+      }[e.workflowStatus] || "Confirmed";
+      return `<span class="customer-final-status confirmed" title="${esc(entryStatusTitle(e))}">${esc(label)}</span>`;
+    }
+
     function trackerTable(data, group, cur) {
       const opening = group.key === "opening";
       const label = opening ? data.profile.openingLabel : FS.monthLabel(group.key);
@@ -458,22 +528,11 @@
         const facts = s && s.factsId
           ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
           : "";
-        const isFinal = e.reviewStatus === "paid";
-        const isCustomerConfirmed = e.userStatus === "agreed";
-        const isCustomerLocked = isFinal || isCustomerConfirmed;
-        const verdict = e.id
-          ? isFinal
-            ? `<span class="customer-final-status confirmed" title="This transaction is approved, paid, and final">Approved · Paid</span>`
-            : isCustomerConfirmed
-              ? `<span class="customer-final-status confirmed" title="You confirmed this transaction">Confirmed</span>`
-              : `<span class="row-verdict">
-                <button class="verdict-btn agree${e.userStatus === "agreed" ? " on" : ""}" data-verdict="agreed" data-id="${esc(e.id)}" title="Confirm this listing" aria-label="Confirm">&#10003;</button>
-                <button class="verdict-btn dispute${e.userStatus === "disputed" ? " on" : ""}" data-verdict="disputed" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
-              </span>`
-          : "";
-        const dateControl = isCustomerLocked
-          ? `<span class="entry-date-final" title="${isFinal ? "Final transaction" : "Confirmed transaction"}">${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span>`
-          : `<span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span>`;
+        const verdict = entryStatusCell(e);
+        const canEditDate = e.workflowStatus === "PENDING_USER_CONFIRMATION" || e.workflowStatus === "CONFIRMED_UNPAID";
+        const dateControl = canEditDate
+          ? `<span class="entry-date-control" title="Change transaction date"><span>${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span><input type="date" data-entry-date data-id="${esc(e.id)}" value="${esc(e.date || "")}" aria-label="Change date for ${esc(FS.entryName(data, e))}" /></span>`
+          : `<span class="entry-date-final" title="${entryStatusTitle(e)}">${e.date ? esc(FS.fmtDay(e.date)) : "—"}</span>`;
         rows.push(`<tr class="tracker-entry">
           <td class="tracker-date" data-label="Date">${dateControl}</td>
           <td class="tracker-snack" data-label="Snack"><span class="nv"><span class="${FS.entryPillClass(data, e)}${facts}">${esc(FS.entryName(data, e))}</span></span></td>
@@ -682,7 +741,7 @@
         const note = opening
           ? data.profile.openingNote
           : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
-        const flagged = g.entries.some((e) => e.userStatus === "disputed");
+        const flagged = g.entries.some((e) => e.workflowStatus === "ITEM_UNDER_REVIEW");
         // collapsed by default, including the current month — the reader
         // opens whichever period(s) they actually want to review
         return `<details data-key="${esc(g.key)}">
@@ -1149,34 +1208,73 @@
     let transactionReviewResolve = null;
     let transactionReviewReturnFocus = null;
 
-    function closeTransactionReview(confirmed = false) {
+    function closeTransactionReview(result = null) {
       $id("transaction-review-backdrop").classList.remove("show");
+      $id("transaction-review-status").textContent = "";
       const resolve = transactionReviewResolve;
       transactionReviewResolve = null;
       if (transactionReviewReturnFocus && document.contains(transactionReviewReturnFocus)) {
         transactionReviewReturnFocus.focus();
       }
       transactionReviewReturnFocus = null;
-      if (resolve) resolve(confirmed);
+      if (resolve) resolve(result);
     }
 
+    // Resolves to { reason, note } when the user confirms sending this
+    // listing for review (spec section 20's Review Item modal), or null if
+    // they back out - the caller (the verdict/action click handlers below)
+    // only proceeds to call FS.reviewItem() when it gets a real result.
     function confirmTransactionReview(entry) {
       transactionReviewReturnFocus = document.activeElement;
       const name = LAST_DATA && entry ? FS.entryName(LAST_DATA, entry) : "This purchase";
       $id("transaction-review-body").textContent = `${name} will be sent to Fresh Snacks for review.`;
+      $id("transaction-review-reason").value = "Item was not received";
+      $id("transaction-review-note").value = "";
       $id("transaction-review-backdrop").classList.add("show");
       $id("transaction-review-ok").focus();
       return new Promise((resolve) => { transactionReviewResolve = resolve; });
     }
 
-    $id("transaction-review-ok").onclick = () => closeTransactionReview(true);
-    $id("transaction-review-cancel").onclick = () => closeTransactionReview(false);
-    $id("transaction-review-close").onclick = () => closeTransactionReview(false);
+    $id("transaction-review-ok").onclick = () => closeTransactionReview({
+      reason: $id("transaction-review-reason").value,
+      note: $id("transaction-review-note").value.trim(),
+    });
+    $id("transaction-review-cancel").onclick = () => closeTransactionReview(null);
+    $id("transaction-review-close").onclick = () => closeTransactionReview(null);
     $id("transaction-review-backdrop").addEventListener("click", (ev) => {
-      if (ev.target === $id("transaction-review-backdrop")) closeTransactionReview(false);
+      if (ev.target === $id("transaction-review-backdrop")) closeTransactionReview(null);
     });
     $id("transaction-review-backdrop").addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") closeTransactionReview(false);
+      if (ev.key === "Escape") closeTransactionReview(null);
+    });
+
+    let markPaidResolve = null;
+    let markPaidReturnFocus = null;
+    function closeMarkPaid(confirmed = false) {
+      $id("mark-paid-backdrop").classList.remove("show");
+      $id("mark-paid-status").textContent = "";
+      const resolve = markPaidResolve;
+      markPaidResolve = null;
+      if (markPaidReturnFocus && document.contains(markPaidReturnFocus)) markPaidReturnFocus.focus();
+      markPaidReturnFocus = null;
+      if (resolve) resolve(confirmed);
+    }
+    function confirmMarkPaid(entry) {
+      markPaidReturnFocus = document.activeElement;
+      const name = LAST_DATA && entry ? FS.entryName(LAST_DATA, entry) : "This purchase";
+      $id("mark-paid-body").textContent = `${name} (${FS.money(entry.value, LAST_DATA.profile.currency)}) will be reported to Fresh Snacks as paid.`;
+      $id("mark-paid-backdrop").classList.add("show");
+      $id("mark-paid-ok").focus();
+      return new Promise((resolve) => { markPaidResolve = resolve; });
+    }
+    $id("mark-paid-ok").onclick = () => closeMarkPaid(true);
+    $id("mark-paid-cancel").onclick = () => closeMarkPaid(false);
+    $id("mark-paid-close").onclick = () => closeMarkPaid(false);
+    $id("mark-paid-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("mark-paid-backdrop")) closeMarkPaid(false);
+    });
+    $id("mark-paid-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeMarkPaid(false);
     });
 
     document.getElementById("expand-all").onclick = () =>
@@ -1184,29 +1282,47 @@
     document.getElementById("collapse-all").onclick = () =>
       document.querySelectorAll("#log details").forEach((d) => d.removeAttribute("open"));
 
+    // Shared by the Snack Log table and the Open-a-Tab modal's pending
+    // strip: confirm/review/mark-paid all resolve server-side (the
+    // available action list is never re-derived client-side), so every
+    // successful call just reloads the tab data and re-renders everywhere
+    // that reads it, rather than hand-patching local entry state.
+    async function performEntryAction(entry, act, button) {
+      if (act === "review-item") {
+        const result = await confirmTransactionReview(entry);
+        if (!result) return false;
+        button.disabled = true;
+        await FS.reviewItem(entry.id, result);
+      } else if (act === "mark-paid") {
+        const confirmed = await confirmMarkPaid(entry);
+        if (!confirmed) return false;
+        button.disabled = true;
+        await FS.markPaid(entry.id);
+      } else if (act === "confirm-item") {
+        button.disabled = true;
+        await FS.confirmItem(entry.id);
+      } else {
+        return false;
+      }
+      const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
+      LAST_DATA = await FS.loadData();
+      CLAIM = LAST_DATA.claim || null;
+      render(LAST_DATA);
+      document.querySelectorAll("#log details").forEach((d) =>
+        d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
+      return true;
+    }
+
     document.getElementById("log").addEventListener("click", async (ev) => {
-      const vb = ev.target.closest(".verdict-btn");
-      if (vb) {
+      const btn = ev.target.closest("[data-act]");
+      if (btn) {
         ev.preventDefault();
-        const entry0 = LAST_DATA && LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
-        if (!entry0 || entry0.reviewStatus === "paid") return;
-        // clicking the already-selected option clears back to neutral
-        const next = entry0.userStatus === vb.dataset.verdict ? null : vb.dataset.verdict;
-        if (next === "disputed" && !(await confirmTransactionReview(entry0))) return;
-        vb.disabled = true;
+        const entry = LAST_DATA && LAST_DATA.entries.find((x) => x.id === btn.dataset.id);
+        if (!entry) return;
         try {
-          await FS.setEntryStatus(vb.dataset.id, next);
-          if (next === "disputed") {
-            LAST_DATA.entries = LAST_DATA.entries.filter((entry) => entry.id !== vb.dataset.id);
-          } else {
-            entry0.userStatus = next;
-          }
-          const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
-          render(LAST_DATA);
-          document.querySelectorAll("#log details").forEach((d) =>
-            d.toggleAttribute("open", openKeys.includes(d.dataset.key)));
+          await performEntryAction(entry, btn.dataset.act, btn);
         } catch (e) {
-          vb.disabled = false;
+          btn.disabled = false;
           $id("app-health-message").textContent = e.message;
           $id("app-health").classList.remove("hidden");
         }
@@ -1314,6 +1430,15 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
+      // An invitee (viewing/editing a tab through a link or session claim,
+      // not their own identity) is already using an accountable tab someone
+      // else opened - only the tab's own opener needs to supply email/phone
+      // here, so those two fields are the only ones that flex by accessMode.
+      const isInvitee = me.accessMode === "linked" || me.accessMode === "session";
+      $id("us-first").required = true;
+      $id("us-last").required = true;
+      $id("us-email").required = !isInvitee;
+      $id("us-phone").required = !isInvitee;
       $id("us-profile-status").value = presentation.label;
       $id("us-profile-status").dataset.profileTone = presentation.tone;
       const profileComplete = FS.profileComplete(me);
@@ -1337,14 +1462,15 @@
       $id("us-session-actions").classList.toggle("hidden", !hasProfileSession);
       $id("us-logout").classList.toggle("hidden", !hasProfileSession);
       $id("us-saved-invite").classList.toggle("hidden", !rememberedInvite || hasTab || temporarySession || thisBrowserLinked);
-      $id("us-link-status-box").classList.toggle("hidden", !thisBrowserLinked && !temporarySession && linkedCount === 0);
+      $id("us-link-device").classList.toggle("hidden", !hasProfileSession);
+      $id("us-link-status-box").classList.toggle("hidden", !hasProfileSession);
       $id("us-delink-btn").classList.toggle("hidden", !thisBrowserLinked);
       $id("us-link-status").textContent = thisBrowserLinked
         ? `This browser is linked to “${me.displayName || "Guest"}”'s tab (${linkedCount}/3 devices linked).`
         : temporarySession
-          ? `You are logged in to ${me.displayName || "this tab"} for this browser session.`
-        : linkedCount > 0
-          ? `${linkedCount}/3 other device${linkedCount === 1 ? " is" : "s are"} linked to this tab.`
+          ? `You are logged in to ${me.displayName || "this tab"} for this browser session (${linkedCount}/3 permanent devices linked).`
+        : hasProfileSession
+          ? `${linkedCount}/3 device${linkedCount === 1 ? "" : "s"} linked to this tab.`
           : "";
       // Keep the person's identity separate from the profile role.
       $id("brand-title").textContent = presentation.name;
@@ -1418,6 +1544,22 @@
       $id("us-status").className = "status ok";
     };
 
+    $id("us-link-device").onclick = async () => {
+      const button = $id("us-link-device");
+      button.disabled = true;
+      try {
+        const { code } = await FS.getOrCreateLinkInvite();
+        const url = `${location.origin}${location.pathname.replace(/[^/]*$/, "")}index.html?link=${code}`;
+        closeSettings();
+        await FreshSnacksQR.open({ label: "Link a device to your tab", destination: url, button });
+      } catch (error) {
+        $id("us-status").textContent = error.message;
+        $id("us-status").className = "status err";
+      } finally {
+        button.disabled = false;
+      }
+    };
+
     // --- Name-capture / device-link modal ---------------------------------
     // Shown for any user with no name yet (see `anonymous` above), and also
     // whenever this browser holds a pending, not-yet-accepted invite code
@@ -1427,7 +1569,7 @@
     let ncmReturnFocus = null;
 
     function pendingUnverifiedEntries(data) {
-      return (data?.entries || []).filter((e) => e.id && !e.userStatus && e.reviewStatus !== "paid");
+      return (data?.entries || []).filter((e) => e.id && e.workflowStatus === "PENDING_USER_CONFIRMATION");
     }
 
     function updateNcmStripFade() {
@@ -1451,8 +1593,8 @@
             <div class="ncm-card-name">${esc(name)}</div>
             <div class="ncm-card-meta">${esc(e.count ?? "")}&times; ${FS.money(e.value, data.profile.currency)}</div>
             <span class="row-verdict">
-              <button class="verdict-btn agree" data-verdict="agreed" data-id="${esc(e.id)}" aria-label="Confirm">&#10003;</button>
-              <button class="verdict-btn dispute" data-verdict="disputed" data-id="${esc(e.id)}" aria-label="Review">&#10005;</button>
+              <button class="verdict-btn agree" data-act="confirm-item" data-id="${esc(e.id)}" aria-label="Confirm">&#10003;</button>
+              <button class="verdict-btn dispute" data-act="review-item" data-id="${esc(e.id)}" aria-label="Review">&#10005;</button>
             </span>
           </div>
         </div>`;
@@ -1462,24 +1604,18 @@
 
     $id("ncm-strip").addEventListener("scroll", updateNcmStripFade);
     $id("ncm-strip").addEventListener("click", async (ev) => {
-      const vb = ev.target.closest(".verdict-btn");
-      if (!vb) return;
-      const entry = LAST_DATA.entries.find((x) => x.id === vb.dataset.id);
-      if (!entry || entry.reviewStatus === "paid") return;
-      if (vb.dataset.verdict === "disputed" && !(await confirmTransactionReview(entry))) return;
-      vb.disabled = true;
+      const btn = ev.target.closest("[data-act]");
+      if (!btn) return;
+      const entry = LAST_DATA.entries.find((x) => x.id === btn.dataset.id);
+      if (!entry) return;
       try {
-        await FS.setEntryStatus(vb.dataset.id, vb.dataset.verdict);
-        if (vb.dataset.verdict === "disputed") {
-          LAST_DATA.entries = LAST_DATA.entries.filter((x) => x.id !== vb.dataset.id);
-        } else {
-          entry.userStatus = vb.dataset.verdict;
+        const applied = await performEntryAction(entry, btn.dataset.act, btn);
+        if (applied) {
+          renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
+          $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
         }
-        renderPendingTransactionStrip($id("ncm-strip"), LAST_DATA);
-        $id("ncm-pending-section").classList.toggle("hidden", !pendingUnverifiedEntries(LAST_DATA).length);
-        render(LAST_DATA);
       } catch (e) {
-        vb.disabled = false;
+        btn.disabled = false;
         $id("ncm-name-status").textContent = e.message;
         $id("ncm-name-status").className = "status err";
       }
@@ -1495,6 +1631,12 @@
       $id("ncm-link-note").textContent = linkCode
         ? "Link this browser to that shared tab, or show this code to scan on another device instead."
         : "Show this code so another device can join this tab.";
+      // Joining someone else's already-accountable tab (link-this/link-other/
+      // session-login) never touches this device's own email/phone - only
+      // the "save and continue" (opening your own tab) path does, so those
+      // two fields are only actually required in that mode.
+      $id("ncm-email").required = !shareCode;
+      $id("ncm-phone").required = !shareCode;
     }
 
     function openNameCaptureModal(me) {

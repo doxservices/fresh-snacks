@@ -1,7 +1,9 @@
 /* Customer navigation: hamburger-toggled left drawer.
  * Pages include a button#nav-toggle in their header; this script injects
- * the drawer and backdrop. Admin is deliberately not listed — it lives at
- * its own URL (admin.html) for the snack keeper only. */
+ * the drawer and backdrop. Signed-in administrators additionally get an
+ * "Administration" section linking to admin.html - every admin-only page
+ * already links back to each other directly, so this only affects the
+ * customer-facing drawer itself. */
 (function () {
   const here = location.pathname.split("/").pop() || "index.html";
   const activeProfileKey = "fresh_snacks_profile_active";
@@ -18,21 +20,32 @@
     hasTabMarker() ||
     localStorage.getItem(activeProfileKey) === "1";
 
-  const profileItems = [
-        { label: "My tab", href: "index.html" },
-        { label: "Your balance", href: "index.html#activity-summary" },
-        { label: "Transaction history", href: "index.html#snack-log" },
-        { label: "Log my snacks", href: "index.html#snack-shop" },
-        { label: "Invoice Me", href: "invoice.html" },
-        { label: "User settings", href: "index.html#user-settings" },
-        { label: "Tell a friend", href: "index.html#tell-a-friend" },
-        { label: "Feedback", href: "feedback.html" },
-        { label: "Privacy Policy", href: "privacy.html" },
-      ];
-  const guestItems = [
-        { label: "Feedback", href: "feedback.html" },
-        { label: "Privacy Policy", href: "privacy.html" },
-      ];
+  const adminGroup = { section: "Administration", items: [
+    { label: "Admin dashboard", href: "admin.html" },
+  ] };
+  const profileGroups = [
+    { section: "Your tab", items: [
+      { label: "My tab", href: "index.html" },
+      { label: "Your balance", href: "index.html#activity-summary" },
+      { label: "Transaction history", href: "index.html#snack-log" },
+      { label: "Log my snacks", href: "index.html#snack-shop" },
+      { label: "Invoice Me", href: "invoice.html" },
+    ] },
+    { section: "Account", items: [
+      { label: "User settings", href: "index.html#user-settings" },
+      { label: "Tell a friend", href: "index.html#tell-a-friend" },
+    ] },
+    { section: "Support", items: [
+      { label: "Feedback", href: "feedback.html" },
+      { label: "Privacy Policy", href: "privacy.html" },
+    ] },
+  ];
+  const guestGroups = [
+    { section: "Support", items: [
+      { label: "Feedback", href: "feedback.html" },
+      { label: "Privacy Policy", href: "privacy.html" },
+    ] },
+  ];
 
   const backdrop = document.createElement("div");
   backdrop.className = "drawer-backdrop";
@@ -58,19 +71,20 @@
   const renderItems = (activeProfile, activeAdmin = activeAdminState) => {
     activeProfileState = activeProfile;
     activeAdminState = activeAdmin;
-    drawer.querySelectorAll(".nav-qr-row, .drawer-link").forEach((el) => el.remove());
-    const items = [...(activeProfile ? profileItems : guestItems)];
-    if (activeAdmin) items.unshift({ label: "Admin dashboard", href: "admin.html" });
-    if (here === "invoice.html") items.push({ label: "Print / Save PDF", print: true });
+    drawer.querySelectorAll(".nav-qr-row, .drawer-link, .drawer-section-label").forEach((el) => el.remove());
+    const groups = [
+      ...(activeAdmin ? [adminGroup] : []),
+      ...(activeProfile ? profileGroups : guestGroups),
+    ];
 
-    for (const it of items) {
-      let el;
-      if (it.print) {
-        el = document.createElement("button");
-        el.type = "button";
-        el.onclick = () => { close(); window.print(); };
-      } else {
-        el = document.createElement("a");
+    for (const group of groups) {
+      const heading = document.createElement("p");
+      heading.className = "drawer-section-label";
+      heading.textContent = group.section;
+      drawer.appendChild(heading);
+
+      for (const it of group.items) {
+        const el = document.createElement("a");
         el.href = it.href;
         const itemPage = it.href.split("#")[0];
         const currentItem = location.hash
@@ -81,11 +95,21 @@
           el.setAttribute("aria-current", "page");
         }
         el.addEventListener("click", close); // same-page anchors don't reload
+        el.classList.add("drawer-link");
+        el.textContent = it.label;
+        drawer.appendChild(el);
       }
-      el.classList.add("drawer-link");
-      el.textContent = it.label;
-      drawer.appendChild(el);
     }
+
+    if (here === "invoice.html") {
+      const print = document.createElement("button");
+      print.type = "button";
+      print.classList.add("drawer-link");
+      print.textContent = "Print / Save PDF";
+      print.onclick = () => { close(); window.print(); };
+      drawer.appendChild(print);
+    }
+
     document.body.dataset.profileNavigation = activeProfile ? "active" : "guest";
   };
 
@@ -126,13 +150,20 @@
         // a previously verified profile retain navigation across page tabs.
       });
 
-    // This is a read-only verification. It never creates an Auth user,
-    // customer profile, or Firestore document.
+    // This is a read-only verification against the API (never Firestore
+    // directly - the client stopped holding its own Firestore handle when
+    // firebase-store.js became a thin API client, which had silently made
+    // the old direct-Firestore admin check here dead code). A 403 from
+    // /admin/whoami just means "not an admin" - not a real failure.
     window.FS.restoreSession()
       .then(async (user) => {
         if (!user || user.isAnonymous) return false;
-        const admin = await window.FS._db.collection("admins").doc(user.uid).get();
-        return admin.exists && admin.data().active === true;
+        try {
+          await window.FS._apiFetch("/admin/whoami");
+          return true;
+        } catch (error) {
+          return false;
+        }
       })
       .then((activeAdmin) => {
         if (activeAdmin) renderItems(activeProfileState, true);

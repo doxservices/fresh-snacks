@@ -38,6 +38,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     error: err.message || "Internal error.",
     ...(err.code ? { code: err.code } : {}),
+    ...(err.currentStatus ? { currentStatus: err.currentStatus } : {}),
   });
 });
 

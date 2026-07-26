@@ -23,7 +23,12 @@ async function hasClaimOn(uid, ownerId) {
   const code = await myClaimedCode(uid);
   if (!code) return false;
   const codeSnap = await admin.firestore().collection("codes").doc(code).get();
-  return codeSnap.exists && codeSnap.data().userId === ownerId;
+  // The code itself must still be active - deactivating an invite from
+  // Accounting is meant to immediately cut off anyone holding a view or
+  // session claim through it (a fully linked device is unaffected here;
+  // that membership lives in linkedUids and is only removed by unlinking
+  // that specific device).
+  return codeSnap.exists && codeSnap.data().active !== false && codeSnap.data().userId === ownerId;
 }
 
 async function claimedCodeType(uid) {

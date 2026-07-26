@@ -119,7 +119,11 @@ async function optionalAuth(req, res, next) {
 function asyncRoute(handler) {
   return (req, res) => {
     Promise.resolve(handler(req, res)).catch((e) => {
-      res.status(e.status || 400).json({ error: e.message || "Something went wrong." });
+      res.status(e.status || 400).json({
+        error: e.message || "Something went wrong.",
+        ...(e.code ? { code: e.code } : {}),
+        ...(e.currentStatus ? { currentStatus: e.currentStatus } : {}),
+      });
     });
   };
 }

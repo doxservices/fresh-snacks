@@ -233,17 +233,16 @@
     const buttons = [...item.querySelectorAll("button")];
     buttons.forEach((b) => (b.disabled = true));
     try {
-      if (act === "txn-approve") {
+      if (act === "txn-approve-item") {
         const id = btn.dataset.id;
-        await FS.admin.setTransactionReviewStatus(id, "approved");
+        await FS.admin.approveItem(id);
         await refreshSnapshot();
         renderList();
-      } else if (act === "txn-pay") {
+      } else if (act === "txn-confirm-payment") {
         const id = btn.dataset.id;
-        const t = snapshot.transactions.find((x) => (x.transactionId || x.id) === id);
-        const amount = t?.total || "";
-        const note = t ? `Payment toward ${t.snackName || t.label || "snack purchase"}` : "";
-        openEmbeddedPaymentModal(btn.dataset.user, amount, note);
+        await FS.admin.confirmPayment(id);
+        await refreshSnapshot();
+        renderList();
       } else if (act === "fb-read") {
         await FS.admin.setFeedbackStatus(btn.dataset.id, "read");
         await refreshSnapshot();
@@ -282,8 +281,12 @@
         detail: f.details != null ? f.details : (f.message || ""),
       }));
 
-    const actionableTxns = snapshot.transactions.filter((t) =>
-      (t.reviewStatus || "neutral") !== "paid");
+    // Only statuses an admin can actually act on right now belong here -
+    // PENDING_USER_CONFIRMATION is waiting on the customer, CONFIRMED_UNPAID/
+    // PAID_FINALIZED need nothing, so surfacing them here would just be
+    // noise with no useful action to offer.
+    const ACTIONABLE_STATUSES = ["ITEM_UNDER_REVIEW", "PAYMENT_PENDING_ADMIN_CONFIRMATION", "PAYMENT_UNDER_REVIEW"];
+    const actionableTxns = snapshot.transactions.filter((t) => ACTIONABLE_STATUSES.includes(t.workflowStatus));
     const byCustomer = new Map();
     for (const t of actionableTxns) {
       const userId = t.userId || t.uid || "unassigned";
@@ -294,8 +297,7 @@
     const txnItems = [];
     for (const [userId, txns] of byCustomer) {
       const mostRecent = txns.reduce((a, b) => (timestampMs(b, "createdAt") > timestampMs(a, "createdAt") ? b : a));
-      const anyDisputed = txns.some((t) => t.userStatus === "disputed");
-      const anyApproved = txns.some((t) => (t.reviewStatus || "neutral") === "approved");
+      const anyDisputed = txns.some((t) => t.workflowStatus === "ITEM_UNDER_REVIEW");
       if (txns.length > AGGREGATE_THRESHOLD) {
         const key = `txn-group:${userId}`;
         if (dismissed.has(key)) continue;
@@ -308,7 +310,7 @@
           date: formatDateTime(mostRecent, "createdAt", mostRecent.createdDate),
           ms: timestampMs(mostRecent, "createdAt"),
           disputed: anyDisputed,
-          reviewStatus: anyApproved ? "approved" : "neutral",
+          workflowStatus: mostRecent.workflowStatus,
         });
       } else {
         for (const t of txns) {
@@ -325,8 +327,8 @@
             ms: timestampMs(t, "createdAt"),
             snackId: t.snackId,
             snackName: t.snackName,
-            reviewStatus: t.reviewStatus || "neutral",
-            disputed: t.userStatus === "disputed",
+            workflowStatus: t.workflowStatus,
+            disputed: t.workflowStatus === "ITEM_UNDER_REVIEW",
           });
         }
       }
@@ -384,10 +386,12 @@
       .sort((a, b) => (b.ms || 0) - (a.ms || 0));
   }
 
-  function statusBadge(reviewStatus) {
-    return reviewStatus === "approved"
-      ? `<span class="verdict-badge agreed">Approved</span>`
-      : `<span class="verdict-badge needs-review">Needs your review</span>`;
+  function statusBadge(workflowStatus) {
+    return workflowStatus === "ITEM_UNDER_REVIEW"
+      ? `<span class="verdict-badge disputed">Disputed</span>`
+      : workflowStatus === "PAYMENT_UNDER_REVIEW"
+        ? `<span class="verdict-badge disputed">Payment under review</span>`
+        : `<span class="verdict-badge needs-review">Payment reported</span>`;
   }
 
   function renderBadge() {
@@ -458,7 +462,7 @@
           </div>
           <div class="notif-item-meta">
             <span class="muted-small">${esc(it.date)}</span>
-            ${statusBadge(it.reviewStatus)}
+            ${statusBadge(it.workflowStatus)}
           </div>
           ${dismissBtn(it.key)}
         </div>`;
@@ -507,14 +511,14 @@
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
           <div class="notif-item-actions">
-            ${it.reviewStatus === "approved"
-              ? `<button type="button" class="primary" data-notif-act="txn-pay" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Record payment</button>`
-              : `<button type="button" class="primary" data-notif-act="txn-approve" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>`}
+            ${it.workflowStatus === "ITEM_UNDER_REVIEW"
+              ? `<button type="button" class="primary" data-notif-act="txn-approve-item" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>`
+              : `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>`}
           </div>
         </div>
         <div class="notif-item-meta">
           <span class="muted-small">${esc(it.date)}</span>
-          ${statusBadge(it.reviewStatus)}
+          ${statusBadge(it.workflowStatus)}
         </div>
         ${dismissBtn(it.key)}
       </div>`;

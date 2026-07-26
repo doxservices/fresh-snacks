@@ -1,5 +1,122 @@
 # Development notes
 
+## Transaction confirmation/payment workflow rewrite (2026-07-26)
+
+Implements `tab_transaction_flow_implementation_spec.md` - replaces the old
+two-axis `reviewStatus` (neutral/approved/paid) + `userStatus` (agreed/
+disputed) pair with one authoritative `workflowStatus` per transaction:
+`PENDING_USER_CONFIRMATION`, `ITEM_UNDER_REVIEW`, `CONFIRMED_UNPAID`,
+`PAYMENT_PENDING_ADMIN_CONFIRMATION`, `PAYMENT_UNDER_REVIEW`,
+`PAID_FINALIZED`, `CANCELLED`. All transition rules, the per-role available-
+action resolver, and the audit-event types live in one new file,
+`functions/src/lib/transactionStatus.js` - every route and every page's UI
+reads from it rather than re-deriving status logic locally.
+
+- `workflowStatus` is a deliberately different field from the transaction's
+  existing `status` ("active"/"void" soft-delete marker used by every
+  `.where("status", "==", "active")` query in the app) - naming the new
+  field `status` too would have silently broken all of those. Cancelling a
+  transaction sets both: `workflowStatus: CANCELLED` and the legacy
+  `status: "void"`, so every existing query keeps working unchanged.
+- A transaction now also carries `createdByRole` (`USER`/`ADMIN`), set once
+  at creation. A user-created transaction starts `CONFIRMED_UNPAID`
+  (auto-confirmed) and can never enter `PENDING_USER_CONFIRMATION` at all,
+  which is what actually fixes the real bug this spec targets: self-logged
+  purchases were showing the Confirm/Review buttons in the customer's own
+  Snack Log, when only admin-added items were ever meant to need
+  confirmation.
+- New customer-facing capability: a user can self-report a transaction as
+  paid (`Mark as Paid` in the Snack Log), which moves it to
+  `PAYMENT_PENDING_ADMIN_CONFIRMATION` rather than finalizing it - an admin
+  still has to Confirm Payment (or Review Payment / Reject Payment Claim)
+  before it's `PAID_FINALIZED`. This didn't exist before; only admins could
+  previously record a payment.
+- Every transition (`confirm-item`, `review-item`, `mark-paid`,
+  `approve-item`, `edit` (also covers "Edit and Resend"), `cancel`,
+  `confirm-payment`, `review-payment`, `reject-payment`) runs inside a
+  Firestore transaction that re-reads the current status, validates it via
+  `assertTransition()`, and writes an audit event to a new append-only
+  `transactionEvents` collection in the same atomic write - both the
+  concurrency protection and the audit trail the spec asks for.
+- Product decision (confirmed with the project owner): editing an
+  already-`CONFIRMED_UNPAID` transaction's quantity/date resets it to
+  `PENDING_USER_CONFIRMATION` rather than applying silently - every admin
+  change the user hasn't seen yet requires a fresh confirmation.
+- Confirming a user-reported payment or an admin directly marking a listing
+  paid now also creates a real `payments` collection record for that exact
+  amount, tagged with which transaction it settles. This was a real gap
+  found while wiring this up: `accounting()`'s balance math nets total
+  purchases against the separate `payments` collection, not against which
+  transactions happen to be flagged paid - finalizing one without a
+  matching payment record would have shown "Paid" on the row while still
+  counting against the customer's balance.
+- An item under review (disputed) now stays visible on the customer's own
+  Snack Log with an "Under review" status, instead of disappearing from
+  their tab entirely until resolved (the old behavior) - it still stays
+  excluded from the balance calculation the same as before, just not
+  hidden from view.
+- Existing transactions are grandfathered rather than retroactively gated:
+  `deriveWorkflowStatus()`'s fallback (used both live, for any doc that
+  hasn't been backfilled yet, and by the one-off
+  `scripts/backfill-transaction-workflow-status.mjs`) maps old admin-created
+  listings to `CONFIRMED_UNPAID`, not `PENDING_USER_CONFIRMATION` - the
+  business never asked those customers to confirm them, so surfacing a
+  sudden backlog of confirmation prompts for old history would be a
+  surprising regression, not a fix. Only transactions created after this
+  ships start out gated. This mirrors the same grandfather-existing/gate-
+  going-forward precedent used for the `nameSet` visitor gate.
+- Bug fixed in passing: `asyncRoute()`'s error handler
+  (`functions/src/middleware.js`) never included `error.code` (or now
+  `currentStatus`) in its JSON response, only `error.message` - every route
+  that set a `code` on a thrown error (e.g. the existing device-limit
+  fallback in `FS.loginWithInvite`) was silently losing it before it ever
+  reached the client. The new 409 `TRANSACTION_STATE_CHANGED` conflict
+  response needed this fixed to work at all.
+- `functions/test/transaction-status.test.js` and
+  `transaction-lifecycle.test.js` are new; `payment-allocation.test.js` was
+  extended for the new eligibility rules (unconfirmed and disputed
+  transactions are excluded from auto-settlement; one already under payment
+  review is excluded too, so an unrelated payment can't silently resolve an
+  active dispute).
+- Not run yet: `node scripts/backfill-transaction-workflow-status.mjs`
+  (dry-run by default, `--apply` to write) should be run once after
+  deploying, to backfill `workflowStatus`/`createdByRole` onto every
+  existing transaction - not required for correctness (every read path
+  already falls back to the same derivation live) but avoids relying on
+  that fallback forever.
+
+## Device-access revocation and invite self-service (2026-07-26)
+
+- Unlinking a device from Accounting/Edit Tab now deactivates that device's
+  claim, not just its `linkedUids` membership. Previously `canAccessTab()`
+  granted access from an active claim before it ever checked `linkedUids`,
+  so an "unlinked" device kept full read/write access to the tab
+  indefinitely - the 3-device limit was a soft cap in practice. `hasClaimOn()`
+  also now requires the underlying invite code itself to still be active.
+- Accounting and Edit Tab's invite modal can activate or deactivate a tab's
+  existing invite/link code in place, without generating a new one. A
+  deactivated code immediately blocks new claims and cuts off anyone
+  currently holding a view or session claim through it; a fully linked
+  device is unaffected (that still needs the per-device Unlink control).
+- Customers can now self-serve a device-link invite from User Settings
+  ("Link a device") instead of needing an admin to generate and hand one
+  out. The same panel always shows how many devices are linked out of the
+  3-device limit, not only once a second device is already present.
+- The customer nav drawer's admin-dashboard detection was silently dead
+  code - it read Firestore directly through a `FS._db` handle that no
+  longer exists since firebase-store.js became a thin API client. It now
+  calls `GET /admin/whoami` and treats a 403 as "not an admin." This was
+  also the last direct-client Firestore read anywhere in the app; every
+  customer/admin page now goes through the API exclusively.
+- The customer nav drawer groups its links into labeled sections (Your
+  tab / Account / Support, plus Administration for verified admins)
+  instead of one flat list.
+- The Open-a-Tab modal and the Profile Information editor in User Settings
+  now show a red asterisk on fields the current save will actually
+  require. Email and phone are required when completing your own tab, but
+  not when acting through a link or session claim on someone else's
+  already-accountable tab (linking/joining never touches those fields).
+
 ## Admin transaction workflow and persistence (2026-07-23)
 
 - Edit Tab now offers an optional transaction diffuser: a basket quantity such as 8 can be stored as eight catalogue-priced quantity-1 listings instead of one quantity-8 listing.

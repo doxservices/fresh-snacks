@@ -1,0 +1,68 @@
+// End-to-end trace of the full spec lifecycle through the pure functions
+// only (no Firestore) - catches composition mistakes between
+// transactionStatus.js and shared.js's accounting()/paymentAllocationPlan()
+// that the narrower unit tests wouldn't notice.
+const assert = require("node:assert/strict");
+const { STATUS, ROLE, ACTION, nextStatusFor } = require("../src/lib/transactionStatus");
+const { accounting, paymentAllocationPlan } = require("../src/lib/shared");
+
+// --- Scenario A: admin adds an item, user confirms it, reports payment,
+// admin confirms the payment - the balance must land back at zero. ---
+const user = { userId: "u1", uid: "u1", displayName: "Test Customer", vipStatus: "named" };
+let txn = {
+  id: "t1", userId: "u1", total: 150, createdDate: "2026-07-01",
+  workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
+};
+
+// Nothing payable yet - it hasn't been confirmed.
+assert.equal(
+  paymentAllocationPlan([txn], 0).settledIds.length, 0,
+  "an unconfirmed item must never be auto-settled"
+);
+
+txn = { ...txn, workflowStatus: nextStatusFor(txn.workflowStatus, ROLE.USER, ACTION.CONFIRM_ITEM) };
+assert.equal(txn.workflowStatus, STATUS.CONFIRMED_UNPAID);
+
+txn = { ...txn, workflowStatus: nextStatusFor(txn.workflowStatus, ROLE.USER, ACTION.MARK_AS_PAID) };
+assert.equal(txn.workflowStatus, STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION);
+
+txn = { ...txn, workflowStatus: nextStatusFor(txn.workflowStatus, ROLE.ADMIN, ACTION.CONFIRM_PAYMENT) };
+assert.equal(txn.workflowStatus, STATUS.PAID_FINALIZED);
+
+const settlementPayment = { userId: "u1", amount: 150, createdDate: "2026-07-02" };
+const rowsA = accounting([user], [], [txn], [settlementPayment], []);
+assert.equal(rowsA.find((r) => r.userId === "u1").balance, 0, "a confirmed, paid, and payment-matched item nets to zero balance");
+
+// --- Scenario B: admin adds an item, user disputes it, admin edits and
+// resends, user confirms the revised version. ---
+let disputed = {
+  id: "t2", userId: "u1", total: 200, createdDate: "2026-07-03",
+  workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
+};
+disputed = { ...disputed, workflowStatus: nextStatusFor(disputed.workflowStatus, ROLE.USER, ACTION.REVIEW_ITEM) };
+assert.equal(disputed.workflowStatus, STATUS.ITEM_UNDER_REVIEW);
+
+// While under review it must not count toward balance.
+const rowsB1 = accounting([user], [], [disputed], [], []);
+assert.equal((rowsB1.find((r) => r.userId === "u1")?.snackTotal) || 0, 0, "a disputed item is excluded from balance");
+
+disputed = { ...disputed, total: 120, workflowStatus: nextStatusFor(disputed.workflowStatus, ROLE.ADMIN, ACTION.EDIT_AND_RESEND) };
+assert.equal(disputed.workflowStatus, STATUS.PENDING_USER_CONFIRMATION);
+
+disputed = { ...disputed, workflowStatus: nextStatusFor(disputed.workflowStatus, ROLE.USER, ACTION.CONFIRM_ITEM) };
+assert.equal(disputed.workflowStatus, STATUS.CONFIRMED_UNPAID);
+
+const rowsB2 = accounting([user], [], [disputed], [], []);
+assert.equal(rowsB2.find((r) => r.userId === "u1").snackTotal, 120, "the revised amount counts once resolved and confirmed");
+
+// --- Scenario C: a finalized transaction has no further valid transitions
+// for either role. ---
+for (const role of [ROLE.USER, ROLE.ADMIN]) {
+  for (const action of Object.values(ACTION)) {
+    if (action === "VIEW_DETAILS") continue;
+    assert.equal(nextStatusFor(STATUS.PAID_FINALIZED, role, action), null, `PAID_FINALIZED must reject ${role}/${action}`);
+    assert.equal(nextStatusFor(STATUS.CANCELLED, role, action), null, `CANCELLED must reject ${role}/${action}`);
+  }
+}
+
+console.log("transaction lifecycle regression checks passed");
