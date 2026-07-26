@@ -200,6 +200,23 @@ FS.admin.deleteTransaction = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
 
+// "Do nothing to the record, just put it back in the user's hands to
+// confirm" - reverts to PENDING_USER_CONFIRMATION with no quantity/date/
+// price change, unlike Edit/Edit and Resend.
+FS.admin.resetTransaction = async (id) => {
+  await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/reset`, { method: "POST" });
+};
+
+FS.admin.listAdmins = async () => FS._apiFetch("/admin/admins");
+
+FS.admin.createAdmin = async ({ email, password, displayName, role, permissions }) =>
+  FS._apiFetch("/admin/admins", { method: "POST", body: { email, password, displayName, role, permissions } });
+
+FS.admin.updateAdmin = async (uid, { displayName, role, permissions, active }) =>
+  FS._apiFetch(`/admin/admins/${encodeURIComponent(uid)}`, {
+    method: "PATCH", body: { displayName, role, permissions, active },
+  });
+
 FS.admin.deleteUserData = async (userId) => {
   const { count } = await FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/data`, { method: "DELETE" });
   return count;

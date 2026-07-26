@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Admin Users</title>
+  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
+  <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
+  <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div>
+            <h1>Admin Users</h1>
+            <p>Create staff sign-ins and control exactly what each one can do.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Dashboard</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="sitemap.html">Sitemap</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="no-permission-panel" class="card section-card hidden">
+      <h2>Restricted</h2>
+      <p>Your admin account doesn't have permission to manage other admin users.</p>
+    </section>
+
+    <section id="admin-users-app" class="hidden">
+      <section class="card section-card">
+        <h2>Create admin user</h2>
+        <p class="muted-small" style="margin-bottom:10px;">
+          Creates an email/password sign-in for staff. Google/Microsoft admins can't be pre-created
+          this way (there's no account to attach permissions to until they sign in once) - after
+          their first sign-in creates their row below, edit it to set their permissions.
+        </p>
+        <form id="create-admin-form" class="form-grid">
+          <div class="field"><label for="new-admin-name">Display name</label><input id="new-admin-name" type="text" required autocomplete="off" /></div>
+          <div class="field"><label for="new-admin-email">Email</label><input id="new-admin-email" type="email" required autocomplete="off" /></div>
+          <div class="field"><label for="new-admin-password">Temporary password</label><input id="new-admin-password" type="text" minlength="8" required autocomplete="off" placeholder="At least 8 characters" /></div>
+        </form>
+        <div class="permission-presets">
+          <span class="muted-small">Start from a preset:</span>
+          <button type="button" data-preset="admin">Admin (all access)</button>
+          <button type="button" data-preset="accounting">Accounting</button>
+          <button type="button" data-preset="cashier">Cashier</button>
+        </div>
+        <div class="permission-table" id="new-admin-permissions"></div>
+        <button type="button" class="primary" id="create-admin-btn" style="margin-top:14px;">Create admin</button>
+        <div class="status" id="create-admin-status"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Admin users</h2>
+        <div id="admins-list"></div>
+        <div class="status" id="admins-status"></div>
+      </section>
+    </section>
+
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
+  </main>
+
+  <div class="modal-backdrop" id="edit-admin-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-admin-title" style="width:min(640px, calc(100vw - 28px));">
+      <button type="button" class="modal-close" id="edit-admin-close" aria-label="Close">&times;</button>
+      <h2 id="edit-admin-title">Edit admin user</h2>
+      <p class="muted-small" id="edit-admin-email-note"></p>
+      <div class="form-grid">
+        <div class="field"><label for="edit-admin-name">Display name</label><input id="edit-admin-name" type="text" /></div>
+      </div>
+      <div class="permission-presets">
+        <span class="muted-small">Start from a preset:</span>
+        <button type="button" data-preset="admin">Admin (all access)</button>
+        <button type="button" data-preset="accounting">Accounting</button>
+        <button type="button" data-preset="cashier">Cashier</button>
+      </div>
+      <div class="permission-table" id="edit-admin-permissions"></div>
+      <div class="status" id="edit-admin-status"></div>
+      <div class="modal-actions">
+        <button type="button" id="edit-admin-deactivate" class="danger">Deactivate</button>
+        <button type="button" id="edit-admin-cancel">Cancel</button>
+        <button type="button" class="primary" id="edit-admin-save">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
+  <script src="js/firebase-admin.js?v=20260726-permissions"></script>
+  <script src="js/admin-modals.js?v=20260726-modals"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    // Mirrors functions/src/lib/permissions.js - kept in sync by hand since
+    // this static page has no build step to share it directly with the
+    // Cloud Functions source. The server re-validates every one of these on
+    // every request regardless; this list only drives which checkboxes render.
+    const PERMISSIONS = [
+      { key: "editTransaction", label: "Change a listing (quantity/date)" },
+      { key: "resetTransaction", label: "Reset a listing back to Awaiting confirmation" },
+      { key: "cancelTransaction", label: "Void/cancel a listing", critical: true },
+      { key: "deleteTransaction", label: "Permanently delete a listing", critical: true },
+      { key: "approveItem", label: "Approve a disputed item" },
+      { key: "markPaid", label: "Mark a transaction paid directly" },
+      { key: "confirmPayment", label: "Confirm a customer-reported payment" },
+      { key: "reviewPayment", label: "Put a reported payment under review" },
+      { key: "rejectPaymentClaim", label: "Reject a payment claim" },
+      { key: "manageAdmins", label: "Create and manage other admin accounts", critical: true },
+    ];
+    const ROLE_PRESETS = {
+      admin: Object.fromEntries(PERMISSIONS.map((p) => [p.key, true])),
+      accounting: {
+        editTransaction: true, resetTransaction: true, cancelTransaction: true, deleteTransaction: false,
+        approveItem: true, markPaid: true, confirmPayment: true, reviewPayment: true,
+        rejectPaymentClaim: true, manageAdmins: false,
+      },
+      cashier: {
+        editTransaction: false, resetTransaction: false, cancelTransaction: false, deleteTransaction: false,
+        approveItem: false, markPaid: true, confirmPayment: true, reviewPayment: false,
+        rejectPaymentClaim: false, manageAdmins: false,
+      },
+    };
+
+    function renderPermissionTable(container, permissions = {}) {
+      container.innerHTML = PERMISSIONS.map((p) => `
+        <label class="permission-row${p.critical ? " critical" : ""}">
+          <input type="checkbox" data-perm="${esc(p.key)}" ${permissions[p.key] !== false ? "checked" : ""} />
+          <span>${esc(p.label)}</span>
+        </label>
+      `).join("");
+    }
+    function readPermissionTable(container) {
+      const result = {};
+      container.querySelectorAll("[data-perm]").forEach((input) => {
+        result[input.dataset.perm] = input.checked;
+      });
+      return result;
+    }
+    function applyPreset(container, presetKey) {
+      const preset = ROLE_PRESETS[presetKey];
+      if (!preset) return;
+      container.querySelectorAll("[data-perm]").forEach((input) => {
+        input.checked = preset[input.dataset.perm] !== false;
+      });
+    }
+
+    renderPermissionTable($("new-admin-permissions"), ROLE_PRESETS.cashier);
+    $("new-admin-permissions").previousElementSibling.querySelectorAll("[data-preset]").forEach((btn) => {
+      btn.onclick = () => applyPreset($("new-admin-permissions"), btn.dataset.preset);
+    });
+
+    let SNAPSHOT_ADMINS = [];
+    let currentAdminUid = null;
+
+    function renderAdminsList() {
+      $("admins-list").innerHTML = SNAPSHOT_ADMINS.length
+        ? SNAPSHOT_ADMINS.map((a) => {
+            const perms = PERMISSIONS.filter((p) => (a.permissions ? a.permissions[p.key] !== false : true));
+            const isSelf = a.uid === currentAdminUid;
+            return `<div class="admin-user-row${a.active === false ? " inactive" : ""}" data-uid="${esc(a.uid)}">
+              <div class="admin-user-identity">
+                <strong>${esc(a.displayName || a.email || a.uid)}</strong>
+                <span class="muted-small">${esc(a.email || "")}${a.role ? ` &middot; ${esc(a.role)}` : ""}${a.active === false ? " &middot; deactivated" : ""}${isSelf ? " &middot; you" : ""}</span>
+                <div class="admin-user-perms">${
+                  a.permissions
+                    ? perms.map((p) => `<span class="pill">${esc(p.label.split(" ").slice(0, 3).join(" "))}</span>`).join("")
+                    : `<span class="pill">Full access (grandfathered)</span>`
+                }</div>
+              </div>
+              <button type="button" data-act="edit-admin" data-uid="${esc(a.uid)}">Edit</button>
+            </div>`;
+          }).join("")
+        : `<p class="muted-small">No admin users found.</p>`;
+    }
+
+    async function refresh() {
+      const me = await FS.admin.currentAdmin();
+      currentAdminUid = me?.uid || null;
+      if (!me || (me.permissions && me.permissions.manageAdmins === false)) {
+        $("login-panel").classList.add("hidden");
+        $("admin-users-app").classList.add("hidden");
+        $("no-permission-panel").classList.remove("hidden");
+        $("admin-sign-out").classList.remove("hidden");
+        return;
+      }
+      $("no-permission-panel").classList.add("hidden");
+      $("login-panel").classList.add("hidden");
+      $("admin-users-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      SNAPSHOT_ADMINS = await FS.admin.listAdmins();
+      renderAdminsList();
+    }
+
+    $("google-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithGoogle(); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("microsoft-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithMicrosoft(); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("email-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("admin-users-app").classList.add("hidden");
+      $("no-permission-panel").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    $("create-admin-btn").onclick = async () => {
+      const displayName = $("new-admin-name").value.trim();
+      const email = $("new-admin-email").value.trim();
+      const password = $("new-admin-password").value;
+      if (!displayName || !email || password.length < 8) {
+        status("create-admin-status", "Fill in a name, email, and a password of at least 8 characters.", false);
+        return;
+      }
+      const ok = await AdminModals.confirm(
+        "Create this admin user?",
+        `${displayName} (${email}) will be able to sign in immediately with the temporary password shown here - share it with them directly, it won't be shown again.`,
+        { confirmText: "Create admin" }
+      );
+      if (!ok) return;
+      $("create-admin-btn").disabled = true;
+      try {
+        const permissions = readPermissionTable($("new-admin-permissions"));
+        await FS.admin.createAdmin({ email, password, displayName, role: "custom", permissions });
+        $("new-admin-name").value = "";
+        $("new-admin-email").value = "";
+        $("new-admin-password").value = "";
+        renderPermissionTable($("new-admin-permissions"), ROLE_PRESETS.cashier);
+        status("create-admin-status", `${displayName} created.`, true);
+        await refresh();
+      } catch (e) {
+        status("create-admin-status", e.message, false);
+      } finally {
+        $("create-admin-btn").disabled = false;
+      }
+    };
+
+    let editingUid = null;
+    function openEditAdmin(uid) {
+      const a = SNAPSHOT_ADMINS.find((x) => x.uid === uid);
+      if (!a) return;
+      editingUid = uid;
+      $("edit-admin-title").textContent = `Edit ${a.displayName || a.email || uid}`;
+      $("edit-admin-email-note").textContent = a.email || "";
+      $("edit-admin-name").value = a.displayName || "";
+      renderPermissionTable($("edit-admin-permissions"), a.permissions || ROLE_PRESETS.admin);
+      $("edit-admin-deactivate").textContent = a.active === false ? "Reactivate" : "Deactivate";
+      $("edit-admin-deactivate").classList.toggle("danger", a.active !== false);
+      $("edit-admin-deactivate").disabled = a.uid === currentAdminUid;
+      $("edit-admin-status").textContent = "";
+      $("edit-admin-backdrop").classList.add("show");
+    }
+    function closeEditAdmin() {
+      $("edit-admin-backdrop").classList.remove("show");
+      editingUid = null;
+    }
+    $("edit-admin-close").onclick = closeEditAdmin;
+    $("edit-admin-cancel").onclick = closeEditAdmin;
+    $("edit-admin-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $("edit-admin-backdrop")) closeEditAdmin();
+    });
+    document.querySelectorAll("#edit-admin-backdrop [data-preset]").forEach((btn) => {
+      btn.onclick = () => applyPreset($("edit-admin-permissions"), btn.dataset.preset);
+    });
+
+    $("edit-admin-save").onclick = async () => {
+      if (!editingUid) return;
+      $("edit-admin-save").disabled = true;
+      try {
+        const permissions = readPermissionTable($("edit-admin-permissions"));
+        await FS.admin.updateAdmin(editingUid, { displayName: $("edit-admin-name").value.trim(), permissions });
+        closeEditAdmin();
+        await refresh();
+      } catch (e) {
+        status("edit-admin-status", e.message, false);
+      } finally {
+        $("edit-admin-save").disabled = false;
+      }
+    };
+    $("edit-admin-deactivate").onclick = async () => {
+      if (!editingUid) return;
+      const a = SNAPSHOT_ADMINS.find((x) => x.uid === editingUid);
+      const nextActive = a.active === false;
+      const ok = await AdminModals.confirm(
+        nextActive ? "Reactivate this admin?" : "Deactivate this admin?",
+        nextActive
+          ? "They will be able to sign in and act as an admin again immediately."
+          : "They will no longer be able to sign in as an admin. This does not delete their account.",
+        { confirmText: nextActive ? "Reactivate" : "Deactivate", danger: !nextActive }
+      );
+      if (!ok) return;
+      $("edit-admin-deactivate").disabled = true;
+      try {
+        await FS.admin.updateAdmin(editingUid, { active: nextActive });
+        closeEditAdmin();
+        await refresh();
+      } catch (e) {
+        status("edit-admin-status", e.message, false);
+      } finally {
+        $("edit-admin-deactivate").disabled = false;
+      }
+    };
+
+    document.body.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-act='edit-admin']");
+      if (btn) openEditAdmin(btn.dataset.uid);
+    });
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((me) => { if (me) return refresh(); })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>

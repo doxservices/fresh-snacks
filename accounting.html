@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-transaction-workflow" />
+  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -24,6 +24,7 @@
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="transactions.html">Transactions</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -152,8 +153,8 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
-  <script src="js/firebase-admin.js?v=20260726-transaction-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260726-modals"></script>
+  <script src="js/firebase-admin.js?v=20260726-permissions"></script>
+  <script src="js/admin-notifications.js?v=20260726-permissions"></script>
   <script src="js/admin-modals.js?v=20260726-modals"></script>
   <script>
     let SNAPSHOT = null;
@@ -829,7 +830,11 @@
 
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
-      .then((admin) => { if (admin) return refresh(); })
+      .then((admin) => {
+        if (!admin) return;
+        $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+        return refresh();
+      })
       .catch((e) => {
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);

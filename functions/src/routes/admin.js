@@ -3,7 +3,7 @@
  * (see router.use at the bottom of the requires). */
 const express = require("express");
 const admin = require("firebase-admin");
-const { requireAuth, requireAdmin, asyncRoute } = require("../middleware");
+const { requireAuth, requireAdmin, requirePermission, asyncRoute } = require("../middleware");
 const {
   uid: genId, todayISO, dateFromRecord, accounting, paymentAllocationPlan,
   binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean,
@@ -13,6 +13,7 @@ const {
   availableActions: resolveAvailableActions,
 } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
+const { PERMISSION, ROLE_PRESETS } = require("../lib/permissions");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -34,6 +35,64 @@ async function getCollection(name) {
  * itself proves admin authority. */
 router.get("/whoami", asyncRoute(async (req, res) => {
   res.json(req.adminProfile);
+}));
+
+router.get("/admins", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
+  const snap = await db().collection("admins").get();
+  res.json(snap.docs.map((doc) => ({ uid: doc.id, ...doc.data() })));
+}));
+
+// Creates the Firebase Auth user directly (email + password) and its
+// admins/{uid} doc together - the only admin sign-in method that can be
+// provisioned without the person having signed in themselves first (Google/
+// Microsoft admins still need their first OAuth sign-in before a uid
+// exists to attach permissions to).
+router.post("/admins", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
+  const { email, password, displayName, role } = req.body;
+  const cleanEmail = clean(email);
+  if (!cleanEmail) throw bad("Email is required.");
+  if (!password || String(password).length < 8) throw bad("Choose a password at least 8 characters long.");
+  const permissions = req.body.permissions && typeof req.body.permissions === "object"
+    ? req.body.permissions
+    : (ROLE_PRESETS[role] || ROLE_PRESETS.cashier);
+
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email: cleanEmail,
+      password: String(password),
+      displayName: clean(displayName) || cleanEmail,
+    });
+  } catch (error) {
+    throw bad(error.code === "auth/email-already-exists" ? "An account with that email already exists." : error.message);
+  }
+
+  await db().collection("admins").doc(userRecord.uid).set({
+    email: cleanEmail,
+    displayName: clean(displayName) || cleanEmail,
+    role: role || "custom",
+    permissions,
+    active: true,
+    createdBy: req.uid,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  res.json({ uid: userRecord.uid });
+}));
+
+router.patch("/admins/:uid", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
+  const { uid } = req.params;
+  const { displayName, role, permissions, active } = req.body;
+  if (uid === req.uid && active === false) throw bad("You cannot deactivate your own admin account.");
+  if (uid === req.uid && permissions && permissions[PERMISSION.MANAGE_ADMINS] === false) {
+    throw bad("You cannot remove your own admin-management permission.");
+  }
+  const payload = { updatedBy: req.uid, updatedAt: FieldValue.serverTimestamp() };
+  if (displayName !== undefined) payload.displayName = clean(displayName);
+  if (role !== undefined) payload.role = role;
+  if (permissions && typeof permissions === "object") payload.permissions = permissions;
+  if (active !== undefined) payload.active = active !== false;
+  await db().collection("admins").doc(uid).set(payload, { merge: true });
+  res.json({ ok: true });
 }));
 
 router.get("/snapshot", asyncRoute(async (req, res) => {
@@ -251,7 +310,7 @@ router.post("/adjustments", asyncRoute(async (req, res) => {
  * workflow with no content changes. Use PATCH /transactions/:id (Edit and
  * Resend) instead when the item itself needs to change - that always
  * routes back through the user for a fresh confirmation. */
-router.post("/transactions/:id/approve-item", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/approve-item", requirePermission(PERMISSION.APPROVE_ITEM), asyncRoute(async (req, res) => {
   const ref = db().collection("transactions").doc(req.params.id);
   await db().runTransaction(async (transaction) => {
     const snap = await transaction.get(ref);
@@ -286,7 +345,7 @@ router.post("/transactions/:id/approve-item", asyncRoute(async (req, res) => {
  * already-CONFIRMED_UNPAID listing resets it there too, since the user only
  * ever owes what they actually confirmed. Any prior confirmation/review is
  * cleared because the transaction has changed and needs a fresh look. */
-router.patch("/transactions/:id", asyncRoute(async (req, res) => {
+router.patch("/transactions/:id", requirePermission(PERMISSION.EDIT_TRANSACTION), asyncRoute(async (req, res) => {
   const { quantity, createdDate } = req.body;
   const qty = Math.floor(Number(quantity));
   if (!Number.isFinite(qty) || qty < 1) throw bad("Quantity must be at least one.");
@@ -338,7 +397,7 @@ router.patch("/transactions/:id", asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-router.post("/transactions/:id/merge-or-move", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/merge-or-move", requirePermission(PERMISSION.EDIT_TRANSACTION), asyncRoute(async (req, res) => {
   const sourceId = req.params.id;
   const targetId = String(req.body.targetId || "");
   if (!targetId || sourceId === targetId) throw bad("Choose a different destination listing.");
@@ -396,7 +455,7 @@ router.post("/transactions/:id/merge-or-move", asyncRoute(async (req, res) => {
  * sets the legacy `status: "void"` soft-delete marker so every existing
  * `.where("status", "==", "active")` query keeps excluding it with no
  * changes needed there; CANCELLED is the workflow-level record of *why*. */
-router.post("/transactions/:id/cancel", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/cancel", requirePermission(PERMISSION.CANCEL_TRANSACTION), asyncRoute(async (req, res) => {
   const ref = db().collection("transactions").doc(req.params.id);
   const reason = clean(req.body.reason);
   await db().runTransaction(async (transaction) => {
@@ -428,14 +487,14 @@ router.post("/transactions/:id/cancel", asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-router.post("/payments/:id/void", asyncRoute(async (req, res) => {
+router.post("/payments/:id/void", requirePermission(PERMISSION.CANCEL_TRANSACTION), asyncRoute(async (req, res) => {
   await db().collection("payments").doc(req.params.id).update({
     status: "void", voidedBy: req.uid, voidedAt: FieldValue.serverTimestamp(),
   });
   res.json({ ok: true });
 }));
 
-router.delete("/payments/:id", asyncRoute(async (req, res) => {
+router.delete("/payments/:id", requirePermission(PERMISSION.DELETE_TRANSACTION), asyncRoute(async (req, res) => {
   await db().collection("payments").doc(req.params.id).delete();
   res.json({ ok: true });
 }));
@@ -510,7 +569,7 @@ router.post("/payments/reconcile", asyncRoute(async (req, res) => {
   });
 }));
 
-router.post("/payments/permanent", asyncRoute(async (req, res) => {
+router.post("/payments/permanent", requirePermission(PERMISSION.MARK_PAID), asyncRoute(async (req, res) => {
   const { userId, amount, note, createdDate } = req.body;
   const value = Number(amount);
   if (!userId) throw bad("Choose a customer.");
@@ -578,7 +637,7 @@ function settlementPaymentWrite(transaction, record, { userId, uid, source }) {
 // Admin directly records a confirmed-unpaid listing as paid (e.g. cash
 // handed over on the spot) - finalizes immediately, no separate customer
 // confirmation of the payment is needed since the admin observed it.
-router.post("/transactions/:id/mark-paid", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/mark-paid", requirePermission(PERMISSION.MARK_PAID), asyncRoute(async (req, res) => {
   const now = FieldValue.serverTimestamp();
   await applyAdminAction(req, res, {
     action: ACTION.MARK_AS_PAID,
@@ -594,7 +653,7 @@ router.post("/transactions/:id/mark-paid", asyncRoute(async (req, res) => {
   });
 }));
 
-router.post("/transactions/:id/confirm-payment", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/confirm-payment", requirePermission(PERMISSION.CONFIRM_PAYMENT), asyncRoute(async (req, res) => {
   const now = FieldValue.serverTimestamp();
   await applyAdminAction(req, res, {
     action: ACTION.CONFIRM_PAYMENT,
@@ -606,7 +665,7 @@ router.post("/transactions/:id/confirm-payment", asyncRoute(async (req, res) => 
   });
 }));
 
-router.post("/transactions/:id/review-payment", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/review-payment", requirePermission(PERMISSION.REVIEW_PAYMENT), asyncRoute(async (req, res) => {
   const reason = clean(req.body.reason);
   await applyAdminAction(req, res, {
     action: ACTION.REVIEW_PAYMENT,
@@ -619,7 +678,7 @@ router.post("/transactions/:id/review-payment", asyncRoute(async (req, res) => {
   });
 }));
 
-router.post("/transactions/:id/reject-payment", asyncRoute(async (req, res) => {
+router.post("/transactions/:id/reject-payment", requirePermission(PERMISSION.REJECT_PAYMENT_CLAIM), asyncRoute(async (req, res) => {
   const reason = clean(req.body.reason);
   await applyAdminAction(req, res, {
     action: ACTION.REJECT_PAYMENT_CLAIM,
@@ -638,7 +697,38 @@ router.post("/transactions/:id/reject-payment", asyncRoute(async (req, res) => {
   });
 }));
 
-router.delete("/transactions/:id", asyncRoute(async (req, res) => {
+// "Do nothing to the record, just put it back in the user's hands to
+// confirm" - reverts to PENDING_USER_CONFIRMATION with no content change,
+// clearing every downstream progress marker (confirmation, review,
+// payment-report/confirm/reject) since the workflow is starting over.
+router.post("/transactions/:id/reset", requirePermission(PERMISSION.RESET_TRANSACTION), asyncRoute(async (req, res) => {
+  await applyAdminAction(req, res, {
+    action: ACTION.RESET,
+    eventType: EVENT_TYPE.TRANSACTION_RESET_BY_ADMIN,
+    extraFields: () => ({
+      userConfirmedAt: FieldValue.delete(),
+      userConfirmedBy: FieldValue.delete(),
+      itemReviewedAt: FieldValue.delete(),
+      itemReviewedBy: FieldValue.delete(),
+      itemReviewReason: FieldValue.delete(),
+      paymentMarkedAt: FieldValue.delete(),
+      paymentMarkedBy: FieldValue.delete(),
+      paymentMarkedByRole: FieldValue.delete(),
+      paymentConfirmedAt: FieldValue.delete(),
+      paymentConfirmedByAdminId: FieldValue.delete(),
+      paymentReviewedAt: FieldValue.delete(),
+      paymentReviewedByAdminId: FieldValue.delete(),
+      paymentReviewReason: FieldValue.delete(),
+      paymentClaimRejectedAt: FieldValue.delete(),
+      paymentClaimRejectedBy: FieldValue.delete(),
+      paymentClaimRejectReason: FieldValue.delete(),
+      resetBy: req.uid,
+      resetAt: FieldValue.serverTimestamp(),
+    }),
+  });
+}));
+
+router.delete("/transactions/:id", requirePermission(PERMISSION.DELETE_TRANSACTION), asyncRoute(async (req, res) => {
   await db().collection("transactions").doc(req.params.id).delete();
   res.json({ ok: true });
 }));

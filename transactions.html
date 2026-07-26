@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-transaction-workflow" />
+  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -24,6 +24,7 @@
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="accounting.html">User accounting</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -88,19 +89,14 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
-  <script src="js/firebase-admin.js?v=20260726-transaction-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260726-modals"></script>
+  <script src="js/firebase-admin.js?v=20260726-permissions"></script>
+  <script src="js/admin-notifications.js?v=20260726-permissions"></script>
   <script src="js/admin-modals.js?v=20260726-modals"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
-    const svgIcon = (name) => ({
-      check: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>`,
-      cash: `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M15 10c0-1.4-1.3-2.5-3-2.5s-3 1-3 2.3c0 1.3 1.3 1.9 3 2.2s3 .9 3 2.2c0 1.3-1.3 2.3-3 2.3s-3-1.1-3-2.5"/></svg>`,
-    }[name] || "");
 
     function status(id, msg, ok) {
       const el = $(id);
@@ -128,19 +124,60 @@
     };
     const needsAttention = (t) =>
       ["ITEM_UNDER_REVIEW", "PAYMENT_PENDING_ADMIN_CONFIRMATION", "PAYMENT_UNDER_REVIEW"].includes(t.workflowStatus);
+
+    // Maps each workflow action to the permission that gates it (mirrors
+    // functions/src/lib/permissions.js) - a missing permissions map on the
+    // signed-in admin's own profile means grandfathered full access, same
+    // rule the server enforces. This only controls what renders; the
+    // server re-checks every one of these on every request regardless.
+    const ACTION_PERMISSION = {
+      EDIT: "editTransaction", EDIT_AND_RESEND: "editTransaction",
+      RESET: "resetTransaction", CANCEL: "cancelTransaction",
+      APPROVE_ITEM: "approveItem", MARK_AS_PAID: "markPaid",
+      CONFIRM_PAYMENT: "confirmPayment", REVIEW_PAYMENT: "reviewPayment",
+      REJECT_PAYMENT_CLAIM: "rejectPaymentClaim",
+    };
+    function hasPerm(key) {
+      const perms = FS.admin.profile?.permissions;
+      return !perms || perms[key] !== false;
+    }
+    function allowedActions(t) {
+      return (t.availableActions || []).filter((a) => hasPerm(ACTION_PERMISSION[a] || null));
+    }
+
     function renderTxnActions(t) {
-      const actions = t.availableActions || [];
-      const parts = [];
-      if (actions.includes("APPROVE_ITEM")) parts.push(`<button type="button" class="icon-button action-button professional-action-icon" data-act="txn-approve-item" title="Approve this disputed item" aria-label="Approve item">${svgIcon("check")}</button>`);
-      if (actions.includes("CONFIRM_PAYMENT")) parts.push(`<button type="button" class="icon-button action-button professional-action-icon payment-action-icon" data-act="txn-confirm-payment" title="Confirm this reported payment" aria-label="Confirm payment">${svgIcon("cash")}</button>`);
-      if (actions.includes("REVIEW_PAYMENT")) parts.push(`<button data-act="txn-review-payment" title="Put this claimed payment under review">Review payment</button>`);
-      if (actions.includes("REJECT_PAYMENT_CLAIM")) parts.push(`<button class="danger" data-act="txn-reject-payment" title="Reject this payment claim">Reject claim</button>`);
-      if (actions.includes("MARK_AS_PAID")) parts.push(`<button class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`);
-      if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) parts.push(`<button data-act="txn-edit" title="Change quantity or date">Change</button>`);
-      if (actions.includes("CANCEL")) parts.push(`<button class="danger" data-act="txn-cancel" title="Remove from the tab">Cancel</button>`);
-      if (t.workflowStatus === "PAID_FINALIZED") parts.push(`<span class="permanent-note">Final</span>`);
-      parts.push(`<button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`);
-      return parts.join("");
+      const actions = allowedActions(t);
+      const menuItems = [];
+      if (actions.includes("APPROVE_ITEM")) menuItems.push(`<button data-act="txn-approve-item">Approve item</button>`);
+      if (actions.includes("CONFIRM_PAYMENT")) menuItems.push(`<button data-act="txn-confirm-payment">Confirm payment</button>`);
+      if (actions.includes("REVIEW_PAYMENT")) menuItems.push(`<button data-act="txn-review-payment">Review payment</button>`);
+      if (actions.includes("REJECT_PAYMENT_CLAIM")) menuItems.push(`<button class="danger" data-act="txn-reject-payment">Reject claim</button>`);
+      if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) menuItems.push(`<button data-act="txn-edit">Change</button>`);
+      if (actions.includes("RESET")) menuItems.push(`<button data-act="txn-reset">Reset to Awaiting</button>`);
+      if (actions.includes("CANCEL")) menuItems.push(`<button class="danger" data-act="txn-cancel">Void</button>`);
+      if (hasPerm("deleteTransaction")) menuItems.push(`<button class="danger" data-act="txn-delete">Delete</button>`);
+
+      const markPaidBtn = actions.includes("MARK_AS_PAID")
+        ? `<button type="button" class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`
+        : "";
+      const finalNote = t.workflowStatus === "PAID_FINALIZED" ? `<span class="permanent-note">Final</span>` : "";
+      const menu = menuItems.length ? `
+        <div class="row-menu">
+          <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
+          <div class="row-menu-dropdown">${menuItems.join("")}</div>
+        </div>` : "";
+      return `${markPaidBtn}${finalNote}${menu}`;
+    }
+
+    function renderPaymentActions() {
+      const menuItems = [];
+      if (hasPerm("cancelTransaction")) menuItems.push(`<button data-act="payment-void">Void</button>`);
+      if (hasPerm("deleteTransaction")) menuItems.push(`<button class="danger" data-act="payment-delete">Delete</button>`);
+      if (!menuItems.length) return "";
+      return `<div class="row-menu">
+        <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
+        <div class="row-menu-dropdown">${menuItems.join("")}</div>
+      </div>`;
     }
 
     function renderTransactions() {
@@ -191,10 +228,7 @@
                 <td class="num">—</td>
                 <td class="num-money payment-value">−${FS.money(record.amount || 0, cur)}</td>
                 <td><span class="ledger-status paid">Recorded</span></td>
-                <td>
-                  <button data-act="payment-void" title="Remove from balance calculations">Void</button>
-                  <button class="danger" data-act="payment-delete" title="Permanently delete this payment">Delete</button>
-                </td>
+                <td>${renderPaymentActions()}</td>
               </tr>`
               : `<tr data-id="${esc(record.transactionId || record.id)}"${needsAttention(record) ? ' class="disputed"' : ""}>
                 <td>${esc(record.createdDate || "-")}</td>
@@ -355,6 +389,24 @@
       $("login-panel").classList.remove("hidden");
     };
 
+    document.body.addEventListener("click", (ev) => {
+      const toggle = ev.target.closest("[data-menu-toggle]");
+      if (toggle) {
+        const menu = toggle.closest(".row-menu");
+        const wasOpen = menu.classList.contains("open");
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+        if (!wasOpen) menu.classList.add("open");
+        ev.stopPropagation();
+        return;
+      }
+      if (!ev.target.closest(".row-menu-dropdown")) {
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+      }
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+    });
+
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
@@ -364,6 +416,8 @@
         return;
       }
       const row = btn.closest("tr");
+      const menu = btn.closest(".row-menu");
+      if (menu) menu.classList.remove("open");
       // open sections stay open across the re-render each action triggers
       const openKeys = [...document.querySelectorAll("#txn-groups details[open]")].map((d) => d.dataset.user);
       try {
@@ -415,6 +469,14 @@
           });
           if (!result) return;
           await FS.admin.updateTransaction(row.dataset.id, result);
+        } else if (act === "txn-reset") {
+          const ok = await AdminModals.confirm(
+            "Reset this listing to Awaiting?",
+            "The listing itself is unchanged - it just goes back to awaiting the customer's confirmation.",
+            { confirmText: "Reset" }
+          );
+          if (!ok) return;
+          await FS.admin.resetTransaction(row.dataset.id);
         } else if (act === "txn-cancel") {
           const ok = await AdminModals.confirm(
             "Cancel this listing?",
@@ -461,7 +523,11 @@
 
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
-      .then((admin) => { if (admin) return refresh(); })
+      .then((admin) => {
+        if (!admin) return;
+        $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+        return refresh();
+      })
       .catch((e) => {
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);

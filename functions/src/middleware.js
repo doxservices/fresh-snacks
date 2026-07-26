@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { hasPermission } = require("./lib/permissions");
 
 /* Verifies the Firebase ID token in the Authorization header, mirroring
  * what the client SDK proved just by having a signed-in session. Every
@@ -41,6 +42,19 @@ async function requireAdmin(req, res, next) {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+}
+
+/* Use after requireAdmin (needs req.adminProfile). A missing `permissions`
+ * map on the admin doc grandfathers full access - see lib/permissions.js's
+ * file header for why. */
+function requirePermission(key) {
+  return (req, res, next) => {
+    if (!hasPermission(req.adminProfile, key)) {
+      res.status(403).json({ error: "You do not have permission to do this.", code: "PERMISSION_DENIED" });
+      return;
+    }
+    next();
+  };
 }
 
 /* Recover an active device link from server-side records when this known
@@ -128,4 +142,4 @@ function asyncRoute(handler) {
   };
 }
 
-module.exports = { requireAuth, optionalAuth, requireAdmin, resolveEffectiveUid, hasInviteSession, asyncRoute };
+module.exports = { requireAuth, optionalAuth, requireAdmin, requirePermission, resolveEffectiveUid, hasInviteSession, asyncRoute };

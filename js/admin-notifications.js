@@ -510,9 +510,16 @@
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
           <div class="notif-item-actions">
-            ${it.workflowStatus === "ITEM_UNDER_REVIEW"
-              ? `<button type="button" class="primary" data-notif-act="txn-approve-item" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>`
-              : `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>`}
+            ${(() => {
+              const perms = FS.admin.profile?.permissions;
+              const allowed = (key) => !perms || perms[key] !== false;
+              if (it.workflowStatus === "ITEM_UNDER_REVIEW") {
+                return allowed("approveItem")
+                  ? `<button type="button" class="primary" data-notif-act="txn-approve-item" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>` : "";
+              }
+              return allowed("confirmPayment")
+                ? `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>` : "";
+            })()}
           </div>
         </div>
         <div class="notif-item-meta">

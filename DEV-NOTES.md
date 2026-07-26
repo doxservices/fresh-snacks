@@ -1,5 +1,50 @@
 # Development notes
 
+## Admin permission system, Reset action, and row-menu cleanup (2026-07-26)
+
+- New `RESET` workflow action: "do nothing to the record, just put it back
+  in the user's hands to confirm" - distinct from Edit/Edit and Resend,
+  which also change quantity/date/price. Available to admins from
+  `CONFIRMED_UNPAID`, `ITEM_UNDER_REVIEW`, `PAYMENT_PENDING_ADMIN_
+  CONFIRMATION`, and `PAYMENT_UNDER_REVIEW`, always landing back on
+  `PENDING_USER_CONFIRMATION` with every downstream progress marker
+  (confirmation, review, payment-report/confirm/reject) cleared.
+- New granular admin permission system (`functions/src/lib/permissions.js`):
+  every sensitive transaction/payment action (`editTransaction`,
+  `resetTransaction`, `cancelTransaction`, `deleteTransaction`,
+  `approveItem`, `markPaid`, `confirmPayment`, `reviewPayment`,
+  `rejectPaymentClaim`, `manageAdmins`) is gated by a permission key on the
+  calling admin's own `admins/{uid}.permissions` map, enforced server-side
+  via `requirePermission()` in `middleware.js` on every route it applies to
+  - client-side checks only control what renders, never what's allowed.
+  A **missing** `permissions` map grandfathers full access (today's real
+  admin accounts predate this and are not locked out), matching this
+  project's established grandfather-existing/gate-going-forward precedent.
+  Once a map exists, only an explicit `false` denies.
+- Three role presets (`admin`, `accounting`, `cashier`) are UI starting
+  points only - the toggle table is the actual source of truth, so any
+  individual permission can be hand-adjusted per admin regardless of which
+  preset it started from. `accounting` gets full operational access except
+  delete and admin-management; `cashier` gets only mark-paid/confirm-payment.
+- New `admin-users.html`: lists existing admins with a permission summary,
+  creates new ones (email + password only - Google/Microsoft admins need
+  their first OAuth sign-in before a uid exists to attach permissions to,
+  same limitation the system already had), and edits an existing admin's
+  display name/permissions/active state. Gated by `manageAdmins`; every
+  other admin page's nav now includes a same-gated "Admin Users" link.
+  Scope is intentionally limited to transaction/payment actions - this
+  does not yet cover catalog, bins/inventory, or feedback management.
+- `transactions.html`/`edit-tab.html` row actions moved from a mix of icon
+  buttons and inline text buttons into the same `.row-menu` dropdown
+  pattern `accounting.html` already used for its customer rows - "Mark
+  paid" is the one action that stays a standalone button, per explicit
+  request. Menu items are filtered by both `availableActions` (workflow-
+  valid) and the signed-in admin's own permissions before rendering.
+- `POST /payments/:id/void` and `DELETE /payments/:id` now require
+  `cancelTransaction`/`deleteTransaction` respectively - without this, an
+  admin lacking `deleteTransaction` on transactions could still achieve
+  the same permanent-removal result through a payment record instead.
+
 ## Transaction confirmation/payment workflow rewrite (2026-07-26)
 
 Implements `tab_transaction_flow_implementation_spec.md` - replaces the old

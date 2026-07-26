@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-transaction-workflow" />
+  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -23,6 +23,7 @@
           <a class="btn" href="accounting.html">User accounting</a>
           <a class="btn" href="admin.html">Admin dashboard</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
       </div>
@@ -265,8 +266,8 @@
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
-  <script src="js/firebase-admin.js?v=20260726-transaction-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260726-modals"></script>
+  <script src="js/firebase-admin.js?v=20260726-permissions"></script>
+  <script src="js/admin-notifications.js?v=20260726-permissions"></script>
   <script src="js/admin-modals.js?v=20260726-modals"></script>
   <script>
     let SNAPSHOT = null;
@@ -937,19 +938,41 @@
     };
     const needsAttention = (t) =>
       ["ITEM_UNDER_REVIEW", "PAYMENT_PENDING_ADMIN_CONFIRMATION", "PAYMENT_UNDER_REVIEW"].includes(t.workflowStatus);
+
+    // Same permission gating as transactions.html - see its comment.
+    const ACTION_PERMISSION = {
+      EDIT: "editTransaction", EDIT_AND_RESEND: "editTransaction",
+      RESET: "resetTransaction", CANCEL: "cancelTransaction",
+      APPROVE_ITEM: "approveItem", MARK_AS_PAID: "markPaid",
+      CONFIRM_PAYMENT: "confirmPayment", REVIEW_PAYMENT: "reviewPayment",
+      REJECT_PAYMENT_CLAIM: "rejectPaymentClaim",
+    };
+    function hasPerm(key) {
+      const perms = FS.admin.profile?.permissions;
+      return !perms || perms[key] !== false;
+    }
     function renderTxnActions(t) {
-      const actions = t.availableActions || [];
-      const parts = [];
-      if (actions.includes("APPROVE_ITEM")) parts.push(`<button data-act="txn-approve-item" title="Approve this disputed item">Approve</button>`);
-      if (actions.includes("CONFIRM_PAYMENT")) parts.push(`<button data-act="txn-confirm-payment" title="Confirm this reported payment">Confirm payment</button>`);
-      if (actions.includes("REVIEW_PAYMENT")) parts.push(`<button data-act="txn-review-payment" title="Put this claimed payment under review">Review payment</button>`);
-      if (actions.includes("REJECT_PAYMENT_CLAIM")) parts.push(`<button class="danger" data-act="txn-reject-payment" title="Reject this payment claim">Reject claim</button>`);
-      if (actions.includes("MARK_AS_PAID")) parts.push(`<button class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`);
-      if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) parts.push(`<button data-act="txn-edit" title="Change quantity or date">Change</button>`);
-      if (actions.includes("CANCEL")) parts.push(`<button class="danger" data-act="txn-cancel" title="Remove from the tab">Cancel</button>`);
-      if (t.workflowStatus === "PAID_FINALIZED") parts.push(`<span class="permanent-note">Final</span>`);
-      parts.push(`<button class="danger" data-act="txn-delete" title="Permanently delete this transaction">Delete</button>`);
-      return parts.join("");
+      const actions = (t.availableActions || []).filter((a) => hasPerm(ACTION_PERMISSION[a] || null));
+      const menuItems = [];
+      if (actions.includes("APPROVE_ITEM")) menuItems.push(`<button data-act="txn-approve-item">Approve item</button>`);
+      if (actions.includes("CONFIRM_PAYMENT")) menuItems.push(`<button data-act="txn-confirm-payment">Confirm payment</button>`);
+      if (actions.includes("REVIEW_PAYMENT")) menuItems.push(`<button data-act="txn-review-payment">Review payment</button>`);
+      if (actions.includes("REJECT_PAYMENT_CLAIM")) menuItems.push(`<button class="danger" data-act="txn-reject-payment">Reject claim</button>`);
+      if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) menuItems.push(`<button data-act="txn-edit">Change</button>`);
+      if (actions.includes("RESET")) menuItems.push(`<button data-act="txn-reset">Reset to Awaiting</button>`);
+      if (actions.includes("CANCEL")) menuItems.push(`<button class="danger" data-act="txn-cancel">Void</button>`);
+      if (hasPerm("deleteTransaction")) menuItems.push(`<button class="danger" data-act="txn-delete">Delete</button>`);
+
+      const markPaidBtn = actions.includes("MARK_AS_PAID")
+        ? `<button type="button" class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`
+        : "";
+      const finalNote = t.workflowStatus === "PAID_FINALIZED" ? `<span class="permanent-note">Final</span>` : "";
+      const menu = menuItems.length ? `
+        <div class="row-menu">
+          <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
+          <div class="row-menu-dropdown">${menuItems.join("")}</div>
+        </div>` : "";
+      return `${markPaidBtn}${finalNote}${menu}`;
     }
 
     function renderTransactionTable() {
@@ -1144,10 +1167,30 @@
       }
     };
 
+    document.body.addEventListener("click", (ev) => {
+      const toggle = ev.target.closest("[data-menu-toggle]");
+      if (toggle) {
+        const menu = toggle.closest(".row-menu");
+        const wasOpen = menu.classList.contains("open");
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+        if (!wasOpen) menu.classList.add("open");
+        ev.stopPropagation();
+        return;
+      }
+      if (!ev.target.closest(".row-menu-dropdown")) {
+        document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+      }
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+    });
+
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
       const row = btn.closest("tr");
+      const menu = btn.closest(".row-menu");
+      if (menu) menu.classList.remove("open");
       const act = btn.dataset.act;
       try {
         if (act === "txn-approve-item") {
@@ -1203,6 +1246,15 @@
           });
           if (!result) return;
           await FS.admin.updateTransaction(row.dataset.id, result);
+          await refresh();
+        } else if (act === "txn-reset") {
+          const ok = await AdminModals.confirm(
+            "Reset this listing to Awaiting?",
+            "The listing itself is unchanged - it just goes back to awaiting the customer's confirmation.",
+            { confirmText: "Reset" }
+          );
+          if (!ok) return;
+          await FS.admin.resetTransaction(row.dataset.id);
           await refresh();
         } else if (act === "txn-cancel") {
           const ok = await AdminModals.confirm(
@@ -1283,7 +1335,11 @@
 
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
-      .then((admin) => { if (admin) return afterLogin(); })
+      .then((admin) => {
+        if (!admin) return;
+        $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+        return afterLogin();
+      })
       .catch((e) => {
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);

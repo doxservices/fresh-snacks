@@ -57,8 +57,25 @@ assert.throws(
 );
 
 // A user can never confirm/review/mark-paid a transaction from a status the
-// USER role doesn't own an entry for at all.
+// USER role doesn't own an entry at all for.
 assert.equal(nextStatusFor(STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, ROLE.USER, ACTION.CONFIRM_PAYMENT), null);
 assert.equal(nextStatusFor(STATUS.ITEM_UNDER_REVIEW, ROLE.USER, ACTION.CONFIRM_ITEM), null);
+
+// RESET ("do nothing to the record, just put it back in the user's hands to
+// confirm") - admin-only, available from every non-final, non-pending
+// status, always lands back on PENDING_USER_CONFIRMATION.
+for (const status of [
+  STATUS.CONFIRMED_UNPAID, STATUS.ITEM_UNDER_REVIEW,
+  STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, STATUS.PAYMENT_UNDER_REVIEW,
+]) {
+  assert.equal(nextStatusFor(status, ROLE.ADMIN, ACTION.RESET), STATUS.PENDING_USER_CONFIRMATION);
+  assert.ok(availableActions(status, ROLE.ADMIN).includes(ACTION.RESET));
+}
+// Never available once already pending (nothing to reset back to), never for
+// the user role, and never for a finalized/cancelled transaction.
+assert.equal(nextStatusFor(STATUS.PENDING_USER_CONFIRMATION, ROLE.ADMIN, ACTION.RESET), null);
+assert.equal(nextStatusFor(STATUS.CONFIRMED_UNPAID, ROLE.USER, ACTION.RESET), null);
+assert.equal(nextStatusFor(STATUS.PAID_FINALIZED, ROLE.ADMIN, ACTION.RESET), null);
+assert.equal(nextStatusFor(STATUS.CANCELLED, ROLE.ADMIN, ACTION.RESET), null);
 
 console.log("transaction status/transition regression checks passed");
