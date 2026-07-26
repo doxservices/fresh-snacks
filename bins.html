@@ -54,6 +54,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
+  <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
     let DATA = null;
@@ -138,7 +139,12 @@
       if (!items.length) return;
 
       const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
-      if (!confirm(`Add ${summary} (${FS.money(total(), cur)}) to your tab?`)) return;
+      const okAddToTab = await AppModals.confirm(
+        "Add to your tab?",
+        `${summary} (${FS.money(total(), cur)}) will be added to your tab.`,
+        { confirmText: "Add to tab" }
+      );
+      if (!okAddToTab) return;
 
       $("submit").disabled = true;
       status("submit-status", "Adding to your tab...", true);

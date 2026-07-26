@@ -25,6 +25,19 @@
         </div>
       </div>
     </div>
+    <div class="modal-backdrop" id="am-prompt-backdrop">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="am-prompt-title">
+        <h2 id="am-prompt-title"></h2>
+        <p class="muted-small" id="am-prompt-message" style="margin-bottom:10px;"></p>
+        <div class="field">
+          <input id="am-prompt-input" type="text" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="am-prompt-cancel">Cancel</button>
+          <button type="button" class="primary" id="am-prompt-ok">OK</button>
+        </div>
+      </div>
+    </div>
     <div class="modal-backdrop" id="am-edit-backdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="am-edit-title">
         <h2 id="am-edit-title">Change listing</h2>
@@ -91,6 +104,35 @@
         backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(); };
         backdrop.classList.add("show");
         okBtn.focus();
+      });
+    },
+
+    // Promise<string|null> - the entered text, or null if cancelled/blank-submitted
+    prompt(title, message, defaultValue = "") {
+      return new Promise((resolve) => {
+        $("am-prompt-title").textContent = title;
+        $("am-prompt-message").textContent = message || "";
+        $("am-prompt-message").classList.toggle("hidden", !message);
+        const input = $("am-prompt-input");
+        input.value = defaultValue;
+        const backdrop = $("am-prompt-backdrop");
+        const okBtn = $("am-prompt-ok");
+        const cancelBtn = $("am-prompt-cancel");
+        const cleanup = (result) => {
+          backdrop.classList.remove("show");
+          okBtn.onclick = null;
+          cancelBtn.onclick = null;
+          backdrop.onclick = null;
+          input.onkeydown = null;
+          resolve(result);
+        };
+        okBtn.onclick = () => cleanup(input.value.trim() || null);
+        cancelBtn.onclick = () => cleanup(null);
+        backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(null); };
+        input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); okBtn.click(); } };
+        backdrop.classList.add("show");
+        input.focus();
+        input.select();
       });
     },
 

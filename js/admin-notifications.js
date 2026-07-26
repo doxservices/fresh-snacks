@@ -253,8 +253,7 @@
         renderList();
       }
     } catch (e) {
-      const alertFn = window.AdminModals?.alert || ((title, msg) => Promise.resolve(alert(`${title}: ${msg}`)));
-      await alertFn("Action failed", e.message);
+      await AdminModals.alert("Action failed", e.message);
       buttons.forEach((b) => (b.disabled = false));
     }
   }

@@ -445,6 +445,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
+  <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
@@ -1181,7 +1182,12 @@
       if (!items.length) return;
 
       const summary = items.map((x) => `${x.qty}x ${x.snack.name}`).join(", ");
-      if (!confirm(`Add ${summary} (${FS.money(binsTotal(LAST_DATA), cur)}) to your tab?`)) return;
+      const okAddToTab = await AppModals.confirm(
+        "Add to your tab?",
+        `${summary} (${FS.money(binsTotal(LAST_DATA), cur)}) will be added to your tab.`,
+        { confirmText: "Add to tab" }
+      );
+      if (!okAddToTab) return;
 
       $id("bins-submit").disabled = true;
       binsStatus("Adding to your tab...", true);
@@ -1350,7 +1356,7 @@
         .catch((e) => {
           input.value = previous || "";
           input.disabled = false;
-          alert("Could not save date: " + e.message);
+          AppModals.alert("Could not save date", e.message);
         });
     });
 
@@ -1482,7 +1488,12 @@
     }
 
     $id("us-delink-btn").onclick = async () => {
-      if (!confirm("De-link this browser? It will return to visitor mode.")) return;
+      const okDelink = await AppModals.confirm(
+        "De-link this browser?",
+        "It will return to visitor mode.",
+        { confirmText: "De-link", danger: true }
+      );
+      if (!okDelink) return;
       const btn = $id("us-delink-btn");
       btn.disabled = true;
       try {
@@ -1490,7 +1501,7 @@
         location.reload();
       } catch (e) {
         btn.disabled = false;
-        alert("Could not de-link: " + e.message);
+        await AppModals.alert("Could not de-link", e.message);
       }
     };
 
@@ -1817,7 +1828,12 @@
     });
 
     $id("us-logout").onclick = async () => {
-      if (!confirm("Log out of Fresh Snacks on this browser? Your tab and transaction history will not be deleted.")) return;
+      const okLogout = await AppModals.confirm(
+        "Log out of Fresh Snacks?",
+        "This removes the profile session from this browser. Your tab and transaction history will not be deleted.",
+        { confirmText: "Log out", danger: true }
+      );
+      if (!okLogout) return;
       const button = $id("us-logout");
       button.disabled = true;
       button.textContent = "Logging out…";

@@ -141,8 +141,8 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
   <script src="js/firebase-admin.js?v=20260726-transaction-workflow"></script>
-  <script src="js/admin-modals.js?v=20260723-admin-workflow"></script>
-  <script src="js/admin-notifications.js?v=20260726-transaction-workflow"></script>
+  <script src="js/admin-modals.js?v=20260726-modals"></script>
+  <script src="js/admin-notifications.js?v=20260726-modals"></script>
   <script>
     let SNAPSHOT = null;
     let focusedFromQr = false;
@@ -554,7 +554,7 @@
       if (floorActions) {
         const floor = floorActions.dataset.floor;
         if (button.dataset.action === "duplicate-floor") {
-          const nextFloor = prompt(`Name for the copy of ${floor}:`, `${floor} Copy`);
+          const nextFloor = await AdminModals.prompt("Duplicate floor", `Name for the copy of ${floor}:`, `${floor} Copy`);
           if (!nextFloor) return;
           try {
             const count = await FS.admin.duplicateBinFloor(floor, nextFloor);
@@ -565,7 +565,12 @@
         }
         if (button.dataset.action === "delete-floor") {
           const binsOnFloor = SNAPSHOT.bins.filter((bin) => bin.floor === floor).length;
-          if (!confirm(`Permanently delete ${floor} and all ${binsOnFloor} baskets on it? Every basket on this floor will be removed.`)) return;
+          const okDeleteFloor = await AdminModals.confirm(
+            "Delete this floor?",
+            `Permanently delete ${floor} and all ${binsOnFloor} baskets on it? Every basket on this floor will be removed.`,
+            { confirmText: "Delete floor", danger: true }
+          );
+          if (!okDeleteFloor) return;
           try {
             const count = await FS.admin.deleteBinFloor(floor);
             await refresh();
@@ -594,7 +599,12 @@
         } catch (error) { status("bin-status", error.message, false); }
         return;
       }
-      if (!confirm(`Delete ${bin?.floor || ""} ${bin?.name || "this basket"}?`)) return;
+      const okDeleteBin = await AdminModals.confirm(
+        "Delete this basket?",
+        `Delete ${bin?.floor || ""} ${bin?.name || "this basket"}?`,
+        { confirmText: "Delete basket", danger: true }
+      );
+      if (!okDeleteBin) return;
       try {
         await FS.admin.deleteBin(id);
         await refresh();
