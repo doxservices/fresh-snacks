@@ -5307,17 +5307,17 @@ tr.healthy-account td {
    as a dismiss/flag affordance, not a competing action. */
 .entry-remove-btn {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 18px;
-  height: 18px;
+  top: 8px;
+  right: 8px;
+  width: 14px;
+  height: 14px;
   padding: 0;
   display: inline-grid;
   place-items: center;
   border: 0;
   background: transparent;
   color: #a34c45;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;

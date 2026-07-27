@@ -1,5 +1,12 @@
 # Development notes
 
+## Shrank the remove/review "x" and gave it more corner margin (2026-07-27)
+
+- `.entry-remove-btn` (previous entry) was still a bit large and sat only
+  2px off the cell's edge. Down to 14px/10px font, inset to 8px/8px so it
+  reads as a small corner accent with real breathing room instead of
+  crowding the edge.
+
 ## Restyled the confirmed-purchase remove/review "x" (2026-07-27)
 
 - The new remove/review button (previous entry) reused `.verdict-btn.dispute`
