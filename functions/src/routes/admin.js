@@ -9,7 +9,7 @@ const {
   binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean,
 } = require("../lib/shared");
 const {
-  STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus,
+  STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus, deriveCreatedByRole,
   availableActions: resolveAvailableActions,
 } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
@@ -114,7 +114,12 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
   // has one implementation to keep in sync.
   const enrichTransaction = (t) => {
     const workflowStatus = deriveWorkflowStatus(t);
-    return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
+    return {
+      ...t,
+      workflowStatus,
+      createdByRole: deriveCreatedByRole(t),
+      availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN),
+    };
   };
   const activeTransactions = transactions.filter((x) => x.status !== "void").map(enrichTransaction);
   // Voided transactions are deliberately excluded from `transactions`/
@@ -778,7 +783,12 @@ router.get("/users/:userId/transaction-history", asyncRoute(async (req, res) => 
   const snap = await db().collection("transactions").where("uid", "==", req.params.userId).get();
   const all = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).map((t) => {
     const workflowStatus = deriveWorkflowStatus(t);
-    return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
+    return {
+      ...t,
+      workflowStatus,
+      createdByRole: deriveCreatedByRole(t),
+      availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN),
+    };
   });
   // Same voided/active split as GET /snapshot, and same reason - see its
   // comment. `transactions` stays active-only so every existing balance/

@@ -120,20 +120,22 @@
       PAYMENT_PENDING_ADMIN_CONFIRMATION: { label: "Customer reported payment", cls: "verdict-badge needs-review" },
       PAYMENT_UNDER_REVIEW: { label: "Admin reviewing payment", cls: "verdict-badge disputed" },
     };
-    // Paid is always just "Paid - Final" regardless of which path got it
-    // there (admin marked it paid directly, or confirmed a customer-
-    // reported payment) - a single ending status, not a separate "Final"
-    // note next to a "Paid" badge. CONFIRMED_UNPAID does still distinguish
-    // who did the confirming: a customer confirming their own item (or a
-    // self-logged one, auto-confirmed at creation) always sets
-    // userConfirmedAt; an admin reaching this status instead (approving a
-    // disputed item, or rejecting a payment claim back to it) never does.
+    // PAID_FINALIZED distinguishes who put the payment on record: paymentMarkedByRole
+    // is only ever set once, by whichever mark-paid route actually ran - the
+    // customer's own (store.js, ROLE.USER) or the admin's direct one
+    // (admin.js, ROLE.ADMIN) - and confirm/review-payment never touch it, so
+    // it survives untouched however many review steps happen in between.
+    // CONFIRMED_UNPAID distinguishes who put the item on the tab in the
+    // first place (createdByRole, set once at creation) rather than who most
+    // recently confirmed it - a self-logged item was never "confirmed" by
+    // anyone, it was simply added.
     const statusBadge = (t) => {
       if (t.workflowStatus === "PAID_FINALIZED") {
-        return `<span class="ledger-status paid">Paid - Final</span>`;
+        const label = t.paymentMarkedByRole === "USER" ? "Payment Confirmed - Final" : "Paid - Final";
+        return `<span class="ledger-status paid">${label}</span>`;
       }
       if (t.workflowStatus === "CONFIRMED_UNPAID") {
-        const label = t.userConfirmedAt ? "Customer confirmed" : "Admin confirmed";
+        const label = t.createdByRole === "ADMIN" ? "Admin added to tab" : "Customer added to tab";
         return `<span class="verdict-badge agreed">${label}</span>`;
       }
       const s = STATUS_BADGE[t.workflowStatus] || { label: "Confirmed", cls: "verdict-badge agreed" };

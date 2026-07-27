@@ -1,5 +1,37 @@
 # Development notes
 
+## Status badges: who added it, and who put the payment on record (2026-07-26)
+
+- `CONFIRMED_UNPAID`'s admin badge used to read "Customer confirmed"/"Admin
+  confirmed" based on whether `userConfirmedAt` was set - which conflated a
+  customer explicitly confirming an admin-added item with a customer simply
+  self-logging their own snack (auto-confirmed at creation, never actually
+  "confirmed" by anyone). It now reads **"Customer added to tab"** /
+  **"Admin added to tab"** based on `createdByRole` instead - who originally
+  put the line item on the tab, a stable fact set once at creation, rather
+  than who most recently touched its confirmation state.
+- `PAID_FINALIZED` used to always read "Paid - Final" regardless of path.
+  It now reads **"Payment Confirmed - Final"** when `paymentMarkedByRole`
+  is `USER` (the customer reported paying via `POST /store/transactions/
+  :id/mark-paid`, and an admin later confirmed that claim, possibly after a
+  review detour), and stays **"Paid - Final"** when it's `ADMIN` (the admin
+  recorded the payment directly, e.g. cash handed over, with no prior
+  customer report) - `paymentMarkedByRole` is only ever set once, by
+  whichever mark-paid route actually ran, and `confirm-payment`/
+  `review-payment` never touch it, so it's a reliable signal regardless of
+  how many review steps happened in between.
+- Backend: `GET /admin/snapshot` and `GET /admin/users/:userId/transaction-
+  history` both now attach `createdByRole` (via the existing
+  `deriveCreatedByRole()` fallback for older records) to every enriched
+  transaction, alongside the `workflowStatus`/`availableActions` they
+  already attached. `paymentMarkedByRole` needed no backend change - it was
+  already passed through via the existing raw-record spread.
+- Scope: this only changes the admin-facing badges in `transactions.html`/
+  `edit-tab.html`. The customer-facing tracker in `index.html` still shows
+  a plain "Paid - Final" for every finalized transaction - it wasn't part
+  of this request, and the customer already knows whether they were the
+  one who reported paying.
+
 ## Edit available directly from payment-pending/under-review, not just after Review (2026-07-26)
 
 - Previously an admin had no way to edit a transaction's quantity/date once
