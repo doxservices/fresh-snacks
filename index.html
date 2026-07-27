@@ -481,6 +481,21 @@
       });
       return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
     }
+
+    // FS.loadData()'s own "profile" field is actually app-wide settings
+    // (brand/currency/etc) - NOT this visitor's own Firestore user doc. The
+    // real profile (nameSet, displayName, hasTab...) only ever comes from
+    // FS.getMyProfile(), so every reload needs both together with
+    // myProfile stashed onto the result. A reload that only did
+    // `LAST_DATA = await FS.loadData()` left data.myProfile undefined,
+    // FS.hasActiveTab(undefined) false, and the whole basket panel/overlay/
+    // notification bell hidden until the next full page load - "the cart
+    // goes away" right after adding to it or resolving a Snack Log item.
+    async function refreshTabData() {
+      const [data, me] = await Promise.all([FS.loadData(), FS.getMyProfile()]);
+      data.myProfile = me;
+      return data;
+    }
     window.addEventListener("error", (event) => showAppFailure(event.error || event.message));
     window.addEventListener("unhandledrejection", (event) => showAppFailure(event.reason));
 
@@ -1203,7 +1218,7 @@
         setBasketPanelOpen(false);
         binsStatus(`Added ${summary} to your tab.`, true);
         const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
-        LAST_DATA = await FS.loadData();
+        LAST_DATA = await refreshTabData();
         CLAIM = LAST_DATA.claim || null;
         render(LAST_DATA);
         document.querySelectorAll("#log details").forEach((d) =>
@@ -1317,7 +1332,7 @@
         return false;
       }
       const openKeys = [...document.querySelectorAll("#log details[open]")].map((d) => d.dataset.key);
-      LAST_DATA = await FS.loadData();
+      LAST_DATA = await refreshTabData();
       CLAIM = LAST_DATA.claim || null;
       render(LAST_DATA);
       document.querySelectorAll("#log details").forEach((d) =>
@@ -1861,29 +1876,22 @@
     // invite (`linkCode`) hasn't been accepted yet - the name-capture modal
     // (triggered from renderUserSettings below) is what actually offers to
     // accept it, on an explicit button click.
+    //
+    // The Admin test profile needs no special handling here at all: the
+    // account picker on admin.html sets this browser's `linkedTo` marker
+    // directly (see js/firebase-admin.js's portalIntoAccount) before ever
+    // navigating here, and refreshTabData() already reads that same marker
+    // like it would for any genuinely linked device - the server just
+    // additionally trusts a verified admin's requested effectiveUid
+    // outright (middleware.js's resolveEffectiveUid), so no invite code or
+    // device-link slot is needed to portal into it.
     function startTabFlow() {
-      // FS.loadData()'s own "profile" field is actually app-wide settings
-      // (brand/currency/etc, from GET /store/settings) - NOT this visitor's
-      // own Firestore user doc. The real profile (nameSet, displayName...)
-      // only ever comes from FS.getMyProfile(), so it's fetched alongside
-      // and stashed on data.myProfile for render()/renderBinsGallery() to
-      // use for the visitor-vs-guest gate.
-      //
-      // The Admin test profile needs no special handling here at all: the
-      // account picker on admin.html sets this browser's `linkedTo` marker
-      // directly (see js/firebase-admin.js's portalIntoAccount) before ever
-      // navigating here, and FS.loadData()/FS.getMyProfile() already read
-      // that same marker like they would for any genuinely linked device -
-      // the server just additionally trusts a verified admin's requested
-      // effectiveUid outright (middleware.js's resolveEffectiveUid), so no
-      // invite code or device-link slot is needed to portal into it.
-      withLoadTimeout(Promise.all([FS.loadData(), FS.getMyProfile()]))
-        .then(([data, me]) => {
+      withLoadTimeout(refreshTabData())
+        .then((data) => {
           CLAIM = data.claim || null;
-          data.myProfile = me;
           LAST_DATA = data;
           render(data);
-          renderUserSettings(me);
+          renderUserSettings(data.myProfile);
           setAppLoadState("ready");
         })
         .catch((e) => {

@@ -1,5 +1,29 @@
 # Development notes
 
+## Fix: basket/cart disappeared after adding to it or resolving a Snack Log item (2026-07-27)
+
+- `FS.loadData()`'s own "profile" field is app-wide settings, not this
+  visitor's own profile - the real profile (`nameSet`, `hasTab`...) only
+  ever comes from a separate `FS.getMyProfile()` call, stashed onto
+  `data.myProfile` for `render()`'s visitor/guest gate. Two reload paths -
+  the "Add to my tab" submit handler and `performEntryAction()` (review-
+  item/mark-paid/confirm-item on the Snack Log) - only did
+  `LAST_DATA = await FS.loadData()` and skipped that second call, leaving
+  `data.myProfile` `undefined`. `FS.hasActiveTab(undefined)` is false,
+  which hides the basket panel/overlay/notification bell entirely and
+  flips the whole page into visitor mode (the "Open a tab" prompt) - "the
+  cart goes away" right after adding to it, until the next full page load
+  quietly fixed it again.
+- Not specific to the Admin test profile - any customer hits this on any
+  of these two actions - but a real one-off purchase is less likely to
+  immediately repeat the action and notice a transient glitch that
+  self-corrects on the next visit, while testing repeatedly triggers it.
+- Fixed by pulling the "fetch both, stash myProfile" pattern into one
+  `refreshTabData()` helper and using it everywhere `LAST_DATA` gets
+  reassigned (`startTabFlow()`, the submit handler, and
+  `performEntryAction()`), instead of leaving each reload site to
+  remember to do both calls itself.
+
 ## Existing credit auto-settles new items; fixed 2 spots showing raw negative balances (2026-07-27)
 
 - **Auto-settle from existing credit**: a customer with credit on file
