@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Snack Catalog</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-ledger-dedup" />
+  <link rel="stylesheet" href="styles.css?v=20260726-artwork-upload" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -154,7 +154,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-catalog-redesign"></script>
   <script src="js/firebase-admin.js?v=20260726-catalog-redesign"></script>
-  <script src="js/admin-modals.js?v=20260726-modals"></script>
+  <script src="js/admin-modals.js?v=20260726-artwork-upload"></script>
   <script src="js/admin-notifications.js?v=20260726-status-labels"></script>
   <script>
     let SNAPSHOT = null;
@@ -163,6 +163,7 @@
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const TRASH_ICON = `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>`;
+    const CAMERA_ICON = `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.3"/></svg>`;
 
     function status(id, msg, ok) {
       const el = $(id);
@@ -194,7 +195,9 @@
             <div class="catalog-drag-handle" title="Drag to reorder" aria-label="Drag ${esc(s.name)} to reorder">&#8942;&#8942;</div>
             <div class="catalog-card-photo">${s.photo
               ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-              : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+              : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}
+              <button type="button" class="icon-button catalog-photo-upload" data-act="snack-artwork" title="Upload photos for ${esc(s.name)}" aria-label="Upload photos for ${esc(s.name)}">${CAMERA_ICON}</button>
+            </div>
             <div class="catalog-card-body">
               <input type="hidden" data-f="factsId" value="${esc(s.factsId || "")}" />
               <input type="hidden" data-f="photo" value="${esc(s.photo || "")}" />
@@ -232,6 +235,7 @@
           <td><input data-f="calories" type="number" min="0" max="999" class="cc-calories-input" value="${s.calories ?? ""}" /></td>
           <td class="nowrap catalog-row-actions">
             <span class="catalog-save-status" data-save-status>Saved</span>
+            <button type="button" class="icon-button" data-act="snack-artwork" title="Upload photos for ${esc(s.name)}" aria-label="Upload photos for ${esc(s.name)}">${CAMERA_ICON}</button>
             <button type="button" class="danger icon-button" data-act="snack-delete" title="Delete ${esc(s.name)} permanently" aria-label="Delete ${esc(s.name)} permanently">${TRASH_ICON}</button>
           </td>
         </tr>`).join("")}</tbody>
@@ -415,8 +419,21 @@
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
       const item = btn.closest("[data-id]");
-      if (btn.dataset.act !== "snack-delete") return;
       const record = SNAPSHOT.snacks.find((s) => s.id === item.dataset.id);
+      if (btn.dataset.act === "snack-artwork") {
+        await AdminModals.uploadArtwork(
+          { id: record.id, name: record.name, photo: record.photo, favoritePhoto: record.favoritePhoto },
+          {
+            onUpload: async (kind, file, onProgress) => {
+              const result = await FS.admin.uploadSnackImage(record.id, file, kind, onProgress);
+              return result.url;
+            },
+          }
+        );
+        await refresh();
+        return;
+      }
+      if (btn.dataset.act !== "snack-delete") return;
       const ok = await AdminModals.confirm(
         "Delete this snack permanently?",
         `${record?.name || "This snack"} and its uploaded images will be removed permanently, along with any basket references. This cannot be undone. Existing transaction history is not affected.`,

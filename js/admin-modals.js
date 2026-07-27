@@ -56,10 +56,37 @@
           <button type="button" class="primary" id="am-edit-save">Save</button>
         </div>
       </div>
+    </div>
+    <div class="modal-backdrop" id="am-artwork-backdrop">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="am-artwork-title">
+        <h2 id="am-artwork-title">Update photos</h2>
+        <div class="form-grid">
+          <div class="artwork-upload-item">
+            <div class="artwork-preview" id="am-artwork-photo-preview"></div>
+            <div class="field">
+              <label for="am-artwork-photo-input">Catalog image</label>
+              <input id="am-artwork-photo-input" type="file" accept="image/*" />
+            </div>
+          </div>
+          <div class="artwork-upload-item">
+            <div class="artwork-preview artwork-preview-wide" id="am-artwork-favorite-preview"></div>
+            <div class="field">
+              <label for="am-artwork-favorite-input">Favorite background</label>
+              <input id="am-artwork-favorite-input" type="file" accept="image/*" />
+            </div>
+          </div>
+        </div>
+        <div class="status" id="am-artwork-status" aria-live="polite"></div>
+        <div class="modal-actions">
+          <button type="button" class="primary" id="am-artwork-done">Done</button>
+        </div>
+      </div>
     </div>`;
   document.body.append(...mount.children);
 
   const $ = (id) => document.getElementById(id);
+  const escArtwork = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   window.AdminModals = {
     // Promise<boolean> - true if confirmed, false if cancelled/dismissed
@@ -161,6 +188,67 @@
         backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(null); };
         backdrop.classList.add("show");
         $("am-edit-qty").focus();
+      });
+    },
+
+    // Lets a card upload its own two images without navigating to a
+    // separate picker-and-upload section - the modal itself doesn't touch
+    // Firestore/Storage, it just drives whatever upload function the
+    // caller (catalog.html) passes in, same as editListing leaves the
+    // actual save to its caller. Promise<void> - resolves once closed;
+    // onUpload(kind, file, onProgress) should return the new image URL.
+    uploadArtwork(snack, { onUpload }) {
+      return new Promise((resolve) => {
+        $("am-artwork-title").textContent = `Update photos - ${snack.name}`;
+        const setPreview = (id, src, alt) => {
+          $(id).innerHTML = src
+            ? `<img src="${escArtwork(src)}" alt="${escArtwork(alt)}" />`
+            : `<span>No image</span>`;
+        };
+        setPreview("am-artwork-photo-preview", snack.photo, `${snack.name} catalog artwork`);
+        setPreview("am-artwork-favorite-preview", snack.favoritePhoto, `${snack.name} favorite artwork`);
+        const photoInput = $("am-artwork-photo-input");
+        const favoriteInput = $("am-artwork-favorite-input");
+        const statusEl = $("am-artwork-status");
+        photoInput.value = "";
+        favoriteInput.value = "";
+        statusEl.textContent = "";
+        statusEl.className = "status";
+
+        async function runUpload(kind, input, previewId, alt) {
+          const file = input.files[0];
+          if (!file) return;
+          try {
+            statusEl.className = "status ok";
+            statusEl.textContent = "Optimizing image...";
+            const url = await onUpload(kind, file, (percent) => {
+              statusEl.textContent = `Uploading ${percent}%...`;
+            });
+            setPreview(previewId, url, alt);
+            input.value = "";
+            statusEl.textContent = "Uploaded.";
+          } catch (error) {
+            statusEl.className = "status err";
+            statusEl.textContent = error.message;
+          }
+        }
+
+        photoInput.onchange = () => runUpload("photo", photoInput, "am-artwork-photo-preview", `${snack.name} catalog artwork`);
+        favoriteInput.onchange = () => runUpload("favoritePhoto", favoriteInput, "am-artwork-favorite-preview", `${snack.name} favorite artwork`);
+
+        const backdrop = $("am-artwork-backdrop");
+        const doneBtn = $("am-artwork-done");
+        const cleanup = () => {
+          backdrop.classList.remove("show");
+          photoInput.onchange = null;
+          favoriteInput.onchange = null;
+          doneBtn.onclick = null;
+          backdrop.onclick = null;
+          resolve();
+        };
+        doneBtn.onclick = cleanup;
+        backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(); };
+        backdrop.classList.add("show");
       });
     },
   };

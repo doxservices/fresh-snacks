@@ -3204,6 +3204,18 @@ textarea:focus {
   user-select: none;
 }
 
+/* Opens the artwork upload modal for this card's own two images, right on
+   the photo - bottom-right so it doesn't collide with the drag handle. */
+.catalog-photo-upload {
+  position: absolute;
+  z-index: 2;
+  bottom: 10px;
+  right: 10px;
+  border: 1px solid #cbdccf;
+  background: rgba(255, 255, 255, .94);
+  color: #0b633c;
+}
+
 .catalog-card.dragging .catalog-drag-handle {
   cursor: grabbing;
 }

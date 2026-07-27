@@ -1,5 +1,24 @@
 # Development notes
 
+## Per-card photo upload on the catalog page (2026-07-26)
+
+- Each catalog card (both gallery and row views) now has a camera icon
+  that opens a small modal to upload that snack's two images (catalog
+  photo and favorite background) directly - no more finding it in the
+  separate "Artwork uploads" section's snack dropdown first. That section
+  is untouched and still works exactly as before, for whoever prefers it.
+- New `AdminModals.uploadArtwork(snack, { onUpload })` in
+  `js/admin-modals.js` - like `editListing`, the modal doesn't touch
+  Firestore/Storage itself, it just drives whatever `onUpload(kind, file,
+  onProgress)` function the caller passes in (catalog.html's already-
+  existing `FS.admin.uploadSnackImage`) and updates its own live preview
+  from the URL it returns.
+- Built as a modal rather than a dropdown from the card itself specifically
+  because `.catalog-card` has `overflow: hidden` (for its rounded photo
+  corners) - a dropdown positioned to extend past the card would have been
+  silently clipped. A modal renders at the body level via admin-modals.js's
+  existing injection pattern, so it isn't affected by that.
+
 ## Fix: expanded customer group repeated its own Purchases/Payments/Balance (2026-07-26)
 
 - `<summary>` stays visible whether its `<details>` is open or closed, so
