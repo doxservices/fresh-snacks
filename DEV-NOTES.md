@@ -1,5 +1,22 @@
 # Development notes
 
+## Catalog stats section (2026-07-26)
+
+- New stats card at the top of catalog.html, matching the same `.brand-card`/
+  `.brand-stats` pattern already used on admin.html's dashboard and
+  inventory.html's Location inventory section: Active snacks (X/Y), Tracked
+  stock units, and Inventory value.
+- Inventory value here is each snack's `price × stock` (its own Stock field
+  on the catalog card), summed only over snacks where stock is actually
+  tracked ("Not tracked" ones contribute nothing) - a different basis than
+  inventory.html's own "Inventory value" stat, which is computed from
+  basket/floor placement instead. A caption under the stats says so, so the
+  two same-named numbers on different pages aren't mistaken for each other.
+- Computed entirely client-side from the snack list catalog.html already
+  fetches (`GET /admin/snapshot`) - no new backend endpoint, and it
+  recomputes live as snacks autosave (price/stock/active edits), not just
+  on page load.
+
 ## Reverted: inactive snacks are hidden from the gallery again, not shown sold-out (2026-07-26)
 
 - Earlier today's change made inactive snacks display like sold-out (visible,

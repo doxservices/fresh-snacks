@@ -52,6 +52,30 @@
     </section>
 
     <section id="admin-app" class="hidden">
+      <section class="brand-card">
+        <div class="brand-grid">
+          <div>
+            <div class="brand-title">Catalog</div>
+            <div class="brand-subtitle">Snack setup, pricing, and stock on hand</div>
+          </div>
+          <div class="brand-stats">
+            <div class="stat-box balance-stat">
+              <div class="stat-label">Active snacks</div>
+              <div class="stat-value warm" id="dash-active-snacks">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Tracked stock units</div>
+              <div class="stat-value blue" id="dash-stock-units">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Inventory value</div>
+              <div class="stat-value green" id="dash-inventory-value">-</div>
+            </div>
+          </div>
+        </div>
+        <p class="muted-small" style="margin-top:8px;">Inventory value is each snack's price &times; its Stock field, for snacks where stock is tracked - snacks left as "Not tracked" aren't counted.</p>
+      </section>
+
       <section class="card section-card">
         <div class="catalog-toolbar">
           <div>
@@ -146,6 +170,13 @@
     function updateCatalogSummary() {
       const active = SNAPSHOT.snacks.filter((s) => s.active !== false).length;
       $("catalog-summary").textContent = `${active} active of ${SNAPSHOT.snacks.length} total snacks.`;
+      $("dash-active-snacks").textContent = `${active} / ${SNAPSHOT.snacks.length}`;
+
+      const tracked = SNAPSHOT.snacks.filter((s) => s.stock != null);
+      const stockUnits = tracked.reduce((sum, s) => sum + Number(s.stock || 0), 0);
+      const inventoryValue = tracked.reduce((sum, s) => sum + Number(s.stock || 0) * Number(s.price || 0), 0);
+      $("dash-stock-units").textContent = stockUnits.toLocaleString("en-US");
+      $("dash-inventory-value").textContent = FS.money(inventoryValue, SNAPSHOT.settings.currency);
     }
 
     function renderCatalog() {
