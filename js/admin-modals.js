@@ -60,7 +60,7 @@
     <div class="modal-backdrop" id="am-artwork-backdrop">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="am-artwork-title">
         <h2 id="am-artwork-title">Update photos</h2>
-        <div class="form-grid">
+        <div class="artwork-upload-grid">
           <div class="artwork-upload-item">
             <div class="artwork-preview" id="am-artwork-photo-preview"></div>
             <div class="field">

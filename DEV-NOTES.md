@@ -1,5 +1,21 @@
 # Development notes
 
+## Artwork uploads stack vertically instead of squeezing 3-across (2026-07-27)
+
+- `.catalog-upload-harness` (the Snack picker + two upload items on
+  catalog.html) was a 3-column grid, so each preview only ever got roughly
+  a third of the card's width. Switched to a vertical flex stack - each
+  item reads top to bottom and its preview can claim far more lateral
+  space, up to a 460px cap (`.artwork-upload-item`'s own `max-width`) so it
+  doesn't blow up to the full card width on a wide screen.
+- The now-redundant `@media (max-width: 850px)` override that forced this
+  same grid down to one column on mobile was removed - the base layout is
+  already single-column at every width now.
+- The per-card upload modal (`js/admin-modals.js`) gets the identical
+  stacked treatment via a new dedicated `.artwork-upload-grid` class,
+  instead of reusing `.form-grid` (which stays a generic multi-column
+  layout other, unrelated forms still use as-is).
+
 ## Fix: saving a profile with a blank phone crashed ("Cannot read properties of null") (2026-07-27)
 
 - `PATCH /store/profile` computed `phone.replace(/\D/g, "")` unconditionally,

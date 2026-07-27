@@ -3095,17 +3095,30 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
+/* Stacked (one item above the next) instead of side by side - three items
+   sharing one row squeezed each preview down to roughly a third of the
+   card's width; reading downward instead lets each preview claim far more
+   lateral space, up to .artwork-upload-item's own max-width. */
 .catalog-upload-harness {
-  display: grid;
-  grid-template-columns: minmax(180px, .7fr) repeat(2, minmax(250px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  align-items: start;
   margin-top: 18px;
 }
 
 .artwork-upload-item {
   display: grid;
   gap: 12px;
+  max-width: 460px;
+}
+
+/* Same stacked layout for the per-card upload modal (js/admin-modals.js) -
+   a dedicated class rather than reusing .form-grid, which stays a generic
+   multi-column layout used by unrelated forms elsewhere. */
+.artwork-upload-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 /* A fixed 150px height read as a thin strip regardless of how wide its
@@ -3138,12 +3151,6 @@ textarea:focus {
 .catalog-upload-harness input[type="file"] {
   padding: 9px;
   background: #fff;
-}
-
-@media (max-width: 850px) {
-  .catalog-upload-harness {
-    grid-template-columns: 1fr;
-  }
 }
 
 .catalog-toolbar h2,
