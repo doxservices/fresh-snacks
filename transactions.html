@@ -63,6 +63,10 @@
           settling it. Recorded payments settle approved purchases from oldest to newest, and any
           amount left over remains available as credit for future snacks.
         </p>
+        <p class="muted-small hidden" id="user-filter-notice" style="margin-bottom:10px;">
+          Showing only <strong id="user-filter-name"></strong>, opened from a notification.
+          <button type="button" id="user-filter-clear">Show all customers</button>
+        </p>
         <div id="txn-groups"></div>
       </section>
     </section>
@@ -226,9 +230,20 @@
         const nameB = byUser.get(keyB)?.displayName || keyB;
         return String(nameA).localeCompare(String(nameB));
       });
+      // A notification click points at one customer - filter the whole list
+      // down to just them instead of leaving every other customer's group
+      // in the page for the admin to scroll past.
+      const filtered = requestedUser ? sorted.filter(([userId]) => userId === requestedUser) : sorted;
+      const notice = $("user-filter-notice");
+      if (requestedUser) {
+        $("user-filter-name").textContent = byUser.get(requestedUser)?.displayName || requestedUser;
+        notice.classList.remove("hidden");
+      } else {
+        notice.classList.add("hidden");
+      }
 
-      $("txn-groups").innerHTML = sorted.length
-        ? sorted.map(([userId, group]) => {
+      $("txn-groups").innerHTML = filtered.length
+        ? filtered.map(([userId, group]) => {
             const info = byUser.get(userId);
             const name = info?.displayName || userId;
             const txns = group.transactions;
@@ -300,7 +315,7 @@
               </table>` : ""}
             </details>`;
           }).join("")
-        : `<p class="muted-small">No transactions yet.</p>`;
+        : `<p class="muted-small">${requestedUser ? "No transactions found for this customer." : "No transactions yet."}</p>`;
 
       if (requestedUser) {
         const target = document.querySelector(`#txn-groups details[data-user="${CSS.escape(requestedUser)}"]`);
@@ -334,6 +349,13 @@
       document.querySelectorAll("#txn-groups details").forEach((d) => d.setAttribute("open", ""));
     $("collapse-all").onclick = () =>
       document.querySelectorAll("#txn-groups details").forEach((d) => d.removeAttribute("open"));
+    $("user-filter-clear").onclick = () => {
+      const url = new URL(location.href);
+      url.searchParams.delete("user");
+      url.searchParams.delete("txn");
+      history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      renderTransactions();
+    };
 
     function openPaymentModal(userId, amount = "", note = "") {
       const info = SNAPSHOT.accounting.find((row) => row.userId === userId);

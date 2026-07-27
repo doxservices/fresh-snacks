@@ -1,5 +1,20 @@
 # Development notes
 
+## Notification click filters transactions.html to one customer (2026-07-26)
+
+- Clicking an admin notification already navigated to
+  `transactions.html?user=<id>&txn=<id>` and auto-opened/highlighted that
+  customer's group, but every other customer's group still rendered above
+  and below it, so filed cases pushed the target group below the fold. The
+  `user` param now filters the whole `#txn-groups` list down to just that
+  customer instead of only auto-expanding it among everyone else.
+- A "Showing only X, opened from a notification" notice appears above the
+  list whenever the filter is active, with a "Show all customers" button
+  that clears the `user`/`txn` params (via `history.replaceState`, no full
+  reload) and re-renders the full list.
+- Navigating to `transactions.html` directly (no `user` param) is unaffected
+  - full customer list, no notice.
+
 ## Voided transaction visibility and permanent delete (2026-07-26)
 
 - Voiding a transaction (`CANCEL`) previously made it disappear entirely from
