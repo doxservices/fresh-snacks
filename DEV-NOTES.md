@@ -1,5 +1,32 @@
 # Development notes
 
+## Themed date pickers, clickable anywhere in the field (2026-07-27)
+
+- Every `input[type="date"]` (Payment date on accounting/transactions,
+  the admin modals' listing-date and payment-date fields, the inline
+  snack-log date editor) used to share the same flat grey box as every
+  other input. Gave date fields their own themed rule: a green-tinted
+  background, brand-green border/hover/focus state, `accent-color` for
+  the native picker, and a custom SVG calendar icon (via
+  `::-webkit-calendar-picker-indicator`'s `background-image`) recolored to
+  the same green instead of Chrome/Edge's default flat grey glyph. Firefox
+  and Safari don't expose that pseudo-element, so they fall back to their
+  own native icon untouched - a real cross-browser gap CSS alone can't
+  close, since the calendar popup itself is OS/browser-rendered UI with no
+  styling hook.
+- `color-scheme: light` on date inputs stops the OS's dark mode from handing
+  back a dark-on-dark picker popup with an invisible icon.
+- New `js/date-inputs.js`: natively, clicking a date field's text only
+  drops a text cursor into a segment - only clicking the tiny icon opens
+  the calendar. Added a single document-level delegated click listener that
+  calls `showPicker()` on whatever date input was clicked, so the whole
+  field (not just the icon) opens the picker, including date fields that
+  admin-modals.js/admin-notifications.js inject later. `showPicker()` is
+  Chromium-only; unsupported browsers just keep the native default-click
+  behavior. Included on every page that has a date field (accounting,
+  admin, admin-users, catalog, edit-tab, index, inventory, sitemap,
+  transactions) - skipped on the rest, which have none.
+
 ## Favorite background photo now fills its frame instead of floating (2026-07-27)
 
 - The live customer-facing favorite card (`index.html`'s `#fav-photo`,

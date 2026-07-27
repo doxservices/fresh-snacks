@@ -1563,6 +1563,52 @@ textarea:focus {
   border-color: var(--green);
 }
 
+/* Date fields get their own themed treatment instead of the flat grey box
+   every other field uses - it's the only field type that also opens extra
+   native UI, so it should read as more clearly interactive at a glance.
+   color-scheme:light stops the OS's dark mode from handing back a
+   dark-on-dark picker popup with an invisible icon. */
+input[type="date"] {
+  border: 1.5px solid var(--line);
+  background: var(--green-soft);
+  cursor: pointer;
+  accent-color: var(--green);
+  color-scheme: light;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hovering anywhere in the field - not just the calendar icon - should read
+   as clickable, since js/date-inputs.js opens the picker on a click anywhere
+   in the field, not only on the icon. */
+input[type="date"]:hover {
+  border-color: var(--green);
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+input[type="date"]:focus {
+  background: var(--white);
+}
+
+/* Recolors the native calendar-icon button to the brand green instead of
+   Chrome/Edge's default flat grey glyph. Firefox/Safari don't expose this
+   pseudo-element, so they fall back to their own native icon untouched. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 5px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%232f7a44" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>');
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: var(--green-light);
+}
+
 .field.wide {
   grid-column: 1 / -1;
 }
@@ -5228,6 +5274,14 @@ tr.healthy-account td {
   content: "\270E";
   color: var(--green);
   font-size: 11px;
+}
+
+.entry-date-control:hover {
+  border-bottom-color: var(--green-dark);
+}
+
+.entry-date-control:hover::after {
+  color: var(--green-dark);
 }
 
 .entry-date-control input {
