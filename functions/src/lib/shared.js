@@ -224,6 +224,12 @@ const toPayment = (p) => ({
   // day string an admin can backdate) - the client needs the actual time
   // for the "Last Payment" stat's date-and-time display.
   createdAt: p.createdAt || null,
+  // Set only when this payment finalized one specific transaction (see
+  // settlementPaymentWrite in functions/src/routes/admin.js) - lets the
+  // client show what was actually purchased. Absent on a general/manual
+  // payment recorded against the account rather than settling one item.
+  settlesSnackId: p.settlesSnackId || null,
+  settlesSnackName: p.settlesSnackName || null,
 });
 
 const clean = (v) => {

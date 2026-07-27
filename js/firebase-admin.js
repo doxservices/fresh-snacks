@@ -405,9 +405,17 @@ FS.admin.createGuestTab = async (displayName) => {
 // profile picker right before navigating to index.html?profile=admin-test,
 // so index.html's normal FS.loadData()/FS.getMyProfile() calls (which
 // already read this same marker for any linked device) just work.
+//
+// adminTestSession is the durable half of that - the ?profile=admin-test
+// URL param only survives on that one navigation; reloading, or clicking
+// any other nav link, drops it and index.html's profilePresentation() would
+// otherwise fall back to labeling this browser "Guest Profile" for the rest
+// of the test session, same as any other linked device. This flag persists
+// until FS.unlinkDevice()/FS.signOutCustomer() explicitly clears it.
 FS.admin.portalIntoAccount = (userId) => {
   localStorage.setItem(FS.appConfig.storageKeys.linkedTo, userId);
   localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
+  localStorage.setItem(FS.appConfig.storageKeys.adminTestSession, "1");
 };
 
 FS.admin.addTransactionFor = async (userId, items, options = {}) =>

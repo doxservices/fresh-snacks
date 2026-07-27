@@ -1,5 +1,38 @@
 # Development notes
 
+## Admin test-profile label stops drifting to "Guest Profile" (2026-07-27)
+
+- `profilePresentation()`'s `isAdminTest` check only ever looked at the
+  `?profile=admin-test` URL param (or a `claim.profileSource` that nothing
+  in the backend actually ever sets - dead code, left as-is). That param
+  only survives the one navigation admin.html's "Open test profile" sends
+  you on; reloading, or clicking any other nav link, drops it, and the
+  label then fell through to "Guest Profile" - reported for Xavier
+  Hemmings' account, but really any admin test-profile session more than
+  one click deep.
+- `FS.admin.portalIntoAccount()` (`js/firebase-admin.js`) now also sets a
+  durable `adminTestSession` localStorage flag (new key in
+  `js/firebase-config.js`'s `storageKeys`), and `profilePresentation()`
+  checks it alongside the URL param. Cleared by `FS.unlinkDevice()` (the
+  existing "De-link this browser" button, already how a portalled-in
+  session ends) and `FS.signOutCustomer()`, so it never outlives the test
+  session or bleeds into a real customer's own device link.
+
+## Last Payment card now shows what it covered, with the photo (2026-07-27)
+
+- The small stat-box version (previous entry) only had room for an amount
+  and a date/time line. Replaced it with a full `.snack-card`-style card -
+  same photo-plus-details layout as the Favorite Snack card, right below
+  it - so a payment can show what it actually covered.
+- `settlesSnackId`/`settlesSnackName` (already written by
+  `settlementPaymentWrite` in `functions/src/routes/admin.js` whenever a
+  payment finalizes one specific transaction) are now exposed on
+  `toPayment()`, letting the card resolve and show that snack's name and
+  photo. A general/manual payment (recorded against the account rather
+  than settling one particular item) has neither field - falls back to its
+  note, or a plain "General payment" label, with the usual placeholder
+  glyph instead of a photo.
+
 ## "Current balance" wording + a Last Payment stat card (2026-07-27)
 
 - Renamed the "Current tab" stat label to "Current balance" everywhere it

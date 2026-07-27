@@ -811,6 +811,7 @@ header.banner {
 }
 
 .favorite-section,
+.last-payment-section,
 .activity-summary {
   margin-bottom: 14px;
 }
@@ -921,6 +922,19 @@ header.banner {
 }
 
 .favorite-card .snack-image {
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+/* Same photo-plus-details layout as the Favorite Snack card (reused rather
+   than a small stat box) so what a payment actually covered - amount, the
+   snack it settled, when - reads with the same weight as the favorite. */
+.last-payment-card {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 1.3fr);
+}
+
+.last-payment-card .snack-image {
   border-right: 1px solid var(--line);
   border-bottom: 0;
 }
@@ -5752,11 +5766,13 @@ tr.disputed td {
     z-index: 30;
   }
 
-  .favorite-card {
+  .favorite-card,
+  .last-payment-card {
     grid-template-columns: 1fr;
   }
 
-  .favorite-card .snack-image {
+  .favorite-card .snack-image,
+  .last-payment-card .snack-image {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }

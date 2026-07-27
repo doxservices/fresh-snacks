@@ -46,5 +46,6 @@ window.FS_APP_CONFIG = {
     uid: "fresh_snacks_uid",
     linkedTo: "fresh_snacks_linked_to",
     sessionTo: "fresh_snacks_session_to",
+    adminTestSession: "fresh_snacks_admin_test_session",
   },
 };

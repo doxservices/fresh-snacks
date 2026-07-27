@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-last-payment" />
+  <link rel="stylesheet" href="styles.css?v=20260727-last-payment-card" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -59,11 +59,6 @@
             <div class="stat-label">Paid so far</div>
             <div class="stat-value blue" id="stat-paid">–</div>
           </div>
-          <div class="stat-box hidden" id="last-payment-stat">
-            <div class="stat-label">Last Payment</div>
-            <div class="stat-value green" id="last-payment-amount">–</div>
-            <div class="muted-small" id="last-payment-when"></div>
-          </div>
         </div>
       </div>
     </section>
@@ -73,6 +68,18 @@
       <h2>Snack now, pay later</h2>
       <p>Browse the snacks below. Open a tab when you're ready to add one.</p>
       <button type="button" class="primary" id="visitor-open-tab">Open a tab</button>
+    </section>
+
+    <section class="last-payment-section hidden" id="last-payment-section" aria-label="Last payment">
+      <article class="snack-card last-payment-card">
+        <div class="snack-image" id="last-payment-photo-wrap"></div>
+        <div class="snack-body">
+          <div class="snack-label">Last Payment</div>
+          <div class="snack-name" id="last-payment-amount">–</div>
+          <p id="last-payment-desc">–</p>
+          <p class="muted-small" id="last-payment-when"></p>
+        </div>
+      </article>
     </section>
 
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
@@ -450,7 +457,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260727-last-payment"></script>
+  <script src="js/firebase-store.js?v=20260727-last-payment-card"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -707,11 +714,25 @@
       set("stat-balance", balanceText);
       set("stat-paid", FS.money(t.paid, cur));
 
+      // The paid amount alone doesn't say what it was for - settlesSnackId/
+      // settlesSnackName (set when this payment finalized one specific
+      // transaction - see settlementPaymentWrite in functions/src/routes/
+      // admin.js) let this show what was actually purchased, photo included,
+      // same as the Favorite Snack card. A general/manual payment (recorded
+      // against the account rather than settling one particular item) has
+      // neither field - falls back to its note, or a plain label.
       const lastPayment = FS.lastPayment(data);
-      $id("last-payment-stat").classList.toggle("hidden", !lastPayment);
+      $id("last-payment-section").classList.toggle("hidden", isVisitor || !lastPayment);
       if (lastPayment) {
+        const settledSnack = lastPayment.settlesSnackId ? FS.snackById(data, lastPayment.settlesSnackId) : null;
         set("last-payment-amount", FS.money(lastPayment.amount, cur));
+        set("last-payment-desc", lastPayment.settlesSnackName
+          ? `Covers ${lastPayment.settlesSnackName}`
+          : (lastPayment.note || "General payment"));
         set("last-payment-when", FS.formatDateTime(lastPayment, "createdAt", FS.fmtDay(lastPayment.date)));
+        $id("last-payment-photo-wrap").innerHTML = settledSnack && settledSnack.photo
+          ? `<img src="${esc(settledSnack.photo)}" alt="${esc(settledSnack.name)}" />`
+          : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
       }
       set("fav-name", favorite ? favorite.name : "–");
       set("fav-desc", favorite
@@ -1492,7 +1513,14 @@
 
     function profilePresentation(me, claim) {
       const profileMode = new URLSearchParams(location.search).get("profile");
-      const isAdminTest = profileMode === "admin-test" || claim?.profileSource === "admin-test";
+      // The URL param only survives the one navigation admin.html sends you
+      // on - reloading, or clicking any other nav link, drops it. The
+      // localStorage flag (set by FS.admin.portalIntoAccount, cleared by
+      // unlinking) is what keeps this labeled "Admin test view" for the
+      // rest of the session instead of drifting to "Guest Profile".
+      const isAdminTest = profileMode === "admin-test"
+        || claim?.profileSource === "admin-test"
+        || localStorage.getItem(FS.appConfig.storageKeys.adminTestSession) === "1";
       const ownName = me.displayName
         || [me.firstName, me.lastName].filter(Boolean).join(" ").trim();
 

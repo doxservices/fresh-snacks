@@ -412,6 +412,7 @@ FS.signOutCustomer = async () => {
     FS.appConfig.storageKeys.visitorId,
     FS.appConfig.storageKeys.linkedTo,
     FS.appConfig.storageKeys.sessionTo,
+    FS.appConfig.storageKeys.adminTestSession,
     "fresh_snacks_device_started",
     "fresh_snacks_profile_active",
     FS.tabCodeKey,
@@ -502,6 +503,7 @@ FS.unlinkDevice = async () => {
   await FS._apiFetch("/store/link/unlink", { method: "POST", body: { linkedTo } });
   localStorage.removeItem(FS.appConfig.storageKeys.linkedTo);
   localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
+  localStorage.removeItem(FS.appConfig.storageKeys.adminTestSession);
   FS.clearLinkCode();
 };
 
