@@ -210,6 +210,7 @@ const toEntry = (t) => {
     createdByRole,
     workflowStatus,
     itemReviewReason: t.itemReviewReason || null,
+    reviewRequestType: t.reviewRequestType || null,
     availableActions: availableActions(workflowStatus, ROLE.USER),
   };
 };

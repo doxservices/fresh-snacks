@@ -2276,6 +2276,39 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   line-height: 1.5;
 }
 
+/* Remove vs review choice - only shown when the customer added this item
+   themselves (never for one an admin logged, which only ever offers
+   review). Review defaults active since it's the safer/reversible choice. */
+.modal-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-mode-btn {
+  flex: 1;
+  padding: 9px 8px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.modal-mode-btn[data-mode="review"].active {
+  border-color: var(--green);
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.modal-mode-btn[data-mode="removal"].active {
+  border-color: #a34c45;
+  background: #faefed;
+  color: #8a2f2f;
+}
+
 .name-capture-modal {
   width: min(680px, 100%);
 }

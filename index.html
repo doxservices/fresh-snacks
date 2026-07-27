@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-datepicker-theme" />
+  <link rel="stylesheet" href="styles.css?v=20260727-remove-review" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -306,21 +306,22 @@
       <div class="transaction-review-icon" aria-hidden="true">!</div>
       <h2 id="transaction-review-title">Send this purchase for review?</h2>
       <p id="transaction-review-body"></p>
+      <div class="field hidden" id="transaction-review-mode-field">
+        <label>What would you like to do?</label>
+        <div class="modal-mode-toggle">
+          <button type="button" class="modal-mode-btn" data-mode="removal" id="transaction-review-mode-removal">Request removal</button>
+          <button type="button" class="modal-mode-btn" data-mode="review" id="transaction-review-mode-review">Flag for review</button>
+        </div>
+      </div>
       <div class="field">
         <label for="transaction-review-reason">Reason</label>
-        <select id="transaction-review-reason">
-          <option value="Item was not received">Item was not received</option>
-          <option value="Quantity is incorrect">Quantity is incorrect</option>
-          <option value="Price is incorrect">Price is incorrect</option>
-          <option value="Duplicate transaction">Duplicate transaction</option>
-          <option value="Other">Other</option>
-        </select>
+        <select id="transaction-review-reason"></select>
       </div>
       <div class="field">
         <label for="transaction-review-note">Additional details <span class="muted-small">(optional)</span></label>
         <textarea id="transaction-review-note" rows="2" maxlength="300"></textarea>
       </div>
-      <p class="muted-small">It stays visible on your tab, marked as under review, until Fresh Snacks resolves it.</p>
+      <p class="muted-small" id="transaction-review-note-copy">It stays visible on your tab, marked as under review, until Fresh Snacks resolves it.</p>
       <div class="status" id="transaction-review-status"></div>
       <div class="modal-actions">
         <button type="button" id="transaction-review-cancel">Keep transaction</button>
@@ -444,7 +445,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260726-catalog-redesign"></script>
+  <script src="js/firebase-store.js?v=20260727-remove-review"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -523,9 +524,16 @@
           <button class="verdict-btn dispute" data-act="review-item" data-id="${esc(e.id)}" title="Flag this listing for review" aria-label="Review">&#10005;</button>
         </span>`;
       }
+      // CONFIRMED_UNPAID offers Mark as Paid and/or the X (remove/review) -
+      // both can be present together, unlike the CONFIRM_ITEM pair above.
+      const parts = [];
       if (actions.includes("MARK_AS_PAID")) {
-        return `<button type="button" class="mark-paid-btn" data-act="mark-paid" data-id="${esc(e.id)}" title="Report this transaction as paid">Mark as Paid</button>`;
+        parts.push(`<button type="button" class="mark-paid-btn" data-act="mark-paid" data-id="${esc(e.id)}" title="Report this transaction as paid">Mark as Paid</button>`);
       }
+      if (actions.includes("REVIEW_ITEM")) {
+        parts.push(`<button type="button" class="verdict-btn dispute" data-act="review-item" data-id="${esc(e.id)}" title="Remove or flag this purchase" aria-label="Remove or review">&#10005;</button>`);
+      }
+      if (parts.length) return `<span class="row-verdict">${parts.join("")}</span>`;
       const label = {
         ITEM_UNDER_REVIEW: "Under review",
         PAYMENT_PENDING_ADMIN_CONFIRMATION: "Awaiting confirmation",
@@ -541,6 +549,12 @@
       const rows = [];
 
       for (const e of group.entries) {
+        // A removal request (as opposed to a plain review flag) hides the
+        // row itself, not just its value from the total - it's still fully
+        // there for an admin to resolve, just not on the customer's own log
+        // until that happens (see reviewRequestType in store.js's
+        // review-item route).
+        if (e.workflowStatus === "ITEM_UNDER_REVIEW" && e.reviewRequestType === "removal") continue;
         const s = e.snackId ? FS.snackById(data, e.snackId) : null;
         const facts = s && s.factsId
           ? ` has-facts" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}" title="View nutrition facts`
@@ -1235,6 +1249,8 @@
     let LAST_DATA = null;
     let transactionReviewResolve = null;
     let transactionReviewReturnFocus = null;
+    let transactionReviewEntry = null;
+    let transactionReviewMode = "review";
 
     function closeTransactionReview(result = null) {
       $id("transaction-review-backdrop").classList.remove("show");
@@ -1248,24 +1264,62 @@
       if (resolve) resolve(result);
     }
 
-    // Resolves to { reason, note } when the user confirms sending this
-    // listing for review (spec section 20's Review Item modal), or null if
-    // they back out - the caller (the verdict/action click handlers below)
-    // only proceeds to call FS.reviewItem() when it gets a real result.
+    // Reason choices differ by mode - "why is this wrong" (review) doesn't
+    // read the same as "why don't you want it" (removal) - but both are
+    // free-choice + an optional note, same fields either way.
+    const TRANSACTION_REVIEW_REASONS = {
+      review: ["Item was not received", "Quantity is incorrect", "Price is incorrect", "Duplicate transaction", "Other"],
+      removal: ["Added by mistake", "Duplicate transaction", "No longer want this item", "Other"],
+    };
+
+    // A customer may only request removal of a purchase they added
+    // themselves - never one an admin logged for them (index.html's own
+    // gate; store.js's review-item route re-checks createdByRole too, since
+    // this is only ever the UX, not the real enforcement).
+    function setTransactionReviewMode(mode, entry) {
+      transactionReviewMode = mode;
+      $id("transaction-review-mode-removal").classList.toggle("active", mode === "removal");
+      $id("transaction-review-mode-review").classList.toggle("active", mode === "review");
+      const name = LAST_DATA && entry ? FS.entryName(LAST_DATA, entry) : "This purchase";
+      $id("transaction-review-reason").innerHTML = TRANSACTION_REVIEW_REASONS[mode]
+        .map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
+      if (mode === "removal") {
+        $id("transaction-review-title").textContent = "Request removal of this purchase?";
+        $id("transaction-review-body").textContent = `${name} will be hidden from your tab while Fresh Snacks reviews your removal request.`;
+        $id("transaction-review-note-copy").textContent = "It's hidden from your tab and total until Fresh Snacks resolves the request.";
+        $id("transaction-review-ok").textContent = "Request removal";
+      } else {
+        $id("transaction-review-title").textContent = "Send this purchase for review?";
+        $id("transaction-review-body").textContent = `${name} will be sent to Fresh Snacks for review.`;
+        $id("transaction-review-note-copy").textContent = "It stays visible on your tab, marked as under review, until Fresh Snacks resolves it.";
+        $id("transaction-review-ok").textContent = "Send for review";
+      }
+    }
+
+    // Resolves to { reason, note, mode } when the user confirms sending this
+    // listing for review or removal (spec section 20's Review Item modal,
+    // extended with the remove/review choice), or null if they back out -
+    // the caller (the verdict/action click handlers below) only proceeds to
+    // call FS.reviewItem() when it gets a real result.
     function confirmTransactionReview(entry) {
       transactionReviewReturnFocus = document.activeElement;
-      const name = LAST_DATA && entry ? FS.entryName(LAST_DATA, entry) : "This purchase";
-      $id("transaction-review-body").textContent = `${name} will be sent to Fresh Snacks for review.`;
-      $id("transaction-review-reason").value = "Item was not received";
+      transactionReviewEntry = entry;
+      const canRemove = entry && entry.createdByRole === "USER";
+      $id("transaction-review-mode-field").classList.toggle("hidden", !canRemove);
+      setTransactionReviewMode("review", entry);
       $id("transaction-review-note").value = "";
       $id("transaction-review-backdrop").classList.add("show");
       $id("transaction-review-ok").focus();
       return new Promise((resolve) => { transactionReviewResolve = resolve; });
     }
 
+    $id("transaction-review-mode-removal").onclick = () => setTransactionReviewMode("removal", transactionReviewEntry);
+    $id("transaction-review-mode-review").onclick = () => setTransactionReviewMode("review", transactionReviewEntry);
+
     $id("transaction-review-ok").onclick = () => closeTransactionReview({
       reason: $id("transaction-review-reason").value,
       note: $id("transaction-review-note").value.trim(),
+      mode: transactionReviewMode,
     });
     $id("transaction-review-cancel").onclick = () => closeTransactionReview(null);
     $id("transaction-review-close").onclick = () => closeTransactionReview(null);

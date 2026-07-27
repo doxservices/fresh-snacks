@@ -65,4 +65,35 @@ for (const role of [ROLE.USER, ROLE.ADMIN]) {
   }
 }
 
+// --- Scenario D: a customer self-logs an item, then requests its removal
+// before paying - the "X" on their own Snack Log entry. Must exclude from
+// balance like any other disputed item, and an admin rejecting the removal
+// (Approve) must bring it right back. ---
+let selfLogged = {
+  id: "t3", userId: "u1", total: 80, createdDate: "2026-07-05",
+  createdByRole: ROLE.USER, workflowStatus: STATUS.CONFIRMED_UNPAID,
+};
+selfLogged = { ...selfLogged, workflowStatus: nextStatusFor(selfLogged.workflowStatus, ROLE.USER, ACTION.REVIEW_ITEM) };
+assert.equal(selfLogged.workflowStatus, STATUS.ITEM_UNDER_REVIEW, "a customer can request removal/review of their own confirmed item");
+
+const rowsD1 = accounting([user], [], [selfLogged], [], []);
+assert.equal((rowsD1.find((r) => r.userId === "u1")?.snackTotal) || 0, 0, "a removal-pending item is excluded from balance, same as any dispute");
+
+selfLogged = { ...selfLogged, workflowStatus: nextStatusFor(selfLogged.workflowStatus, ROLE.ADMIN, ACTION.APPROVE_ITEM) };
+assert.equal(selfLogged.workflowStatus, STATUS.CONFIRMED_UNPAID, "admin rejecting the removal request restores it to confirmed");
+const rowsD2 = accounting([user], [], [selfLogged], [], []);
+assert.equal(rowsD2.find((r) => r.userId === "u1").snackTotal, 80, "once restored, it counts toward the balance again");
+
+// --- Scenario E: a customer flags an admin-added, already-confirmed item -
+// this is Review only (never Remove, enforced by store.js re-checking
+// createdByRole server-side) - and the admin instead cancels it outright. ---
+let adminItem = {
+  id: "t4", userId: "u1", total: 60, createdDate: "2026-07-06",
+  createdByRole: ROLE.ADMIN, workflowStatus: STATUS.CONFIRMED_UNPAID,
+};
+adminItem = { ...adminItem, workflowStatus: nextStatusFor(adminItem.workflowStatus, ROLE.USER, ACTION.REVIEW_ITEM) };
+assert.equal(adminItem.workflowStatus, STATUS.ITEM_UNDER_REVIEW);
+adminItem = { ...adminItem, workflowStatus: nextStatusFor(adminItem.workflowStatus, ROLE.ADMIN, ACTION.CANCEL) };
+assert.equal(adminItem.workflowStatus, STATUS.CANCELLED, "an admin can still cancel a flagged item outright, regardless of who created it");
+
 console.log("transaction lifecycle regression checks passed");

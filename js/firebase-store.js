@@ -631,10 +631,13 @@ FS.confirmItem = async (transactionId) => {
   await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/confirm-item`, { method: "POST" });
 };
 
-FS.reviewItem = async (transactionId, { reason, note } = {}) => {
+// mode: "removal" | "review" - the server re-checks this against the
+// transaction's own createdByRole rather than trusting it outright (a
+// customer can only ever request removal of an item they added themselves).
+FS.reviewItem = async (transactionId, { reason, note, mode } = {}) => {
   await FS.signInAnonymous();
   await FS._apiFetch(`/store/transactions/${encodeURIComponent(transactionId)}/review-item`, {
-    method: "POST", body: { reviewReason: reason, note },
+    method: "POST", body: { reviewReason: reason, note, mode },
   });
 };
 
@@ -703,8 +706,14 @@ FS.addTransaction = async (items) => {
   return saved;
 };
 
+// An item under review (customer disputed it, or asked to remove it) isn't
+// settled either way yet - the server's own accounting() already excludes
+// it from what a customer owes, so the client total has to match or the two
+// numbers would silently disagree until an admin resolves it.
+FS.isBillable = (e) => e.workflowStatus !== "ITEM_UNDER_REVIEW";
+
 FS.totals = (data) => {
-  const value = data.entries.reduce((t, e) => t + Number(e.value || 0), 0);
+  const value = data.entries.filter(FS.isBillable).reduce((t, e) => t + Number(e.value || 0), 0);
   const paid = data.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
   return { value, paid, balance: value - paid };
 };
@@ -739,7 +748,10 @@ FS.groups = (data) => {
     const byDate = (a, b) => String(a.date || "").localeCompare(String(b.date || ""));
     g.entries.sort(byDate);
     g.payments.sort(byDate);
-    g.value = g.entries.reduce((t, e) => t + Number(e.value || 0), 0);
+    // g.entries itself keeps every entry (a disputed/removal-pending item
+    // still needs to render its row, or drive the month's "flagged"
+    // indicator) - only the value sum excludes them, same as FS.totals.
+    g.value = g.entries.filter(FS.isBillable).reduce((t, e) => t + Number(e.value || 0), 0);
     g.paid = g.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
     return g;
   });

@@ -1,5 +1,55 @@
 # Development notes
 
+## An "X" to request removal/review of a confirmed purchase (2026-07-27)
+
+- Previously, the only way to dispute a purchase was the Confirm/Review
+  ("&#10003;"/"&#10005;") pair on an admin-added item still awaiting the
+  customer's first confirmation (`PENDING_USER_CONFIRMATION`) - once
+  confirmed (`CONFIRMED_UNPAID`), a customer's only option was Mark as Paid.
+  There was no way to flag or ask to remove something before paying it,
+  whether the customer added it themselves or an admin logged it for them.
+- `functions/src/lib/transactionStatus.js`: added
+  `[CONFIRMED_UNPAID][USER][REVIEW_ITEM] -> ITEM_UNDER_REVIEW` and included
+  `REVIEW_ITEM` in `availableActions()` for that status/role. This reuses the
+  existing dispute status/admin resolution flow (Approve/Edit and
+  Resend/Cancel/Reset) rather than inventing a parallel one - an admin
+  reviewing one of these looks identical to reviewing any other disputed item.
+- New `reviewRequestType: "removal" | "review"` field, set by
+  `POST /store/transactions/:id/review-item`'s new `mode` body param. A
+  customer may only get `"removal"` for an item they added themselves -
+  the route re-derives `createdByRole` from the record itself and silently
+  downgrades to `"review"` otherwise, rather than trusting the client's
+  choice; index.html's own modal already only offers the Remove option for
+  the customer's own items, so this is the real enforcement, not just UX.
+  Cleared alongside `itemReviewReason` everywhere an admin resolves a
+  disputed item (approve-item, edit/edit-and-resend, reset, confirm-item),
+  so it never lingers on a transaction once it moves on.
+- **Remove** hides the row entirely from the customer's own Snack Log
+  (`index.html`'s `trackerTable` skips it) until an admin resolves it one
+  way or the other. **Review** keeps the existing behavior: the row stays
+  visible, marked "Under review." Both flavors stop counting toward the
+  customer's displayed total either way - `FS.totals()`/`FS.groups()` in
+  `js/firebase-store.js` now exclude any `ITEM_UNDER_REVIEW` entry from the
+  value sum, matching what the server's own `accounting()` already did for
+  the admin-facing balance (a real pre-existing gap between the two - the
+  customer's own total previously still counted a disputed item that the
+  admin's ledger had already excluded).
+  The item is never actually deleted - it's still fully visible to admins
+  on transactions.html/accounting.html, unaffected by any of this, since
+  those pages query transactions directly rather than through the
+  customer-facing route this filtering lives in.
+- The existing Review modal (`#transaction-review-backdrop`) grew a
+  Remove-vs-Review toggle, shown only when the entry's `createdByRole` is
+  `USER`; reason dropdown options and copy adapt to the chosen mode. For an
+  admin-added item the toggle stays hidden and the modal behaves exactly as
+  it did before this change.
+- Known gap, not fixed here: no admin page actually displays `itemReviewReason`
+  or `reviewRequestType` text anywhere yet (admin-notifications.js's bell
+  dropdown shows only a generic "disputed" badge) - that was already true
+  before this change for the original PENDING_USER_CONFIRMATION dispute flow
+  too. The data's captured and available for a future admin-side detail view;
+  building that view is a reasonable fast-follow, not required for this pass.
+
 ## Themed date pickers, clickable anywhere in the field (2026-07-27)
 
 - Every `input[type="date"]` (Payment date on accounting/transactions,

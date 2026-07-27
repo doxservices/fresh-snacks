@@ -10,7 +10,7 @@ const {
   uid: genId, todayISO, withBundledSnackArtwork, compareSnackOrder,
   bundledSnackArtwork, toEntry, toPayment, clean, randomCode,
 } = require("../lib/shared");
-const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus } = require("../lib/transactionStatus");
+const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
 
@@ -432,7 +432,7 @@ async function applyUserAction(req, res, { action, eventType, extraPayload = {},
     transaction.update(ref, {
       workflowStatus: next,
       version: FieldValue.increment(1),
-      ...extraFields(next),
+      ...extraFields(next, record),
     });
     const event = buildTransactionEvent(db(), {
       transactionId: id,
@@ -464,6 +464,7 @@ router.post("/transactions/:id/confirm-item", requireAuth, asyncRoute(async (req
       itemReviewedAt: FieldValue.delete(),
       itemReviewedBy: FieldValue.delete(),
       itemReviewReason: FieldValue.delete(),
+      reviewRequestType: FieldValue.delete(),
     }),
   });
 }));
@@ -472,14 +473,22 @@ router.post("/transactions/:id/review-item", requireAuth, asyncRoute(async (req,
   const reason = clean(req.body.reviewReason) || clean(req.body.reason);
   if (!reason) throw Object.assign(new Error("Choose a reason for sending this for review."), { status: 400 });
   const note = clean(req.body.note);
+  const requestedRemoval = clean(req.body.mode) === "removal";
   await applyUserAction(req, res, {
     action: ACTION.REVIEW_ITEM,
     eventType: EVENT_TYPE.ITEM_REVIEW_REQUESTED_BY_USER,
     extraPayload: { reviewReason: reason, note },
-    extraFields: () => ({
+    // A customer may only ask to remove an item they added themselves -
+    // never one an admin logged for them. index.html already only offers
+    // "remove" as a choice for the customer's own items, but re-checking
+    // createdByRole here (rather than trusting mode from the request body)
+    // is the real backstop; anything else silently downgrades to a plain
+    // review request instead of erroring, same as an unrecognized mode would.
+    extraFields: (next, record) => ({
       itemReviewedAt: FieldValue.serverTimestamp(),
       itemReviewedBy: req.uid,
       itemReviewReason: note ? `${reason}: ${note}` : reason,
+      reviewRequestType: requestedRemoval && deriveCreatedByRole(record) === ROLE.USER ? "removal" : "review",
     }),
   });
 }));

@@ -27,11 +27,13 @@ assert.equal(nextStatusFor(STATUS.PAYMENT_UNDER_REVIEW, ROLE.ADMIN, ACTION.EDIT)
 assert.ok(availableActions(STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, ROLE.ADMIN).includes(ACTION.EDIT));
 assert.ok(availableActions(STATUS.PAYMENT_UNDER_REVIEW, ROLE.ADMIN).includes(ACTION.EDIT));
 
-// Rule 4: a user-created transaction never exposes Confirm Item/Review Item
-// because it never visits PENDING_USER_CONFIRMATION in the first place.
-assert.deepEqual(availableActions(STATUS.CONFIRMED_UNPAID, ROLE.USER), [ACTION.MARK_AS_PAID, ACTION.VIEW_DETAILS]);
+// Rule 4: a user-created transaction never exposes Confirm Item, because it
+// never visits PENDING_USER_CONFIRMATION in the first place - but Review Item
+// IS available at CONFIRMED_UNPAID (the "X" that lets a customer request
+// removal of their own item, or flag review of an admin's, before payment).
+assert.deepEqual(availableActions(STATUS.CONFIRMED_UNPAID, ROLE.USER), [ACTION.MARK_AS_PAID, ACTION.REVIEW_ITEM, ACTION.VIEW_DETAILS]);
 assert.ok(!availableActions(STATUS.CONFIRMED_UNPAID, ROLE.USER).includes(ACTION.CONFIRM_ITEM));
-assert.ok(!availableActions(STATUS.CONFIRMED_UNPAID, ROLE.USER).includes(ACTION.REVIEW_ITEM));
+assert.equal(nextStatusFor(STATUS.CONFIRMED_UNPAID, ROLE.USER, ACTION.REVIEW_ITEM), STATUS.ITEM_UNDER_REVIEW);
 
 // Rule 3: admin-created, awaiting confirmation - user sees exactly these
 assert.deepEqual(

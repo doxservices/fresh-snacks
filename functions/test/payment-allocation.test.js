@@ -97,6 +97,7 @@ assert.deepEqual(toEntry({
   createdByRole: ROLE.USER,
   workflowStatus: STATUS.PAID_FINALIZED,
   itemReviewReason: null,
+  reviewRequestType: null,
   availableActions: [ACTION.VIEW_DETAILS],
 });
 

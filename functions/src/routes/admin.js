@@ -348,6 +348,7 @@ router.post("/transactions/:id/approve-item", requirePermission(PERMISSION.APPRO
       itemReviewedAt: FieldValue.delete(),
       itemReviewedBy: FieldValue.delete(),
       itemReviewReason: FieldValue.delete(),
+      reviewRequestType: FieldValue.delete(),
       resolvedBy: req.uid,
       resolvedAt: FieldValue.serverTimestamp(),
     });
@@ -409,6 +410,7 @@ router.patch("/transactions/:id", requirePermission(PERMISSION.EDIT_TRANSACTION)
       itemReviewedAt: FieldValue.delete(),
       itemReviewedBy: FieldValue.delete(),
       itemReviewReason: FieldValue.delete(),
+      reviewRequestType: FieldValue.delete(),
       // Editing content while a payment claim was in flight (pending or
       // under review) invalidates that claim entirely - it referred to the
       // pre-edit quantity/price. Clearing these mirrors what RESET already
@@ -716,6 +718,7 @@ router.post("/transactions/:id/reset", requirePermission(PERMISSION.RESET_TRANSA
       itemReviewedAt: FieldValue.delete(),
       itemReviewedBy: FieldValue.delete(),
       itemReviewReason: FieldValue.delete(),
+      reviewRequestType: FieldValue.delete(),
       paymentMarkedAt: FieldValue.delete(),
       paymentMarkedBy: FieldValue.delete(),
       paymentMarkedByRole: FieldValue.delete(),

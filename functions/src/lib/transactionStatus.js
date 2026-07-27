@@ -86,6 +86,12 @@ const TRANSITIONS = {
   [STATUS.CONFIRMED_UNPAID]: {
     [ROLE.USER]: {
       [ACTION.MARK_AS_PAID]: STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION,
+      // Lets a customer flag a purchase - their own or an admin's, already
+      // confirmed - before it's paid. Not a direct CANCEL: a user never gets
+      // that action in this table at all, so the most this can do is hand it
+      // to an admin to decide (see reviewRequestType in store.js's
+      // review-item route for the removal/review distinction).
+      [ACTION.REVIEW_ITEM]: STATUS.ITEM_UNDER_REVIEW,
     },
     [ROLE.ADMIN]: {
       // Any admin content edit after the user has already confirmed must be
@@ -125,15 +131,20 @@ const TRANSITIONS = {
 /* Section 15 action resolvers - what the actor should be offered to click,
  * purely a function of (status, role). createdByRole never enters into
  * this: a user-created transaction simply never visits
- * PENDING_USER_CONFIRMATION/ITEM_UNDER_REVIEW, so CONFIRM_ITEM/REVIEW_ITEM
- * naturally never appear for it without any extra branching here. */
+ * PENDING_USER_CONFIRMATION, so CONFIRM_ITEM naturally never appears for it
+ * without any extra branching here. REVIEW_ITEM is the one exception - it's
+ * offered at CONFIRMED_UNPAID regardless of who created the item, since a
+ * user should be able to flag/request removal of an admin-added item too;
+ * the client decides whether to offer "remove" alongside "review" using the
+ * entry's own createdByRole, and store.js's review-item route re-checks it
+ * server-side rather than trusting that client choice. */
 function availableActions(workflowStatus, role) {
   if (role === ROLE.USER) {
     switch (workflowStatus) {
       case STATUS.PENDING_USER_CONFIRMATION:
         return [ACTION.CONFIRM_ITEM, ACTION.REVIEW_ITEM, ACTION.VIEW_DETAILS];
       case STATUS.CONFIRMED_UNPAID:
-        return [ACTION.MARK_AS_PAID, ACTION.VIEW_DETAILS];
+        return [ACTION.MARK_AS_PAID, ACTION.REVIEW_ITEM, ACTION.VIEW_DETAILS];
       default:
         return [ACTION.VIEW_DETAILS];
     }
