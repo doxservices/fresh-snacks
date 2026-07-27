@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-remove-btn-smaller" />
+  <link rel="stylesheet" href="styles.css?v=20260727-last-payment" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -52,12 +52,17 @@
 
         <div class="brand-stats" id="brand-stats">
           <div class="stat-box balance-stat">
-            <div class="stat-label" id="stat-balance-label">Current tab</div>
+            <div class="stat-label" id="stat-balance-label">Current balance</div>
             <div class="stat-value warm" id="stat-balance">–</div>
           </div>
           <div class="stat-box">
             <div class="stat-label">Paid so far</div>
             <div class="stat-value blue" id="stat-paid">–</div>
+          </div>
+          <div class="stat-box hidden" id="last-payment-stat">
+            <div class="stat-label">Last Payment</div>
+            <div class="stat-value green" id="last-payment-amount">–</div>
+            <div class="muted-small" id="last-payment-when"></div>
           </div>
         </div>
       </div>
@@ -208,7 +213,7 @@
             <td></td>
           </tr>
           <tr class="balance-row">
-            <td id="bottom-balance-label">Current tab</td>
+            <td id="bottom-balance-label">Current balance</td>
             <td></td>
             <td></td>
             <td class="num-money"><span class="mv" id="bottom-balance">–</span></td>
@@ -445,7 +450,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260727-remove-review"></script>
+  <script src="js/firebase-store.js?v=20260727-last-payment"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -698,9 +703,16 @@
       set("brand-title", data.profile.brand);
       set("brand-subtitle", data.profile.subtitle);
       const balanceText = FS.money(Math.abs(t.balance), cur);
-      set("stat-balance-label", t.balance < 0 ? "Available credit" : "Current tab");
+      set("stat-balance-label", t.balance < 0 ? "Available credit" : "Current balance");
       set("stat-balance", balanceText);
       set("stat-paid", FS.money(t.paid, cur));
+
+      const lastPayment = FS.lastPayment(data);
+      $id("last-payment-stat").classList.toggle("hidden", !lastPayment);
+      if (lastPayment) {
+        set("last-payment-amount", FS.money(lastPayment.amount, cur));
+        set("last-payment-when", FS.formatDateTime(lastPayment, "createdAt", FS.fmtDay(lastPayment.date)));
+      }
       set("fav-name", favorite ? favorite.name : "–");
       set("fav-desc", favorite
         ? `${favorite.count} snack${favorite.count === 1 ? "" : "s"} purchased.`
@@ -755,7 +767,7 @@
       set("sum-month", FS.money(monthTotal, cur));
       set("bottom-value", FS.money(t.value, cur));
       set("bottom-paid", FS.money(t.paid, cur));
-      set("bottom-balance-label", t.balance < 0 ? "Available credit" : "Current tab");
+      set("bottom-balance-label", t.balance < 0 ? "Available credit" : "Current balance");
       set("bottom-balance", balanceText);
 
       renderBinsGallery(data);

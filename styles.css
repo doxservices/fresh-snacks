@@ -761,9 +761,12 @@ header.banner {
   color: var(--muted);
 }
 
+/* auto-fit rather than a fixed column count - this now holds 2 or 3 boxes
+   (Last Payment only appears once there's a payment on file) and should
+   reflow either way instead of leaving a gap or cramming a 3rd column. */
 .brand-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
 }
 
@@ -5933,7 +5936,7 @@ tr.disputed td {
 
   .brand-stats {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 
   .stat-value {

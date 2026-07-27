@@ -1,5 +1,32 @@
 # Development notes
 
+## "Current balance" wording + a Last Payment stat card (2026-07-27)
+
+- Renamed the "Current tab" stat label to "Current balance" everywhere it
+  appears for a positive balance (index.html's top stat box and its bottom
+  summary row, plus edit-tab.html's admin per-customer dashboard, for
+  consistency) - the negative-balance case still reads "Available credit",
+  unchanged.
+- New third stat box on index.html, "Last Payment": amount plus the actual
+  date *and time* it was recorded, e.g. "Jul 27, 4:32 PM" - hidden entirely
+  for a customer with no payments on file yet.
+  - `createdDate` (the field the rest of the app groups/sorts payments by)
+    is a plain day string with no time component, and can be backdated by
+    an admin entering a payment after the fact - neither is enough to show
+    a real time or reliably pick the single most-recent payment among
+    several from the same day. Exposed the raw Firestore `createdAt`
+    timestamp on `toPayment()` (`functions/src/lib/shared.js`) instead, and
+    added `FS.timestampMs`/`FS.formatDateTime` (`js/firebase-store.js`) to
+    read it - the same small helpers `js/admin-notifications.js` already
+    had privately for its own notification timestamps, now shared instead
+    of duplicated a third time.
+  - `FS.lastPayment(data)` picks the payment with the latest `createdAt`
+    (falling back to `date` only for a legacy payment with no timestamp).
+- `.brand-stats` switched from a fixed 2-column grid to
+  `repeat(auto-fit, minmax(140px, 1fr))` so it reflows cleanly whether 2 or
+  3 boxes are showing, instead of leaving a gap or forcing a cramped 3rd
+  column.
+
 ## Shrank the remove/review "x" and gave it more corner margin (2026-07-27)
 
 - `.entry-remove-btn` (previous entry) was still a bit large and sat only

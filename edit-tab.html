@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-remove-btn-smaller" />
+  <link rel="stylesheet" href="styles.css?v=20260727-last-payment" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -63,7 +63,7 @@
           </div>
           <div class="brand-stats">
             <div class="stat-box balance-stat">
-              <div class="stat-label" id="dash-balance-label">Current tab</div>
+              <div class="stat-label" id="dash-balance-label">Current balance</div>
               <div class="stat-value warm" id="dash-balance">-</div>
             </div>
             <div class="stat-box">
@@ -272,7 +272,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260727-remove-review"></script>
+  <script src="js/firebase-store.js?v=20260727-last-payment"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/firebase-admin.js?v=20260726-catalog-redesign"></script>
   <script src="js/admin-notifications.js?v=20260726-status-labels"></script>
@@ -1061,7 +1061,7 @@
 
       $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
       $("profile-subtitle").textContent = `Tab id: ${SNAPSHOT.profile.id}`;
-      $("dash-balance-label").textContent = balance < 0 ? "Available credit" : "Current tab";
+      $("dash-balance-label").textContent = balance < 0 ? "Available credit" : "Current balance";
       $("dash-balance").textContent = FS.money(Math.abs(balance), cur);
       $("dash-snacks").textContent = FS.money(snackTotal, cur);
       $("dash-paid").textContent = FS.money(paidTotal, cur);

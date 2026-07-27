@@ -220,6 +220,10 @@ const toPayment = (p) => ({
   date: p.createdDate || null,
   amount: Number(p.amount || 0),
   note: p.note || "",
+  // The raw Firestore timestamp (not just createdDate, which is a plain
+  // day string an admin can backdate) - the client needs the actual time
+  // for the "Last Payment" stat's date-and-time display.
+  createdAt: p.createdAt || null,
 });
 
 const clean = (v) => {
