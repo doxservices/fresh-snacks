@@ -83,9 +83,13 @@
       <section class="card section-card admin-test-profile-card">
         <div>
           <h2>Test customer profile</h2>
-          <p class="muted-small">Open the reusable Admin customer tab to review the customer-facing profile with sample activity.</p>
+          <p class="muted-small">Portal into an existing customer account (or create a new one) with full read/write access, same as a linked device.</p>
         </div>
-        <button type="button" class="primary" id="admin-test-profile-open">Open test profile</button>
+        <div class="admin-test-profile-controls">
+          <select id="admin-test-profile-select" aria-label="Account to portal into"></select>
+          <input id="admin-test-profile-name" type="text" placeholder="New account name" class="hidden" aria-label="New account name" />
+          <button type="button" class="primary" id="admin-test-profile-open">Open test profile</button>
+        </div>
         <div class="status" id="profile-status" aria-live="polite"></div>
       </section>
       <section class="brand-card">
@@ -185,6 +189,28 @@
       ).join("");
     }
 
+    // Xavier Hemmings' real account is the one this test tool has always
+    // meant to portal into - preselected here (by known id, falling back to
+    // a name match) rather than hardcoding a clone of it, so testing always
+    // reflects that account's actual live data instead of a snapshot that
+    // silently drifts out of sync with it over time.
+    const PREFERRED_TEST_PROFILE_ID = "cust-d9zytpnw";
+    function populateTestProfileSelect() {
+      // Excludes the old "admin-test-profile" clone left over from before
+      // this account picker existed - it's a stale one-time snapshot now,
+      // not linked to anything live, so it isn't worth offering here.
+      const list = SNAPSHOT.accounting
+        .filter((r) => r.userId !== "admin-test-profile")
+        .sort((a, b) => String(a.displayName || "").localeCompare(String(b.displayName || "")));
+      const preferred = list.find((r) => r.userId === PREFERRED_TEST_PROFILE_ID)
+        || list.find((r) => String(r.displayName || "").trim().toLowerCase() === "xavier hemmings");
+      $("admin-test-profile-select").innerHTML = `<option value="__new__">+ Create a new account</option>`
+        + list.map((r) =>
+          `<option value="${esc(r.userId)}"${preferred && r.userId === preferred.userId ? " selected" : ""}>${esc(r.displayName || r.userId)}</option>`
+        ).join("");
+      $("admin-test-profile-name").classList.toggle("hidden", $("admin-test-profile-select").value !== "__new__");
+    }
+
     function renderDashboard() {
       const cur = SNAPSHOT.settings.currency;
       const snackTotal = SNAPSHOT.accounting.reduce((n, r) => n + r.snackTotal, 0);
@@ -249,6 +275,7 @@
       renderDashboard();
       renderFeedback();
       $("adjust-user").innerHTML = userOptions();
+      populateTestProfileSelect();
     }
 
     $("google-login").onclick = async () => {
@@ -290,6 +317,11 @@
       $("login-panel").classList.remove("hidden");
     };
 
+    // Portals into whichever account is selected - an existing customer (a
+    // real link-invite into their actual live account, same mechanism as
+    // any multi-device tab share) or a brand-new one created on the spot.
+    // No separate cloned copy is created or maintained, so there's nothing
+    // that can drift out of sync with the real account over time.
     async function openTestProfile(trigger, event) {
       event?.preventDefault();
       const originalLabel = trigger.textContent;
@@ -297,8 +329,12 @@
       trigger.setAttribute("aria-disabled", "true");
       trigger.disabled = true;
       try {
-        const url = await FS.admin.openAdminTestProfile("cust-d9zytpnw");
-        location.href = url;
+        let userId = $("admin-test-profile-select").value;
+        if (userId === "__new__") {
+          userId = await FS.admin.createGuestTab($("admin-test-profile-name").value.trim());
+        }
+        const { code } = await FS.admin.createLinkInvite(userId);
+        location.href = `index.html?link=${encodeURIComponent(code)}&profile=admin-test`;
       } catch (e) {
         trigger.textContent = originalLabel;
         trigger.removeAttribute("aria-disabled");
@@ -306,6 +342,10 @@
         status("profile-status", e.message, false);
       }
     }
+
+    $("admin-test-profile-select").addEventListener("change", () => {
+      $("admin-test-profile-name").classList.toggle("hidden", $("admin-test-profile-select").value !== "__new__");
+    });
 
     $("admin-profile-page").onclick = (event) => openTestProfile(event.currentTarget, event);
     $("admin-test-profile-open").onclick = (event) => openTestProfile(event.currentTarget, event);

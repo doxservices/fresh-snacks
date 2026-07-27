@@ -3967,6 +3967,19 @@ textarea:focus {
 .admin-test-profile-card p { margin-bottom: 0; }
 .admin-test-profile-card .status { grid-column: 1 / -1; }
 
+.admin-test-profile-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-test-profile-controls select,
+.admin-test-profile-controls input {
+  min-width: 190px;
+}
+
 .app-health-alert {
   display: flex;
   align-items: center;
@@ -3991,7 +4004,7 @@ textarea:focus {
   #txn-groups details > .admin-table { display: block; overflow-x: auto; }
   .payment-ledger-link-card { align-items: stretch; flex-direction: column; }
   .admin-test-profile-card { grid-template-columns: 1fr; }
-  .admin-test-profile-card > button { width: 100%; }
+  .admin-test-profile-controls { flex-direction: column; align-items: stretch; }
   .app-health-alert { align-items: stretch; flex-direction: column; }
   .app-health-alert button { width: 100%; }
 }

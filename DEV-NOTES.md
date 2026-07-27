@@ -1,5 +1,32 @@
 # Development notes
 
+## Admin test profile: portal into a real account instead of a stale clone (2026-07-26)
+
+- Root cause of the drift: `POST /admin/test-profile` cloned a source
+  customer's transactions/payments/adjustments into a separate
+  `admin-test-profile` doc **once**, the first time it was ever opened, then
+  reused that same doc forever - `sourceUserId` was only read on that first
+  call. Xavier Hemmings' real account (`cust-d9zytpnw`, the hardcoded
+  source) kept changing after that; the clone didn't, so the two silently
+  decoupled over time even though they looked identical at first.
+- Fix: removed the whole clone-a-copy mechanism. Admin.html's "Test customer
+  profile" card is now an account picker - a dropdown of every real
+  customer account (defaulting to Xavier Hemmings' account specifically,
+  matched by known id or by display name) plus a "+ Create a new account"
+  option with a name field that only appears when it's selected. Opening it
+  now portals into whichever account is chosen via the exact same real
+  link-invite mechanism as any multi-device tab share
+  (`FS.admin.createLinkInvite`, reusing the existing self-service invite
+  route rather than a new one) - there's no separate copy of the data to go
+  stale, because there is no copy at all anymore.
+- `POST /admin/test-profile` and `FS.admin.openAdminTestProfile()` are
+  removed entirely (superseded by `FS.admin.createGuestTab()` +
+  `FS.admin.createLinkInvite()`, both of which already existed for other
+  flows). The old `admin-test-profile` Firestore doc and its cloned records
+  are left in place untouched (not proactively deleted) but excluded from
+  the new picker's dropdown, since portaling into it would just reopen the
+  same stale snapshot this fix replaces.
+
 ## Catalog autosave/queue, snack delete, inactive-as-sold-out, and a new Stats page (2026-07-26)
 
 - **Catalog autosave**: every field on a catalog card now writes directly -

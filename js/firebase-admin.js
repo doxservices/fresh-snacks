@@ -398,17 +398,6 @@ FS.admin.createGuestTab = async (displayName) => {
   return userId;
 };
 
-FS.admin.openAdminTestProfile = async (sourceUserId) => {
-  const { url } = await FS._apiFetch("/admin/test-profile", { method: "POST", body: { sourceUserId } });
-  // A link code, not a view code - startTabFlow() in index.html auto-accepts
-  // it (skipping the usual explicit "Link this device" click, safe here
-  // since this URL only ever comes from an authenticated admin action) so
-  // the test session gets real read/write access to admin-test-profile
-  // instead of read-only access to it.
-  localStorage.setItem(FS.linkCodeKey, new URLSearchParams(url.split("?")[1]).get("link"));
-  return url;
-};
-
 FS.admin.addTransactionFor = async (userId, items, options = {}) =>
   FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/transactions`, {
     method: "POST", body: { items, splitQuantities: !!options.splitQuantities },
