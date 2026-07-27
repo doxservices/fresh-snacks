@@ -267,7 +267,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
   <script src="js/firebase-admin.js?v=20260726-permissions"></script>
-  <script src="js/admin-notifications.js?v=20260726-permissions"></script>
+  <script src="js/admin-notifications.js?v=20260726-status-labels"></script>
   <script src="js/admin-modals.js?v=20260726-modals"></script>
   <script>
     let SNAPSHOT = null;
@@ -930,11 +930,9 @@
     // `availableActions`/`workflowStatus` rather than re-derived here.
     const STATUS_BADGE = {
       PENDING_USER_CONFIRMATION: { label: "Needs customer confirmation", cls: "verdict-badge needs-review" },
-      ITEM_UNDER_REVIEW: { label: "Disputed", cls: "verdict-badge disputed" },
-      CONFIRMED_UNPAID: { label: "Confirmed", cls: "verdict-badge agreed" },
-      PAYMENT_PENDING_ADMIN_CONFIRMATION: { label: "Payment reported", cls: "verdict-badge needs-review" },
-      PAYMENT_UNDER_REVIEW: { label: "Payment under review", cls: "verdict-badge disputed" },
-      PAID_FINALIZED: { label: "Paid", cls: "ledger-status paid" },
+      ITEM_UNDER_REVIEW: { label: "Customer disputed", cls: "verdict-badge disputed" },
+      PAYMENT_PENDING_ADMIN_CONFIRMATION: { label: "Customer reported payment", cls: "verdict-badge needs-review" },
+      PAYMENT_UNDER_REVIEW: { label: "Admin reviewing payment", cls: "verdict-badge disputed" },
     };
     const needsAttention = (t) =>
       ["ITEM_UNDER_REVIEW", "PAYMENT_PENDING_ADMIN_CONFIRMATION", "PAYMENT_UNDER_REVIEW"].includes(t.workflowStatus);
@@ -966,19 +964,34 @@
       const markPaidBtn = actions.includes("MARK_AS_PAID")
         ? `<button type="button" class="primary" data-act="txn-mark-paid" title="Record this as paid immediately">Mark paid</button>`
         : "";
-      const finalNote = t.workflowStatus === "PAID_FINALIZED" ? `<span class="permanent-note">Final</span>` : "";
+      // No separate "Final" note here once paid - the status badge already
+      // reads "Paid - Final" on its own.
       const menu = menuItems.length ? `
         <div class="row-menu">
           <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
           <div class="row-menu-dropdown">${menuItems.join("")}</div>
         </div>` : "";
-      return `${markPaidBtn}${finalNote}${menu}`;
+      return `${markPaidBtn}${menu}`;
     }
 
     function renderTransactionTable() {
       const cur = SNAPSHOT.settings.currency;
+      // Paid is always "Paid - Final" regardless of path (admin marked it
+      // paid directly, or confirmed a customer-reported payment).
+      // CONFIRMED_UNPAID distinguishes who did the confirming: a customer
+      // confirming their own item (or a self-logged one, auto-confirmed at
+      // creation) always sets userConfirmedAt; an admin reaching this
+      // status instead (approving a disputed item, or rejecting a payment
+      // claim back to it) never does.
       const badge = (t) => {
-        const s = STATUS_BADGE[t.workflowStatus] || STATUS_BADGE.CONFIRMED_UNPAID;
+        if (t.workflowStatus === "PAID_FINALIZED") {
+          return `<span class="ledger-status paid">Paid - Final</span>`;
+        }
+        if (t.workflowStatus === "CONFIRMED_UNPAID") {
+          const label = t.userConfirmedAt ? "Customer confirmed" : "Admin confirmed";
+          return `<span class="verdict-badge agreed">${label}</span>`;
+        }
+        const s = STATUS_BADGE[t.workflowStatus] || { label: "Confirmed", cls: "verdict-badge agreed" };
         return `<span class="${s.cls}">${esc(s.label)}</span>`;
       };
       const rows = [...SNAPSHOT.transactions]

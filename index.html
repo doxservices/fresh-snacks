@@ -514,7 +514,7 @@
         ITEM_UNDER_REVIEW: "Under review",
         PAYMENT_PENDING_ADMIN_CONFIRMATION: "Awaiting confirmation",
         PAYMENT_UNDER_REVIEW: "Payment under review",
-        PAID_FINALIZED: "Paid",
+        PAID_FINALIZED: "Paid - Final",
       }[e.workflowStatus] || "Confirmed";
       return `<span class="customer-final-status confirmed" title="${esc(entryStatusTitle(e))}">${esc(label)}</span>`;
     }

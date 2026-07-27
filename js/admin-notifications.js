@@ -387,10 +387,10 @@
 
   function statusBadge(workflowStatus) {
     return workflowStatus === "ITEM_UNDER_REVIEW"
-      ? `<span class="verdict-badge disputed">Disputed</span>`
+      ? `<span class="verdict-badge disputed">Customer disputed</span>`
       : workflowStatus === "PAYMENT_UNDER_REVIEW"
-        ? `<span class="verdict-badge disputed">Payment under review</span>`
-        : `<span class="verdict-badge needs-review">Payment reported</span>`;
+        ? `<span class="verdict-badge disputed">Admin reviewing payment</span>`
+        : `<span class="verdict-badge needs-review">Customer reported payment</span>`;
   }
 
   function renderBadge() {
