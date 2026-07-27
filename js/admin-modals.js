@@ -69,7 +69,7 @@
             </div>
           </div>
           <div class="artwork-upload-item">
-            <div class="artwork-preview artwork-preview-wide" id="am-artwork-favorite-preview"></div>
+            <div class="artwork-preview" id="am-artwork-favorite-preview"></div>
             <div class="field">
               <label for="am-artwork-favorite-input">Favorite background</label>
               <input id="am-artwork-favorite-input" type="file" accept="image/*" />

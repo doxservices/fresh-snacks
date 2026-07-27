@@ -1,5 +1,18 @@
 # Development notes
 
+## Artwork previews: image fills and centers in the square box (2026-07-27)
+
+- The regular catalog photo preview used `object-fit: contain`, which
+  letterboxes a non-square upload (empty space on the sides or top/bottom)
+  instead of filling the now-square box. Switched to `object-fit: cover`
+  (matching what the favorite-background preview already did) so the image
+  fills the box edge to edge, with `object-position: center` (its own
+  default, restated for clarity) so the crop stays centered rather than
+  anchored to a corner.
+- `.artwork-preview-wide` is gone from the markup too - it had no CSS left
+  behind it once both previews became the same square/cover treatment, so
+  it was dead weight, not a distinction that still meant anything.
+
 ## Artwork preview boxes are proportionate now, not a thin strip (2026-07-27)
 
 - `.artwork-preview` had a fixed 150px height regardless of how wide its
