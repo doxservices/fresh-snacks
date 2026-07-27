@@ -184,9 +184,12 @@
     }
 
     function userOptions() {
-      return SNAPSHOT.accounting.map((r) =>
-        `<option value="${esc(r.userId)}">${esc(r.displayName)} - ${FS.money(r.balance, SNAPSHOT.settings.currency)}</option>`
-      ).join("");
+      return SNAPSHOT.accounting.map((r) => {
+        const label = r.balance < 0
+          ? `${FS.money(Math.abs(r.balance), SNAPSHOT.settings.currency)} credit`
+          : FS.money(r.balance, SNAPSHOT.settings.currency);
+        return `<option value="${esc(r.userId)}">${esc(r.displayName)} - ${label}</option>`;
+      }).join("");
     }
 
     // Xavier Hemmings' real account is the one this test tool has always

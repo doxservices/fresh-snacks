@@ -1,5 +1,37 @@
 # Development notes
 
+## Existing credit auto-settles new items; fixed 2 spots showing raw negative balances (2026-07-27)
+
+- **Auto-settle from existing credit**: a customer with credit on file
+  (from an earlier overpayment) used to still have to click "Mark as paid"
+  and wait on admin confirmation for a brand-new item, even though the
+  money to cover it was already there - the oldest-first settlement sweep
+  (`paymentAllocationPlan`) only ever ran when an admin recorded a payment
+  or visited transactions.html (`/payments/reconcile`), never right when
+  the customer's own action (self-logging a snack, or confirming an admin-
+  added item) put something new on CONFIRMED_UNPAID.
+  - Moved `allocateApprovedTransactions()` out of admin.js into a new
+    shared `functions/src/lib/settlement.js` (admin.js now imports it) so
+    store.js can call it too.
+  - `POST /store/transactions` (self-log) and `applyUserAction()` (backs
+    confirm-item/review-item/mark-paid) now call it immediately after
+    landing a transaction on CONFIRMED_UNPAID, using a fixed
+    `"auto-settlement"` actor sentinel for the audit trail instead of a
+    real admin uid, since nobody actually clicked anything for this
+    specific settlement.
+  - Existing admin-triggered call sites (`/payments/permanent`,
+    `/payments/reconcile`) are unchanged, still passing the real admin's
+    uid.
+- **Fixed 2 real bugs showing a raw, unlabeled negative balance** instead
+  of "Available credit $X" like everywhere else in the app:
+  `invoice.html`'s balance stat-box and its bottom-summary table row both
+  did `FS.money(totals.balance, cur)` directly with no `< 0` check, unlike
+  index.html/edit-tab.html/transactions.html/accounting.html, which all
+  already handled it correctly. Also tightened `admin.html`'s Add
+  Adjustment customer dropdown, which had the same gap. Verified this by
+  auditing every balance-rendering call site in the app, not by inspecting
+  live account data directly.
+
 ## Artwork previews: image fills and centers in the square box (2026-07-27)
 
 - The regular catalog photo preview used `object-fit: contain`, which

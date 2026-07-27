@@ -5,7 +5,7 @@ const express = require("express");
 const admin = require("firebase-admin");
 const { requireAuth, requireAdmin, requirePermission, asyncRoute } = require("../middleware");
 const {
-  uid: genId, todayISO, dateFromRecord, accounting, paymentAllocationPlan,
+  uid: genId, todayISO, dateFromRecord, accounting,
   binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean, compareSnackOrder,
 } = require("../lib/shared");
 const {
@@ -14,6 +14,7 @@ const {
 } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { PERMISSION, ROLE_PRESETS } = require("../lib/permissions");
+const { allocateApprovedTransactions } = require("../lib/settlement");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -542,57 +543,6 @@ router.delete("/payments/:id", requirePermission(PERMISSION.DELETE_TRANSACTION),
   await db().collection("payments").doc(req.params.id).delete();
   res.json({ ok: true });
 }));
-
-/* Runs the oldest-first settlement plan against every payment on file for
- * this customer, and finalizes whatever it covers. A transaction already
- * CONFIRMED_UNPAID settles via the admin's own Mark as Paid; one already
- * PAYMENT_PENDING_ADMIN_CONFIRMATION (the user reported paying) settles via
- * Confirm Payment instead - either way the destination is PAID_FINALIZED,
- * so the same pass safely covers both without needing to know which path
- * a given payment actually arrived through. */
-async function allocateApprovedTransactions(userId, adminUid) {
-  const [transactionSnap, paymentSnap] = await Promise.all([
-    db().collection("transactions").where("userId", "==", userId).get(),
-    db().collection("payments").where("userId", "==", userId).get(),
-  ]);
-  const transactions = transactionSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((record) => record.status !== "void");
-  const payments = paymentSnap.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((record) => record.status !== "void");
-  const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  const plan = paymentAllocationPlan(transactions, paidTotal);
-  const byId = new Map(transactions.map((record) => [record.id, record]));
-  const batch = db().batch();
-  const now = FieldValue.serverTimestamp();
-  for (const id of plan.settledIds) {
-    const current = deriveWorkflowStatus(byId.get(id));
-    const action = current === STATUS.CONFIRMED_UNPAID ? ACTION.MARK_AS_PAID : ACTION.CONFIRM_PAYMENT;
-    const next = assertTransition(current, ROLE.ADMIN, action);
-    batch.update(db().collection("transactions").doc(id), {
-      workflowStatus: next,
-      version: FieldValue.increment(1),
-      finalizedAt: now,
-      paymentConfirmedAt: now,
-      paymentConfirmedByAdminId: adminUid,
-      ...(action === ACTION.MARK_AS_PAID
-        ? { paymentMarkedAt: now, paymentMarkedBy: adminUid, paymentMarkedByRole: ROLE.ADMIN }
-        : {}),
-    });
-    const event = buildTransactionEvent(db(), {
-      transactionId: id,
-      eventType: action === ACTION.MARK_AS_PAID ? EVENT_TYPE.PAYMENT_MARKED_BY_ADMIN : EVENT_TYPE.PAYMENT_CONFIRMED_BY_ADMIN,
-      fromStatus: current,
-      toStatus: next,
-      actorUserId: adminUid,
-      actorRole: ROLE.ADMIN,
-    });
-    batch.set(event.ref, event.data);
-  }
-  if (plan.settledIds.length) await batch.commit();
-  return plan;
-}
 
 router.post("/payments/reconcile", asyncRoute(async (req, res) => {
   const paymentSnap = await db().collection("payments").get();

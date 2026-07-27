@@ -120,7 +120,7 @@
               <div class="brand-subtitle">Snack tab invoice</div>
             </div>
             <div class="brand-stats">
-              <div class="stat-box balance-stat"><div class="stat-label">Current balance</div><div class="stat-value warm">${FS.money(totals.balance, cur)}</div></div>
+              <div class="stat-box balance-stat"><div class="stat-label">${totals.balance < 0 ? "Available credit" : "Current balance"}</div><div class="stat-value warm">${FS.money(Math.abs(totals.balance), cur)}</div></div>
               <div class="stat-box"><div class="stat-label">Snack value</div><div class="stat-value green">${FS.money(totals.value, cur)}</div></div>
               <div class="stat-box"><div class="stat-label">Paid</div><div class="stat-value blue">${FS.money(totals.paid, cur)}</div></div>
               <div class="stat-box"><div class="stat-label">Issued</div><div class="stat-value">${FS.todayISO()}</div></div>
@@ -154,7 +154,7 @@
             <tbody>
               <tr><td>Total snack value</td><td class="num-money"><span class="mv">${FS.money(totals.value, cur)}</span></td><td></td><td></td></tr>
               <tr><td>Payments added</td><td></td><td class="num-money"><span class="mv">${FS.money(totals.paid, cur)}</span></td><td></td></tr>
-              <tr class="balance-row"><td>Current balance</td><td></td><td></td><td class="num-money"><span class="mv">${FS.money(totals.balance, cur)}</span></td></tr>
+              <tr class="balance-row"><td>${totals.balance < 0 ? "Available credit" : "Current balance"}</td><td></td><td></td><td class="num-money"><span class="mv">${FS.money(Math.abs(totals.balance), cur)}</span></td></tr>
             </tbody>
           </table>
         </section>`;

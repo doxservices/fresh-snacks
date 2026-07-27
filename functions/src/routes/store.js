@@ -12,6 +12,7 @@ const {
 } = require("../lib/shared");
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
+const { allocateApprovedTransactions } = require("../lib/settlement");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -401,6 +402,13 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
     saved.push(record);
   }
   await batch.commit();
+  // A self-logged item lands on CONFIRMED_UNPAID same as always - if this
+  // customer already has credit on file from an earlier payment, settle
+  // it from that immediately rather than leaving it to sit unpaid until
+  // the next admin visit/payment triggers a reconcile. They never had to
+  // "mark this as paid" for it to be covered, so they shouldn't have to
+  // wait on that step to see it reflected either.
+  await allocateApprovedTransactions(effectiveUid);
   res.json(saved);
 }));
 
@@ -411,6 +419,7 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
 async function applyUserAction(req, res, { action, eventType, extraPayload = {}, extraFields = () => ({}) }) {
   const { id } = req.params;
   const ref = db().collection("transactions").doc(id);
+  let settledUserId = null;
   await db().runTransaction(async (transaction) => {
     const snap = await transaction.get(ref);
     if (!snap.exists) throw Object.assign(new Error("Transaction not found."), { status: 404 });
@@ -435,7 +444,13 @@ async function applyUserAction(req, res, { action, eventType, extraPayload = {},
       payload: extraPayload,
     });
     transaction.set(event.ref, event.data);
+    if (next === STATUS.CONFIRMED_UNPAID) settledUserId = record.userId;
   });
+  // Confirming an item (the only one of these three actions that lands on
+  // CONFIRMED_UNPAID) should never have to separately "mark as paid" and
+  // wait on admin confirmation if this customer already has enough credit
+  // on file to cover it - settle it immediately instead.
+  if (settledUserId) await allocateApprovedTransactions(settledUserId);
   res.json({ ok: true });
 }
 
