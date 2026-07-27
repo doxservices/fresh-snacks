@@ -3108,8 +3108,13 @@ textarea:focus {
   gap: 12px;
 }
 
+/* A fixed 150px height read as a thin strip regardless of how wide its
+   grid column stretched - aspect-ratio keeps it a real square (or a
+   deliberate widescreen for the "wide" favorite-background preview)
+   at any column width, so uploads are actually easy to inspect. */
 .artwork-preview {
-  height: 150px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -3117,6 +3122,10 @@ textarea:focus {
   border-radius: 14px;
   background: #f6faf7;
   color: #68756b;
+}
+
+.artwork-preview-wide {
+  aspect-ratio: 16 / 9;
 }
 
 .artwork-preview img {

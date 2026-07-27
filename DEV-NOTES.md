@@ -1,5 +1,19 @@
 # Development notes
 
+## Artwork preview boxes are proportionate now, not a thin strip (2026-07-27)
+
+- `.artwork-preview` had a fixed 150px height regardless of how wide its
+  grid column stretched, so it read as a thin strip rather than something
+  you could actually inspect an upload in. Switched to `aspect-ratio: 1/1`
+  (a real square that grows with the column) for the regular catalog photo
+  preview, and `aspect-ratio: 16/9` for the favorite-background preview
+  (`.artwork-preview-wide`) - bigger and clearer, while still reading as
+  deliberately widescreen rather than square, matching what that image is
+  actually used for.
+- Both the catalog page's "Artwork uploads" section and the per-card
+  upload modal added yesterday share these same classes, so both got
+  larger, clearer previews from one CSS change.
+
 ## Per-card photo upload on the catalog page (2026-07-26)
 
 - Each catalog card (both gallery and row views) now has a camera icon
