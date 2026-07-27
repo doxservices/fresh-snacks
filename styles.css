@@ -928,10 +928,14 @@ header.banner {
   border-bottom: 1px solid var(--line);
 }
 
+/* cover (not contain) so the favorite background photo fills its box
+   edge to edge instead of floating with empty space around it on a
+   landscape upload; object-position keeps the crop centered either way. */
 .snack-image img {
   width: 100%;
   height: 246px;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 

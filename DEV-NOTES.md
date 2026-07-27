@@ -1,5 +1,16 @@
 # Development notes
 
+## Favorite background photo now fills its frame instead of floating (2026-07-27)
+
+- The live customer-facing favorite card (`index.html`'s `#fav-photo`,
+  rendered via `.snack-image img`) was still using `object-fit: contain`,
+  unlike the admin upload preview boxes which already switched to `cover`
+  a couple passes back. A landscape-oriented favorite-background upload
+  would render small and surrounded by empty space rather than filling the
+  card's photo panel. Switched to `object-fit: cover` with an explicit
+  `object-position: center` so the crop stays centered regardless of the
+  uploaded photo's orientation.
+
 ## Artwork uploads back to side by side, mobile-only stacking (2026-07-27)
 
 - Reverted the previous vertical stack: `.catalog-upload-harness` and the
