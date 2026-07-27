@@ -94,12 +94,12 @@
         $("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
-      // Inactive is a delisting decision (not for sale, regardless of stock
-      // on the counter) and reads exactly like being sold out - same ribbon,
-      // and the quantity stepper is removed outright so there's no control
-      // to add it with.
+      // Inactive snacks are excluded from DATA.catalog entirely server-side
+      // (delisted = not shown at all) - this only has to handle being sold
+      // out, with the quantity stepper removed outright so there's no
+      // control to add it with.
       $("bins").innerHTML = DATA.catalog.map((s) => {
-        const unavailable = s.stock === 0 || s.active === false;
+        const unavailable = s.stock === 0;
         return `
         <div class="bin-card${unavailable ? " sold-out" : ""}">
           <div class="bin-photo">${s.photo

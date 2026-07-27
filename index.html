@@ -935,11 +935,11 @@
       }
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
       $id("bins").innerHTML = data.catalog.map((s) => {
-        // Inactive is a delisting decision (not for sale, regardless of
-        // stock on the counter) and reads exactly like being sold out - same
-        // ribbon, and the Add to basket button is removed outright (not
-        // just disabled) so there's no control to add it with.
-        const unavailable = s.stock === 0 || s.active === false;
+        // Inactive snacks are excluded from data.catalog entirely server-side
+        // (delisted = not shown at all, not just unavailable) - this only
+        // has to handle being sold out. The Add to basket button is removed
+        // outright (not just disabled) so there's no control to add it with.
+        const unavailable = s.stock === 0;
         const actionButton = isVisitor
           ? `<button type="button" class="primary bin-add-button" data-visitor-cta>Open a tab</button>`
           : hasOwnTab
@@ -1019,7 +1019,7 @@
         : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
-      const unavailable = s.stock === 0 || s.active === false;
+      const unavailable = s.stock === 0;
       const hasOwnTab = FS.hasActiveTab(LAST_DATA.myProfile);
       const isVisitor = !hasOwnTab && !LAST_DATA.claim;
       $id("snack-modal-add").disabled = unavailable || (!hasOwnTab && !isVisitor);

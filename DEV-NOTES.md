@@ -1,5 +1,20 @@
 # Development notes
 
+## Reverted: inactive snacks are hidden from the gallery again, not shown sold-out (2026-07-26)
+
+- Earlier today's change made inactive snacks display like sold-out (visible,
+  red ribbon, no Add to basket) instead of disappearing from the customer
+  gallery entirely. Decision reversed: inactive is back to fully excluded
+  from what customers see, same as before that change - `GET /store/data`
+  and `FS.loadData()`'s no-session branch both call `getCatalogData(false)`/
+  `FS.getCatalog()` (active-only) again.
+- Sold-out (`stock === 0`) is unaffected and keeps everything from that same
+  change: the red ribbon, and the Add to basket button/quantity stepper
+  removed outright rather than merely disabled. `index.html` and `bins.html`
+  no longer check `active === false` at all for this, since an inactive
+  snack now never reaches the client's catalog data in the first place -
+  removed as dead code rather than left in place unreachable.
+
 ## Transactions ledger: header/value alignment fix, and purposeful payment fields (2026-07-26)
 
 - **Header/value alignment bug** (affected every `.admin-table` app-wide, not

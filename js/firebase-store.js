@@ -662,10 +662,7 @@ FS.loadData = async () => {
   const user = await FS.restoreSession();
   const tabCode = FS.getTabCode();
   if (!user && !tabCode) {
-    // Inactive snacks are included here too, same reasoning as GET
-    // /store/data - a delisted snack still renders (out-of-stock style, no
-    // Add to basket) rather than disappearing from the gallery.
-    const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog(true)]);
+    const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog()]);
     return { profile, catalog, claim: null, entries: [], payments: [] };
   }
   if (tabCode) await FS.signInAnonymous();

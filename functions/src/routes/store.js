@@ -221,11 +221,7 @@ router.get("/user-payments", requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
-  // Inactive snacks are still returned here (unlike POST /transactions'
-  // purchase-validation catalogue below, which stays active-only) - a
-  // delisted snack is meant to render like an out-of-stock one for display
-  // (still visible, no Add to basket button), not vanish from the gallery.
-  const [profile, catalog] = await Promise.all([getSettingsData(), getCatalogData(true)]);
+  const [profile, catalog] = await Promise.all([getSettingsData(), getCatalogData(false)]);
   const tabCode = req.query.tabCode ? String(req.query.tabCode).toUpperCase() : null;
 
   if (!req.uid) {
