@@ -1,5 +1,31 @@
 # Development notes
 
+## Fix: admin test profile picker could silently fail to open the chosen account (2026-07-26)
+
+- The account picker shipped earlier today minted a real device-link invite
+  (`FS.admin.createLinkInvite` + auto-accepting it via `FS.loginWithInvite`)
+  to portal into the chosen account. That mechanism is capped at 3 linked
+  devices per account by design (for real multi-device family tab
+  sharing) - an actively-used real account like Xavier Hemmings' can
+  already have those slots full, so the auto-accept could fail. Worse, the
+  failure was caught and silently swallowed, so the page still loaded fine
+  - just as this browser's own unlinked (nameless) identity, with nothing
+  explaining why it wasn't showing the expected account.
+- Real fix: dropped the invite-code mechanism entirely for this feature.
+  `middleware.js`'s `resolveEffectiveUid()` now trusts a verified admin's
+  requested `effectiveUid` outright (same "isAdmin() first" precedent
+  `authz.js`'s `canAccessTab()` already used) - an anonymous or otherwise
+  non-admin caller still goes through the normal linkedUids/session checks
+  unchanged. `FS.admin.portalIntoAccount(userId)` just sets this browser's
+  `linkedTo` marker directly (the same marker a real linked device uses)
+  before navigating to `index.html?profile=admin-test` - no invite code, no
+  device-link slot consumed, and it can't fail because a real account's 3
+  slots are already taken.
+- `index.html`'s `startTabFlow()` needs no special-casing for this at all
+  now - it's back to its original form. `FS.loadData()`/`FS.getMyProfile()`
+  already read the `linkedTo` marker for any genuinely linked device; the
+  server-side trust change is the only thing that's new.
+
 ## Admin test profile: portal into a real account instead of a stale clone (2026-07-26)
 
 - Root cause of the drift: `POST /admin/test-profile` cloned a source

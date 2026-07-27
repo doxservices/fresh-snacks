@@ -317,11 +317,16 @@
       $("login-panel").classList.remove("hidden");
     };
 
-    // Portals into whichever account is selected - an existing customer (a
-    // real link-invite into their actual live account, same mechanism as
-    // any multi-device tab share) or a brand-new one created on the spot.
-    // No separate cloned copy is created or maintained, so there's nothing
-    // that can drift out of sync with the real account over time.
+    // Portals into whichever account is selected - an existing customer's
+    // actual live account, or a brand-new one created on the spot. This
+    // marks the browser as linked to that account (FS.admin.
+    // portalIntoAccount) and relies on the server trusting a verified
+    // admin's requested effectiveUid outright (middleware.js's
+    // resolveEffectiveUid) - not a real device-link invite, so it never
+    // competes with that account's real 3-device link cap and can't fail
+    // because those slots are already full. No separate cloned copy is
+    // created or maintained either, so there's nothing that can drift out
+    // of sync with the real account over time.
     async function openTestProfile(trigger, event) {
       event?.preventDefault();
       const originalLabel = trigger.textContent;
@@ -333,8 +338,8 @@
         if (userId === "__new__") {
           userId = await FS.admin.createGuestTab($("admin-test-profile-name").value.trim());
         }
-        const { code } = await FS.admin.createLinkInvite(userId);
-        location.href = `index.html?link=${encodeURIComponent(code)}&profile=admin-test`;
+        FS.admin.portalIntoAccount(userId);
+        location.href = "index.html?profile=admin-test";
       } catch (e) {
         trigger.textContent = originalLabel;
         trigger.removeAttribute("aria-disabled");

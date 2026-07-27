@@ -1,5 +1,6 @@
 const admin = require("firebase-admin");
 const { hasPermission } = require("./lib/permissions");
+const { isAdmin } = require("./lib/authz");
 
 /* Verifies the Firebase ID token in the Authorization header, mirroring
  * what the client SDK proved just by having a signed-in session. Every
@@ -97,10 +98,21 @@ async function hasInviteSession(uid, targetUid) {
  * as, mirroring firestore.rules' isLinkedMember(). A different requested uid
  * only works when the target still lists this caller. When no usable target
  * was supplied, an existing active link can be recovered from server state;
- * otherwise the request safely falls back to the caller's own uid. */
+ * otherwise the request safely falls back to the caller's own uid.
+ *
+ * A verified admin's own requested effectiveUid is trusted outright (same
+ * "isAdmin() first" precedent as authz.js's canAccessTab) - this is what
+ * lets admin.html's account picker portal into any real customer account
+ * directly (localStorage's linkedTo is set client-side, no invite code
+ * needed), without consuming one of that account's 3 real device-link
+ * slots or being blocked when they're already full. An anonymous or
+ * otherwise non-admin uid always fails isAdmin() and falls through to the
+ * normal linkedUids/session checks below, so this changes nothing for
+ * genuine customer requests. */
 async function resolveEffectiveUid(req) {
   const requested = req.query.effectiveUid || req.body?.effectiveUid;
   if (requested && requested !== req.uid) {
+    if (await isAdmin(req.uid)) return requested;
     const snap = await admin.firestore().collection("users").doc(requested).get();
     if (snap.exists && (snap.data().linkedUids || []).includes(req.uid)) {
       return requested;

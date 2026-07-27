@@ -398,6 +398,18 @@ FS.admin.createGuestTab = async (displayName) => {
   return userId;
 };
 
+// Marks this browser as "linked to" the given account, exactly like a real
+// device link would - but for an admin, middleware.js's resolveEffectiveUid
+// trusts the requested effectiveUid outright, no actual linkedUids
+// membership or invite code required. Used by admin.html's Test customer
+// profile picker right before navigating to index.html?profile=admin-test,
+// so index.html's normal FS.loadData()/FS.getMyProfile() calls (which
+// already read this same marker for any linked device) just work.
+FS.admin.portalIntoAccount = (userId) => {
+  localStorage.setItem(FS.appConfig.storageKeys.linkedTo, userId);
+  localStorage.removeItem(FS.appConfig.storageKeys.sessionTo);
+};
+
 FS.admin.addTransactionFor = async (userId, items, options = {}) =>
   FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/transactions`, {
     method: "POST", body: { items, splitQuantities: !!options.splitQuantities },
