@@ -1,5 +1,38 @@
 # Development notes
 
+## Fix: Admin test profile sometimes had no Add to basket button (2026-07-26)
+
+- Root cause: `POST /admin/test-profile` minted a `type: "view"` code for
+  the Admin test profile. A view code only ever grants read access -
+  `resolveEffectiveUid()` never resolves it to the viewed tab's owner (only
+  a `type: "link"` code does that, per `middleware.js`'s
+  `linkedTargetFromClaim()`), and `FS.getMyProfile()`/`FS.addTransaction()`
+  don't even look at it - they only ever check `linkedTo`/`sessionTo` in
+  localStorage. So `renderBinsGallery()`'s `hasOwnTab` check was really
+  asking "does the browsing device's own, usually-tabless identity have an
+  active tab?", not "can this session act on admin-test-profile?" - which
+  is why the whole gallery's Add to basket buttons (and Tell a Friend, the
+  basket panel/overlay/notification bell) went missing whenever that browser
+  had no unrelated tab of its own, and - worse - would appear but silently
+  target the wrong tab whenever it happened to have one from unrelated prior
+  testing.
+- Fix: `POST /admin/test-profile` now mints a `type: "link"` code instead
+  (both on first creation and its repair path), and no longer pre-seeds a
+  `claims/{uid}` doc itself (that shape was for view claims and wasn't even
+  guaranteed to match the uid that would actually browse the URL). The
+  returned URL is `index.html?link=<code>&profile=admin-test` instead of
+  `?code=<code>&profile=admin-test`.
+- `js/firebase-admin.js`'s `openAdminTestProfile()` now stores the code
+  under `FS.linkCodeKey` instead of `FS.tabCodeKey`.
+- `index.html`'s `startTabFlow()` auto-accepts a pending link code via the
+  existing `FS.loginWithInvite()` helper (same accept-with-device-limit-
+  fallback logic real multi-device tab sharing already uses) whenever
+  `?profile=admin-test` is present, skipping the normal explicit "Link this
+  device" click - safe here specifically because this URL is only ever
+  minted by an authenticated admin action, never shared with anyone else.
+  Errors are swallowed and the page still loads (degrading to the old
+  behavior, recoverable by reopening the test profile from the dashboard).
+
 ## Status badges: who added it, and who put the payment on record (2026-07-26)
 
 - `CONFIRMED_UNPAID`'s admin badge used to read "Customer confirmed"/"Admin
