@@ -1,5 +1,18 @@
 # Development notes
 
+## Artwork uploads back to side by side, mobile-only stacking (2026-07-27)
+
+- Reverted the previous vertical stack: `.catalog-upload-harness` and the
+  per-card modal's `.artwork-upload-grid` are grids again (side by side),
+  since the vertical read made the section unnecessarily tall on a normal
+  desktop/tablet width. Top-to-bottom stacking now only kicks in under a
+  new `@media (max-width: 640px)` rule, for phone-width screens where a row
+  really would squeeze each preview down to nothing.
+- Kept `.artwork-upload-item`'s 460px `max-width` from the previous pass (so
+  a preview doesn't blow up to the full width of a very wide grid column),
+  but added `justify-self: center` so the item centers itself in its cell
+  instead of hugging the left edge whenever the column is wider than the cap.
+
 ## Artwork uploads stack vertically instead of squeezing 3-across (2026-07-27)
 
 - `.catalog-upload-harness` (the Snack picker + two upload items on

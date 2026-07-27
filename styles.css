@@ -3095,30 +3095,41 @@ textarea:focus {
   margin-bottom: 12px;
 }
 
-/* Stacked (one item above the next) instead of side by side - three items
-   sharing one row squeezed each preview down to roughly a third of the
-   card's width; reading downward instead lets each preview claim far more
-   lateral space, up to .artwork-upload-item's own max-width. */
 .catalog-upload-harness {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(180px, .7fr) repeat(2, minmax(220px, 1fr));
   gap: 20px;
+  align-items: start;
   margin-top: 18px;
 }
 
+/* justify-self keeps the preview+input pair centered in its grid cell
+   instead of hugging the left edge once the cell grows past the 460px cap. */
 .artwork-upload-item {
   display: grid;
   gap: 12px;
   max-width: 460px;
+  justify-self: center;
+  width: 100%;
 }
 
-/* Same stacked layout for the per-card upload modal (js/admin-modals.js) -
-   a dedicated class rather than reusing .form-grid, which stays a generic
-   multi-column layout used by unrelated forms elsewhere. */
+/* Same side-by-side treatment for the per-card upload modal
+   (js/admin-modals.js) - a dedicated class rather than reusing .form-grid,
+   which stays a generic multi-column layout used by unrelated forms
+   elsewhere. */
 .artwork-upload-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
   gap: 18px;
+}
+
+/* Side by side is too cramped on a phone-width screen, so only there do the
+   items read top to bottom instead. */
+@media (max-width: 640px) {
+  .catalog-upload-harness,
+  .artwork-upload-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* A fixed 150px height read as a thin strip regardless of how wide its
