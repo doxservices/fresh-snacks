@@ -3903,6 +3903,15 @@ textarea:focus {
 .collapsed-ledger-stats .credit { color: #087a46; }
 .collapsed-ledger-stats .due { color: #8a4d16; }
 
+/* <summary> stays visible whether its <details> is open or closed, so its
+   Purchases/Payments/Balance stats used to sit right on top of the same
+   three numbers restated in .user-ledger-overview just below, once
+   expanded. Hide the summary's copy once open - the full one (which also
+   has Record payment) is the one that matters then. */
+details[open] > summary .collapsed-ledger-stats {
+  display: none;
+}
+
 .professional-action-icon svg { stroke-width: 1.8; }
 .professional-action-icon.danger { color: #a63b35; }
 .professional-action-icon.payment-action-icon {

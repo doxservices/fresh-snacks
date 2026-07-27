@@ -1,5 +1,16 @@
 # Development notes
 
+## Fix: expanded customer group repeated its own Purchases/Payments/Balance (2026-07-26)
+
+- `<summary>` stays visible whether its `<details>` is open or closed, so
+  the Purchases/Payments/Balance stats it carries (`.collapsed-ledger-stats`)
+  sat right on top of the same three numbers restated in
+  `.user-ledger-overview` just below, once a customer group was expanded.
+- Hid the summary's copy specifically while open (`details[open] > summary
+  .collapsed-ledger-stats { display: none; }`) - collapsed still shows the
+  at-a-glance stats as before, expanded shows only the fuller version
+  (which also has the Record payment button) instead of both at once.
+
 ## Add snack now takes an initial Stock amount (2026-07-26)
 
 - The "Add snack" form only had Name/Price/Calories - stock could only be
