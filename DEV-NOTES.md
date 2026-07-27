@@ -4,15 +4,15 @@
 
 - `.artwork-preview` had a fixed 150px height regardless of how wide its
   grid column stretched, so it read as a thin strip rather than something
-  you could actually inspect an upload in. Switched to `aspect-ratio: 1/1`
-  (a real square that grows with the column) for the regular catalog photo
-  preview, and `aspect-ratio: 16/9` for the favorite-background preview
-  (`.artwork-preview-wide`) - bigger and clearer, while still reading as
-  deliberately widescreen rather than square, matching what that image is
-  actually used for.
+  you could actually inspect an upload in. Both previews - the regular
+  catalog photo and the favorite-background image - now share the same
+  `aspect-ratio: 1/1` (a real square that grows with the column) so uploads
+  are shown at a larger, more prominent size either way. (An initial pass
+  kept the favorite-background preview at 16:9; changed to match the
+  regular photo at 1:1 instead, per follow-up feedback.)
 - Both the catalog page's "Artwork uploads" section and the per-card
-  upload modal added yesterday share these same classes, so both got
-  larger, clearer previews from one CSS change.
+  upload modal share these same classes, so both got larger, clearer
+  previews from one CSS change.
 
 ## Per-card photo upload on the catalog page (2026-07-26)
 

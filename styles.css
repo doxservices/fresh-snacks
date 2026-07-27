@@ -3109,9 +3109,9 @@ textarea:focus {
 }
 
 /* A fixed 150px height read as a thin strip regardless of how wide its
-   grid column stretched - aspect-ratio keeps it a real square (or a
-   deliberate widescreen for the "wide" favorite-background preview)
-   at any column width, so uploads are actually easy to inspect. */
+   grid column stretched - aspect-ratio keeps both previews (catalog photo
+   and favorite background alike) a real square that grows with the
+   column, so uploads are actually easy to inspect. */
 .artwork-preview {
   aspect-ratio: 1 / 1;
   height: auto;
@@ -3122,10 +3122,6 @@ textarea:focus {
   border-radius: 14px;
   background: #f6faf7;
   color: #68756b;
-}
-
-.artwork-preview-wide {
-  aspect-ratio: 16 / 9;
 }
 
 .artwork-preview img {
