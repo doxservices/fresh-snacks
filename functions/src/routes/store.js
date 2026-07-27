@@ -104,7 +104,7 @@ router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw Object.assign(new Error("Enter a valid work email address."), { status: 400, code: "invalid-email" });
   }
-  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneDigits = phone ? phone.replace(/\D/g, "") : "";
   if (phone && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
     throw Object.assign(new Error("Enter a valid phone number with 7 to 15 digits."), { status: 400, code: "invalid-phone" });
   }

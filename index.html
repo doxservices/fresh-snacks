@@ -1427,8 +1427,12 @@
       const ownName = me.displayName
         || [me.firstName, me.lastName].filter(Boolean).join(" ").trim();
 
+      // "Admin test view" describes this browsing session (portaled in via
+      // admin.html's account picker), not the account itself - a real
+      // customer's own profile is unaffected either way, so the label must
+      // never read as if the account is somehow an admin.
       if (isAdminTest) {
-        return { name: ownName || "Administrator", label: "Admin Profile", tone: "admin" };
+        return { name: ownName || "Administrator", label: "Admin test view", tone: "admin" };
       }
 
       const viewedProfile = claim || me;

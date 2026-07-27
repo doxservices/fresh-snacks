@@ -1,5 +1,28 @@
 # Development notes
 
+## Fix: saving a profile with a blank phone crashed ("Cannot read properties of null") (2026-07-27)
+
+- `PATCH /store/profile` computed `phone.replace(/\D/g, "")` unconditionally,
+  even though `phone` is `null` whenever the field is left blank (via
+  `clean()`) - the very next line already correctly guarded its *validation*
+  with `phone &&`, but the computation one line above it didn't. A real
+  customer editing their own profile never hit this in practice (the Phone/
+  Work email inputs are marked `required` there, so the browser blocks
+  submission first) - but the Profile information modal doesn't require
+  them when `accessMode` isn't `"self"` (a `linked`/`session` device is
+  editing a shared tab's display info, not opening a fresh one), and an
+  admin testing via the account picker also resolves to `accessMode:
+  "session"` (their own uid was never added to `linkedUids`) - so blank
+  phone reaches the server there and crashed. Fixed by guarding the
+  computation the same way the validation already was.
+- Also relabeled the Profile information modal's "Profile status" field
+  from "Admin Profile" to "Admin test view" when browsing via the account
+  picker - it describes the *current admin session*, not the account being
+  viewed, and reads as if a real customer's own account is somehow an
+  admin otherwise. Nothing about this label is ever stored on the account
+  itself; it's derived purely from the page's own `?profile=admin-test`
+  query param.
+
 ## Healthy accounts (zero balance) highlighted on User Accounting (2026-07-27)
 
 - A row on accounting.html now gets a `healthy-account` class (light green
