@@ -134,6 +134,10 @@
             <label for="cat-cal">Calories</label>
             <input id="cat-cal" type="number" min="0" max="999" step="1" />
           </div>
+          <div class="field">
+            <label for="cat-stock">Stock</label>
+            <input id="cat-stock" type="number" min="0" step="1" placeholder="Not tracked" />
+          </div>
           <button class="primary" id="cat-add">Add snack</button>
         </div>
         <div class="status" id="cat-status"></div>
@@ -307,11 +311,13 @@
           name: $("cat-name").value.trim(),
           price: $("cat-price").value,
           calories: $("cat-cal").value,
+          stock: $("cat-stock").value,
           active: true,
         });
         $("cat-name").value = "";
         $("cat-price").value = "";
         $("cat-cal").value = "";
+        $("cat-stock").value = "";
         await refresh();
         status("cat-status", "Snack added.", true);
       } catch (e) {

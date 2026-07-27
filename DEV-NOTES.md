@@ -1,5 +1,16 @@
 # Development notes
 
+## Add snack now takes an initial Stock amount (2026-07-26)
+
+- The "Add snack" form only had Name/Price/Calories - stock could only be
+  set afterward by editing the newly-created card. Added a Stock field
+  (same "Not tracked" placeholder as the per-card one) so a starting
+  inventory count can be set at creation time in one step.
+- Left blank, it's sent through as `null` (same as every other Stock field
+  in the app) rather than just omitted - `PUT /admin/snacks/:id` already
+  handled this correctly for both create and update, so no backend change
+  was needed.
+
 ## Catalog stats section (2026-07-26)
 
 - New stats card at the top of catalog.html, matching the same `.brand-card`/
