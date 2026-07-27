@@ -1,5 +1,17 @@
 # Development notes
 
+## Catalog view now matches the customer gallery's curated order (2026-07-26)
+
+- `GET /admin/snapshot` returned snacks in raw Firestore document order, not
+  the `displayOrder`-based order the customer-facing gallery already uses
+  (`store.js`'s `getCatalogData`, driven by dragging cards in catalog.html's
+  own Gallery view) - so catalog.html's row/gallery lists didn't match what
+  customers actually see. Now sorted with the same `compareSnackOrder`
+  helper on the way out, so both admin views (row and gallery) line up with
+  the already-curated customer order with no separate migration needed -
+  `displayOrder` was already the source of truth, it just wasn't being read
+  here.
+
 ## Fix: admin test profile picker could silently fail to open the chosen account (2026-07-26)
 
 - The account picker shipped earlier today minted a real device-link invite

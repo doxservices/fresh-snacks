@@ -6,7 +6,7 @@ const admin = require("firebase-admin");
 const { requireAuth, requireAdmin, requirePermission, asyncRoute } = require("../middleware");
 const {
   uid: genId, todayISO, dateFromRecord, accounting, paymentAllocationPlan,
-  binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean,
+  binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean, compareSnackOrder,
 } = require("../lib/shared");
 const {
   STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus, deriveCreatedByRole,
@@ -115,7 +115,10 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
     getCollection("feedback"),
   ]);
   const settingsData = settings.exists ? settings.data() : {};
-  const snacks = snacksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // Same displayOrder-based sort the customer-facing catalog already uses
+  // (store.js's getCatalogData) - catalog.html was showing raw Firestore
+  // doc order instead of the curated gallery order set by dragging cards.
+  const snacks = snacksSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(compareSnackOrder);
   // Every admin page renders its row actions from this - the same
   // server-computed availableActions() the customer side gets via toEntry(),
   // just for ROLE.ADMIN, so "what buttons show for this status" only ever
