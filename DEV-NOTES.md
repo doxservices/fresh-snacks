@@ -1,5 +1,37 @@
 # Development notes
 
+## Transactions ledger: header/value alignment fix, and purposeful payment fields (2026-07-26)
+
+- **Header/value alignment bug** (affected every `.admin-table` app-wide, not
+  just Transactions - accounting.html, edit-tab.html, catalog.html,
+  inventory.html too): `.admin-table th { text-align: left }` has higher
+  CSS specificity (class+element) than the plain `.num`/`.num-money`
+  classes those same header cells also carry, so a `<th class="num">` was
+  silently rendering left-aligned instead of matching its column's actual
+  right/center-aligned values - Qty and Value headers pointed a different
+  way than the numbers underneath them. Added `.admin-table th.num`/
+  `.admin-table th.num-money` overrides with matching specificity so
+  headers now genuinely follow their column's alignment.
+- **Digit alignment**: transactions.html's money cells (`Value` column,
+  both the main ledger and the Voided sub-table) now wrap their value in
+  the same `<span class="mv">` fixed-width-box pattern already used on the
+  customer-facing pages (index.html's Snack Log, invoice.html) - amounts of
+  different digit-lengths now start at the same left edge instead of each
+  being centered independently within the column.
+- Verified via CSS specificity analysis and syntax checks (all script
+  blocks + CSS brace balance); this environment has no browser/screenshot
+  tool available, so the fix was not visually confirmed in a live render.
+- **Payment note field cleanup**: `settlementPaymentWrite()` (used by
+  mark-paid/confirm-payment when a transaction finalizes) no longer
+  synthesizes a `note: "Settles <snack name>"` string - `note` now stays
+  the same empty default every other payment-creation path already uses
+  when no note was given. What a payment settles was already partly
+  structured (`settlesTransactionId`), so `settlesSnackId`/
+  `settlesSnackName` were added alongside it - denormalized, purposeful
+  fields for later analysis instead of an item name folded into free-text
+  prose. Existing historical payment records keep whatever note they
+  already have; this only changes what new ones get.
+
 ## Catalog view now matches the customer gallery's curated order (2026-07-26)
 
 - `GET /admin/snapshot` returned snacks in raw Firestore document order, not

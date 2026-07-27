@@ -2841,6 +2841,17 @@ textarea:focus {
   font-size: 14px;
 }
 
+/* .num/.num-money on a plain <td> already align right/center via their own
+   rules further down, but on a <th> that same class was losing to this
+   selector's higher specificity (class+element beats a lone class) and
+   silently rendering left-aligned regardless - headers and their values
+   pointed different ways in every .admin-table (Qty/Value columns across
+   transactions.html, accounting.html, edit-tab.html, catalog.html,
+   inventory.html). Restated here with matching specificity so the header
+   actually follows the same alignment as the column's own values. */
+.admin-table th.num { text-align: right; }
+.admin-table th.num-money { text-align: center; }
+
 .admin-table th {
   text-align: left;
   color: var(--muted);

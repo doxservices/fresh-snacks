@@ -672,9 +672,20 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
 function settlementPaymentWrite(transaction, record, { userId, uid, source }) {
   const paymentId = genId("fs_pay");
   transaction.set(db().collection("payments").doc(paymentId), {
-    paymentId, userId, amount: Number(record.total || 0), note: `Settles ${record.snackName || record.snackId || "a snack purchase"}`,
-    source, settlesTransactionId: record.transactionId || null,
-    createdBy: uid, createdAt: FieldValue.serverTimestamp(), createdDate: todayISO(), status: "active",
+    paymentId, userId, amount: Number(record.total || 0),
+    // note stays a plain, purely free-text field - same empty default as
+    // every other payment-creation path (POST /payments/permanent, etc.)
+    // when no note was given. What this settles is a fact about the
+    // record, not prose, so it belongs in its own structured fields
+    // instead of being baked into a "Settles X" sentence: settlesTransactionId
+    // is the authoritative reference, and settlesSnackId/settlesSnackName
+    // are denormalized alongside it so later analysis doesn't need a join
+    // back to the (possibly since-deleted) transaction to know what was sold.
+    note: "",
+    settlesTransactionId: record.transactionId || null,
+    settlesSnackId: record.snackId || null,
+    settlesSnackName: record.snackName || null,
+    source, createdBy: uid, createdAt: FieldValue.serverTimestamp(), createdDate: todayISO(), status: "active",
   });
 }
 

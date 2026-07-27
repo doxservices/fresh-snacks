@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-catalog-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260726-table-alignment" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -267,7 +267,7 @@
                 <td>${esc(record.createdDate || "-")}</td>
                 <td><span class="ledger-type payment">Payment</span>${record.note ? ` <span class="muted-small">${esc(record.note)}</span>` : ""}</td>
                 <td class="num">—</td>
-                <td class="num-money payment-value">−${FS.money(record.amount || 0, cur)}</td>
+                <td class="num-money payment-value"><span class="mv">−${FS.money(record.amount || 0, cur)}</span></td>
                 <td><span class="ledger-status paid">Recorded</span></td>
                 <td>${renderPaymentActions()}</td>
               </tr>`
@@ -275,7 +275,7 @@
                 <td>${esc(record.createdDate || "-")}</td>
                 <td><span class="ledger-type purchase">Purchase</span> ${esc(record.snackName || record.label || record.snackId || "-")}</td>
                 <td class="num">${esc(record.quantity || 1)}</td>
-                <td class="num-money">${FS.money(record.total || 0, cur)}</td>
+                <td class="num-money"><span class="mv">${FS.money(record.total || 0, cur)}</span></td>
                 <td>${statusBadge(record)}</td>
                 <td class="ledger-actions">${renderTxnActions(record)}</td>
               </tr>`).join("");
@@ -285,7 +285,7 @@
                 <td>${esc(t.createdDate || "-")}</td>
                 <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
                 <td class="num">${esc(t.quantity || 1)}</td>
-                <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+                <td class="num-money"><span class="mv">${FS.money(t.total || 0, cur)}</span></td>
                 <td><span class="ledger-status neutral">Voided</span></td>
                 <td>${hasPerm("deleteTransaction") ? `<button class="danger" data-act="voided-txn-delete">Delete</button>` : ""}</td>
               </tr>`).join("");
