@@ -1,5 +1,30 @@
 # Development notes
 
+## Voided transaction visibility and permanent delete (2026-07-26)
+
+- Voiding a transaction (`CANCEL`) previously made it disappear entirely from
+  `transactions.html`/`edit-tab.html`, since `GET /admin/snapshot` and
+  `GET /admin/users/:userId/transaction-history` both filtered
+  `status === "void"` records out before returning. They're still excluded
+  from every balance/accounting calculation - that's correct and unchanged -
+  but an admin had no way to review or act on what got voided.
+- Both endpoints now return a separate `voidedTransactions` array alongside
+  the existing (unchanged) active `transactions` array. The transaction-
+  history endpoint's response shape changed from a flat array to
+  `{ transactions, voidedTransactions }`; its only caller (`edit-tab.html`)
+  was updated to match.
+- `transactions.html` (per customer, inside each `<details>` group) and
+  `edit-tab.html` (single customer) both render a "Voided transactions"
+  sub-table beneath the normal ledger when that customer has any - showing
+  day/snack/qty/value and a neutral "Voided" status pill, explicitly noting
+  the totals above already exclude them.
+- Permanently deleting a voided row reuses the existing `deleteTransaction`
+  permission and the existing `DELETE /admin/transactions/:id` route (which
+  already deleted by ID with no status filter) - only rendering a Delete
+  button next to voided rows was new. Grandfathered (no `permissions` map)
+  admins - "the highest elevation" - see it on every voided row; admins with
+  an explicit `deleteTransaction: false` do not.
+
 ## Admin permission system, Reset action, and row-menu cleanup (2026-07-26)
 
 - New `RESET` workflow action: "do nothing to the record, just put it back

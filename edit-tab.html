@@ -180,6 +180,12 @@
         <h2>Recent transactions</h2>
         <div id="transaction-list"></div>
       </section>
+
+      <section class="card section-card hidden" id="voided-transactions-section">
+        <h2>Voided transactions</h2>
+        <p class="muted-small">Excluded from this tab's totals. Visible here for review; permanently deleting one cannot be undone.</p>
+        <div id="voided-transaction-list"></div>
+      </section>
     </section>
 
     <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
@@ -1015,6 +1021,32 @@
       </table>`;
     }
 
+    // Voided transactions are excluded from totals and the main table (see
+    // GET /admin/users/:userId/transaction-history's split), but still
+    // reviewable here - the only action offered is a permission-gated
+    // permanent Delete, since Void has already done everything else a
+    // workflow action would.
+    function renderVoidedTransactionTable() {
+      const cur = SNAPSHOT.settings.currency;
+      const voided = SNAPSHOT.voidedTransactions || [];
+      $("voided-transactions-section").classList.toggle("hidden", voided.length === 0);
+      if (!voided.length) return;
+      const rows = [...voided]
+        .sort((a, b) => String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+        .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}">
+          <td>${esc(t.createdDate || "-")}</td>
+          <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
+          <td class="num">${esc(t.quantity || 1)}</td>
+          <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+          <td><span class="ledger-status neutral">Voided</span></td>
+          <td>${hasPerm("deleteTransaction") ? `<button class="danger" data-act="voided-txn-delete">Delete</button>` : ""}</td>
+        </tr>`).join("");
+      $("voided-transaction-list").innerHTML = `<table class="admin-table">
+        <thead><tr><th>Day</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
     function render() {
       const cur = SNAPSHOT.settings.currency;
       const snackTotal = SNAPSHOT.transactions.filter((t) => t.workflowStatus !== "ITEM_UNDER_REVIEW").reduce((n, t) => n + Number(t.total || 0), 0);
@@ -1035,6 +1067,7 @@
 
       renderBinsGallery();
       renderTransactionTable();
+      renderVoidedTransactionTable();
       renderAdjustmentList();
     }
 
@@ -1056,7 +1089,7 @@
     }
 
     async function refresh() {
-      const [settings, catalog, profile, transactions, payments, adjustments] = await Promise.all([
+      const [settings, catalog, profile, history, payments, adjustments] = await Promise.all([
         FS.getSettings(),
         FS.getCatalog(),
         FS.admin.getUserProfile(TARGET_USER_ID),
@@ -1064,7 +1097,11 @@
         FS.getUserPayments(TARGET_USER_ID),
         FS.admin.getUserAdjustments(TARGET_USER_ID),
       ]);
-      SNAPSHOT = { settings, catalog, profile, transactions, payments, adjustments };
+      SNAPSHOT = {
+        settings, catalog, profile, payments, adjustments,
+        transactions: history.transactions,
+        voidedTransactions: history.voidedTransactions,
+      };
       $("login-panel").classList.add("hidden");
       $("no-user-panel").classList.add("hidden");
       $("edit-tab-app").classList.remove("hidden");
@@ -1278,7 +1315,7 @@
           if (!ok) return;
           await FS.admin.cancelTransaction(row.dataset.id);
           await refresh();
-        } else if (act === "txn-delete") {
+        } else if (act === "txn-delete" || act === "voided-txn-delete") {
           const ok = await AdminModals.confirm(
             "Delete this transaction permanently?",
             "This transaction will be removed permanently and cannot be restored.",

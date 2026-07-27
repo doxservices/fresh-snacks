@@ -112,10 +112,17 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
   // server-computed availableActions() the customer side gets via toEntry(),
   // just for ROLE.ADMIN, so "what buttons show for this status" only ever
   // has one implementation to keep in sync.
-  const activeTransactions = transactions.filter((x) => x.status !== "void").map((t) => {
+  const enrichTransaction = (t) => {
     const workflowStatus = deriveWorkflowStatus(t);
     return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
-  });
+  };
+  const activeTransactions = transactions.filter((x) => x.status !== "void").map(enrichTransaction);
+  // Voided transactions are deliberately excluded from `transactions`/
+  // accounting() (that's the whole point of voiding one), but kept
+  // reachable here in their own list rather than actually gone - the
+  // highest-elevation admin (full permissions, nothing to hide from) can
+  // still see and, if they choose to, permanently Delete one from it.
+  const voidedTransactions = transactions.filter((x) => x.status === "void").map(enrichTransaction);
   const activePayments = payments.filter((x) => x.status !== "void");
   const activeAdjustments = adjustments.filter((x) => x.status !== "void");
   res.json({
@@ -128,6 +135,7 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
     users,
     devices,
     transactions: activeTransactions,
+    voidedTransactions,
     payments: activePayments,
     adjustments: activeAdjustments,
     feedback: feedback.sort((a, b) => dateFromRecord(b, "createdAt").localeCompare(dateFromRecord(a, "createdAt"))),
@@ -748,12 +756,19 @@ router.delete("/users/:userId/data", asyncRoute(async (req, res) => {
 
 router.get("/users/:userId/transaction-history", asyncRoute(async (req, res) => {
   const snap = await db().collection("transactions").where("uid", "==", req.params.userId).get();
-  res.json(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((t) => t.status !== "void")
-    .map((t) => {
-      const workflowStatus = deriveWorkflowStatus(t);
-      return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
-    }));
+  const all = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).map((t) => {
+    const workflowStatus = deriveWorkflowStatus(t);
+    return { ...t, workflowStatus, availableActions: resolveAvailableActions(workflowStatus, ROLE.ADMIN) };
+  });
+  // Same voided/active split as GET /snapshot, and same reason - see its
+  // comment. `transactions` stays active-only so every existing balance/
+  // table calculation that already reads it is unaffected; voided ones are
+  // reachable in their own list for the highest-elevation admin to review
+  // or, if they choose to, permanently delete.
+  res.json({
+    transactions: all.filter((t) => t.status !== "void"),
+    voidedTransactions: all.filter((t) => t.status === "void"),
+  });
 }));
 
 router.get("/users/:userId/adjustments", asyncRoute(async (req, res) => {

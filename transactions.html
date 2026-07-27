@@ -201,7 +201,7 @@
 
       const groups = new Map();
       const ensureGroup = (key) => {
-        if (!groups.has(key)) groups.set(key, { transactions: [], payments: [] });
+        if (!groups.has(key)) groups.set(key, { transactions: [], payments: [], voided: [] });
         return groups.get(key);
       };
       for (const t of SNAPSHOT.transactions) {
@@ -209,6 +209,13 @@
         ensureGroup(key).transactions.push(t);
       }
       for (const p of SNAPSHOT.payments) ensureGroup(p.userId || p.uid || p.deviceId || "unassigned").payments.push(p);
+      // Voided transactions are excluded from this page's totals/balance math
+      // (accounting() never sees them) but the highest-elevation admin still
+      // needs to see - and optionally permanently delete - what got voided.
+      for (const t of SNAPSHOT.voidedTransactions || []) {
+        const key = t.userId || t.uid || t.deviceId || "unassigned";
+        ensureGroup(key).voided.push(t);
+      }
 
       const requestedUser = new URLSearchParams(location.search).get("user");
       const sorted = [...groups.entries()].sort(([keyA, groupA], [keyB, groupB]) => {
@@ -226,6 +233,7 @@
             const name = info?.displayName || userId;
             const txns = group.transactions;
             const payments = group.payments;
+            const voided = group.voided;
             const snackTotal = txns.filter((t) => t.workflowStatus !== "ITEM_UNDER_REVIEW").reduce((n, t) => n + Number(t.total || 0), 0);
             const paidTotal = info?.paidTotal ?? payments.reduce((n, p) => n + Number(p.amount || 0), 0);
             const balance = snackTotal + Number(info?.adjustmentTotal || 0) - paidTotal;
@@ -253,6 +261,16 @@
                 <td>${statusBadge(record)}</td>
                 <td class="ledger-actions">${renderTxnActions(record)}</td>
               </tr>`).join("");
+            const voidedRows = [...voided]
+              .sort((a, b) => String(b.createdDate || "").localeCompare(String(a.createdDate || "")))
+              .map((t) => `<tr data-id="${esc(t.transactionId || t.id)}">
+                <td>${esc(t.createdDate || "-")}</td>
+                <td>${esc(t.snackName || t.label || t.snackId || "-")}</td>
+                <td class="num">${esc(t.quantity || 1)}</td>
+                <td class="num-money">${FS.money(t.total || 0, cur)}</td>
+                <td><span class="ledger-status neutral">Voided</span></td>
+                <td>${hasPerm("deleteTransaction") ? `<button class="danger" data-act="voided-txn-delete">Delete</button>` : ""}</td>
+              </tr>`).join("");
             return `<details data-user="${esc(userId)}"${shouldOpen ? " open" : ""}>
               <summary>
                 <span class="toggle"></span>
@@ -273,6 +291,13 @@
                 <thead><tr><th>Date</th><th>Record</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
                 <tbody>${rows}</tbody>
               </table>
+              ${voided.length ? `
+              <h3 class="muted-small" style="margin:1rem 0 0.25rem">Voided transactions</h3>
+              <p class="muted-small" style="margin-bottom:0.5rem">Excluded from the totals above. Visible here for review; permanently deleting one cannot be undone.</p>
+              <table class="admin-table">
+                <thead><tr><th>Date</th><th>Snack</th><th class="num">Qty</th><th class="num-money">Value</th><th>Status</th><th></th></tr></thead>
+                <tbody>${voidedRows}</tbody>
+              </table>` : ""}
             </details>`;
           }).join("")
         : `<p class="muted-small">No transactions yet.</p>`;
@@ -500,7 +525,7 @@
           );
           if (!ok) return;
           await FS.admin.cancelTransaction(row.dataset.id);
-        } else if (act === "txn-delete") {
+        } else if (act === "txn-delete" || act === "voided-txn-delete") {
           const ok = await AdminModals.confirm(
             "Delete this transaction permanently?",
             "This transaction will be removed permanently and cannot be restored.",
