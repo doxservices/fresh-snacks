@@ -1,5 +1,16 @@
 # Development notes
 
+## Restyled the confirmed-purchase remove/review "x" (2026-07-27)
+
+- The new remove/review button (previous entry) reused `.verdict-btn.dispute`
+  - the same neutral, bordered, 24px square as the Confirm/Review pair on a
+  still-pending admin item. Gave it its own `.entry-remove-btn` class instead,
+  so restyling it doesn't touch that older, unrelated pair: small (18px),
+  red, semi-bold, no border/background, floating in the top-right corner of
+  the "Confirm or review" cell (`.tracker-actions` gets `position: relative`
+  as the anchor) instead of sitting inline beside Mark as Paid like a second
+  equal-weight button. Reads as a dismiss/flag affordance now, not a button.
+
 ## An "X" to request removal/review of a confirmed purchase (2026-07-27)
 
 - Previously, the only way to dispute a purchase was the Confirm/Review

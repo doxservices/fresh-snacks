@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-remove-review" />
+  <link rel="stylesheet" href="styles.css?v=20260727-remove-btn-redesign" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -526,14 +526,16 @@
       }
       // CONFIRMED_UNPAID offers Mark as Paid and/or the X (remove/review) -
       // both can be present together, unlike the CONFIRM_ITEM pair above.
+      // The X is a corner-anchored dismiss icon (see .entry-remove-btn), not
+      // an inline sibling of Mark as Paid, so it doesn't reuse .row-verdict.
       const parts = [];
+      if (actions.includes("REVIEW_ITEM")) {
+        parts.push(`<button type="button" class="entry-remove-btn" data-act="review-item" data-id="${esc(e.id)}" title="Remove or flag this purchase" aria-label="Remove or review">&#10005;</button>`);
+      }
       if (actions.includes("MARK_AS_PAID")) {
         parts.push(`<button type="button" class="mark-paid-btn" data-act="mark-paid" data-id="${esc(e.id)}" title="Report this transaction as paid">Mark as Paid</button>`);
       }
-      if (actions.includes("REVIEW_ITEM")) {
-        parts.push(`<button type="button" class="verdict-btn dispute" data-act="review-item" data-id="${esc(e.id)}" title="Remove or flag this purchase" aria-label="Remove or review">&#10005;</button>`);
-      }
-      if (parts.length) return `<span class="row-verdict">${parts.join("")}</span>`;
+      if (parts.length) return parts.join("");
       const label = {
         ITEM_UNDER_REVIEW: "Under review",
         PAYMENT_PENDING_ADMIN_CONFIRMATION: "Awaiting confirmation",

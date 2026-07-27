@@ -5293,6 +5293,40 @@ tr.healthy-account td {
   text-align: center;
 }
 
+/* Anchors .entry-remove-btn to this cell's own top-right corner rather than
+   the row/card as a whole - simpler and just as visually "corner-of-the-
+   entry" without fighting table layout (a <tr> is a bad position:relative
+   anchor). Also the mobile card layout's own actions cell, so this alone
+   covers both. */
+.tracker-actions {
+  position: relative;
+}
+
+/* Small, borderless, red "x" that floats in the corner instead of sitting
+   inline beside Mark as Paid like a second equal-weight button - it reads
+   as a dismiss/flag affordance, not a competing action. */
+.entry-remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #a34c45;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.entry-remove-btn:hover {
+  color: #8a2f2f;
+}
+
 .entry-date-control {
   position: relative;
   display: inline-flex;
