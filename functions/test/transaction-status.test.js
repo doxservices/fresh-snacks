@@ -20,6 +20,13 @@ assert.equal(nextStatusFor(STATUS.PAYMENT_UNDER_REVIEW, ROLE.ADMIN, ACTION.CONFI
 // it back to pending re-confirmation rather than applying silently.
 assert.equal(nextStatusFor(STATUS.CONFIRMED_UNPAID, ROLE.ADMIN, ACTION.EDIT), STATUS.PENDING_USER_CONFIRMATION);
 
+// Edit is not gated behind Review Payment first - an admin can edit content
+// directly from either payment-pending state, same reset-to-pending rule.
+assert.equal(nextStatusFor(STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, ROLE.ADMIN, ACTION.EDIT), STATUS.PENDING_USER_CONFIRMATION);
+assert.equal(nextStatusFor(STATUS.PAYMENT_UNDER_REVIEW, ROLE.ADMIN, ACTION.EDIT), STATUS.PENDING_USER_CONFIRMATION);
+assert.ok(availableActions(STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, ROLE.ADMIN).includes(ACTION.EDIT));
+assert.ok(availableActions(STATUS.PAYMENT_UNDER_REVIEW, ROLE.ADMIN).includes(ACTION.EDIT));
+
 // Rule 4: a user-created transaction never exposes Confirm Item/Review Item
 // because it never visits PENDING_USER_CONFIRMATION in the first place.
 assert.deepEqual(availableActions(STATUS.CONFIRMED_UNPAID, ROLE.USER), [ACTION.MARK_AS_PAID, ACTION.VIEW_DETAILS]);

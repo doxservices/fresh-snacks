@@ -364,7 +364,11 @@ router.patch("/transactions/:id", requirePermission(PERMISSION.EDIT_TRANSACTION)
     if (!transactionSnap.exists) throw bad("Transaction not found.", 404);
     const record = transactionSnap.data();
     const current = deriveWorkflowStatus(record);
-    if (current !== STATUS.PENDING_USER_CONFIRMATION && current !== STATUS.ITEM_UNDER_REVIEW && current !== STATUS.CONFIRMED_UNPAID) {
+    const editableStatuses = [
+      STATUS.PENDING_USER_CONFIRMATION, STATUS.ITEM_UNDER_REVIEW, STATUS.CONFIRMED_UNPAID,
+      STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, STATUS.PAYMENT_UNDER_REVIEW,
+    ];
+    if (!editableStatuses.includes(current)) {
       throw bad("This transaction can no longer be edited.", 409);
     }
     const action = current === STATUS.ITEM_UNDER_REVIEW ? ACTION.EDIT_AND_RESEND : ACTION.EDIT;
@@ -388,6 +392,22 @@ router.patch("/transactions/:id", requirePermission(PERMISSION.EDIT_TRANSACTION)
       itemReviewedAt: FieldValue.delete(),
       itemReviewedBy: FieldValue.delete(),
       itemReviewReason: FieldValue.delete(),
+      // Editing content while a payment claim was in flight (pending or
+      // under review) invalidates that claim entirely - it referred to the
+      // pre-edit quantity/price. Clearing these mirrors what RESET already
+      // clears, so the transaction starts its confirmation/payment cycle
+      // over with no stale markers left pointing at the old values.
+      paymentMarkedAt: FieldValue.delete(),
+      paymentMarkedBy: FieldValue.delete(),
+      paymentMarkedByRole: FieldValue.delete(),
+      paymentConfirmedAt: FieldValue.delete(),
+      paymentConfirmedByAdminId: FieldValue.delete(),
+      paymentReviewedAt: FieldValue.delete(),
+      paymentReviewedByAdminId: FieldValue.delete(),
+      paymentReviewReason: FieldValue.delete(),
+      paymentClaimRejectedAt: FieldValue.delete(),
+      paymentClaimRejectedBy: FieldValue.delete(),
+      paymentClaimRejectReason: FieldValue.delete(),
       editedBy: req.uid,
       editedAt: FieldValue.serverTimestamp(),
     });

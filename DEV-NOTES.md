@@ -1,5 +1,32 @@
 # Development notes
 
+## Edit available directly from payment-pending/under-review, not just after Review (2026-07-26)
+
+- Previously an admin had no way to edit a transaction's quantity/date once
+  the customer reported paying (`PAYMENT_PENDING_ADMIN_CONFIRMATION`,
+  "Customer reported payment") or once the admin put that claim under review
+  (`PAYMENT_UNDER_REVIEW`, "Admin reviewing payment") - `EDIT` simply wasn't
+  in `availableActions` for either status, and clicking "Review payment"
+  first didn't unlock it either.
+- `functions/src/lib/transactionStatus.js`: both statuses now also allow
+  `ACTION.EDIT` for the admin role, landing back on
+  `PENDING_USER_CONFIRMATION` - the same "content changed, so start the
+  confirmation cycle over" rule `CONFIRMED_UNPAID`'s `EDIT` already follows.
+  Review Payment is not a prerequisite for this - both actions are simply
+  available side by side once a payment claim exists.
+- `PATCH /admin/transactions/:id` now accepts a source status of
+  `PAYMENT_PENDING_ADMIN_CONFIRMATION`/`PAYMENT_UNDER_REVIEW` in addition to
+  the three it already allowed, and clears every payment-progress marker
+  (`paymentMarkedAt/By/ByRole`, `paymentConfirmedAt/ByAdminId`,
+  `paymentReviewedAt/ByAdminId/Reason`, `paymentClaimRejectedAt/By/Reason`)
+  on every edit - the same set `RESET` already clears - so an edited
+  transaction never keeps a stale claim/review marker pointing at
+  pre-edit values.
+- No client-side change was needed: `transactions.html`/`edit-tab.html`'s
+  `renderTxnActions()` already renders a generic "Change" button whenever
+  `EDIT`/`EDIT_AND_RESEND` is in the server-supplied `availableActions` list,
+  so it now simply appears for these two statuses' row menus too.
+
 ## Notification click filters transactions.html to one customer (2026-07-26)
 
 - Clicking an admin notification already navigated to
