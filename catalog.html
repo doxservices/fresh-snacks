@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Snack Catalog</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
+  <link rel="stylesheet" href="styles.css?v=20260726-catalog-redesign" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -24,6 +24,7 @@
           <a class="btn" href="inventory.html">Baskets</a>
           <a class="btn" href="accounting.html">Accounting</a>
           <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="stats.html">Stats</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
           <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
@@ -107,7 +108,7 @@
           </div>
           <div class="field">
             <label for="cat-cal">Calories</label>
-            <input id="cat-cal" type="number" min="0" step="1" />
+            <input id="cat-cal" type="number" min="0" max="999" step="1" />
           </div>
           <button class="primary" id="cat-add">Add snack</button>
         </div>
@@ -123,8 +124,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
-  <script src="js/firebase-admin.js?v=20260726-permissions"></script>
+  <script src="js/firebase-store.js?v=20260726-catalog-redesign"></script>
+  <script src="js/firebase-admin.js?v=20260726-catalog-redesign"></script>
   <script src="js/admin-modals.js?v=20260726-modals"></script>
   <script src="js/admin-notifications.js?v=20260726-status-labels"></script>
   <script>
@@ -133,6 +134,7 @@
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const TRASH_ICON = `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>`;
 
     function status(id, msg, ok) {
       const el = $(id);
@@ -141,9 +143,13 @@
       if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
     }
 
-    function renderCatalog() {
+    function updateCatalogSummary() {
       const active = SNAPSHOT.snacks.filter((s) => s.active !== false).length;
       $("catalog-summary").textContent = `${active} active of ${SNAPSHOT.snacks.length} total snacks.`;
+    }
+
+    function renderCatalog() {
+      updateCatalogSummary();
       $("catalog-row-view").setAttribute("aria-pressed", CATALOG_VIEW === "row");
       $("catalog-gallery-view").setAttribute("aria-pressed", CATALOG_VIEW === "gallery");
 
@@ -167,11 +173,11 @@
                 <div class="field"><label>Status</label><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></div>
               </div>
               <div class="catalog-card-secondary">
-                <div class="field"><label>Calories <span class="muted-small">(shown to customers, not used for admin decisions)</span></label><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></div>
+                <div class="field catalog-card-cal"><label>Calories <span class="muted-small">(shown to customers, up to 999)</span></label><input data-f="calories" type="number" min="0" max="999" value="${s.calories ?? ""}" /></div>
               </div>
-              <div class="catalog-card-actions">
-                <button class="primary" data-act="snack-save">Save</button>
-                <button class="danger" data-act="snack-off">Deactivate</button>
+              <div class="catalog-card-footer">
+                <span class="catalog-save-status" data-save-status>Saved</span>
+                <button type="button" class="danger icon-button" data-act="snack-delete" title="Delete ${esc(s.name)} permanently" aria-label="Delete ${esc(s.name)} permanently">${TRASH_ICON}</button>
               </div>
             </div>
           </article>`).join("")}</div>`;
@@ -180,7 +186,7 @@
 
       $("catalog-list").innerHTML = `<table class="admin-table catalog-table">
         <colgroup>
-          <col class="cc-name"><col class="cc-price"><col class="cc-cal"><col class="cc-active"><col class="cc-cal"><col class="cc-actions">
+          <col class="cc-name"><col class="cc-price"><col class="cc-stock"><col class="cc-active"><col class="cc-calories"><col class="cc-actions">
         </colgroup>
         <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Status</th><th class="muted-small">Calories</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.snacks.map((s) => `<tr data-id="${esc(s.id)}">
@@ -188,8 +194,11 @@
           <td><input data-f="price" type="number" min="0" value="${esc(s.price)}" /></td>
           <td><input data-f="stock" type="number" min="0" placeholder="Not tracked" value="${s.stock ?? ""}" /></td>
           <td><select data-f="active"><option value="true"${s.active !== false ? " selected" : ""}>active</option><option value="false"${s.active === false ? " selected" : ""}>inactive</option></select></td>
-          <td><input data-f="calories" type="number" min="0" value="${s.calories ?? ""}" /></td>
-          <td style="white-space:nowrap;"><button data-act="snack-save">Save</button><button class="danger" data-act="snack-off">Deactivate</button></td>
+          <td><input data-f="calories" type="number" min="0" max="999" class="cc-calories-input" value="${s.calories ?? ""}" /></td>
+          <td class="nowrap catalog-row-actions">
+            <span class="catalog-save-status" data-save-status>Saved</span>
+            <button type="button" class="danger icon-button" data-act="snack-delete" title="Delete ${esc(s.name)} permanently" aria-label="Delete ${esc(s.name)} permanently">${TRASH_ICON}</button>
+          </td>
         </tr>`).join("")}</tbody>
       </table>`;
     }
@@ -257,6 +266,10 @@
       $("login-panel").classList.remove("hidden");
     };
 
+    $("cat-cal").addEventListener("input", () => {
+      if (Number($("cat-cal").value) > 999) $("cat-cal").value = "999";
+    });
+
     $("cat-add").onclick = async () => {
       try {
         await FS.admin.saveSnack({
@@ -287,30 +300,98 @@
       renderCatalog();
     };
 
+    // Every field on a card writes directly - no Save button to press.
+    // Edits debounce for three seconds (matching the same pattern already
+    // used for customer name/status edits on Accounting/Edit Tab) and key
+    // off the snack's own id, so unrelated cards never interfere with each
+    // other. A second Map queues the actual network call per id: if a save
+    // is still in flight when the next debounced save for that SAME id
+    // fires (e.g. a slow request plus a fast follow-up edit), it's chained
+    // after the in-flight one instead of firing alongside it, so two writes
+    // for one snack can never race/collide on the wire.
+    const catalogSaveTimers = new Map();
+    const catalogSaveQueue = new Map();
+
+    function readSnackFields(item) {
+      const get = (f) => item.querySelector(`[data-f="${f}"]`).value;
+      return {
+        id: item.dataset.id,
+        name: get("name").trim(),
+        price: get("price"),
+        calories: get("calories"),
+        stock: get("stock"),
+        factsId: get("factsId").trim(),
+        photo: get("photo").trim(),
+        active: get("active") === "true",
+      };
+    }
+
+    function cardSaveStatus(id, text, ok) {
+      document.querySelectorAll(`[data-id="${CSS.escape(id)}"] [data-save-status]`).forEach((el) => {
+        el.textContent = text;
+        el.className = "catalog-save-status" + (ok === false ? " err" : ok === true ? " saving" : "");
+      });
+    }
+
+    function queueSnackSave(id, payload) {
+      const previous = catalogSaveQueue.get(id) || Promise.resolve();
+      const task = previous.catch(() => {}).then(async () => {
+        try {
+          await FS.admin.saveSnack(payload);
+          const record = SNAPSHOT.snacks.find((s) => s.id === id);
+          if (record) Object.assign(record, payload);
+          updateCatalogSummary();
+          cardSaveStatus(id, "Saved", true);
+        } catch (error) {
+          cardSaveStatus(id, error.message, false);
+        }
+      });
+      catalogSaveQueue.set(id, task);
+      return task;
+    }
+
+    function scheduleSnackSave(item) {
+      const id = item.dataset.id;
+      clearTimeout(catalogSaveTimers.get(id));
+      cardSaveStatus(id, "Saving…", null);
+      catalogSaveTimers.set(id, setTimeout(() => {
+        catalogSaveTimers.delete(id);
+        queueSnackSave(id, readSnackFields(item));
+      }, 3000));
+    }
+
+    $("catalog-list").addEventListener("input", (ev) => {
+      const field = ev.target.closest("[data-f]");
+      if (!field) return;
+      if (field.dataset.f === "calories" && Number(field.value) > 999) field.value = "999";
+      const item = ev.target.closest("[data-id]");
+      if (item) scheduleSnackSave(item);
+    });
+    $("catalog-list").addEventListener("change", (ev) => {
+      const field = ev.target.closest("[data-f]");
+      if (!field) return;
+      const item = ev.target.closest("[data-id]");
+      if (item) scheduleSnackSave(item);
+    });
+
     $("catalog-list").addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
       if (!btn) return;
       const item = btn.closest("[data-id]");
-      const get = (f) => item.querySelector(`[data-f="${f}"]`).value;
+      if (btn.dataset.act !== "snack-delete") return;
+      const record = SNAPSHOT.snacks.find((s) => s.id === item.dataset.id);
+      const ok = await AdminModals.confirm(
+        "Delete this snack permanently?",
+        `${record?.name || "This snack"} and its uploaded images will be removed permanently, along with any basket references. This cannot be undone. Existing transaction history is not affected.`,
+        { confirmText: "Delete permanently", danger: true }
+      );
+      if (!ok) return;
       try {
-        if (btn.dataset.act === "snack-save") {
-          await FS.admin.saveSnack({
-            id: item.dataset.id,
-            name: get("name").trim(),
-            price: get("price"),
-            calories: get("calories"),
-            stock: get("stock"),
-            factsId: get("factsId").trim(),
-            photo: get("photo").trim(),
-            active: get("active") === "true",
-          });
-          await refresh();
-          status("cat-status", "Snack saved.", true);
-        } else if (btn.dataset.act === "snack-off") {
-          await FS.admin.deactivateSnack(item.dataset.id);
-          await refresh();
-          status("cat-status", "Snack deactivated.", true);
-        }
+        clearTimeout(catalogSaveTimers.get(item.dataset.id));
+        await (catalogSaveQueue.get(item.dataset.id) || Promise.resolve());
+        await FS.admin.deleteSnack(item.dataset.id);
+        await refresh();
+        status("cat-status", "Snack deleted.", true);
       } catch (e) {
         status("cat-status", e.message, false);
       }

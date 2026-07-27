@@ -3031,11 +3031,28 @@ textarea:focus {
 .catalog-table {
   table-layout: fixed;
 }
-.cc-name { width: 36%; }
-.cc-price { width: 14%; }
-.cc-cal { width: 14%; }
-.cc-active { width: 14%; }
-.cc-actions { width: 22%; }
+.cc-name { width: 32%; }
+.cc-price { width: 13%; }
+.cc-stock { width: 12%; }
+.cc-active { width: 13%; }
+.cc-calories { width: 9%; }
+.cc-actions { width: 21%; }
+
+/* "Not tracked" was rendering at the browser's default placeholder color,
+   which reads as almost invisible against the field's white background at
+   this font size - a real, legible muted color instead. */
+.catalog-table input::placeholder,
+.catalog-card input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* Calories can only ever be a small number (snack calories are under 1000,
+   enforced by the max=999 attribute plus a matching input clamp) - it
+   doesn't need to share the same width as Price/Stock. */
+.cc-calories-input {
+  max-width: 80px;
+}
 
 .catalog-table td input {
   width: 100%;
@@ -3054,7 +3071,7 @@ textarea:focus {
   margin: 0;
 }
 
-.catalog-table td:last-child button {
+.catalog-table td:last-child button:not(.icon-button) {
   padding: 6px 8px;
   font-size: 12.5px;
 }
@@ -4074,13 +4091,18 @@ textarea:focus {
 /* Calories doesn't drive any admin decision here (it's purely a fact shown
    to customers on their own snack cards) - demoted below the fields that
    actually matter day-to-day (price, stock, active) instead of sharing
-   equal billing with them. */
+   equal billing with them, and kept small since it can only ever be a
+   3-digit number. */
 .catalog-card-secondary {
   margin-top: 8px;
 }
 
 .catalog-card-secondary label {
   font-weight: 400;
+}
+
+.catalog-card-cal input {
+  width: 80px;
 }
 
 .catalog-card input,
@@ -4090,14 +4112,37 @@ textarea:focus {
   box-sizing: border-box;
 }
 
-.catalog-card-actions {
+/* Replaces the old Save/Deactivate button row - every field writes on its
+   own three-second debounce now, so all that's left here is a quiet status
+   word and the one remaining destructive action (permanent delete).
+   Active/Inactive in the fields grid above is the only status control -
+   a separate Deactivate button was redundant with it. */
+.catalog-card-footer {
+  align-items: center;
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
   margin-top: 12px;
 }
 
-.catalog-card-actions button {
-  flex: 1;
+.catalog-save-status {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.catalog-save-status.saving {
+  color: #8a6d1a;
+}
+
+.catalog-save-status.err {
+  color: #a63b35;
+  font-weight: 600;
+}
+
+.catalog-row-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 @media (max-width: 560px) {
@@ -4623,6 +4668,19 @@ textarea:focus {
 
 .bin-add-button {
   margin-top: auto;
+  width: 100%;
+}
+
+/* Replaces the Add to basket button/stepper outright (not just a disabled
+   version of it) for a sold-out or delisted (inactive) snack - the ribbon
+   on the photo already carries the "why", this is just a quiet placeholder
+   where the control used to be, not a control itself. */
+.bin-unavailable-label {
+  color: #8a2f2f;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: auto;
+  text-align: center;
   width: 100%;
 }
 
@@ -6041,4 +6099,111 @@ tr.disputed td {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
+}
+
+/* stats.html - deliberately plain, hand-drawn (no chart library): big
+   number cards, a 14-day stacked bar chart, and a static reference grid of
+   documented Firestore limits. */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.stats-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stats-card-label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.stats-card-value {
+  color: #0b633c;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.stats-chart {
+  align-items: flex-end;
+  display: flex;
+  gap: 6px;
+  height: 170px;
+  margin-top: 16px;
+  padding: 0 4px;
+}
+
+.stats-bar-group {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.stats-bar {
+  background: rgba(24, 79, 42, 0.06);
+  border-radius: 4px 4px 0 0;
+  height: 130px;
+  max-width: 26px;
+  position: relative;
+  width: 100%;
+}
+
+.stats-bar-segment {
+  border-radius: 4px 4px 0 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.stats-bar-reads { background: #0b633c; }
+.stats-bar-writes { background: #8a6d1a; }
+
+.stats-bar-label {
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.stats-limits-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-top: 14px;
+}
+
+.stats-limit-card {
+  background: rgba(244, 250, 243, 0.8);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  text-align: center;
+}
+
+.stats-limit-value {
+  color: #0b633c;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.stats-limit-label {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.3;
 }

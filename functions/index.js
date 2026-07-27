@@ -7,6 +7,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 
 const storeRoutes = require("./src/routes/store");
 const adminRoutes = require("./src/routes/admin");
+const { trackRequest } = require("./src/lib/stats");
 
 const app = express();
 
@@ -30,6 +31,15 @@ app.use(cors({
 // 20mb to accommodate base64-encoded catalog image uploads (see
 // src/routes/admin.js's /snacks/:id/image) - everything else is tiny.
 app.use(express.json({ limit: "20mb" }));
+
+// Rough usage tracking for the Stats page - see src/lib/stats.js for what
+// this does and doesn't measure. Placed after CORS/json parsing so a
+// preflight OPTIONS request (which `cors` already answers and ends above)
+// is never double-counted here.
+app.use((req, res, next) => {
+  trackRequest(req.method);
+  next();
+});
 
 app.use("/store", storeRoutes);
 app.use("/admin", adminRoutes);

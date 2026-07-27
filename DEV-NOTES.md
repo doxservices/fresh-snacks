@@ -1,5 +1,68 @@
 # Development notes
 
+## Catalog autosave/queue, snack delete, inactive-as-sold-out, and a new Stats page (2026-07-26)
+
+- **Catalog autosave**: every field on a catalog card now writes directly -
+  there's no Save button to press. Edits debounce for three seconds (same
+  pattern as Accounting/Edit Tab's customer name/status debounce) keyed to
+  the snack's own id. A second queue (a promise chain per id) serializes the
+  actual network call: if a save for a given snack is still in flight when
+  the next debounced save for that *same* snack fires, it's chained after
+  the in-flight one instead of firing alongside it, so two writes for one
+  snack can never race on the wire. Different snacks save independently and
+  never block each other. A per-card status word ("Saving…"/"Saved"/error)
+  replaces the old Save button; nothing about the card re-renders on a
+  successful autosave, so it never clobbers an admin's in-progress edits on
+  another card.
+- **Deactivate button removed**: Active/Inactive in each card's own Status
+  field was already the real control - a separate Deactivate button just
+  duplicated it. The one remaining destructive action is a bin/trash icon
+  button that permanently deletes the snack: `DELETE /admin/snacks/:id` now
+  removes the Firestore doc, both uploaded Storage images (photo and
+  favoritePhoto), and prunes this snack's entries out of every inventory
+  basket's `items` array. Historical transactions/payments are deliberately
+  untouched - they already snapshot snackName/price at purchase time and
+  don't depend on the live snack doc.
+- **Stock placeholder + calories field**: "Not tracked" was rendering in the
+  browser's default (barely visible) placeholder color - now uses a real,
+  legible muted color. Calories is capped at 999 (a `max="999"` attribute
+  plus a matching input-clamp, since a snack calorie count is always under
+  1000) and its input is now visually small instead of full-width, matching
+  that it's shown to customers but never drives an admin decision.
+- **Card redesign**: catalog cards (both gallery and row/table views) were
+  reorganized around the changes above - a compact fields grid (Price/
+  Stock/Status), a demoted small Calories field below it, and a footer that
+  is just the autosave status word plus the delete icon button, instead of
+  the old two-button Save/Deactivate row.
+- **Inactive now displays like sold-out, everywhere a customer can add a
+  snack to a tab**: Inactive was previously invisible to customers entirely
+  (`GET /store/data`/`GET /store/catalog` excluded it via
+  `getCatalogData(false)`) - now both include inactive snacks
+  (`getCatalogData(true)`), and `index.html`, `bins.html` render the same
+  red diagonal "Sold out" ribbon over the photo for `stock === 0` OR
+  `active === false`, with the Add to basket button (or bins.html's +/-
+  stepper) removed outright rather than merely disabled - there's no
+  control left to add it with. Purchase validation
+  (`POST /store/transactions`, admin's add-to-tab route, transaction edit/
+  merge routes) already independently re-checks `active === false`
+  server-side and was left untouched - only the *display* fetch changed,
+  so a delisted snack still can't actually be purchased through either
+  path.
+- **New Stats page** (`stats.html`): a quick, intentionally rough usage
+  dashboard, not a precise Firestore metering system. `functions/src/lib/
+  stats.js` counts requests at the API level (GET = a "read", every other
+  method = a "write") as a proxy for Firestore activity - not exact
+  per-document read/write counts, which would need instrumenting every one
+  of the 1000+ lines of existing route code rather than one small
+  middleware. Counts batch in memory and flush to a single `stats/
+  api-usage` Firestore doc every 30 seconds (so the dashboard's own
+  overhead stays negligible), bucketed per UTC day. The page shows total
+  reads/writes, a 14-day hand-drawn stacked bar chart (no chart library),
+  and a static reference grid of documented Firestore Spark/Blaze plan
+  limits (50k reads/day, 20k writes/day, 1 MiB per document, etc.) -
+  clearly labeled as reference info, not a live quota read from Google's
+  billing API. Linked from every admin page's header nav.
+
 ## Fix: Admin test profile sometimes had no Add to basket button (2026-07-26)
 
 - Root cause: `POST /admin/test-profile` minted a `type: "view"` code for

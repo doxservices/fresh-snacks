@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Stats</title>
+  <link rel="stylesheet" href="styles.css?v=20260726-catalog-redesign" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div>
+            <h1>Stats</h1>
+            <p>A quick look at backend request volume and where Firestore's free-tier limits sit.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Dashboard</a>
+          <a class="btn" href="inventory.html">Baskets</a>
+          <a class="btn" href="catalog.html">Catalog</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card section-card" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="admin-app" class="hidden">
+      <section class="card section-card">
+        <p class="muted-small">
+          Reads/writes here are counted at the API request level (a GET is treated as a read,
+          everything else - POST/PUT/PATCH/DELETE - as a write) as a rough proxy for Firestore
+          activity, not an exact per-document operation count. Counts can lag live traffic by up
+          to 30 seconds and reset to zero only if this page's own <code>stats/api-usage</code>
+          record is ever deleted.
+        </p>
+        <div class="stats-cards">
+          <div class="stats-card">
+            <span class="stats-card-label">Total reads (GET)</span>
+            <span class="stats-card-value" id="stats-total-reads">-</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">Total writes (POST/PUT/PATCH/DELETE)</span>
+            <span class="stats-card-value" id="stats-total-writes">-</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">Today</span>
+            <span class="stats-card-value" id="stats-today-total">-</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Last 14 days</h2>
+        <p class="muted-small">Each bar is that day's reads (bottom) stacked on writes (top). Hover a bar for exact counts.</p>
+        <div class="stats-chart" id="stats-chart"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Firestore limits (reference)</h2>
+        <p class="muted-small">
+          Documented Cloud Firestore limits, not a live read from Google's own billing/quota API -
+          this project doesn't have that wired up. Useful for sanity-checking the numbers above
+          against what the free (Spark) tier includes per day; the Blaze plan includes the same
+          free quota, then bills per operation beyond it.
+        </p>
+        <div class="stats-limits-grid">
+          <div class="stats-limit-card"><span class="stats-limit-value">50,000</span><span class="stats-limit-label">Document reads / day (free tier)</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">20,000</span><span class="stats-limit-label">Document writes / day (free tier)</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">20,000</span><span class="stats-limit-label">Document deletes / day (free tier)</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">1 GiB</span><span class="stats-limit-label">Total stored data (free tier)</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">10 GiB</span><span class="stats-limit-label">Network egress / month (free tier)</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">1 MiB</span><span class="stats-limit-label">Max size per document</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">1 / sec</span><span class="stats-limit-label">Sustained write rate to a single document</span></div>
+          <div class="stats-limit-card"><span class="stats-limit-value">500</span><span class="stats-limit-label">Max operations per batch/transaction</span></div>
+        </div>
+      </section>
+    </section>
+
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js?v=20260726-catalog-redesign"></script>
+  <script src="js/firebase-admin.js?v=20260726-catalog-redesign"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    function dayKey(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function renderChart(days) {
+      const today = new Date();
+      const series = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today);
+        d.setUTCDate(d.getUTCDate() - i);
+        const key = dayKey(d);
+        const entry = days[key] || { reads: 0, writes: 0 };
+        series.push({ key, reads: entry.reads || 0, writes: entry.writes || 0 });
+      }
+      const max = Math.max(1, ...series.map((s) => s.reads + s.writes));
+      $("stats-chart").innerHTML = series.map((s) => {
+        const total = s.reads + s.writes;
+        const readsPct = (s.reads / max) * 100;
+        const writesPct = (s.writes / max) * 100;
+        const label = s.key.slice(5).replace("-", "/");
+        return `<div class="stats-bar-group" title="${label}: ${s.reads} reads, ${s.writes} writes">
+          <div class="stats-bar">
+            <span class="stats-bar-segment stats-bar-writes" style="bottom:${readsPct}%;height:${writesPct}%"></span>
+            <span class="stats-bar-segment stats-bar-reads" style="bottom:0;height:${readsPct}%"></span>
+          </div>
+          <span class="stats-bar-label">${label}</span>
+        </div>`;
+      }).join("");
+      return series[series.length - 1];
+    }
+
+    async function refresh() {
+      const stats = await FS.admin.getStats();
+      $("login-panel").classList.add("hidden");
+      $("admin-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      $("stats-total-reads").textContent = (stats.totalReads || 0).toLocaleString("en-US");
+      $("stats-total-writes").textContent = (stats.totalWrites || 0).toLocaleString("en-US");
+      const todayEntry = renderChart(stats.days || {});
+      $("stats-today-total").textContent = (todayEntry.reads + todayEntry.writes).toLocaleString("en-US");
+    }
+
+    $("google-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithGoogle();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("microsoft-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithMicrosoft();
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("email-login").onclick = async () => {
+      try {
+        status("login-status", "Signing in...", true);
+        await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value);
+        await refresh();
+      } catch (e) {
+        status("login-status", e.message, false);
+      }
+    };
+
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("admin-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((admin) => {
+        if (!admin) return;
+        $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+        return refresh();
+      })
+      .catch((e) => {
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>

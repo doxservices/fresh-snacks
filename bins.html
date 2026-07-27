@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Log My Snacks</title>
-  <link rel="stylesheet" href="styles.css?v=20260726-permissions" />
+  <link rel="stylesheet" href="styles.css?v=20260726-catalog-redesign" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -53,7 +53,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260726-transaction-workflow"></script>
+  <script src="js/firebase-store.js?v=20260726-catalog-redesign"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
@@ -94,22 +94,31 @@
         $("bins").innerHTML = `<p class="status err">No active snacks are set up yet.</p>`;
         return;
       }
-      $("bins").innerHTML = DATA.catalog.map((s) => `
-        <div class="bin-card">
+      // Inactive is a delisting decision (not for sale, regardless of stock
+      // on the counter) and reads exactly like being sold out - same ribbon,
+      // and the quantity stepper is removed outright so there's no control
+      // to add it with.
+      $("bins").innerHTML = DATA.catalog.map((s) => {
+        const unavailable = s.stock === 0 || s.active === false;
+        return `
+        <div class="bin-card${unavailable ? " sold-out" : ""}">
           <div class="bin-photo">${s.photo
             ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${unavailable ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>
             ${s.factsId ? `<div class="bin-facts"><a href="#" data-facts="${esc(FS.factsPath(s.factsId))}" data-name="${esc(s.name)}">Nutrition facts</a></div>` : ""}
-            <div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
-              <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
-              <span class="qty" data-id="${esc(s.id)}">0</span>
-              <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
-            </div>
+            ${unavailable
+              ? `<span class="bin-unavailable-label" aria-hidden="true">Sold out</span>`
+              : `<div class="stepper" role="group" aria-label="${esc(s.name)} quantity">
+                  <button data-id="${esc(s.id)}" data-d="-1" aria-label="One less ${esc(s.name)}">&minus;</button>
+                  <span class="qty" data-id="${esc(s.id)}">0</span>
+                  <button data-id="${esc(s.id)}" data-d="1" aria-label="One more ${esc(s.name)}">+</button>
+                </div>`}
           </div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
       sync();
     }
 

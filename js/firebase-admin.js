@@ -91,6 +91,7 @@ FS.admin.currentAdmin = async () => {
 };
 
 FS.admin.getSnapshot = async () => FS._apiFetch("/admin/snapshot");
+FS.admin.getStats = async () => FS._apiFetch("/admin/stats");
 
 FS.admin.setFeedbackStatus = async (id, status) => {
   await FS._apiFetch(`/admin/feedback/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { status } });
@@ -382,8 +383,8 @@ FS.admin.saveSnackOrder = async (snackIds) => {
   await FS._apiFetch("/admin/snacks/order", { method: "POST", body: { snackIds } });
 };
 
-FS.admin.deactivateSnack = async (id) => {
-  await FS._apiFetch(`/admin/snacks/${encodeURIComponent(id)}/deactivate`, { method: "POST" });
+FS.admin.deleteSnack = async (id) => {
+  await FS._apiFetch(`/admin/snacks/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
 
 FS.admin.renameUser = async (userId, displayName, vipStatus) => {

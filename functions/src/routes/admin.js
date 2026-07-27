@@ -37,6 +37,14 @@ router.get("/whoami", asyncRoute(async (req, res) => {
   res.json(req.adminProfile);
 }));
 
+// Backing data for stats.html - see src/lib/stats.js for exactly what's
+// being counted (API requests as a proxy for Firestore reads/writes, not
+// exact document-level counts).
+router.get("/stats", asyncRoute(async (req, res) => {
+  const snap = await db().collection("stats").doc("api-usage").get();
+  res.json(snap.exists ? snap.data() : { totalReads: 0, totalWrites: 0, days: {} });
+}));
+
 router.get("/admins", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
   const snap = await db().collection("admins").get();
   res.json(snap.docs.map((doc) => ({ uid: doc.id, ...doc.data() })));
@@ -887,11 +895,42 @@ router.post("/snacks/order", asyncRoute(async (req, res) => {
   res.json({ ok: true });
 }));
 
-router.post("/snacks/:id/deactivate", asyncRoute(async (req, res) => {
-  await db().collection("snacks").doc(req.params.id).set({
-    active: false, updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  res.json({ ok: true });
+/* Permanent delete - Active/Inactive on the same card is now the only
+ * status control (a separate Deactivate action was redundant with it), so
+ * this is the one remaining destructive action and needs to actually clean
+ * up after itself: the uploaded Storage images (same object-delete pattern
+ * as the image-replace path above) and this snack's entries in any
+ * inventory basket's `items` array. Historical transactions/payments are
+ * deliberately left untouched - they already snapshot snackName/price at
+ * the time of purchase and don't depend on the live snack doc existing. */
+router.delete("/snacks/:id", asyncRoute(async (req, res) => {
+  const id = req.params.id;
+  const ref = db().collection("snacks").doc(id);
+  const snap = await ref.get();
+  if (!snap.exists) throw bad("Snack not found.", 404);
+  const snack = snap.data();
+
+  const bucket = admin.storage().bucket();
+  const storagePaths = [snack.photoStoragePath, snack.favoritePhotoStoragePath].filter(Boolean);
+  await Promise.all(storagePaths.map((path) =>
+    bucket.file(path).delete().catch((error) => {
+      if (error.code !== 404) console.warn("Snack image cleanup failed", error);
+    })
+  ));
+
+  const inventorySnap = await db().collection("inventory").get();
+  const batch = db().batch();
+  let binsUpdated = 0;
+  inventorySnap.docs.forEach((doc) => {
+    const items = doc.data().items || [];
+    if (!items.some((item) => item.snackId === id)) return;
+    batch.update(doc.ref, { items: items.filter((item) => item.snackId !== id) });
+    binsUpdated++;
+  });
+  batch.delete(ref);
+  await batch.commit();
+
+  res.json({ ok: true, binsUpdated });
 }));
 
 router.post("/snacks/sync-bundled-artwork", asyncRoute(async (req, res) => {
