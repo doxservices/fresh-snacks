@@ -3939,6 +3939,13 @@ details[open] > summary .collapsed-ledger-stats {
 }
 .credit-balance { color: #087a46; font-weight: 500; }
 
+/* A zero balance means snacks and payments already net out exactly - a
+   healthy account, worth a quiet visual "nothing to do here" cue across
+   the whole row rather than just the one Balance cell. */
+tr.healthy-account td {
+  background: var(--green-light);
+}
+
 .ledger-type,
 .ledger-status {
   display: inline-flex;

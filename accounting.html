@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-cover-fill" />
+  <link rel="stylesheet" href="styles.css?v=20260727-healthy-account" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -602,7 +602,7 @@
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
         <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th class="num">Avg / active day</th><th class="num">Active days</th><th>Last activity</th><th></th></tr></thead>
-        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}">
+        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${r.balance === 0 ? ' class="healthy-account"' : ""}>
           <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
           <td><select data-f="vipStatus">
             ${["anonymous", "feedback", "named", "vip", "legacy"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}

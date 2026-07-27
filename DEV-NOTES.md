@@ -1,5 +1,14 @@
 # Development notes
 
+## Healthy accounts (zero balance) highlighted on User Accounting (2026-07-27)
+
+- A row on accounting.html now gets a `healthy-account` class (light green
+  background, `var(--green-light)`, across the whole row) whenever
+  `balance === 0` - snacks and payments net out exactly, nothing owed and
+  no credit sitting unused, so it's worth a quiet visual cue that this
+  account needs no attention, distinct from the existing per-cell red
+  "Credit" styling for a negative balance.
+
 ## Fix: basket/cart disappeared after adding to it or resolving a Snack Log item (2026-07-27)
 
 - `FS.loadData()`'s own "profile" field is app-wide settings, not this
