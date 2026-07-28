@@ -1598,7 +1598,7 @@
       // else opened - only the tab's own opener needs to supply email/phone
       // here, so those two fields are the only ones that flex by accessMode.
       const isInvitee = me.accessMode === "linked" || me.accessMode === "session";
-      maybeOpenInviteeNameModal(me, isInvitee);
+      maybeOpenInviteeNameModal(me, isInvitee, anonymous);
       $id("us-first").required = true;
       $id("us-last").required = true;
       $id("us-email").required = !isInvitee;
@@ -1860,9 +1860,17 @@
     // right after any profile save) - reopens on its own as long as an
     // invitee's shared tab still has no name, rather than only once at the
     // moment the invite link was first accepted.
-    function maybeOpenInviteeNameModal(me, isInvitee) {
-      const hasName = !!(me.firstName && me.lastName);
-      if (!isInvitee || hasName) {
+    //
+    // "Has a name" reuses renderUserSettings()'s own `anonymous` check
+    // (vipStatus/displayName), not a bare firstName+lastName test - an
+    // admin-created guest tab (FS.admin.createGuestTab) only ever sets
+    // displayName, never separate firstName/lastName fields, so that
+    // narrower check incorrectly treated every admin-created tab as
+    // nameless and interrupted customers who already had a real name on
+    // file. vipStatus is what actually distinguishes a real chosen name
+    // from an auto-generated "Guest 1234" placeholder either way.
+    function maybeOpenInviteeNameModal(me, isInvitee, anonymous) {
+      if (!isInvitee || !anonymous) {
         $id("invitee-name-backdrop").classList.remove("show");
         return;
       }

@@ -118,12 +118,12 @@ router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   };
   if (displayName) payload.displayName = displayName;
 
-  // A tab only counts as "opened" once a real name AND real contact info
-  // are on file - this is the actual accountability backstop that
-  // POST /transactions checks before allowing a self-logged purchase (see
-  // below), not just a UX nicety, so it takes all four fields rather than
-  // a name alone. Existing profiles that already earned nameSet under the
-  // old (name-only) rule are untouched, since this only ever sets the
+  // A tab only counts as "opened" (nameSet) once a real name AND real
+  // contact info are on file - this is the actual accountability backstop
+  // that POST /transactions checks before allowing a self-logged purchase
+  // (see below), not just a UX nicety, so it takes all four fields rather
+  // than a name alone. Existing profiles that already earned nameSet under
+  // the old (name-only) rule are untouched, since this only ever sets the
   // field forward, never clears it.
   if (displayName && email && phone) {
     payload.vipStatus = "named";
@@ -143,6 +143,16 @@ router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
         payload.previousLinkUnlinkedAt = claimSnap.data().unlinkedAt || null;
       }
     }
+  } else if (displayName && effectiveUid !== req.uid) {
+    // An invitee (editing a linked target's shared profile, not their own
+    // identity) was never required to supply email/phone at all - only the
+    // tab's own opener needs those. Bumping vipStatus alone (not nameSet,
+    // which stays strictly gated on all four fields above) lets a linked
+    // device's index.html correctly recognize "this shared tab already has
+    // a real name" the moment an invitee provides one, instead of treating
+    // it as still-anonymous and re-prompting forever since nameSet/email/
+    // phone will likely never arrive through this path.
+    payload.vipStatus = "named";
   }
   if (!existing.exists) {
     payload.userId = effectiveUid;

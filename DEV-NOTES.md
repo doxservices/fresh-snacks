@@ -1,5 +1,29 @@
 # Development notes
 
+## Fix: the invitee-name modal was interrupting customers who already had a name (2026-07-27)
+
+- `maybeOpenInviteeNameModal`'s "has a name" check was `me.firstName &&
+  me.lastName` - but `FS.admin.createGuestTab`/`POST /admin/users` only
+  ever sets `displayName`, never separate firstName/lastName fields, even
+  when the admin typed a real name for that guest tab. Every admin-created
+  tab was being treated as nameless and hit with the disruptive modal,
+  named or not. Switched to reuse `renderUserSettings`'s own `anonymous`
+  check (`vipStatus === "anonymous" || !displayName`) instead - the same
+  signal the rest of the page already uses to decide whether a profile has
+  a real name.
+- Fixed a second bug this surfaced: an invitee who *did* comply and typed
+  their name through the new modal (first/last name only, no email/phone -
+  they were never required to supply those) never actually left
+  `vipStatus: "anonymous"`, since `PATCH /store/profile` only bumped
+  `vipStatus` alongside `nameSet`, which requires all four fields. The
+  modal would have kept reopening forever for exactly the customers who
+  did what it asked. The route now also bumps `vipStatus` alone (never
+  `nameSet`, which stays strictly gated on all four fields - that's the
+  real accountability backstop, unrelated to this) when a display name is
+  provided by someone editing a linked target's profile rather than their
+  own identity - the same relaxed no-email/phone-required rule invitees
+  already get everywhere else in this route.
+
 ## Early-payment discount: 5% next-day, 10% the day after, then gone (2026-07-27)
 
 - New behavior: a customer who pays off a day's worth of CONFIRMED_UNPAID
