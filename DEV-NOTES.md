@@ -1,5 +1,16 @@
 # Development notes
 
+## Fix: invitee-name modal still disturbed customers with a name already on file (2026-07-27)
+
+- The previous fix's `anonymous` check (vipStatus/displayName) still missed
+  one case: a profile that got firstName/lastName set through the invitee
+  modal *before* today's earlier vipStatus-bump fix landed would have real
+  names on file but a vipStatus stuck on "anonymous" from that bug window -
+  `anonymous` would still read true for it. `maybeOpenInviteeNameModal` now
+  also checks firstName+lastName directly and treats either signal being
+  true as "has a name" - a customer who already has one on file, by
+  whichever route it got there, is never re-interrupted.
+
 ## Fix: the invitee-name modal was interrupting customers who already had a name (2026-07-27)
 
 - `maybeOpenInviteeNameModal`'s "has a name" check was `me.firstName &&
