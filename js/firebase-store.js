@@ -208,42 +208,6 @@ FS.monthLabel = (key) => {
   return y === new Date().getFullYear() ? name : `${name} ${y}`;
 };
 
-// A Firestore timestamp field arrives over the API already JSON-serialized
-// (plain {_seconds, _nanoseconds}), not a real Timestamp instance - checking
-// for both shapes also tolerates a raw Timestamp if one's ever passed
-// directly (e.g. from a test).
-FS.timestampMs = (record, field) => {
-  const v = record && record[field];
-  if (!v) return 0;
-  if (typeof v._seconds === "number") return v._seconds * 1000;
-  if (typeof v.toDate === "function") return v.toDate().getTime();
-  return 0;
-};
-
-// "Jul 20, 4:32 PM" - a bare day date isn't enough to tell same-day payments
-// apart. Falls back to a day-only string (e.g. createdDate) only for a
-// legacy record with no raw timestamp.
-FS.formatDateTime = (record, field, fallbackDay) => {
-  const ms = FS.timestampMs(record, field);
-  if (!ms) return fallbackDay || "";
-  const d = new Date(ms);
-  const includeYear = d.getFullYear() !== new Date().getFullYear();
-  return d.toLocaleString("en", {
-    month: "short", day: "numeric", year: includeYear ? "numeric" : undefined,
-    hour: "numeric", minute: "2-digit",
-  });
-};
-
-// The most recently recorded payment - by actual timestamp, not just its
-// createdDate (which an admin can backdate to an earlier day than when they
-// actually entered it) - for the Last Payment stat.
-FS.lastPayment = (data) => {
-  const payments = data.payments || [];
-  if (!payments.length) return null;
-  const msOf = (p) => FS.timestampMs(p, "createdAt") || (p.date ? FS.parseDate(p.date).getTime() : 0);
-  return payments.reduce((latest, p) => (!latest || msOf(p) > msOf(latest) ? p : latest), null);
-};
-
 FS.factsPath = (factsId) => `nutritional-facts/${factsId}.jpg`;
 
 FS.greySilhouette =

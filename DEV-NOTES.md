@@ -1,5 +1,22 @@
 # Development notes
 
+## Reverted the Last Payment card, dropped Paid so far (2026-07-27)
+
+- Pulled the Last Payment card (and the small stat-box version before it)
+  back out entirely, per product decision - full revert, not just hidden:
+  the `.last-payment-section`/`.last-payment-card` HTML and CSS, the
+  `FS.lastPayment`/`FS.timestampMs`/`FS.formatDateTime` helpers in
+  `js/firebase-store.js`, and the `createdAt`/`settlesSnackId`/
+  `settlesSnackName` fields `toPayment()` (`functions/src/lib/shared.js`)
+  had started exposing for it are all gone again, since nothing else in the
+  app used any of them.
+- Also dropped the "Paid so far" stat box next to Current balance - the top
+  of the page is down to the one stat now.
+- Next up (not yet decided): what replaces the freed-up space. Steered
+  away from more numbers/analysis toward something that reads as freeing
+  rather than another figure to track - see the conversation for candidate
+  directions.
+
 ## Admin test-profile label stops drifting to "Guest Profile" (2026-07-27)
 
 - `profilePresentation()`'s `isAdminTest` check only ever looked at the
