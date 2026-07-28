@@ -13,6 +13,7 @@ const {
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
+const { activeDiscountOffer } = require("../lib/discount");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -271,11 +272,13 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
   const own = await fetchFor(effectiveUid);
   let entries = own.transactions.map(toEntry);
   let pays = own.payments.map(toPayment);
+  let rawTransactions = own.transactions;
 
   if (claim) {
     const claimed = await fetchFor(claim.userId);
     entries = entries.concat(claimed.transactions.map(toEntry));
     pays = pays.concat(claimed.payments.map(toPayment));
+    rawTransactions = rawTransactions.concat(claimed.transactions);
   }
 
   // An item under review stays visible with its own status message rather
@@ -289,6 +292,10 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     claim,
     entries: entries.sort(byDate),
     payments: pays.sort(byDate),
+    // The early-payment discount card's data (see ../lib/discount) - null
+    // when nothing currently qualifies (most of the time, for most
+    // customers), so the client just hides the card in that case.
+    discount: activeDiscountOffer(rawTransactions),
   });
 }));
 

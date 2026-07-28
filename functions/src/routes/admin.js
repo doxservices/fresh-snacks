@@ -15,6 +15,7 @@ const {
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { PERMISSION, ROLE_PRESETS } = require("../lib/permissions");
 const { allocateApprovedTransactions } = require("../lib/settlement");
+const { discountedTotal } = require("../lib/discount");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -599,7 +600,7 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
     transaction.update(ref, {
       workflowStatus: next,
       version: FieldValue.increment(1),
-      ...extraFields(next),
+      ...extraFields(next, record),
     });
     const event = buildTransactionEvent(db(), {
       transactionId: id,
@@ -615,16 +616,35 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
   res.json({ ok: true });
 }
 
+// The early-payment discount (see ../lib/discount) locks in at the moment a
+// transaction is actually finalized, whichever of the three paths gets it
+// there first (this route, confirm-payment below, or the automatic credit
+// sweep in ../lib/settlement) - so `total` itself is reduced right here,
+// permanently, with the pre-discount amount kept alongside for the record.
+// Every other read of this transaction (accounting(), the customer's own
+// Snack Log, invoices) already treats `total` as the authoritative amount,
+// so this is the one place that needs to know a discount happened at all.
+function finalizationFields(record, now) {
+  const { finalTotal, rate, tier, originalTotal } = discountedTotal(record, now);
+  if (tier === 0) return {};
+  return { total: finalTotal, originalTotal, discountRate: rate, discountTier: tier };
+}
+
 /* Finalizing a transaction only means something for the customer's overall
  * balance if a matching `payments` doc exists too - accounting()/balance
  * math nets snackTotal against the separate payments collection, not
  * against which transactions happen to be flagged paid, so confirming or
  * directly marking one paid without also recording its payment would leave
- * it displaying "Paid" while still counting against the customer's balance. */
-function settlementPaymentWrite(transaction, record, { userId, uid, source }) {
+ * it displaying "Paid" while still counting against the customer's balance.
+ * `now` must be the SAME moment finalizationFields() used for this same
+ * record, so the payment amount and the transaction's own reduced total
+ * agree on which discount (if any) applied - passed in rather than each
+ * computing its own `new Date()` a few milliseconds apart. */
+function settlementPaymentWrite(transaction, record, { userId, uid, source }, now) {
   const paymentId = genId("fs_pay");
+  const { finalTotal } = discountedTotal(record, now);
   transaction.set(db().collection("payments").doc(paymentId), {
-    paymentId, userId, amount: Number(record.total || 0),
+    paymentId, userId, amount: finalTotal,
     // note stays a plain, purely free-text field - same empty default as
     // every other payment-creation path (POST /payments/permanent, etc.)
     // when no note was given. What this settles is a fact about the
@@ -645,30 +665,36 @@ function settlementPaymentWrite(transaction, record, { userId, uid, source }) {
 // handed over on the spot) - finalizes immediately, no separate customer
 // confirmation of the payment is needed since the admin observed it.
 router.post("/transactions/:id/mark-paid", requirePermission(PERMISSION.MARK_PAID), asyncRoute(async (req, res) => {
-  const now = FieldValue.serverTimestamp();
+  const now = new Date();
+  const serverNow = FieldValue.serverTimestamp();
   await applyAdminAction(req, res, {
     action: ACTION.MARK_AS_PAID,
     eventType: EVENT_TYPE.PAYMENT_MARKED_BY_ADMIN,
-    extraFields: () => ({
-      paymentMarkedAt: now, paymentMarkedBy: req.uid, paymentMarkedByRole: ROLE.ADMIN,
-      paymentConfirmedAt: now, paymentConfirmedByAdminId: req.uid,
-      finalizedAt: now,
+    extraFields: (next, record) => ({
+      paymentMarkedAt: serverNow, paymentMarkedBy: req.uid, paymentMarkedByRole: ROLE.ADMIN,
+      paymentConfirmedAt: serverNow, paymentConfirmedByAdminId: req.uid,
+      finalizedAt: serverNow,
+      ...finalizationFields(record, now),
     }),
     extraWrites: (transaction, record) => settlementPaymentWrite(transaction, record, {
       userId: record.userId || record.uid, uid: req.uid, source: "admin",
-    }),
+    }, now),
   });
 }));
 
 router.post("/transactions/:id/confirm-payment", requirePermission(PERMISSION.CONFIRM_PAYMENT), asyncRoute(async (req, res) => {
-  const now = FieldValue.serverTimestamp();
+  const now = new Date();
+  const serverNow = FieldValue.serverTimestamp();
   await applyAdminAction(req, res, {
     action: ACTION.CONFIRM_PAYMENT,
     eventType: EVENT_TYPE.PAYMENT_CONFIRMED_BY_ADMIN,
-    extraFields: () => ({ paymentConfirmedAt: now, paymentConfirmedByAdminId: req.uid, finalizedAt: now }),
+    extraFields: (next, record) => ({
+      paymentConfirmedAt: serverNow, paymentConfirmedByAdminId: req.uid, finalizedAt: serverNow,
+      ...finalizationFields(record, now),
+    }),
     extraWrites: (transaction, record) => settlementPaymentWrite(transaction, record, {
       userId: record.userId || record.uid, uid: req.uid, source: "customer-reported",
-    }),
+    }, now),
   });
 }));
 

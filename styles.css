@@ -797,6 +797,75 @@ header.banner {
   border-color: rgba(47, 122, 68, 0.18);
 }
 
+/* ---- early-payment discount card ---- */
+
+.discount-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255, 244, 227, 0.88));
+  border-color: rgba(214, 130, 30, 0.32);
+}
+
+.discount-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.discount-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e8790a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.discount-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #7a4408;
+}
+
+/* A fixed-width "road dash" bar - a segment turns from filled to spent as
+   each hour passes rather than the bar itself shrinking, so the card's
+   layout stays put across the whole 7am-3pm window. */
+.discount-bar {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0 12px;
+}
+
+.discount-segment {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #e8790a;
+}
+
+.discount-segment.spent {
+  background: rgba(214, 130, 30, 0.16);
+}
+
+.discount-card-amounts {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.discount-original {
+  text-decoration: line-through;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.discount-final {
+  font-size: 22px;
+  font-weight: 700;
+  color: #7a4408;
+}
+
 .main-grid {
   display: grid;
   grid-template-columns: 1.02fr 0.98fr;

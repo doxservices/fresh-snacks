@@ -1,5 +1,53 @@
 # Development notes
 
+## Early-payment discount: 5% next-day, 10% the day after, then gone (2026-07-27)
+
+- New behavior: a customer who pays off a day's worth of CONFIRMED_UNPAID
+  purchases by 3pm the *next* day (business-local time, not same-day) gets
+  5% off that whole day's batch. Miss that window and the same batch gets
+  one more chance the day after, at 10% off; miss that too and it's back to
+  full price for good - no further escalation. Goal: train a same-morning
+  payment habit instead of letting balances drift.
+- New `functions/src/lib/discount.js` - a pure function of (createdDate,
+  now), nothing precomputed or stored ahead of time, so it can be
+  recomputed anywhere (settlement, the customer-facing card) and can never
+  drift out of sync with itself. Hours are evaluated in a hardcoded
+  business-local timezone (**assumed Jamaica, UTC-5, no DST** - Cloud
+  Functions run in UTC by default, and "7am"/"3pm" need to land on a
+  customer's actual clock, not the server's; if the business is actually
+  elsewhere, `BUSINESS_UTC_OFFSET_HOURS` is the one constant to change).
+- The discount locks in at the moment a transaction is actually finalized
+  (PAID_FINALIZED), whichever path gets it there first - `total` itself is
+  reduced right then, permanently, with the pre-discount amount kept
+  alongside (`originalTotal`, `discountRate`, `discountTier`) for the
+  record. Every existing read of a transaction's `total` (accounting(), the
+  customer's own Snack Log, invoices) already treats it as the
+  authoritative amount, so no other code needed to learn about discounts at
+  all - reducing `total` itself was the one change needed everywhere else.
+  Wired into all three finalization paths: admin.js's mark-paid and
+  confirm-payment routes, and the automatic credit-sweep in
+  lib/settlement.js's `allocateApprovedTransactions` (used by both an
+  admin-recorded payment and a customer's own self-checkout auto-settling
+  from existing credit) - `paymentAllocationPlan` itself (lib/shared.js)
+  now reserves the *discounted* amount out of available credit for an
+  eligible transaction, so existing credit stretches further, not the
+  pre-discount total.
+- `GET /store/data` exposes the customer's single most-urgent active offer
+  (bundled by purchase day; the 10%/day-2 tier wins over 5%/day-1 if both
+  happen to be active, since it's the one gone for good today) as
+  `discount`, null when nothing currently qualifies. New card on
+  index.html, hidden except 7am-3pm business time on a day something
+  qualifies - amount before/after, and an 8-segment "road dash" bar
+  (7am-3pm = 8 hourly segments) that goes from filled to spent one segment
+  at a time as the window's hours pass, rather than the bar itself
+  shrinking.
+- New `functions/test/discount.test.js` - the day/hour boundary math (7am
+  open, 3pm close, same-day exclusion, 2-day expiry), the bundling/
+  most-urgent-tier logic, and a `paymentAllocationPlan` case proving the
+  discount actually reduces credit consumed - all pinned to fixed `now`
+  values rather than the real clock, so the suite gives the same result
+  regardless of when it's actually run.
+
 ## Notifications navigate to their transaction; invitees get a disruptive name prompt (2026-07-27)
 
 - "Items added to tab" notifications (a self-checkout, one or several items

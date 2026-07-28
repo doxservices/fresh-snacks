@@ -34,22 +34,32 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
   const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  const plan = paymentAllocationPlan(transactions, paidTotal);
+  // A real Date (not FieldValue.serverTimestamp(), which is a write-time
+  // sentinel with no value to compute against) so the early-payment
+  // discount - see ../lib/discount, applied inside paymentAllocationPlan
+  // itself - is evaluated at this one consistent moment for every
+  // transaction the plan considers, not a fresh `new Date()` per record.
+  const now = new Date();
+  const plan = paymentAllocationPlan(transactions, paidTotal, now);
   const byId = new Map(transactions.map((record) => [record.id, record]));
   const batch = db().batch();
-  const now = FieldValue.serverTimestamp();
+  const serverNow = FieldValue.serverTimestamp();
   for (const id of plan.settledIds) {
     const current = deriveWorkflowStatus(byId.get(id));
     const action = current === STATUS.CONFIRMED_UNPAID ? ACTION.MARK_AS_PAID : ACTION.CONFIRM_PAYMENT;
     const next = assertTransition(current, ROLE.ADMIN, action);
+    const discount = plan.discounts[id];
     batch.update(db().collection("transactions").doc(id), {
       workflowStatus: next,
       version: FieldValue.increment(1),
-      finalizedAt: now,
-      paymentConfirmedAt: now,
+      finalizedAt: serverNow,
+      paymentConfirmedAt: serverNow,
       paymentConfirmedByAdminId: actorUid,
       ...(action === ACTION.MARK_AS_PAID
-        ? { paymentMarkedAt: now, paymentMarkedBy: actorUid, paymentMarkedByRole: ROLE.ADMIN }
+        ? { paymentMarkedAt: serverNow, paymentMarkedBy: actorUid, paymentMarkedByRole: ROLE.ADMIN }
+        : {}),
+      ...(discount
+        ? { total: discount.finalTotal, originalTotal: discount.originalTotal, discountRate: discount.rate, discountTier: discount.tier }
         : {}),
     });
     const event = buildTransactionEvent(db(), {

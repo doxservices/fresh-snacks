@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-invitee-modal" />
+  <link rel="stylesheet" href="styles.css?v=20260727-discount-card" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -64,6 +64,21 @@
       <h2>Snack now, pay later</h2>
       <p>Browse the snacks below. Open a tab when you're ready to add one.</p>
       <button type="button" class="primary" id="visitor-open-tab">Open a tab</button>
+    </section>
+
+    <!-- Only ever shown 7am-3pm business time, and only while a discount is
+         actually active - see FS.totals()/render()'s discount handling. -->
+    <section class="card section-card discount-card hidden" id="discount-card" aria-label="Early payment discount">
+      <div class="discount-card-head">
+        <span class="discount-badge" id="discount-badge">5% off</span>
+        <span class="discount-card-title" id="discount-card-title">Pay by 3pm today</span>
+      </div>
+      <p class="muted-small" id="discount-card-body"></p>
+      <div class="discount-bar" id="discount-bar"></div>
+      <div class="discount-card-amounts">
+        <span class="discount-original" id="discount-original"></span>
+        <span class="discount-final" id="discount-final"></span>
+      </div>
     </section>
 
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
@@ -683,6 +698,34 @@
       });
     }
 
+    // data.discount (see functions/src/lib/discount.js's activeDiscountOffer)
+    // is null whenever nothing currently qualifies - most of the time, for
+    // most customers - in which case the card just stays hidden. The 8
+    // segments are a fixed-width "road dash" bar - a segment turns from
+    // filled to spent as each hour of the 7am-3pm window passes, rather
+    // than the bar itself shrinking, so the card doesn't visually jump
+    // around as the day goes on.
+    function renderDiscountCard(data, isVisitor) {
+      const offer = data.discount;
+      $id("discount-card").classList.toggle("hidden", isVisitor || !offer);
+      if (isVisitor || !offer) return;
+      const cur = data.profile.currency;
+      const pct = Math.round(offer.rate * 100);
+      const dayLabel = FS.fmtDay(offer.createdDate);
+      $id("discount-badge").textContent = `${pct}% off`;
+      $id("discount-card-title").textContent = offer.tier === 2
+        ? "Last chance – pay by 3pm today"
+        : "Pay by 3pm today";
+      $id("discount-card-body").textContent = offer.tier === 2
+        ? `Your ${dayLabel} snacks get one final chance at ${pct}% off – pay by 3pm or it's gone for good.`
+        : `Pay off your ${dayLabel} snacks by 3pm today for ${pct}% off.`;
+      $id("discount-original").textContent = FS.money(offer.total, cur);
+      $id("discount-final").textContent = FS.money(offer.discountedTotal, cur);
+      $id("discount-bar").innerHTML = Array.from({ length: offer.segmentCount }, (_, i) =>
+        `<span class="discount-segment${i >= offer.segmentsRemaining ? " spent" : ""}"></span>`
+      ).join("");
+    }
+
     function render(data) {
       const cur = data.profile.currency;
       const t = FS.totals(data);
@@ -705,6 +748,7 @@
       $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
+      renderDiscountCard(data, isVisitor);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
