@@ -1,5 +1,29 @@
 # Development notes
 
+## Notifications navigate to their transaction; invitees get a disruptive name prompt (2026-07-27)
+
+- "Items added to tab" notifications (a self-checkout, one or several items
+  in one submission) previously only dismissed on click - no navigation at
+  all, unlike every other notification type. Now carries every transaction
+  id from that checkout (`txnIds`, comma-joined into the same `data-txn`
+  attribute the other types already use) and falls through to the existing
+  `transactions.html?user=...&txn=...` navigation instead of being
+  special-cased. `transactions.html`'s highlight logic now splits `txn` on
+  comma and highlights every matching row, not just one - needed since a
+  multi-item checkout has more than one id to point at.
+- An invitee (linked/session access to someone else's shared tab) only ever
+  got asked for the shared tab's name once, at the exact moment they
+  accepted the invite (`maybeOpenNameCaptureModal`'s only trigger is an
+  in-progress `linkCode`) - if skipped then, nothing ever asked again on any
+  later visit, matching the reported "invitees aren't complying on their
+  own." New `#invitee-name-backdrop` modal (first/last name only, no
+  email/phone - matches the existing invitee exemption in
+  `renderUserSettings`) reopens on every visit via
+  `maybeOpenInviteeNameModal()` as long as `accessMode` is linked/session
+  and the shared profile still has no name. Deliberately has no close
+  button and no backdrop/Escape dismiss - the only way out is submitting a
+  name.
+
 ## Reverted the Last Payment card, dropped Paid so far (2026-07-27)
 
 - Pulled the Last Payment card (and the small stat-box version before it)

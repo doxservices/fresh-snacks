@@ -201,10 +201,10 @@
     const item = ev.target.closest(".notif-item");
     if (!item) return;
 
-    // Activity notices (naming, self-logged checkouts) have no natural
-    // "resolved" state to wait for - clicking anywhere on the row also
-    // dismisses them, in addition to their own x button.
-    if (item.dataset.type === "name-added" || item.dataset.type === "items-added") {
+    // A naming activity notice has no natural "resolved" state or
+    // transaction to jump to - clicking anywhere on the row also dismisses
+    // it, in addition to its own x button.
+    if (item.dataset.type === "name-added") {
       dismissKey(item.dataset.key);
       item.remove();
       renderBadge();
@@ -219,6 +219,10 @@
       location.href = "admin.html#feedback-list";
       return;
     }
+    // "items-added" (a self-checkout, one or several items) and every
+    // transaction-carrying type land here - filtered to that customer, and
+    // (data-txn may be a comma-joined list for a multi-item checkout)
+    // highlighted on transactions.html.
     const params = new URLSearchParams({ user: item.dataset.user });
     if (item.dataset.txn) params.set("txn", item.dataset.txn);
     location.href = `transactions.html?${params.toString()}`;
@@ -377,6 +381,10 @@
         count: txns.length,
         snackId: first.snackId,
         snackName: first.snackName,
+        // Every transaction from this one checkout - clicking the
+        // notification highlights all of them on transactions.html, not
+        // just the first line item used for the notification's own photo.
+        txnIds: txns.map((t) => t.transactionId || t.id),
         date: formatDateTime(first, "createdAt", first.createdDate),
         ms: timestampMs(first, "createdAt"),
       }));
@@ -485,7 +493,7 @@
       if (it.type === "items-added") {
         const snack = it.snackId ? snapshot.snacks.find((s) => s.id === it.snackId) : null;
         const itemName = snack ? snack.name : (it.snackName || "Item");
-        return `<div class="notif-item" data-type="items-added" data-key="${esc(it.key)}">
+        return `<div class="notif-item" data-type="items-added" data-key="${esc(it.key)}" data-user="${esc(it.userId)}" data-txn="${esc(it.txnIds.join(","))}">
           <div class="notif-item-photo${snack && snack.photo ? "" : " tone-blue"}">${snack && snack.photo
             ? `<img src="${esc(snack.photo)}" alt="${esc(itemName)}" loading="lazy" />`
             : ICONS.package}</div>

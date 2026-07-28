@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-revert-payment-card" />
+  <link rel="stylesheet" href="styles.css?v=20260727-invitee-modal" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -376,6 +376,35 @@
         <div class="modal-actions">
           <button type="button" id="profile-info-cancel">Cancel</button>
           <button type="submit" class="primary" id="us-save">Save profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- No close button, no backdrop/Escape dismiss - deliberately disruptive.
+       An invitee (linked/session access to someone else's tab) only ever
+       got asked for the shared tab's name once, at the moment they first
+       accepted the invite; if that was skipped, nothing asked again on any
+       later visit. This reopens every time until the name is actually
+       saved (see maybeOpenInviteeNameModal). -->
+  <div class="modal-backdrop" id="invitee-name-backdrop">
+    <div class="modal invitee-name-modal" role="dialog" aria-modal="true" aria-labelledby="in-title">
+      <h2 id="in-title">Who's adding snacks?</h2>
+      <p class="muted-small">Add your name so it's clear who's logging snacks on this shared tab.</p>
+      <form id="invitee-name-form" novalidate>
+        <div class="name-capture-fields">
+          <div class="field">
+            <label for="in-first">First name</label>
+            <input id="in-first" type="text" autocomplete="given-name" required />
+          </div>
+          <div class="field">
+            <label for="in-last">Last name</label>
+            <input id="in-last" type="text" autocomplete="family-name" required />
+          </div>
+        </div>
+        <div class="status" id="in-status"></div>
+        <div class="modal-actions">
+          <button type="submit" class="primary">Save my name</button>
         </div>
       </form>
     </div>
@@ -1525,6 +1554,7 @@
       // else opened - only the tab's own opener needs to supply email/phone
       // here, so those two fields are the only ones that flex by accessMode.
       const isInvitee = me.accessMode === "linked" || me.accessMode === "session";
+      maybeOpenInviteeNameModal(me, isInvitee);
       $id("us-first").required = true;
       $id("us-last").required = true;
       $id("us-email").required = !isInvitee;
@@ -1774,6 +1804,56 @@
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       openNameCaptureModal(me);
     }
+
+    function openInviteeNameModal(me) {
+      $id("in-first").value = me.firstName || "";
+      $id("in-last").value = me.lastName || "";
+      $id("in-status").textContent = "";
+      $id("invitee-name-backdrop").classList.add("show");
+    }
+
+    // Re-checked on every renderUserSettings() call (every page load, and
+    // right after any profile save) - reopens on its own as long as an
+    // invitee's shared tab still has no name, rather than only once at the
+    // moment the invite link was first accepted.
+    function maybeOpenInviteeNameModal(me, isInvitee) {
+      const hasName = !!(me.firstName && me.lastName);
+      if (!isInvitee || hasName) {
+        $id("invitee-name-backdrop").classList.remove("show");
+        return;
+      }
+      if ($id("invitee-name-backdrop").classList.contains("show")) return;
+      openInviteeNameModal(me);
+    }
+
+    $id("invitee-name-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const firstName = $id("in-first").value.trim();
+      const lastName = $id("in-last").value.trim();
+      const st = $id("in-status");
+      if (!firstName || !lastName) {
+        st.textContent = "Please add your first and last name.";
+        st.className = "status err";
+        return;
+      }
+      const btns = [...ev.target.querySelectorAll("button[type=submit]")];
+      btns.forEach((b) => (b.disabled = true));
+      st.textContent = "Saving…";
+      st.className = "status ok";
+      try {
+        await FS.updateMyProfile({ firstName, lastName });
+        $id("invitee-name-backdrop").classList.remove("show");
+        LAST_DATA = await refreshTabData();
+        CLAIM = LAST_DATA.claim || null;
+        render(LAST_DATA);
+        renderUserSettings(LAST_DATA.myProfile);
+      } catch (e) {
+        st.textContent = e.message;
+        st.className = "status err";
+      } finally {
+        btns.forEach((b) => (b.disabled = false));
+      }
+    });
 
     $id("visitor-open-tab").onclick = () => openNameCaptureModal(LAST_DATA.myProfile);
     $id("ncm-close").onclick = closeNameCaptureModal;

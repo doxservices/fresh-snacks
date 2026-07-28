@@ -2315,6 +2315,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: min(680px, 100%);
 }
 
+.invitee-name-modal {
+  width: min(420px, 100%);
+}
+
 .profile-info-modal {
   width: min(620px, 100%);
 }
