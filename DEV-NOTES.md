@@ -1,5 +1,25 @@
 # Development notes
 
+## Cashback demo: drop Cash card, persistent Credit card, loop into new cycles (2026-07-29)
+
+- Removed the Cash received card entirely - Credit earned is now the only
+  ledger card, always visible starting at $0 rather than appearing/hiding
+  based on payment state.
+- The simulated day-cycle is now 4 days (day 1 = 10%, day 2 = 5%, days 3-4
+  expired) instead of 3, and reaching the end of a cycle no longer resets
+  the whole demo - `advance()` wraps `tick` back to 0 and reopens the
+  balance (`paid = false`) so testing can continue into a new cycle
+  automatically, while Credit earned keeps accumulating across cycles.
+  Removed the `paid` guard on `play()` so playback can resume after paying
+  and carry through to the next cycle. The only thing that fully clears
+  `creditEarned` back to $0 is the manual Reset button (or a jump-to-stage
+  button, which was already treated as restarting the test).
+- Added a "Day 4 - expired" jump preset to match the extended cycle length,
+  and updated the banner copy to describe the new looping behavior.
+- Demo-only (`cashback-demo.html`) - no changes to the real app's actual
+  cashback settlement logic (which resets its own clock only when a real
+  balance is paid to $0 and a new purchase reopens it).
+
 ## Cashback demo: headline, auto-reset loop, conservative default sizing (2026-07-29)
 
 - Headline changed from the technical "Cashback demo" to the customer-facing
