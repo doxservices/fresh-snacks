@@ -1,5 +1,15 @@
 # Development notes
 
+## Cashback demo: cash/credit as cards integrated with Current balance (2026-07-29)
+
+- The separate "Payment ledger" section (previous entry) is gone - Cash
+  received and Credit earned now appear as their own `.stat-box` cards
+  directly inside the same `.brand-stats` row as Current balance, so
+  paying grows one account-summary strip instead of revealing a second
+  section further down the page. Refund/Not-refundable buttons moved
+  inside each card itself; behavior (refund only ever touches cash, credit
+  stays either way) is unchanged.
+
 ## Cashback demo: a payment ledger with separate cash/credit buckets (2026-07-29)
 
 - Paying in the demo used to just print a one-line result. New "Payment
