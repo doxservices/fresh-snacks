@@ -1,5 +1,35 @@
 # Development notes
 
+## Cashback demo: visual redesign to match provided mockup (2026-07-29)
+
+- Reworked the whole page to match a supplied design image: the test/demo
+  banner is a rounded card again (contained to the page width, not
+  edge-to-edge) with an info icon and its copy split into a bold intro plus
+  three separate lines, instead of one dense paragraph - still `position:
+  sticky` so it stays pinned while scrolling, per the earlier confirmed
+  intent, just restyled.
+- Added inline SVG icons throughout (sliders icon on the "Simulation
+  controls" heading; play/pause/reset/plus/card icons on their buttons;
+  calendar icons on the stage-jump buttons; dollar-sign and shopping-bag
+  icons in circles on the Current balance / Shop credit cards; a star icon
+  in the cashback badge) - all hand-written inline (no icon font/CDN, stays
+  self-contained).
+- Stage-jump buttons moved back from a vertical list to an even row - the
+  mockup showed them side by side again.
+- Current balance now gets noticeably more width than Shop credit
+  (1.5fr vs 1fr) instead of two equal capped boxes, with a couple of soft
+  translucent circles behind the balance card's content for texture.
+- Wrapped the clock/day-bar/stage-label trio in its own bordered card to
+  match the rest of the page's section styling, instead of sitting bare on
+  the background.
+- Cashback CTA card gets a left accent border strip.
+- Changing the badge to include an icon meant the pay-now handler could no
+  longer overwrite the whole badge's `textContent` (that would wipe the
+  icon out) - split it into a nested `#demo-badge-text` span that the
+  script now targets instead.
+- Demo-only (`cashback-demo.html`) - no changes to the real app or shared
+  `styles.css`.
+
 ## Cashback demo: test-banner as a sticky full-width bar (2026-07-29)
 
 - Moved the "this is a test/demo page" notice out of `.page` (which is

@@ -8,24 +8,45 @@
   <style>
     /* Demo-only styles - not part of the real app, so scoped to this page
        rather than added to styles.css. */
-    /* Test/demo notice - a full-width tag/bar pinned to the very top of the
-       viewport (a sibling of .page, not inside it, so it isn't constrained
-       to the page's centered max-width). Sticky rather than fixed so it
-       still reserves its own space in the flow - no border-radius, this is
-       an edge-to-edge bar, not a card. */
+    /* Test/demo notice - a rounded card like the rest of the page, pinned
+       to the top of the viewport with position:sticky so it stays visible
+       while the rest of the page scrolls underneath it. */
     .demo-banner {
       position: sticky;
       top: 0;
       z-index: 50;
-      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
       background: #fbf4df;
-      border: none;
-      border-bottom: 1px solid #d9bf72;
+      border: 1px solid #d9bf72;
+      border-radius: var(--radius);
       color: #725313;
-      padding: 8px 16px;
+      padding: 14px 16px;
       font-size: 13px;
-      text-align: center;
-      margin: 0;
+      margin-bottom: 14px;
+    }
+    .demo-banner-icon {
+      flex: 0 0 auto;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid #d9bf72;
+      color: #c8860a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .demo-banner-text p {
+      margin: 0 0 6px;
+    }
+    .demo-banner-text p:last-child {
+      margin-bottom: 0;
+    }
+    .demo-controls-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .demo-controls {
       display: flex;
@@ -33,6 +54,12 @@
       align-items: end;
       gap: 12px;
       margin-bottom: 14px;
+    }
+    .demo-controls button,
+    .demo-jump-row button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .demo-field label {
       display: block;
@@ -43,21 +70,28 @@
     .demo-field input {
       width: 140px;
     }
-    /* Downward list, not a wrapped row - the specific time within a day
+    .demo-divider {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 14px 0;
+    }
+    /* Even row, not a wrapped list - the specific time within a day
        doesn't matter for these, just which date you want to preview. */
     .demo-jump-row {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 8px;
+      gap: 10px;
       margin-bottom: 4px;
+    }
+    .demo-jump-row button {
+      flex: 1;
+      justify-content: center;
     }
     .demo-clock {
       text-align: center;
       font-size: 15px;
       font-weight: 600;
       color: var(--muted);
-      margin: 14px 0 10px;
+      margin: 0 0 10px;
       letter-spacing: 0.02em;
     }
     /* 24 hourly segments for the CURRENT simulated day - filled (colored)
@@ -91,7 +125,7 @@
       text-align: center;
       font-size: 12px;
       color: var(--muted);
-      margin-bottom: 14px;
+      margin-bottom: 0;
     }
     .demo-result {
       margin-top: 14px;
@@ -138,26 +172,91 @@
       background: var(--green-light);
       color: var(--green-dark);
     }
-    /* Current balance and Shop credit are both always visible - the
-       shared .brand-stats grid uses minmax(140px, 1fr), which would let
-       these stretch wide on a big screen. Capping the column width keeps
-       them a conservative, consistent size. */
+    /* Current balance gets noticeably more room than Shop credit - it's
+       the number a customer should notice first. */
     #demo-stats-row {
-      grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
+      grid-template-columns: 1.5fr 1fr;
+    }
+    .demo-stat-box {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .demo-stat-icon {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .balance-stat .demo-stat-icon {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+    .demo-credit-card .demo-stat-icon {
+      background: rgba(214, 130, 30, 0.14);
+      color: #b5790c;
+    }
+    /* A couple of soft translucent blobs give the balance card the same
+       "wavy texture" feel as the rest of the brand's green cards, without
+       needing a hand-drawn background asset. */
+    #demo-stats-row .balance-stat {
+      position: relative;
+      overflow: hidden;
+    }
+    #demo-stats-row .balance-stat::before {
+      content: "";
+      position: absolute;
+      left: -30px;
+      top: -40px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    #demo-stats-row .balance-stat::after {
+      content: "";
+      position: absolute;
+      right: -20px;
+      bottom: -40px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.14) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    #demo-stats-row .balance-stat > * {
+      position: relative;
+      z-index: 1;
+    }
+    /* Cashback CTA gets a highlight strip along its leading edge. */
+    #demo-cashback-card {
+      border-left: 4px solid #e8790a;
+    }
+    #demo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
   </style>
 </head>
 <body>
-  <p class="demo-banner">
-    This is a test/demo page only - a self-contained simulation, not connected to any real account
-    or Firestore data. Cashback runs on a fixed 7am-3pm window every day (8 one-hour segments) - the
-    same schedule for every customer, regardless of when they actually made their purchase or
-    payment. A rate reached by 3pm holds steady overnight until 7am the next day - 2 real seconds
-    per segment, so one day's window plays out in 16 seconds. Past 4 days it loops into a fresh
-    cycle automatically so testing can continue - nothing reverts to the starting state until you
-    hit Reset.
-  </p>
   <main class="page">
+    <div class="demo-banner">
+      <span class="demo-banner-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </span>
+      <div class="demo-banner-text">
+        <p><strong>This is a test/demo page only</strong> — a self-contained simulation, not connected to any real account or Firestore data.</p>
+        <p>Cashback runs on a fixed 7am–3pm window every day (8 one-hour segments). The same schedule applies to every customer, regardless of when they make a purchase or payment.</p>
+        <p>A rate reached by 3pm holds steady overnight until 7am the next day — 2 real seconds per segment, so one day's window plays out in 16 seconds.</p>
+        <p>Past 4 days it loops into a fresh cycle automatically, so testing can continue — nothing reverts to the starting state until you hit Reset.</p>
+      </div>
+    </div>
+
     <header>
       <div class="header-row">
         <div class="header-lead">
@@ -171,25 +270,29 @@
     </header>
 
     <section class="card section-card">
-      <h2>Simulation controls</h2>
+      <h2 class="demo-controls-heading">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        Simulation controls
+      </h2>
       <div class="demo-controls">
         <div class="demo-field">
           <label for="demo-balance-input">Starting balance</label>
           <input id="demo-balance-input" type="number" min="1" step="1" value="500" />
         </div>
-        <button type="button" class="primary" id="demo-play">Play</button>
-        <button type="button" id="demo-pause">Pause</button>
-        <button type="button" id="demo-reset">Reset</button>
-        <button type="button" id="demo-add-balance">Add $100 to balance</button>
-        <button type="button" class="primary" id="demo-pay-now">Pay in full now</button>
+        <button type="button" class="primary" id="demo-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
+        <button type="button" id="demo-pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause</button>
+        <button type="button" id="demo-reset"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Reset</button>
+        <button type="button" id="demo-add-balance"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add $100 to balance</button>
+        <button type="button" class="primary" id="demo-pay-now"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay in full now</button>
       </div>
       <div class="demo-result" id="demo-result"></div>
+      <hr class="demo-divider" />
       <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting - the specific time doesn't matter, just the date:</p>
       <div class="demo-jump-row">
-        <button type="button" data-jump="0">Day 1 - 10%</button>
-        <button type="button" data-jump="8">Day 2 - 5%</button>
-        <button type="button" data-jump="16">Day 3 - expired</button>
-        <button type="button" data-jump="24">Day 4 - expired</button>
+        <button type="button" data-jump="0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 1 - 10%</button>
+        <button type="button" data-jump="8"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 2 - 5%</button>
+        <button type="button" data-jump="16"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 3 - expired</button>
+        <button type="button" data-jump="24"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 4 - expired</button>
       </div>
     </section>
 
@@ -197,24 +300,39 @@
          part of the same account-summary strip, starting at $0 and
          accumulating as cashback is earned across test cycles. -->
     <div class="brand-stats" id="demo-stats-row" style="margin-bottom:6px;">
-      <div class="stat-box balance-stat">
-        <div class="stat-label">Current balance</div>
-        <div class="stat-value" id="demo-stat-balance">–</div>
+      <div class="stat-box balance-stat demo-stat-box">
+        <span class="demo-stat-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </span>
+        <div>
+          <div class="stat-label">Current balance</div>
+          <div class="stat-value" id="demo-stat-balance">–</div>
+        </div>
       </div>
-      <div class="stat-box demo-credit-card" id="demo-credit-card">
-        <div class="stat-label">Shop credit</div>
-        <div class="stat-value" id="demo-ledger-credit-amount">$0</div>
-        <span class="demo-card-tag redeemable" title="Shop credit can be applied once a single purchase totals $300 or more">Redeemable on purchase of $300 or more</span>
+      <div class="stat-box demo-credit-card demo-stat-box" id="demo-credit-card">
+        <span class="demo-stat-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </span>
+        <div>
+          <div class="stat-label">Shop credit</div>
+          <div class="stat-value" id="demo-ledger-credit-amount">$0</div>
+          <span class="demo-card-tag redeemable" title="Shop credit can be applied once a single purchase totals $300 or more">Redeemable on purchase of $300 or more</span>
+        </div>
       </div>
     </div>
 
-    <div class="demo-clock" id="demo-clock">Day 1 · 7:00 AM</div>
-    <div class="demo-day-bar" id="demo-day-bar"></div>
-    <p class="demo-stage-label" id="demo-stage-label"></p>
+    <section class="card section-card">
+      <div class="demo-clock" id="demo-clock">Day 1 · 7:00 AM</div>
+      <div class="demo-day-bar" id="demo-day-bar"></div>
+      <p class="demo-stage-label" id="demo-stage-label"></p>
+    </section>
 
     <section class="card section-card cashback-card" id="demo-cashback-card" aria-label="Early payment cashback">
       <div class="cashback-card-head">
-        <span class="cashback-badge" id="demo-badge">10% cash back</span>
+        <span class="cashback-badge" id="demo-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span id="demo-badge-text">10% cash back</span>
+        </span>
         <span class="cashback-card-title" id="demo-title">Clear your balance today</span>
       </div>
       <p class="muted-small" id="demo-body"></p>
@@ -317,7 +435,7 @@
 
       if (showCard) {
         const pct = Math.round(rate * 100);
-        $("demo-badge").textContent = `${pct}% cash back`;
+        $("demo-badge-text").textContent = `${pct}% cash back`;
         $("demo-title").textContent = tier === 1 ? "Clear your balance before 3pm today" : "Last chance before 3pm today";
         $("demo-body").textContent = tier === 1
           ? `Pay your whole balance in full before 3pm and get ${pct}% credited back as shop credit.`
