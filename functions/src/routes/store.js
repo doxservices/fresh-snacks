@@ -13,7 +13,7 @@ const {
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
-const { activeDiscountOffer } = require("../lib/discount");
+const { projectedCashback } = require("../lib/cashback");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -302,10 +302,10 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     claim,
     entries: entries.sort(byDate),
     payments: pays.sort(byDate),
-    // The early-payment discount card's data (see ../lib/discount) - null
-    // when nothing currently qualifies (most of the time, for most
-    // customers), so the client just hides the card in that case.
-    discount: activeDiscountOffer(rawTransactions),
+    // The early-payment cashback projection (see ../lib/cashback) - what
+    // clearing the whole balance right now would earn back, or null when
+    // there's no balance or the timing no longer qualifies for any tier.
+    cashback: projectedCashback(rawTransactions),
   });
 }));
 

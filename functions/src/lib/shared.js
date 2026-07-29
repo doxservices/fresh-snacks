@@ -6,7 +6,6 @@
  * that use them now live here too. */
 
 const { STATUS, ROLE, availableActions, deriveWorkflowStatus, deriveCreatedByRole } = require("./transactionStatus");
-const { discountedTotal } = require("./discount");
 
 const uid = (prefix) =>
   `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -126,12 +125,7 @@ const SETTLEMENT_ELIGIBLE = new Set([
   STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION,
 ]);
 
-// `now` defaults to the real clock but is an explicit param so callers (and
-// tests) can pin it - the early-payment discount (see discount.js) is a
-// function of the current moment, and a transaction that qualifies for it
-// right now should only need the *discounted* amount reserved out of
-// available credit, not its full pre-discount total.
-function paymentAllocationPlan(transactions, paidTotal, now = new Date()) {
+function paymentAllocationPlan(transactions, paidTotal) {
   const alreadySettled = transactions
     .filter((record) => deriveWorkflowStatus(record) === STATUS.PAID_FINALIZED)
     .reduce((sum, record) => sum + Number(record.total || record.value || 0), 0);
@@ -143,16 +137,14 @@ function paymentAllocationPlan(transactions, paidTotal, now = new Date()) {
         - Number(b.createdAt?.toMillis?.() || b.createdAt?._seconds * 1000 || 0)
       || String(a.id).localeCompare(String(b.id)));
   const settledIds = [];
-  const discounts = {};
   for (const record of eligible) {
-    const { finalTotal, rate, tier, originalTotal } = discountedTotal(record, now);
-    if (finalTotal <= 0) continue;
-    if (available < finalTotal) break;
-    available -= finalTotal;
+    const value = Number(record.total || record.value || 0);
+    if (value <= 0) continue;
+    if (available < value) break;
+    available -= value;
     settledIds.push(record.id);
-    if (tier > 0) discounts[record.id] = { finalTotal, rate, tier, originalTotal };
   }
-  return { settledIds, credit: available, paidTotal, discounts };
+  return { settledIds, credit: available, paidTotal };
 }
 
 const withBundledSnackArtwork = (snack, bundledSnackArtwork) => {

@@ -14,21 +14,18 @@ assert.deepEqual(paymentAllocationPlan(transactions, 400), {
   settledIds: ["older-neutral", "first-approved"],
   credit: 0,
   paidTotal: 400,
-  discounts: {},
 });
 
 assert.deepEqual(paymentAllocationPlan(transactions, 500), {
   settledIds: ["older-neutral", "first-approved"],
   credit: 100,
   paidTotal: 500,
-  discounts: {},
 });
 
 assert.deepEqual(paymentAllocationPlan(transactions, 600), {
   settledIds: ["older-neutral", "first-approved", "second-approved"],
   credit: 0,
   paidTotal: 600,
-  discounts: {},
 });
 
 const withExistingSettlement = [
@@ -39,7 +36,6 @@ assert.deepEqual(paymentAllocationPlan(withExistingSettlement, 450), {
   settledIds: ["older-neutral", "first-approved"],
   credit: 0,
   paidTotal: 450,
-  discounts: {},
 });
 
 // New behavior: an admin-added item still awaiting the user's own
@@ -54,7 +50,6 @@ assert.deepEqual(paymentAllocationPlan(withUnconfirmed, 500), {
   settledIds: ["confirmed"],
   credit: 400,
   paidTotal: 500,
-  discounts: {},
 });
 
 // A disputed (ITEM_UNDER_REVIEW) transaction is likewise excluded from
@@ -67,7 +62,6 @@ assert.deepEqual(paymentAllocationPlan(withDisputed, 500), {
   settledIds: ["confirmed"],
   credit: 400,
   paidTotal: 500,
-  discounts: {},
 });
 
 // A transaction already reported paid by the customer is still eligible to
@@ -85,7 +79,6 @@ assert.deepEqual(paymentAllocationPlan(withPaymentReported, 500), {
   settledIds: ["user-reported"],
   credit: 200,
   paidTotal: 500,
-  discounts: {},
 });
 
 assert.deepEqual(toEntry({

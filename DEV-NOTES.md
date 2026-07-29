@@ -1,5 +1,52 @@
 # Development notes
 
+## Replaced the per-purchase discount with a whole-balance cashback reward (2026-07-29)
+
+- Product decision: reframe the whole feature from a *discount* (a reduced
+  charge at payment time, scoped to one day's purchases) to a *cashback*
+  (pay the full amount, then get a percentage credited back - only once
+  the customer's ENTIRE account balance is brought to $0, not just one
+  day's batch). Tiers also reverse: same day the balance opened is now the
+  BEST rate (10%), the day after is smaller (5%), and holding into a third
+  day earns nothing at all, even if eventually paid in full - a front-
+  loaded "act fast" reward rather than the old escalating one.
+- `functions/src/lib/discount.js` replaced by `functions/src/lib/
+  cashback.js`. Core building blocks: `accountSnapshot(transactions)` -
+  current outstanding total and the date the balance first went above
+  $0 (the oldest still-owed transaction's createdDate); `evaluateCashback
+  (transactionsBefore, settledIds, now)` - given what's about to be
+  finalized by whatever settlement action is running, decides whether
+  that brings the WHOLE balance to zero and what tier that earns;
+  `projectedCashback(transactions, now)` - the customer-facing "if you
+  cleared it right now" preview, same tiers, no requirement that it's
+  actually been paid yet. Same LAUNCH_DATE (2026-07-29) cutoff as before -
+  a balance that opened pre-launch is never eligible.
+- Since the customer now pays the FULL price to qualify (not a reduced
+  charge), transaction totals are never modified anymore - the reward is a
+  brand new `payments` doc (`source: "cashback"`) worth tier% of what just
+  got cleared, added as account credit. Wired into both places a
+  transaction can actually finalize to PAID_FINALIZED: `applyAdminAction`
+  in admin.js (covers both mark-paid and confirm-payment, gated on
+  `next === PAID_FINALIZED`, with a second read of the customer's full
+  transaction list inside the same Firestore transaction) and
+  `allocateApprovedTransactions` in settlement.js (the automatic credit
+  sweep, used by both admin-recorded payments and a customer's own self-
+  checkout auto-settling from existing credit).
+- `paymentAllocationPlan` (shared.js) is back to its original,
+  discount-unaware shape - it no longer needs to know about any of this,
+  since nothing reduces a transaction's total anymore.
+- index.html's card reworked for the cashback framing (balance vs. what
+  you'd earn back, instead of price-before/price-after) and its 8-segment
+  hourly countdown bar removed - the new rule is purely day-based (no
+  intra-day deadline), so an hourly bar didn't have anything meaningful
+  left to count down. The "Current Balance" stat box is now its own
+  visually prominent blue card with white text, unrelated to cashback -
+  just making the number a customer should notice first stand out more.
+- `functions/test/discount.test.js` replaced by `functions/test/
+  cashback.test.js`, covering the day-based tier table, the launch-date
+  cutoff, the whole-balance (not partial) clearing trigger, and the
+  customer-facing projection.
+
 ## Fix: early-payment discount was applying retroactively to pre-existing balances (2026-07-29)
 
 - Kamoya's account was showing a 10% offer, and checking the math

@@ -7,7 +7,8 @@
 const admin = require("firebase-admin");
 const { STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus } = require("./transactionStatus");
 const { buildTransactionEvent } = require("./transactionEvents");
-const { paymentAllocationPlan } = require("./shared");
+const { paymentAllocationPlan, uid: genId, todayISO } = require("./shared");
+const { evaluateCashback } = require("./cashback");
 
 const db = () => admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -34,32 +35,22 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
   const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  // A real Date (not FieldValue.serverTimestamp(), which is a write-time
-  // sentinel with no value to compute against) so the early-payment
-  // discount - see ../lib/discount, applied inside paymentAllocationPlan
-  // itself - is evaluated at this one consistent moment for every
-  // transaction the plan considers, not a fresh `new Date()` per record.
-  const now = new Date();
-  const plan = paymentAllocationPlan(transactions, paidTotal, now);
+  const plan = paymentAllocationPlan(transactions, paidTotal);
   const byId = new Map(transactions.map((record) => [record.id, record]));
   const batch = db().batch();
-  const serverNow = FieldValue.serverTimestamp();
+  const now = FieldValue.serverTimestamp();
   for (const id of plan.settledIds) {
     const current = deriveWorkflowStatus(byId.get(id));
     const action = current === STATUS.CONFIRMED_UNPAID ? ACTION.MARK_AS_PAID : ACTION.CONFIRM_PAYMENT;
     const next = assertTransition(current, ROLE.ADMIN, action);
-    const discount = plan.discounts[id];
     batch.update(db().collection("transactions").doc(id), {
       workflowStatus: next,
       version: FieldValue.increment(1),
-      finalizedAt: serverNow,
-      paymentConfirmedAt: serverNow,
+      finalizedAt: now,
+      paymentConfirmedAt: now,
       paymentConfirmedByAdminId: actorUid,
       ...(action === ACTION.MARK_AS_PAID
-        ? { paymentMarkedAt: serverNow, paymentMarkedBy: actorUid, paymentMarkedByRole: ROLE.ADMIN }
-        : {}),
-      ...(discount
-        ? { total: discount.finalTotal, originalTotal: discount.originalTotal, discountRate: discount.rate, discountTier: discount.tier }
+        ? { paymentMarkedAt: now, paymentMarkedBy: actorUid, paymentMarkedByRole: ROLE.ADMIN }
         : {}),
     });
     const event = buildTransactionEvent(db(), {
@@ -72,7 +63,28 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
     });
     batch.set(event.ref, event.data);
   }
-  if (plan.settledIds.length) await batch.commit();
+
+  // This sweep might be exactly what brings the customer's WHOLE balance to
+  // $0 (not just what this specific payment happened to cover) - evaluated
+  // against the pre-sweep `transactions` snapshot, same as everything above.
+  const cashback = evaluateCashback(transactions, plan.settledIds, new Date());
+  if (cashback) {
+    const paymentId = genId("fs_pay");
+    batch.set(db().collection("payments").doc(paymentId), {
+      paymentId, userId, amount: cashback.amount,
+      note: `${Math.round(cashback.rate * 100)}% early-payment cashback`,
+      source: "cashback",
+      cashbackTier: cashback.tier,
+      cashbackRate: cashback.rate,
+      clearedTotal: cashback.clearedTotal,
+      createdBy: "cashback-system",
+      createdAt: FieldValue.serverTimestamp(),
+      createdDate: todayISO(),
+      status: "active",
+    });
+  }
+
+  if (plan.settledIds.length || cashback) await batch.commit();
   return plan;
 }
 

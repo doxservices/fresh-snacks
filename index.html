@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-discount-card" />
+  <link rel="stylesheet" href="styles.css?v=20260727-cashback-card" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -53,7 +53,7 @@
         <div class="brand-stats" id="brand-stats">
           <div class="stat-box balance-stat">
             <div class="stat-label" id="stat-balance-label">Current balance</div>
-            <div class="stat-value warm" id="stat-balance">–</div>
+            <div class="stat-value" id="stat-balance">–</div>
           </div>
         </div>
       </div>
@@ -66,18 +66,24 @@
       <button type="button" class="primary" id="visitor-open-tab">Open a tab</button>
     </section>
 
-    <!-- Only ever shown 7am-3pm business time, and only while a discount is
-         actually active - see FS.totals()/render()'s discount handling. -->
-    <section class="card section-card discount-card hidden" id="discount-card" aria-label="Early payment discount">
-      <div class="discount-card-head">
-        <span class="discount-badge" id="discount-badge">5% off</span>
-        <span class="discount-card-title" id="discount-card-title">Pay by 3pm today</span>
+    <!-- Only shown while clearing the whole balance in full, right now,
+         would actually earn cashback - see renderCashbackCard(). -->
+    <section class="card section-card cashback-card hidden" id="cashback-card" aria-label="Early payment cashback">
+      <div class="cashback-card-head">
+        <span class="cashback-badge" id="cashback-badge">10% cash back</span>
+        <span class="cashback-card-title" id="cashback-card-title">Clear your balance today</span>
       </div>
-      <p class="muted-small" id="discount-card-body"></p>
-      <div class="discount-bar" id="discount-bar"></div>
-      <div class="discount-card-amounts">
-        <span class="discount-original" id="discount-original"></span>
-        <span class="discount-final" id="discount-final"></span>
+      <p class="muted-small" id="cashback-card-body"></p>
+      <div class="cashback-card-amounts">
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">Your balance</span>
+          <span class="cashback-amount" id="cashback-balance"></span>
+        </div>
+        <span class="cashback-arrow" aria-hidden="true">&rarr;</span>
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">You'd earn back</span>
+          <span class="cashback-amount cashback-earn" id="cashback-earn"></span>
+        </div>
       </div>
     </section>
 
@@ -698,32 +704,27 @@
       });
     }
 
-    // data.discount (see functions/src/lib/discount.js's activeDiscountOffer)
-    // is null whenever nothing currently qualifies - most of the time, for
-    // most customers - in which case the card just stays hidden. The 8
-    // segments are a fixed-width "road dash" bar - a segment turns from
-    // filled to spent as each hour of the 7am-3pm window passes, rather
-    // than the bar itself shrinking, so the card doesn't visually jump
-    // around as the day goes on.
-    function renderDiscountCard(data, isVisitor) {
-      const offer = data.discount;
-      $id("discount-card").classList.toggle("hidden", isVisitor || !offer);
+    // data.cashback (see functions/src/lib/cashback.js's projectedCashback)
+    // is null whenever there's no balance, or the timing no longer
+    // qualifies - most of the time, for most customers - in which case the
+    // card just stays hidden. This is a projection only: nothing is
+    // credited until the whole balance is actually paid in full (see
+    // evaluateCashback, run at settlement time).
+    function renderCashbackCard(data, isVisitor) {
+      const offer = data.cashback;
+      $id("cashback-card").classList.toggle("hidden", isVisitor || !offer);
       if (isVisitor || !offer) return;
       const cur = data.profile.currency;
       const pct = Math.round(offer.rate * 100);
-      const dayLabel = FS.fmtDay(offer.createdDate);
-      $id("discount-badge").textContent = `${pct}% off`;
-      $id("discount-card-title").textContent = offer.tier === 2
-        ? "Last chance – pay by 3pm today"
-        : "Pay by 3pm today";
-      $id("discount-card-body").textContent = offer.tier === 2
-        ? `Your ${dayLabel} snacks get one final chance at ${pct}% off – pay by 3pm or it's gone for good.`
-        : `Pay off your ${dayLabel} snacks by 3pm today for ${pct}% off.`;
-      $id("discount-original").textContent = FS.money(offer.total, cur);
-      $id("discount-final").textContent = FS.money(offer.discountedTotal, cur);
-      $id("discount-bar").innerHTML = Array.from({ length: offer.segmentCount }, (_, i) =>
-        `<span class="discount-segment${i >= offer.segmentsRemaining ? " spent" : ""}"></span>`
-      ).join("");
+      $id("cashback-badge").textContent = `${pct}% cash back`;
+      $id("cashback-card-title").textContent = offer.tier === 1
+        ? "Clear your balance today"
+        : "Last chance - clear your balance today";
+      $id("cashback-card-body").textContent = offer.tier === 1
+        ? `Pay your whole balance in full today and get ${pct}% credited back to your account.`
+        : `Yesterday's 10% window closed - clear your whole balance in full today for ${pct}% back, or it's gone for good.`;
+      $id("cashback-balance").textContent = FS.money(offer.balance, cur);
+      $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
     }
 
     function render(data) {
@@ -748,7 +749,7 @@
       $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
-      renderDiscountCard(data, isVisitor);
+      renderCashbackCard(data, isVisitor);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee

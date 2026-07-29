@@ -792,26 +792,37 @@ header.banner {
 .warm { color: var(--green); }
 .blue { color: var(--blue-dark); }
 
+/* Deliberately more prominent than any other stat box - a blue card with
+   white text, since the balance is the one number a customer should
+   notice first when they land on the page. */
 .balance-stat {
-  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(234,245,232,0.92));
-  border-color: rgba(47, 122, 68, 0.18);
+  background: linear-gradient(180deg, var(--blue-dark), #16324a);
+  border-color: var(--blue-dark);
 }
 
-/* ---- early-payment discount card ---- */
+.balance-stat .stat-label {
+  color: rgba(255, 255, 255, 0.75);
+}
 
-.discount-card {
+.balance-stat .stat-value {
+  color: #fff;
+}
+
+/* ---- early-payment cashback card ---- */
+
+.cashback-card {
   background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255, 244, 227, 0.88));
   border-color: rgba(214, 130, 30, 0.32);
 }
 
-.discount-card-head {
+.cashback-card-head {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 4px;
 }
 
-.discount-badge {
+.cashback-badge {
   display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
@@ -822,48 +833,43 @@ header.banner {
   white-space: nowrap;
 }
 
-.discount-card-title {
+.cashback-card-title {
   font-size: 16px;
   font-weight: 600;
   color: #7a4408;
 }
 
-/* A fixed-width "road dash" bar - a segment turns from filled to spent as
-   each hour passes rather than the bar itself shrinking, so the card's
-   layout stays put across the whole 7am-3pm window. */
-.discount-bar {
+.cashback-card-amounts {
   display: flex;
-  gap: 4px;
-  margin: 14px 0 12px;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
 }
 
-.discount-segment {
-  flex: 1;
-  height: 8px;
-  border-radius: 4px;
-  background: #e8790a;
-}
-
-.discount-segment.spent {
-  background: rgba(214, 130, 30, 0.16);
-}
-
-.discount-card-amounts {
+.cashback-amount-block {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.discount-original {
-  text-decoration: line-through;
+.cashback-amount-label {
+  font-size: 12px;
   color: var(--muted);
-  font-size: 14px;
 }
 
-.discount-final {
-  font-size: 22px;
+.cashback-amount {
+  font-size: 20px;
   font-weight: 700;
+  color: var(--text);
+}
+
+.cashback-earn {
   color: #7a4408;
+}
+
+.cashback-arrow {
+  font-size: 18px;
+  color: var(--muted);
 }
 
 .main-grid {
