@@ -1,5 +1,14 @@
 # Development notes
 
+## Cashback demo: drop the "Refundable" tag, cash just has no tag (2026-07-29)
+
+- The Cash card's "Refundable" tag (previous entry) was itself unnecessary
+  clutter - cash being refundable is the default/expected state and didn't
+  need calling out. Removed it entirely; the Cash card now just shows the
+  amount with no tag. The Credit card keeps its "Not refundable" tag, since
+  that's the one status worth flagging. Demo-only (`cashback-demo.html`) -
+  no changes to the real app's actual cashback settlement logic.
+
 ## Cashback demo: refund status is a passive tag, not a button (2026-07-29)
 
 - Removed the "Refund" button from the Cash card and the disabled

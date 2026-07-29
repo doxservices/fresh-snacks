@@ -108,8 +108,9 @@
     /* Cash and credit are kept as their own cards right alongside Current
        balance, not netted into one figure or split into a separate ledger
        section - real money paid in vs. an account credit the cashback
-       reward earned. Neither bucket has an action button - refund status
-       is shown as a passive tag/notification, not something to click. */
+       reward earned. Cash has no action button and no tag - it's just
+       received. Credit gets a tag since "not refundable" is the one thing
+       worth calling out about that bucket. */
     .demo-cash-card {
       background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(234,245,232,0.75));
     }
@@ -124,10 +125,6 @@
       border-radius: 999px;
       font-size: 11px;
       font-weight: 700;
-    }
-    .demo-card-tag.refundable {
-      background: rgba(46, 125, 50, 0.15);
-      color: var(--green-dark, #2e7d32);
     }
     .demo-card-tag.not-refundable {
       background: rgba(214, 130, 30, 0.16);
@@ -187,7 +184,6 @@
       <div class="stat-box demo-cash-card hidden" id="demo-cash-card">
         <div class="stat-label">Cash received</div>
         <div class="stat-value" id="demo-ledger-cash-amount">–</div>
-        <span class="demo-card-tag refundable" title="Real money paid in - can be refunded">Refundable</span>
       </div>
       <div class="stat-box demo-credit-card hidden" id="demo-credit-card">
         <div class="stat-label">Credit earned</div>
