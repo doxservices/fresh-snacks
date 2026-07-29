@@ -123,8 +123,9 @@
 
     <p class="demo-banner">
       This is a test/demo page only - a self-contained simulation, not connected to any real
-      account or Firestore data. 2 real seconds = 1 simulated hour, so a full day plays out in
-      48 seconds.
+      account or Firestore data. The clock only runs through each day's 8am-3pm window (8 bricks),
+      jumping straight to the next day's 8am once one closes - 2 real seconds per brick, so one
+      day's window plays out in 16 seconds.
     </p>
 
     <section class="card section-card">
@@ -140,10 +141,10 @@
       </div>
       <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting:</p>
       <div class="demo-jump-row">
-        <button type="button" data-jump="0">Day 1 - 10% (just now)</button>
-        <button type="button" data-jump="12">Day 1 - 10% (midday)</button>
-        <button type="button" data-jump="24">Day 2 - 5%</button>
-        <button type="button" data-jump="48">Day 3 - expired</button>
+        <button type="button" data-jump="0">Day 1 - 10% (window opens)</button>
+        <button type="button" data-jump="4">Day 1 - 10% (midday)</button>
+        <button type="button" data-jump="8">Day 2 - 5%</button>
+        <button type="button" data-jump="16">Day 3 - expired</button>
       </div>
     </section>
 
@@ -154,7 +155,7 @@
       </div>
     </div>
 
-    <div class="demo-clock" id="demo-clock">Day 1 · 12:00 AM</div>
+    <div class="demo-clock" id="demo-clock">Day 1 · 8:00 AM</div>
     <div class="demo-day-bar" id="demo-day-bar"></div>
     <p class="demo-stage-label" id="demo-stage-label"></p>
 
@@ -194,23 +195,34 @@
     // sync by hand since this static demo has no build step to share it
     // directly with the Cloud Functions source.
     const TIER_RATES = { 0: 0.10, 1: 0.05 };
-    const HOURS_PER_DAY = 24;
-    const MS_PER_SIMULATED_HOUR = 2000;
-    const TOTAL_DEMO_HOURS = 72; // 3 days - long enough to reach "expired"
+    // The daily window is 8am-3pm, split into 8 equal "bricks" (each one
+    // ~52.5 simulated minutes) rather than one segment per literal clock
+    // hour - the clock only ever runs inside this window, jumping straight
+    // from one day's 3pm to the next day's 8am, since nothing interesting
+    // happens overnight and there's no reason to sit and watch it.
+    const WINDOW_START_HOUR = 8;
+    const WINDOW_END_HOUR = 15;
+    const SEGMENT_COUNT = 8;
+    const SEGMENT_HOURS = (WINDOW_END_HOUR - WINDOW_START_HOUR) / SEGMENT_COUNT;
+    const MS_PER_SEGMENT = 2000; // 2 real seconds per brick
+    const TOTAL_DEMO_TICKS = SEGMENT_COUNT * 3; // day 1 + day 2 + expired day 3
 
-    function tierForDaysSince(daysSince) {
-      const rate = TIER_RATES[daysSince];
-      return rate ? { rate, tier: daysSince + 1 } : { rate: 0, tier: 0 };
+    function tierForDayIndex(dayIndex) {
+      const rate = TIER_RATES[dayIndex];
+      return rate ? { rate, tier: dayIndex + 1 } : { rate: 0, tier: 0 };
     }
 
-    function formatHour(hourOfDay) {
-      const period = hourOfDay < 12 ? "AM" : "PM";
-      let hour12 = hourOfDay % 12;
+    function formatClock(dayIndex, segment) {
+      const totalMinutes = Math.round((WINDOW_START_HOUR + segment * SEGMENT_HOURS) * 60);
+      const hour24 = Math.floor(totalMinutes / 60);
+      const minute = totalMinutes % 60;
+      const period = hour24 < 12 ? "AM" : "PM";
+      let hour12 = hour24 % 12;
       if (hour12 === 0) hour12 = 12;
-      return `${hour12}:00 ${period}`;
+      return `Day ${dayIndex + 1} · ${hour12}:${String(minute).padStart(2, "0")} ${period}`;
     }
 
-    let simHour = 0;
+    let tick = 0; // global count of bricks elapsed across the whole demo
     let timer = null;
     let paid = false;
 
@@ -218,9 +230,9 @@
       return paid ? 0 : Number($("demo-balance-input").value || 0);
     }
 
-    function renderDayBar(hourOfDay, tier) {
-      const remaining = HOURS_PER_DAY - hourOfDay;
-      $("demo-day-bar").innerHTML = Array.from({ length: HOURS_PER_DAY }, (_, i) => {
+    function renderDayBar(segment, tier) {
+      const remaining = SEGMENT_COUNT - segment;
+      $("demo-day-bar").innerHTML = Array.from({ length: SEGMENT_COUNT }, (_, i) => {
         const spent = i >= remaining;
         const tierClass = tier === 0 ? " tier-0" : "";
         return `<span class="demo-segment${tierClass}${spent ? " spent" : ""}"></span>`;
@@ -228,14 +240,14 @@
     }
 
     function render() {
-      const daysSince = Math.floor(simHour / HOURS_PER_DAY);
-      const hourOfDay = simHour % HOURS_PER_DAY;
-      const { rate, tier } = tierForDaysSince(daysSince);
+      const dayIndex = Math.floor(tick / SEGMENT_COUNT);
+      const segment = tick % SEGMENT_COUNT;
+      const { rate, tier } = tierForDayIndex(dayIndex);
       const balance = currentBalance();
 
       $("demo-stat-balance").textContent = money(balance);
-      $("demo-clock").textContent = `Day ${daysSince + 1} · ${formatHour(hourOfDay)}`;
-      renderDayBar(hourOfDay, tier);
+      $("demo-clock").textContent = formatClock(dayIndex, segment);
+      renderDayBar(segment, tier);
 
       const stageLabels = { 1: "Stage: Day 1 - the best rate", 2: "Stage: Day 2 - last chance", 0: "Stage: expired - no cashback left" };
       $("demo-stage-label").textContent = stageLabels[tier] || "";
@@ -258,15 +270,15 @@
       $("demo-pay-now").disabled = paid || balance <= 0;
     }
 
-    function tick() {
-      simHour += 1;
+    function advance() {
+      tick += 1;
       render();
-      if (simHour >= TOTAL_DEMO_HOURS) pause();
+      if (tick >= TOTAL_DEMO_TICKS) pause();
     }
 
     function play() {
       if (timer || paid) return;
-      timer = setInterval(tick, MS_PER_SIMULATED_HOUR);
+      timer = setInterval(advance, MS_PER_SEGMENT);
       $("demo-play").disabled = true;
       $("demo-pause").disabled = false;
     }
@@ -280,7 +292,7 @@
 
     function reset() {
       pause();
-      simHour = 0;
+      tick = 0;
       paid = false;
       $("demo-result").className = "demo-result";
       $("demo-result").textContent = "";
@@ -298,7 +310,7 @@
         paid = false;
         $("demo-result").className = "demo-result";
         $("demo-result").textContent = "";
-        simHour = Number(btn.dataset.jump);
+        tick = Number(btn.dataset.jump);
         render();
       };
     });
@@ -306,8 +318,8 @@
     $("demo-balance-input").addEventListener("input", render);
 
     $("demo-pay-now").onclick = () => {
-      const daysSince = Math.floor(simHour / HOURS_PER_DAY);
-      const { rate, tier } = tierForDaysSince(daysSince);
+      const dayIndex = Math.floor(tick / SEGMENT_COUNT);
+      const { rate, tier } = tierForDayIndex(dayIndex);
       const balance = currentBalance();
       const cashback = tier > 0 ? balance * rate : 0;
       paid = true;

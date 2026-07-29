@@ -1,5 +1,14 @@
 # Development notes
 
+## Cashback demo's clock now runs the 8am-3pm window, 8 bricks (2026-07-29)
+
+- Reworked `cashback-demo.html`'s simulated clock from a full 24-hour day
+  down to just the 8am-3pm window (8 equal bricks, ~52.5 simulated minutes
+  each) - the clock jumps straight from one day's 3pm to the next day's
+  8am instead of animating through the uneventful overnight hours. Still
+  2 real seconds per brick, so one day's window plays out in 16 seconds
+  (down from the previous 48-second full-day model).
+
 ## Cashback demo page; favorite-card reorder; balance card green (2026-07-29)
 
 - New `cashback-demo.html` - a standalone, self-contained simulation (no
