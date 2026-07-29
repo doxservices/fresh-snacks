@@ -1,5 +1,27 @@
 # Development notes
 
+## Fix: early-payment discount was applying retroactively to pre-existing balances (2026-07-29)
+
+- Kamoya's account was showing a 10% offer, and checking the math
+  (`discountForDate` run against the real clock) confirmed it was
+  technically "correct" per the day-difference rule alone - their oldest
+  unpaid purchase just happened to be exactly 2 days old. But that
+  purchase predated this feature ever existing, so it was never given a
+  fair chance to act on an incentive that didn't exist yet when it was
+  made - a purely coincidental calendar match was sweeping old, unrelated
+  balances into the discount system.
+- New `LAUNCH_DATE` constant (`functions/src/lib/discount.js`, set to
+  2026-07-29) - `discountForDate` now excludes any `createdDate` before it
+  outright, regardless of the day-math. Only a purchase made on or after
+  the day this shipped is ever eligible for any tier - "start discounts
+  from today onwards," per the explicit product decision. Existing older
+  unpaid balances just settle at full price, exactly as they did before
+  this feature existed.
+- `functions/test/discount.test.js` fixture dates shifted forward (all now
+  on or after LAUNCH_DATE except the cases specifically testing the cutoff
+  itself) and a new case added proving a pre-launch purchase is excluded
+  even when the day-math alone would otherwise read as day 1.
+
 ## Fix: invitee-name modal still disturbed customers with a name already on file (2026-07-27)
 
 - The previous fix's `anonymous` check (vipStatus/displayName) still missed

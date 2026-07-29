@@ -21,6 +21,14 @@ const WINDOW_END_HOUR = 15; // exclusive - the window closes AT 3pm
 const SEGMENT_COUNT = WINDOW_END_HOUR - WINDOW_START_HOUR; // 8 hourly segments
 const TIER_RATES = { 1: 0.05, 2: 0.10 };
 
+// Purchases made before this feature ever existed shouldn't retroactively
+// fall into a discount window just because their createdDate happens to
+// land 1 or 2 days back from whenever this code runs - a customer's old,
+// pre-existing unpaid balance was never given a fair chance to act on an
+// incentive that didn't exist yet when they bought it. Only a purchase
+// made on or after this date is ever eligible for any tier.
+const LAUNCH_DATE = "2026-07-29";
+
 function businessLocal(date) {
   return new Date(date.getTime() + BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
 }
@@ -49,9 +57,11 @@ function isWithinWindow(date) {
 }
 
 /* Returns { rate, tier } for one purchase day as of `now` - tier 0 means no
- * discount right now (too early, between windows, or permanently expired
- * because more than 2 days have passed). */
+ * discount right now (too early, between windows, permanently expired
+ * because more than 2 days have passed, or the purchase predates
+ * LAUNCH_DATE and was never eligible in the first place). */
 function discountForDate(createdDate, now = new Date()) {
+  if (createdDate && createdDate < LAUNCH_DATE) return { rate: 0, tier: 0 };
   const purchaseDay = parseCreatedDateUTC(createdDate);
   if (purchaseDay == null || !isWithinWindow(now)) return { rate: 0, tier: 0 };
   const daysSince = Math.round((businessDateOnlyUTC(now) - purchaseDay) / 86400000);
@@ -116,6 +126,6 @@ function activeDiscountOffer(transactions, now = new Date()) {
 }
 
 module.exports = {
-  BUSINESS_UTC_OFFSET_HOURS, WINDOW_START_HOUR, WINDOW_END_HOUR, SEGMENT_COUNT, TIER_RATES,
+  BUSINESS_UTC_OFFSET_HOURS, WINDOW_START_HOUR, WINDOW_END_HOUR, SEGMENT_COUNT, TIER_RATES, LAUNCH_DATE,
   discountForDate, discountedTotal, activeDiscountOffer, segmentsRemaining,
 };
