@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks — Cashback Demo</title>
+  <link rel="stylesheet" href="styles.css?v=20260729-cashback-demo" />
+  <style>
+    /* Demo-only styles - not part of the real app, so scoped to this page
+       rather than added to styles.css. */
+    .demo-banner {
+      background: #fbf4df;
+      border: 1px solid #d9bf72;
+      color: #725313;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .demo-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .demo-field label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .demo-field input {
+      width: 140px;
+    }
+    .demo-jump-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .demo-clock {
+      text-align: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 14px 0 10px;
+      letter-spacing: 0.02em;
+    }
+    /* 24 hourly segments for the CURRENT simulated day - filled (colored)
+       segments are hours still left before this day ends (and the tier
+       steps down or expires); a segment turns "spent" as each simulated
+       hour passes. Same "reverse loading bar" concept the real feature
+       used before it moved from an hourly deadline to a purely day-based
+       one - kept here since it's still a clear way to *watch* time pass. */
+    .demo-day-bar {
+      display: flex;
+      gap: 2px;
+      margin: 10px 0 4px;
+    }
+    .demo-segment {
+      flex: 1;
+      height: 10px;
+      border-radius: 3px;
+      background: #e8790a;
+      transition: background-color 0.3s ease;
+    }
+    .demo-segment.spent {
+      background: rgba(214, 130, 30, 0.16);
+    }
+    .demo-segment.tier-0 {
+      background: #9aa39d;
+    }
+    .demo-segment.tier-0.spent {
+      background: rgba(154, 163, 157, 0.2);
+    }
+    .demo-stage-label {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .demo-result {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      display: none;
+    }
+    .demo-result.show {
+      display: block;
+    }
+    .demo-result.win {
+      background: var(--green-light);
+      color: var(--green-dark);
+      border: 1px solid rgba(47, 122, 68, 0.3);
+    }
+    .demo-result.lose {
+      background: #faefed;
+      color: #8a2f2f;
+      border: 1px solid rgba(138, 47, 47, 0.3);
+    }
+    .demo-cashback-expired {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 6px 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div>
+            <h1>Cashback demo</h1>
+            <p>Watch how the early-payment cashback plays out for a customer, hour by hour.</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <p class="demo-banner">
+      This is a test/demo page only - a self-contained simulation, not connected to any real
+      account or Firestore data. 2 real seconds = 1 simulated hour, so a full day plays out in
+      48 seconds.
+    </p>
+
+    <section class="card section-card">
+      <h2>Simulation controls</h2>
+      <div class="demo-controls">
+        <div class="demo-field">
+          <label for="demo-balance-input">Starting balance</label>
+          <input id="demo-balance-input" type="number" min="1" step="1" value="500" />
+        </div>
+        <button type="button" class="primary" id="demo-play">Play</button>
+        <button type="button" id="demo-pause">Pause</button>
+        <button type="button" id="demo-reset">Reset</button>
+      </div>
+      <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting:</p>
+      <div class="demo-jump-row">
+        <button type="button" data-jump="0">Day 1 - 10% (just now)</button>
+        <button type="button" data-jump="12">Day 1 - 10% (midday)</button>
+        <button type="button" data-jump="24">Day 2 - 5%</button>
+        <button type="button" data-jump="48">Day 3 - expired</button>
+      </div>
+    </section>
+
+    <div class="brand-stats" style="margin-bottom:14px;">
+      <div class="stat-box balance-stat">
+        <div class="stat-label">Current balance</div>
+        <div class="stat-value" id="demo-stat-balance">–</div>
+      </div>
+    </div>
+
+    <div class="demo-clock" id="demo-clock">Day 1 · 12:00 AM</div>
+    <div class="demo-day-bar" id="demo-day-bar"></div>
+    <p class="demo-stage-label" id="demo-stage-label"></p>
+
+    <section class="card section-card cashback-card" id="demo-cashback-card" aria-label="Early payment cashback">
+      <div class="cashback-card-head">
+        <span class="cashback-badge" id="demo-badge">10% cash back</span>
+        <span class="cashback-card-title" id="demo-title">Clear your balance today</span>
+      </div>
+      <p class="muted-small" id="demo-body"></p>
+      <div class="cashback-card-amounts">
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">Your balance</span>
+          <span class="cashback-amount" id="demo-balance-amount"></span>
+        </div>
+        <span class="cashback-arrow" aria-hidden="true">&rarr;</span>
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">You'd earn back</span>
+          <span class="cashback-amount cashback-earn" id="demo-earn-amount"></span>
+        </div>
+      </div>
+    </section>
+    <p class="demo-cashback-expired hidden" id="demo-expired-note">
+      No cashback available right now - it's been more than two days since the balance opened.
+    </p>
+
+    <section class="card section-card">
+      <button type="button" class="primary" id="demo-pay-now">Pay in full now</button>
+      <div class="demo-result" id="demo-result"></div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => `J$${Math.round(n).toLocaleString("en-US")}`;
+
+    // Mirrors functions/src/lib/cashback.js's TIER_RATES exactly - kept in
+    // sync by hand since this static demo has no build step to share it
+    // directly with the Cloud Functions source.
+    const TIER_RATES = { 0: 0.10, 1: 0.05 };
+    const HOURS_PER_DAY = 24;
+    const MS_PER_SIMULATED_HOUR = 2000;
+    const TOTAL_DEMO_HOURS = 72; // 3 days - long enough to reach "expired"
+
+    function tierForDaysSince(daysSince) {
+      const rate = TIER_RATES[daysSince];
+      return rate ? { rate, tier: daysSince + 1 } : { rate: 0, tier: 0 };
+    }
+
+    function formatHour(hourOfDay) {
+      const period = hourOfDay < 12 ? "AM" : "PM";
+      let hour12 = hourOfDay % 12;
+      if (hour12 === 0) hour12 = 12;
+      return `${hour12}:00 ${period}`;
+    }
+
+    let simHour = 0;
+    let timer = null;
+    let paid = false;
+
+    function currentBalance() {
+      return paid ? 0 : Number($("demo-balance-input").value || 0);
+    }
+
+    function renderDayBar(hourOfDay, tier) {
+      const remaining = HOURS_PER_DAY - hourOfDay;
+      $("demo-day-bar").innerHTML = Array.from({ length: HOURS_PER_DAY }, (_, i) => {
+        const spent = i >= remaining;
+        const tierClass = tier === 0 ? " tier-0" : "";
+        return `<span class="demo-segment${tierClass}${spent ? " spent" : ""}"></span>`;
+      }).join("");
+    }
+
+    function render() {
+      const daysSince = Math.floor(simHour / HOURS_PER_DAY);
+      const hourOfDay = simHour % HOURS_PER_DAY;
+      const { rate, tier } = tierForDaysSince(daysSince);
+      const balance = currentBalance();
+
+      $("demo-stat-balance").textContent = money(balance);
+      $("demo-clock").textContent = `Day ${daysSince + 1} · ${formatHour(hourOfDay)}`;
+      renderDayBar(hourOfDay, tier);
+
+      const stageLabels = { 1: "Stage: Day 1 - the best rate", 2: "Stage: Day 2 - last chance", 0: "Stage: expired - no cashback left" };
+      $("demo-stage-label").textContent = stageLabels[tier] || "";
+
+      const showCard = !paid && balance > 0 && tier > 0;
+      $("demo-cashback-card").classList.toggle("hidden", !showCard);
+      $("demo-expired-note").classList.toggle("hidden", paid || balance <= 0 || tier > 0);
+
+      if (showCard) {
+        const pct = Math.round(rate * 100);
+        $("demo-badge").textContent = `${pct}% cash back`;
+        $("demo-title").textContent = tier === 1 ? "Clear your balance today" : "Last chance - clear your balance today";
+        $("demo-body").textContent = tier === 1
+          ? `Pay your whole balance in full today and get ${pct}% credited back to your account.`
+          : `Yesterday's 10% window closed - clear your whole balance in full today for ${pct}% back, or it's gone for good.`;
+        $("demo-balance-amount").textContent = money(balance);
+        $("demo-earn-amount").textContent = money(balance * rate);
+      }
+
+      $("demo-pay-now").disabled = paid || balance <= 0;
+    }
+
+    function tick() {
+      simHour += 1;
+      render();
+      if (simHour >= TOTAL_DEMO_HOURS) pause();
+    }
+
+    function play() {
+      if (timer || paid) return;
+      timer = setInterval(tick, MS_PER_SIMULATED_HOUR);
+      $("demo-play").disabled = true;
+      $("demo-pause").disabled = false;
+    }
+
+    function pause() {
+      clearInterval(timer);
+      timer = null;
+      $("demo-play").disabled = false;
+      $("demo-pause").disabled = true;
+    }
+
+    function reset() {
+      pause();
+      simHour = 0;
+      paid = false;
+      $("demo-result").className = "demo-result";
+      $("demo-result").textContent = "";
+      render();
+    }
+
+    $("demo-play").onclick = play;
+    $("demo-pause").onclick = pause;
+    $("demo-reset").onclick = reset;
+    $("demo-pause").disabled = true;
+
+    document.querySelectorAll("[data-jump]").forEach((btn) => {
+      btn.onclick = () => {
+        pause();
+        paid = false;
+        $("demo-result").className = "demo-result";
+        $("demo-result").textContent = "";
+        simHour = Number(btn.dataset.jump);
+        render();
+      };
+    });
+
+    $("demo-balance-input").addEventListener("input", render);
+
+    $("demo-pay-now").onclick = () => {
+      const daysSince = Math.floor(simHour / HOURS_PER_DAY);
+      const { rate, tier } = tierForDaysSince(daysSince);
+      const balance = currentBalance();
+      const cashback = tier > 0 ? balance * rate : 0;
+      paid = true;
+      pause();
+      const result = $("demo-result");
+      if (tier > 0) {
+        result.className = "demo-result show win";
+        result.textContent = `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back credited: ${money(cashback)} added to the account.`;
+      } else {
+        result.className = "demo-result show lose";
+        result.textContent = `Paid ${money(balance)} in full - no cashback this time, the window already closed.`;
+      }
+      render();
+    };
+
+    render();
+  </script>
+</body>
+</html>

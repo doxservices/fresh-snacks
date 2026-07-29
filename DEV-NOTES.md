@@ -1,5 +1,27 @@
 # Development notes
 
+## Cashback demo page; favorite-card reorder; balance card green (2026-07-29)
+
+- New `cashback-demo.html` - a standalone, self-contained simulation (no
+  Firestore/Firebase dependency at all) for watching the early-payment
+  cashback's stages play out: 2 real seconds = 1 simulated hour, so a full
+  day plays out in 48 seconds. Shows a live clock, a 24-segment hourly bar
+  for the current simulated day (reintroducing the "reverse loading bar"
+  visual the original discount design used, now representing hours left in
+  the day rather than a fixed 7am-3pm deadline), the real cashback card
+  markup/styling updating live, quick-jump buttons to instantly preview
+  Day 1/Day 2/expired without waiting, and a "Pay in full now" button that
+  shows what cashback (if any) that moment would actually earn. Mirrors
+  `functions/src/lib/cashback.js`'s `TIER_RATES` by hand, since this is a
+  plain static page with no build step to share it directly. Not linked
+  from any nav - a directly-navigated test page, not part of the real app.
+- Favorite Snack card's two mini-stats reordered - "Last purchased" now
+  comes first (where "Total spent" used to sit), "Total spent" second.
+  Values/ids unchanged, so no JS changes needed, just the markup order.
+- `.balance-stat` (the "Current balance" card made prominent a few entries
+  back) changed from blue to green, to match the app's actual green theme
+  instead of an unrelated color.
+
 ## Reset undoes only a payment claim; admin Mark as Paid supersedes confirmation (2026-07-29)
 
 - **Reset, from a payment-dispute status, was over-resetting.** An item

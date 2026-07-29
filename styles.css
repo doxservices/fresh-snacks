@@ -796,8 +796,8 @@ header.banner {
    white text, since the balance is the one number a customer should
    notice first when they land on the page. */
 .balance-stat {
-  background: linear-gradient(180deg, var(--blue-dark), #16324a);
-  border-color: var(--blue-dark);
+  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  border-color: var(--green-dark);
 }
 
 .balance-stat .stat-label {
