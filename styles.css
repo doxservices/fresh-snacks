@@ -1354,6 +1354,21 @@ details[open] .month-note {
   font-weight: 500;
 }
 
+/* Each date within a month collapses on its own, nested inside the
+   month's own <details> - same horizontal inset the flat tracker-table
+   would have used, so nesting doesn't shift anything sideways. */
+.log-day-groups {
+  padding: 0 10px 10px;
+}
+
+.log-day-group {
+  margin-bottom: 8px;
+}
+
+.log-day-group:last-child {
+  margin-bottom: 0;
+}
+
 .bottom-summary {
   /* match the horizontal inset of tables inside <details>
      (1px border + 10px table padding) so columns line up */

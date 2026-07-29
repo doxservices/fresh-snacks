@@ -1,5 +1,32 @@
 # Development notes
 
+## Snack Log: date-level collapse nested inside month collapse, not instead of it (2026-07-29)
+
+- Correction to the previous entry: replacing month-level collapse with
+  date-level collapse removed the month accordion entirely, which wasn't
+  the intent - the customer still wants to collapse whole months, just
+  with an additional layer of date-level collapsing inside each one.
+- Reverted index.html's outer loop back to `FS.groups` (month buckets,
+  `FS.monthLabel` header, "N snack day(s)" note) - unchanged from before
+  yesterday's session.
+- `trackerTable()` (index.html's own copy, not invoice.html's separate one)
+  no longer renders one flat table per month. It now sub-groups that
+  month's entries/payments by individual date and renders each date as its
+  own nested `<details class="log-day-group">`, collapsed by default,
+  inside the month's `<details>`. Split the row-building and table-wrapper
+  logic into `trackerRows()`/`trackerRowsTable()` helpers so the flat case
+  (opening balance) and the nested per-date case can share the same
+  rendering code instead of duplicating it.
+- If the customer's entire history is a single day of purchases, there's
+  only one month and one date in it - both the month and that lone date
+  render already `open`, and the date-level nesting is skipped entirely
+  (flat table, same as the opening-balance case) since there'd be nothing
+  to collapse.
+- Added `.log-day-groups`/`.log-day-group` to styles.css purely for the
+  indentation/spacing the nested `<details>` needed to match the flat
+  table's existing inset - bumped styles.css's cache-busting query string
+  across the 14 pages that load it.
+
 ## Snack Log: collapse at the date level, not month level (2026-07-29)
 
 - The customer-facing Snack Log (index.html) used to collapse into one
