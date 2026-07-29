@@ -1,5 +1,25 @@
 # Development notes
 
+## Cashback demo: headline, auto-reset loop, conservative default sizing (2026-07-29)
+
+- Headline changed from the technical "Cashback demo" to the customer-facing
+  "Earn cashback on your tab" - that's the message the page is actually
+  selling, not a description of the page itself.
+- Letting the sequence play all the way to the expired stage used to just
+  pause there, leaving the demo sitting on the "no cashback left" screen
+  until someone manually clicked Reset. Now `advance()` calls `reset()`
+  once `tick` reaches `TOTAL_DEMO_TICKS`, so it automatically snaps back to
+  Day 1 · 8:00 AM instead of dead-ending.
+- Current balance is the only card visible at the default (pre-payment)
+  state, and `.brand-stats`' shared `minmax(140px, 1fr)` grid columns
+  stretch a lone card to fill the entire row - added a demo-scoped
+  `#demo-stats-row` override capping columns at `minmax(140px, 220px)` so
+  it stays a conservative size by default instead of ballooning full-width,
+  and stays consistent once Cash/Credit join it after paying.
+- Demo-only (`cashback-demo.html`) - no changes to the real app's actual
+  cashback settlement logic or `styles.css`'s shared `.brand-stats`/
+  `.balance-stat` rules.
+
 ## Cashback demo: drop the "Refundable" tag, cash just has no tag (2026-07-29)
 
 - The Cash card's "Refundable" tag (previous entry) was itself unnecessary

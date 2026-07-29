@@ -130,6 +130,14 @@
       background: rgba(214, 130, 30, 0.16);
       color: #8a5a12;
     }
+    /* At the default (pre-payment) state, Current balance is the only card
+       in the row - the shared .brand-stats grid uses minmax(140px, 1fr),
+       so a lone card would stretch to fill the whole row width. Capping
+       the column width keeps it a conservative size by default, matching
+       how it looks once Cash/Credit join it after paying. */
+    #demo-stats-row {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
+    }
   </style>
 </head>
 <body>
@@ -139,8 +147,8 @@
         <div class="header-lead">
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
-            <h1>Cashback demo</h1>
-            <p>Watch how the early-payment cashback plays out for a customer, hour by hour.</p>
+            <h1>Earn cashback on your tab</h1>
+            <p>A demo of how the early-payment cashback plays out for a customer, hour by hour.</p>
           </div>
         </div>
       </div>
@@ -309,8 +317,11 @@
 
     function advance() {
       tick += 1;
+      if (tick >= TOTAL_DEMO_TICKS) {
+        reset();
+        return;
+      }
       render();
-      if (tick >= TOTAL_DEMO_TICKS) pause();
     }
 
     function play() {
