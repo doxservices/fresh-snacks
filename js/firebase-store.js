@@ -727,9 +727,10 @@ FS.getMyHistory = async () => {
   return data.entries;
 };
 
-FS.groups = (data) => {
+// Shared by FS.groups (month buckets) and FS.groupsByDate (day buckets) -
+// identical bucketing/sorting/totals logic, just a different key extractor.
+function bucketByKey(data, keyOf) {
   const buckets = new Map();
-  const keyOf = (dated) => (dated ? dated.slice(0, 7) : "opening");
   for (const e of data.entries) {
     const k = keyOf(e.date);
     if (!buckets.has(k)) buckets.set(k, { key: k, entries: [], payments: [] });
@@ -751,10 +752,17 @@ FS.groups = (data) => {
     g.entries.sort(byDate);
     g.payments.sort(byDate);
     // g.entries itself keeps every entry (a disputed/removal-pending item
-    // still needs to render its row, or drive the month's "flagged"
+    // still needs to render its row, or drive the group's "flagged"
     // indicator) - only the value sum excludes them, same as FS.totals.
     g.value = g.entries.filter(FS.isBillable).reduce((t, e) => t + Number(e.value || 0), 0);
     g.paid = g.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
     return g;
   });
-};
+}
+
+FS.groups = (data) => bucketByKey(data, (dated) => (dated ? dated.slice(0, 7) : "opening"));
+
+// Same shape as FS.groups, but bucketed by individual calendar date rather
+// than by month - index.html's Snack Log defaults to collapsing at the
+// date level instead of the month level.
+FS.groupsByDate = (data) => bucketByKey(data, (dated) => (dated || "opening"));

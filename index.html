@@ -491,7 +491,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260727-revert-payment-card"></script>
+  <script src="js/firebase-store.js?v=20260729-date-level-log"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -593,7 +593,7 @@
 
     function trackerTable(data, group, cur) {
       const opening = group.key === "opening";
-      const label = opening ? data.profile.openingLabel : FS.monthLabel(group.key);
+      const label = opening ? data.profile.openingLabel : FS.fmtDay(group.key);
       const rows = [];
 
       for (const e of group.entries) {
@@ -829,24 +829,27 @@
 
       renderBinsGallery(data);
 
-      const groups = FS.groups(data);
+      const groups = FS.groupsByDate(data);
+      const purchaseDayCount = new Set(data.entries.filter((e) => e.date).map((e) => e.date)).size;
       const head = `<div class="log-head" aria-hidden="true">
         <span></span>
-        <span>Period</span>
+        <span>Date</span>
         <span class="num-money head-tab">Tab</span>
         <span class="num-money head-paid">Paid</span>
         <span class="num-money">Remaining</span>
       </div>`;
       document.getElementById("log").innerHTML = head + groups.map((g) => {
         const opening = g.key === "opening";
-        const label = opening ? data.profile.openingLabel : FS.monthLabel(g.key);
+        const label = opening ? data.profile.openingLabel : FS.fmtDay(g.key);
         const note = opening
           ? data.profile.openingNote
-          : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
+          : `${g.entries.length} snack${g.entries.length === 1 ? "" : "s"}`;
         const flagged = g.entries.some((e) => e.workflowStatus === "ITEM_UNDER_REVIEW");
-        // collapsed by default, including the current month — the reader
-        // opens whichever period(s) they actually want to review
-        return `<details data-key="${esc(g.key)}">
+        // Collapsed by default, one section per calendar date - unless
+        // this customer only has a single day of purchases, in which case
+        // there's nothing to hide it behind, so it opens already-expanded.
+        const openAttr = !opening && purchaseDayCount <= 1 ? " open" : "";
+        return `<details data-key="${esc(g.key)}"${openAttr}>
           <summary>
             <span class="toggle"></span>
             <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>

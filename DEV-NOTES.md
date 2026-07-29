@@ -1,5 +1,31 @@
 # Development notes
 
+## Snack Log: collapse at the date level, not month level (2026-07-29)
+
+- The customer-facing Snack Log (index.html) used to collapse into one
+  `<details>` per calendar MONTH (via `FS.groups`), with every day's
+  transactions listed flat inside. Added `FS.groupsByDate` (js/firebase-
+  store.js) - same bucketing/sorting/totals shape as `FS.groups`, just
+  keyed by full date instead of `YYYY-MM` - refactored the shared bucketing
+  logic into a private `bucketByKey` helper so neither function drifts from
+  the other. `FS.groups` itself is untouched and still used as-is by
+  invoice.html, which should keep grouping by month for a formal invoice
+  document - this only changes index.html's own rendering.
+- index.html's `render()` now calls `FS.groupsByDate` and labels each
+  section with `FS.fmtDay(g.key)` (e.g. "29 Jul") instead of
+  `FS.monthLabel`; the local `trackerTable()` in index.html (not the
+  identically-named but separate copy in invoice.html) got the same label
+  fix for its own footer row.
+- If a customer has only a single day of purchases, collapsing it behind a
+  click serves no purpose - that one date section now renders already
+  `open` by default. Any other day count keeps the existing "collapsed by
+  default" behavior. The "opening" balance bucket's own collapse state is
+  unaffected either way - the exception is about days of actual purchases.
+- Bumped the `firebase-store.js` cache-busting query string across the 13
+  pages that load it (left `feedback_old.html`'s already-stale tag alone,
+  matching how it's been out of sync with the rest since before this
+  session).
+
 ## Cashback demo: visual redesign to match provided mockup (2026-07-29)
 
 - Reworked the whole page to match a supplied design image: the test/demo
