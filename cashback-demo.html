@@ -108,8 +108,8 @@
     /* Cash and credit are kept as their own cards right alongside Current
        balance, not netted into one figure or split into a separate ledger
        section - real money paid in vs. an account credit the cashback
-       reward earned. Only the cash card's button ever refunds anything;
-       credit only ever applies toward a future purchase. */
+       reward earned. Neither bucket has an action button - refund status
+       is shown as a passive tag/notification, not something to click. */
     .demo-cash-card {
       background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(234,245,232,0.75));
     }
@@ -117,14 +117,21 @@
       background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255, 244, 227, 0.88));
       border-color: rgba(214, 130, 30, 0.32);
     }
-    .demo-card-btn {
-      display: block;
+    .demo-card-tag {
+      display: inline-block;
       margin-top: 8px;
-      padding: 4px 10px;
-      font-size: 12px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
     }
-    #demo-ledger-note {
-      margin-top: -2px;
+    .demo-card-tag.refundable {
+      background: rgba(46, 125, 50, 0.15);
+      color: var(--green-dark, #2e7d32);
+    }
+    .demo-card-tag.not-refundable {
+      background: rgba(214, 130, 30, 0.16);
+      color: #8a5a12;
     }
   </style>
 </head>
@@ -180,15 +187,14 @@
       <div class="stat-box demo-cash-card hidden" id="demo-cash-card">
         <div class="stat-label">Cash received</div>
         <div class="stat-value" id="demo-ledger-cash-amount">–</div>
-        <button type="button" class="danger demo-card-btn" id="demo-refund-cash">Refund</button>
+        <span class="demo-card-tag refundable" title="Real money paid in - can be refunded">Refundable</span>
       </div>
       <div class="stat-box demo-credit-card hidden" id="demo-credit-card">
         <div class="stat-label">Credit earned</div>
         <div class="stat-value" id="demo-ledger-credit-amount">–</div>
-        <button type="button" class="demo-card-btn" disabled title="Credits can only be used toward future snacks - never refunded as cash">Not refundable</button>
+        <span class="demo-card-tag not-refundable" title="Credits can only be used toward future snacks - never refunded as cash">Not refundable</span>
       </div>
     </div>
-    <p class="muted-small hidden" id="demo-ledger-note" style="margin-bottom:14px;"></p>
 
     <div class="demo-clock" id="demo-clock">Day 1 · 8:00 AM</div>
     <div class="demo-day-bar" id="demo-day-bar"></div>
@@ -328,10 +334,6 @@
     function hideLedger() {
       $("demo-cash-card").classList.add("hidden");
       $("demo-credit-card").classList.add("hidden");
-      $("demo-refund-cash").disabled = false;
-      $("demo-refund-cash").textContent = "Refund";
-      $("demo-ledger-note").classList.add("hidden");
-      $("demo-ledger-note").textContent = "";
     }
 
     function clearResult() {
@@ -368,8 +370,8 @@
     // Cash and credit are two different buckets, not one net figure - the
     // cash bucket is what was actually paid (real money, refundable); the
     // credit bucket is the cashback reward itself (account credit only,
-    // never convertible back to cash - see demo-refund-cash below, which
-    // only ever touches the cash bucket).
+    // never convertible back to cash). Refund status is a passive tag on
+    // each card, not a button - there's nothing to click here.
     $("demo-pay-now").onclick = () => {
       const dayIndex = Math.floor(tick / SEGMENT_COUNT);
       const { rate, tier } = tierForDayIndex(dayIndex);
@@ -386,24 +388,10 @@
 
       $("demo-cash-card").classList.remove("hidden");
       $("demo-ledger-cash-amount").textContent = money(balance);
-      $("demo-refund-cash").disabled = false;
-      $("demo-refund-cash").textContent = "Refund";
-      $("demo-ledger-note").classList.add("hidden");
-      $("demo-ledger-note").textContent = "";
       $("demo-credit-card").classList.toggle("hidden", cashback <= 0);
       if (cashback > 0) $("demo-ledger-credit-amount").textContent = money(cashback);
 
       render();
-    };
-
-    $("demo-refund-cash").onclick = () => {
-      $("demo-refund-cash").disabled = true;
-      $("demo-refund-cash").textContent = "Refunded";
-      const hasCredit = !$("demo-credit-card").classList.contains("hidden");
-      $("demo-ledger-note").classList.remove("hidden");
-      $("demo-ledger-note").textContent = hasCredit
-        ? "Cash refunded. The credit earned from this payment stays on the account either way - it was never cash to begin with, so there's nothing to hand back for that bucket."
-        : "Cash refunded.";
     };
 
     render();

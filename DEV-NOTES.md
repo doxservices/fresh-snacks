@@ -1,5 +1,17 @@
 # Development notes
 
+## Cashback demo: refund status is a passive tag, not a button (2026-07-29)
+
+- Removed the "Refund" button from the Cash card and the disabled
+  "Not refundable" button from the Credit card - clicking to refund wasn't
+  a real action in this demo, so it shouldn't look like a button at all.
+  Both cards now show a small pill-shaped tag instead ("Refundable" /
+  "Not refundable"), a passive notification of status rather than
+  something to click. Dropped the click handler and the confirmation note
+  that used to appear after refunding, since there's no refund action left
+  to confirm. Demo-only (`cashback-demo.html`) - no changes to the real
+  app's actual cashback settlement logic.
+
 ## Cashback demo: cash/credit as cards integrated with Current balance (2026-07-29)
 
 - The separate "Payment ledger" section (previous entry) is gone - Cash
