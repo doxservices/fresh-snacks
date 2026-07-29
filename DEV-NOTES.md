@@ -1,5 +1,19 @@
 # Development notes
 
+## Cashback demo: a payment ledger with separate cash/credit buckets (2026-07-29)
+
+- Paying in the demo used to just print a one-line result. New "Payment
+  ledger" card, shown after paying, keeps cash and credit as two visibly
+  separate buckets rather than netting them into one figure - "Payment
+  received" (the real money actually paid, tagged refundable) and "Cashback
+  earned" (account credit only, tagged not refundable, only shown when a
+  tier actually applied). A "Refund" button only ever touches the cash
+  bucket; the credit row's button stays permanently disabled with an
+  explanatory tooltip, and refunding cash shows a note confirming the
+  credit bucket is untouched either way - it was never cash to begin with.
+  Demo-only (`cashback-demo.html`) - no changes to the real app's actual
+  cashback settlement logic.
+
 ## Cashback demo's clock now runs the 8am-3pm window, 8 bricks (2026-07-29)
 
 - Reworked `cashback-demo.html`'s simulated clock from a full 24-hour day

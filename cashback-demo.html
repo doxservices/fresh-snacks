@@ -105,6 +105,54 @@
       font-size: 14px;
       padding: 6px 0;
     }
+    /* Cash and credit are kept as visibly separate buckets, not netted into
+       one balance figure - real money paid in vs. an account credit the
+       cashback reward earned. Only the cash bucket can ever come back out
+       as a refund; credit only ever applies toward a future purchase. */
+    .demo-ledger-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+    .demo-ledger-row:first-of-type {
+      border-top: 0;
+    }
+    .demo-ledger-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    .demo-ledger-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .demo-ledger-badge.cash {
+      background: var(--green-light);
+      color: var(--green-dark);
+    }
+    .demo-ledger-badge.credit {
+      background: #fbf4df;
+      color: #725313;
+    }
+    .demo-ledger-label {
+      font-weight: 600;
+    }
+    .demo-ledger-amount {
+      font-size: 18px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .demo-ledger-note {
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -184,6 +232,35 @@
     <section class="card section-card">
       <button type="button" class="primary" id="demo-pay-now">Pay in full now</button>
       <div class="demo-result" id="demo-result"></div>
+    </section>
+
+    <section class="card section-card hidden" id="demo-ledger-card" aria-label="Payment ledger">
+      <h2>Payment ledger</h2>
+      <p class="muted-small">Two separate buckets, not one lump sum - the real money paid, and any
+        account credit the cashback reward earned. Only one of them can ever come back out as cash.</p>
+      <div class="demo-ledger-row">
+        <div class="demo-ledger-info">
+          <span class="demo-ledger-badge cash">Cash</span>
+          <div>
+            <div class="demo-ledger-label">Payment received</div>
+            <div class="muted-small">Real money - refundable</div>
+          </div>
+        </div>
+        <div class="demo-ledger-amount" id="demo-ledger-cash-amount">–</div>
+        <button type="button" class="danger" id="demo-refund-cash">Refund</button>
+      </div>
+      <div class="demo-ledger-row hidden" id="demo-ledger-credit-row">
+        <div class="demo-ledger-info">
+          <span class="demo-ledger-badge credit">Credit</span>
+          <div>
+            <div class="demo-ledger-label">Cashback earned</div>
+            <div class="muted-small">Account credit only - usable toward future snacks</div>
+          </div>
+        </div>
+        <div class="demo-ledger-amount" id="demo-ledger-credit-amount">–</div>
+        <button type="button" disabled title="Credits can only be used toward future snacks - never refunded as cash">Not refundable</button>
+      </div>
+      <p class="demo-ledger-note" id="demo-ledger-note"></p>
     </section>
   </main>
 
@@ -290,12 +367,24 @@
       $("demo-pause").disabled = true;
     }
 
+    function hideLedger() {
+      $("demo-ledger-card").classList.add("hidden");
+      $("demo-refund-cash").disabled = false;
+      $("demo-refund-cash").textContent = "Refund";
+      $("demo-ledger-note").textContent = "";
+    }
+
+    function clearResult() {
+      $("demo-result").className = "demo-result";
+      $("demo-result").textContent = "";
+      hideLedger();
+    }
+
     function reset() {
       pause();
       tick = 0;
       paid = false;
-      $("demo-result").className = "demo-result";
-      $("demo-result").textContent = "";
+      clearResult();
       render();
     }
 
@@ -308,8 +397,7 @@
       btn.onclick = () => {
         pause();
         paid = false;
-        $("demo-result").className = "demo-result";
-        $("demo-result").textContent = "";
+        clearResult();
         tick = Number(btn.dataset.jump);
         render();
       };
@@ -317,6 +405,11 @@
 
     $("demo-balance-input").addEventListener("input", render);
 
+    // Cash and credit are two different buckets, not one net figure - the
+    // cash bucket is what was actually paid (real money, refundable); the
+    // credit bucket is the cashback reward itself (account credit only,
+    // never convertible back to cash - see demo-refund-cash below, which
+    // only ever touches the cash bucket).
     $("demo-pay-now").onclick = () => {
       const dayIndex = Math.floor(tick / SEGMENT_COUNT);
       const { rate, tier } = tierForDayIndex(dayIndex);
@@ -324,15 +417,31 @@
       const cashback = tier > 0 ? balance * rate : 0;
       paid = true;
       pause();
+
       const result = $("demo-result");
-      if (tier > 0) {
-        result.className = "demo-result show win";
-        result.textContent = `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back credited: ${money(cashback)} added to the account.`;
-      } else {
-        result.className = "demo-result show lose";
-        result.textContent = `Paid ${money(balance)} in full - no cashback this time, the window already closed.`;
-      }
+      result.className = tier > 0 ? "demo-result show win" : "demo-result show lose";
+      result.textContent = tier > 0
+        ? `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back earned. See the ledger below.`
+        : `Paid ${money(balance)} in full - no cashback this time, the window already closed.`;
+
+      $("demo-ledger-card").classList.remove("hidden");
+      $("demo-ledger-cash-amount").textContent = money(balance);
+      $("demo-refund-cash").disabled = false;
+      $("demo-refund-cash").textContent = "Refund";
+      $("demo-ledger-note").textContent = "";
+      $("demo-ledger-credit-row").classList.toggle("hidden", cashback <= 0);
+      if (cashback > 0) $("demo-ledger-credit-amount").textContent = money(cashback);
+
       render();
+    };
+
+    $("demo-refund-cash").onclick = () => {
+      $("demo-refund-cash").disabled = true;
+      $("demo-refund-cash").textContent = "Refunded";
+      const hasCredit = !$("demo-ledger-credit-row").classList.contains("hidden");
+      $("demo-ledger-note").textContent = hasCredit
+        ? "Cash refunded. The credit earned from this payment stays on the account either way - it was never cash to begin with, so there's nothing to hand back for that bucket."
+        : "Cash refunded.";
     };
 
     render();
