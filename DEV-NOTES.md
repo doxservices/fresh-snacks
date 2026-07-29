@@ -1,5 +1,43 @@
 # Development notes
 
+## Reset undoes only a payment claim; admin Mark as Paid supersedes confirmation (2026-07-29)
+
+- **Reset, from a payment-dispute status, was over-resetting.** An item
+  that's already confirmed and now has a payment claim in question
+  (`PAYMENT_PENDING_ADMIN_CONFIRMATION`/`PAYMENT_UNDER_REVIEW`) only ever
+  had that claim disputed - the customer confirmed the item itself long
+  before ever reporting payment on it. But Reset sent it all the way back
+  to `PENDING_USER_CONFIRMATION`, forcing a fresh confirm/dispute (the
+  check/cross) instead of just undoing the payment claim and landing back
+  on `CONFIRMED_UNPAID` (Mark as Paid). Fixed - Reset from those two
+  statuses now targets `CONFIRMED_UNPAID`; Reset from `CONFIRMED_UNPAID`/
+  `ITEM_UNDER_REVIEW` is unchanged (those genuinely are "undo the
+  confirmation itself" cases). transactions.html/edit-tab.html's Reset
+  confirmation dialog now describes whichever of the two actually applies,
+  and the button/permission-label wording no longer hardcodes "back to
+  Awaiting confirmation."
+- **Product decision: an admin's Mark as Paid now supersedes the
+  confirm-first order.** Previously an item still awaiting the customer's
+  own confirmation (`PENDING_USER_CONFIRMATION`) could never be settled by
+  any payment - not a direct admin action, not the automatic credit sweep -
+  until the customer confirmed it first (a deliberate rule from earlier in
+  this project). That's reversed: `PENDING_USER_CONFIRMATION` is now
+  settlement-eligible right alongside the already-confirmed statuses,
+  oldest-first same as everything else (`SETTLEMENT_ELIGIBLE` in
+  lib/shared.js), and a new direct transition
+  (`PENDING_USER_CONFIRMATION`/`ADMIN`/`MARK_AS_PAID` -> `PAID_FINALIZED`)
+  lets an admin finalize one on the spot without waiting on the customer at
+  all. `ITEM_UNDER_REVIEW` (a live dispute) is still excluded either way -
+  a payment silently settling something actively being disputed would
+  resolve that dispute without anyone actually deciding it.
+- Regression coverage added to `transaction-status.test.js` (the new
+  transition + availableActions entry, the split Reset targets) and
+  `transaction-lifecycle.test.js` (an admin finalizing an unconfirmed item
+  directly, the credit sweep settling one given enough credit, and a full
+  report-payment-then-reset trace landing on Confirmed - unpaid).
+  `payment-allocation.test.js`'s old "unconfirmed items are never
+  auto-settled" case now asserts the opposite, oldest-first.
+
 ## Replaced the per-purchase discount with a whole-balance cashback reward (2026-07-29)
 
 - Product decision: reframe the whole feature from a *discount* (a reduced

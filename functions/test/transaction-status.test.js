@@ -72,12 +72,19 @@ assert.equal(nextStatusFor(STATUS.ITEM_UNDER_REVIEW, ROLE.USER, ACTION.CONFIRM_I
 
 // RESET ("do nothing to the record, just put it back in the user's hands to
 // confirm") - admin-only, available from every non-final, non-pending
-// status, always lands back on PENDING_USER_CONFIRMATION.
-for (const status of [
-  STATUS.CONFIRMED_UNPAID, STATUS.ITEM_UNDER_REVIEW,
-  STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, STATUS.PAYMENT_UNDER_REVIEW,
-]) {
+// status. CONFIRMED_UNPAID/ITEM_UNDER_REVIEW still land all the way back on
+// PENDING_USER_CONFIRMATION (undoing the item's own confirmation is the
+// point at those two). The two payment-dispute statuses only ever had a
+// payment CLAIM in question, not the item's own confirmation - resetting
+// them lands on CONFIRMED_UNPAID (Mark as Paid) instead, so an admin
+// undoing a bad payment report doesn't also force the customer to
+// re-confirm an item they already confirmed once.
+for (const status of [STATUS.CONFIRMED_UNPAID, STATUS.ITEM_UNDER_REVIEW]) {
   assert.equal(nextStatusFor(status, ROLE.ADMIN, ACTION.RESET), STATUS.PENDING_USER_CONFIRMATION);
+  assert.ok(availableActions(status, ROLE.ADMIN).includes(ACTION.RESET));
+}
+for (const status of [STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION, STATUS.PAYMENT_UNDER_REVIEW]) {
+  assert.equal(nextStatusFor(status, ROLE.ADMIN, ACTION.RESET), STATUS.CONFIRMED_UNPAID);
   assert.ok(availableActions(status, ROLE.ADMIN).includes(ACTION.RESET));
 }
 // Never available once already pending (nothing to reset back to), never for
@@ -86,5 +93,12 @@ assert.equal(nextStatusFor(STATUS.PENDING_USER_CONFIRMATION, ROLE.ADMIN, ACTION.
 assert.equal(nextStatusFor(STATUS.CONFIRMED_UNPAID, ROLE.USER, ACTION.RESET), null);
 assert.equal(nextStatusFor(STATUS.PAID_FINALIZED, ROLE.ADMIN, ACTION.RESET), null);
 assert.equal(nextStatusFor(STATUS.CANCELLED, ROLE.ADMIN, ACTION.RESET), null);
+
+// Product decision: an admin's Mark as Paid supersedes the usual
+// confirm-first order - it can finalize a still-unconfirmed item directly,
+// on the spot, without waiting on the customer (see SETTLEMENT_ELIGIBLE in
+// lib/shared.js for the equivalent rule on the oldest-first credit sweep).
+assert.equal(nextStatusFor(STATUS.PENDING_USER_CONFIRMATION, ROLE.ADMIN, ACTION.MARK_AS_PAID), STATUS.PAID_FINALIZED);
+assert.ok(availableActions(STATUS.PENDING_USER_CONFIRMATION, ROLE.ADMIN).includes(ACTION.MARK_AS_PAID));
 
 console.log("transaction status/transition regression checks passed");

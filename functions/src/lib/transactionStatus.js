@@ -70,6 +70,12 @@ const TRANSITIONS = {
     [ROLE.ADMIN]: {
       [ACTION.EDIT]: STATUS.PENDING_USER_CONFIRMATION,
       [ACTION.CANCEL]: STATUS.CANCELLED,
+      // Lets an admin finalize an item on the spot (e.g. cash handed over
+      // immediately) without waiting on the customer to confirm it first -
+      // an explicit override of the usual confirm-before-pay order, not the
+      // oldest-first credit sweep's default behavior (see SETTLEMENT_ELIGIBLE
+      // in lib/shared.js for that side of the same policy).
+      [ACTION.MARK_AS_PAID]: STATUS.PAID_FINALIZED,
     },
   },
   [STATUS.ITEM_UNDER_REVIEW]: {
@@ -113,7 +119,12 @@ const TRANSITIONS = {
       // Review Payment first - it's the same "content changed, start the
       // confirmation over" rule CONFIRMED_UNPAID's EDIT already follows.
       [ACTION.EDIT]: STATUS.PENDING_USER_CONFIRMATION,
-      [ACTION.RESET]: STATUS.PENDING_USER_CONFIRMATION,
+      // Undoes the payment claim only, not the item's own confirmation - the
+      // customer already confirmed this item before ever reporting payment
+      // on it, so putting it back at PENDING_USER_CONFIRMATION (forcing them
+      // to re-confirm the item itself) asked for more than this action
+      // should undo. Lands back on CONFIRMED_UNPAID (Mark as Paid) instead.
+      [ACTION.RESET]: STATUS.CONFIRMED_UNPAID,
     },
   },
   [STATUS.PAYMENT_UNDER_REVIEW]: {
@@ -121,7 +132,12 @@ const TRANSITIONS = {
       [ACTION.CONFIRM_PAYMENT]: STATUS.PAID_FINALIZED,
       [ACTION.REJECT_PAYMENT_CLAIM]: STATUS.CONFIRMED_UNPAID,
       [ACTION.EDIT]: STATUS.PENDING_USER_CONFIRMATION,
-      [ACTION.RESET]: STATUS.PENDING_USER_CONFIRMATION,
+      // Same reasoning as PAYMENT_PENDING_ADMIN_CONFIRMATION's RESET above -
+      // only the payment claim is in question here, not the item's own
+      // confirmation, so this lands on CONFIRMED_UNPAID same as Reject
+      // Payment Claim does (RESET is just the generic "undo, no reason
+      // recorded" version of that same undo).
+      [ACTION.RESET]: STATUS.CONFIRMED_UNPAID,
     },
   },
   [STATUS.PAID_FINALIZED]: {},
@@ -152,7 +168,7 @@ function availableActions(workflowStatus, role) {
   if (role === ROLE.ADMIN) {
     switch (workflowStatus) {
       case STATUS.PENDING_USER_CONFIRMATION:
-        return [ACTION.EDIT, ACTION.CANCEL, ACTION.VIEW_DETAILS];
+        return [ACTION.EDIT, ACTION.MARK_AS_PAID, ACTION.CANCEL, ACTION.VIEW_DETAILS];
       case STATUS.ITEM_UNDER_REVIEW:
         return [ACTION.EDIT_AND_RESEND, ACTION.APPROVE_ITEM, ACTION.RESET, ACTION.CANCEL, ACTION.VIEW_DETAILS];
       case STATUS.CONFIRMED_UNPAID:

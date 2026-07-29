@@ -106,14 +106,15 @@ function accounting(users, devices, transactions, payments, adjustments) {
   ).sort((a, b) => b.balance - a.balance || String(a.displayName).localeCompare(String(b.displayName)));
 }
 
-// Only CONFIRMED_UNPAID/PAYMENT_PENDING_ADMIN_CONFIRMATION transactions are
-// eligible to be auto-settled by a payment - anything still awaiting the
-// user's own confirmation (PENDING_USER_CONFIRMATION) or under a dispute
-// (ITEM_UNDER_REVIEW) must be resolved first, per the spec's rule that a
-// payment can only settle a debt the user has actually confirmed. This is
-// a deliberate behavior change from the legacy "neutral"/"approved" split,
-// where an unconfirmed admin-added listing could already be auto-settled
-// by a payment with no confirmation step at all.
+// Product decision: an admin-driven payment (a recorded payment, or a
+// customer's own purchase auto-settling from existing credit) supersedes
+// the usual "must be confirmed first" order - PENDING_USER_CONFIRMATION is
+// settlement-eligible right alongside CONFIRMED_UNPAID/
+// PAYMENT_PENDING_ADMIN_CONFIRMATION, oldest-first same as everything else
+// (see the sort just below). Still under a live dispute (ITEM_UNDER_REVIEW)
+// must be resolved first either way - a payment silently settling something
+// actively being disputed would resolve that dispute without anyone
+// actually deciding it.
 //
 // PAYMENT_UNDER_REVIEW is deliberately excluded too: an admin put that
 // specific claimed payment under active scrutiny, and an unrelated new
@@ -121,6 +122,7 @@ function accounting(users, devices, transactions, payments, adjustments) {
 // without the admin ever making the call. It can only move forward via an
 // explicit Confirm Payment or Reject Payment Claim on that transaction.
 const SETTLEMENT_ELIGIBLE = new Set([
+  STATUS.PENDING_USER_CONFIRMATION,
   STATUS.CONFIRMED_UNPAID,
   STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION,
 ]);

@@ -14,10 +14,11 @@ let txn = {
   workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
 };
 
-// Nothing payable yet - it hasn't been confirmed.
+// Nothing payable yet - there's no credit on file at all (unrelated to
+// whether it's confirmed; see Scenario F below for that policy directly).
 assert.equal(
   paymentAllocationPlan([txn], 0).settledIds.length, 0,
-  "an unconfirmed item must never be auto-settled"
+  "with zero credit on file, nothing settles regardless of status"
 );
 
 txn = { ...txn, workflowStatus: nextStatusFor(txn.workflowStatus, ROLE.USER, ACTION.CONFIRM_ITEM) };
@@ -95,5 +96,37 @@ adminItem = { ...adminItem, workflowStatus: nextStatusFor(adminItem.workflowStat
 assert.equal(adminItem.workflowStatus, STATUS.ITEM_UNDER_REVIEW);
 adminItem = { ...adminItem, workflowStatus: nextStatusFor(adminItem.workflowStatus, ROLE.ADMIN, ACTION.CANCEL) };
 assert.equal(adminItem.workflowStatus, STATUS.CANCELLED, "an admin can still cancel a flagged item outright, regardless of who created it");
+
+// --- Scenario F: an admin's Mark as Paid supersedes the usual confirm-first
+// order - it can finalize an item the customer hasn't confirmed yet, and the
+// oldest-first credit sweep does the same when enough credit is on file. ---
+let unconfirmed = {
+  id: "t5", userId: "u1", total: 90, createdDate: "2026-07-10",
+  workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
+};
+unconfirmed = { ...unconfirmed, workflowStatus: nextStatusFor(unconfirmed.workflowStatus, ROLE.ADMIN, ACTION.MARK_AS_PAID) };
+assert.equal(unconfirmed.workflowStatus, STATUS.PAID_FINALIZED, "admin Mark as Paid finalizes an unconfirmed item directly");
+
+const stillUnconfirmed = {
+  id: "t6", userId: "u1", total: 90, createdDate: "2026-07-10",
+  workflowStatus: STATUS.PENDING_USER_CONFIRMATION,
+};
+const planF = paymentAllocationPlan([stillUnconfirmed], 90);
+assert.deepEqual(planF.settledIds, ["t6"], "the oldest-first credit sweep also settles an unconfirmed item, given enough credit");
+
+// --- Scenario G: resetting a payment CLAIM (not the item's own
+// confirmation) lands back on Confirmed - unpaid, not all the way back at
+// Awaiting confirmation - the customer already confirmed this item once,
+// before ever reporting payment on it. ---
+let reported = {
+  id: "t7", userId: "u1", total: 70, createdDate: "2026-07-11",
+  workflowStatus: STATUS.CONFIRMED_UNPAID,
+};
+reported = { ...reported, workflowStatus: nextStatusFor(reported.workflowStatus, ROLE.USER, ACTION.MARK_AS_PAID) };
+assert.equal(reported.workflowStatus, STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION);
+reported = { ...reported, workflowStatus: nextStatusFor(reported.workflowStatus, ROLE.ADMIN, ACTION.RESET) };
+assert.equal(reported.workflowStatus, STATUS.CONFIRMED_UNPAID, "Reset undoes the payment claim only, not the item's own confirmation");
+const rowsG = accounting([user], [], [reported], [], []);
+assert.equal(rowsG.find((r) => r.userId === "u1").snackTotal, 70, "still counts toward balance - it's confirmed, just unpaid again");
 
 console.log("transaction lifecycle regression checks passed");

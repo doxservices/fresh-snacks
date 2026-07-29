@@ -95,7 +95,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260727-revert-payment-card"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260727-revert-payment-card"></script>
+  <script src="js/firebase-admin.js?v=20260727-mark-paid-supersede"></script>
   <script src="js/admin-notifications.js?v=20260727-notif-nav"></script>
   <script src="js/admin-modals.js?v=20260727-vertical-uploads"></script>
   <script>
@@ -174,7 +174,7 @@
       if (actions.includes("REVIEW_PAYMENT")) menuItems.push(`<button data-act="txn-review-payment">Review payment</button>`);
       if (actions.includes("REJECT_PAYMENT_CLAIM")) menuItems.push(`<button class="danger" data-act="txn-reject-payment">Reject claim</button>`);
       if (actions.includes("EDIT") || actions.includes("EDIT_AND_RESEND")) menuItems.push(`<button data-act="txn-edit">Change</button>`);
-      if (actions.includes("RESET")) menuItems.push(`<button data-act="txn-reset">Reset to Awaiting</button>`);
+      if (actions.includes("RESET")) menuItems.push(`<button data-act="txn-reset">Reset</button>`);
       if (actions.includes("CANCEL")) menuItems.push(`<button class="danger" data-act="txn-cancel">Void</button>`);
       if (hasPerm("deleteTransaction")) menuItems.push(`<button class="danger" data-act="txn-delete">Delete</button>`);
 
@@ -541,9 +541,17 @@
           if (!result) return;
           await FS.admin.updateTransaction(row.dataset.id, result);
         } else if (act === "txn-reset") {
+          const t = SNAPSHOT.transactions.find((x) => (x.transactionId || x.id) === row.dataset.id);
+          // Only a payment CLAIM is in question at these two statuses - the
+          // item was already confirmed before it ever got here, so Reset
+          // undoes just the claim (back to Confirmed/Mark as Paid) rather
+          // than also asking the customer to re-confirm the item itself.
+          const undoesPaymentClaimOnly = t && (t.workflowStatus === "PAYMENT_PENDING_ADMIN_CONFIRMATION" || t.workflowStatus === "PAYMENT_UNDER_REVIEW");
           const ok = await AdminModals.confirm(
-            "Reset this listing to Awaiting?",
-            "The listing itself is unchanged - it just goes back to awaiting the customer's confirmation.",
+            "Reset this listing?",
+            undoesPaymentClaimOnly
+              ? "Undoes the payment claim only - the listing stays confirmed and goes back to awaiting payment."
+              : "The listing itself is unchanged - it just goes back to awaiting the customer's confirmation.",
             { confirmText: "Reset" }
           );
           if (!ok) return;

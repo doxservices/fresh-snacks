@@ -38,18 +38,27 @@ assert.deepEqual(paymentAllocationPlan(withExistingSettlement, 450), {
   paidTotal: 450,
 });
 
-// New behavior: an admin-added item still awaiting the user's own
-// confirmation is NOT eligible for auto-settlement, even though there's
-// more than enough payment on file to cover it - it must be confirmed
-// first. This is the actual behavior change the new workflow spec asks for.
+// Product decision: a payment supersedes the usual confirm-first order - an
+// admin-added item still awaiting the user's own confirmation IS eligible
+// for auto-settlement, oldest-first same as everything else. Here the
+// unconfirmed item is also the OLDER one, so it settles first and eats the
+// whole $500, leaving nothing for the newer already-confirmed item.
 const withUnconfirmed = [
   { id: "unconfirmed", total: 500, workflowStatus: STATUS.PENDING_USER_CONFIRMATION, createdDate: "2026-07-01" },
   { id: "confirmed", total: 100, workflowStatus: STATUS.CONFIRMED_UNPAID, createdDate: "2026-07-02" },
 ];
 assert.deepEqual(paymentAllocationPlan(withUnconfirmed, 500), {
-  settledIds: ["confirmed"],
-  credit: 400,
+  settledIds: ["unconfirmed"],
+  credit: 0,
   paidTotal: 500,
+});
+
+// Same set, but with enough to cover both - oldest (unconfirmed) still
+// settles first, then the newer confirmed one, in ascending date order.
+assert.deepEqual(paymentAllocationPlan(withUnconfirmed, 600), {
+  settledIds: ["unconfirmed", "confirmed"],
+  credit: 0,
+  paidTotal: 600,
 });
 
 // A disputed (ITEM_UNDER_REVIEW) transaction is likewise excluded from

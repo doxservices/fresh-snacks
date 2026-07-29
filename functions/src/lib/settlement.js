@@ -41,7 +41,12 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
   const now = FieldValue.serverTimestamp();
   for (const id of plan.settledIds) {
     const current = deriveWorkflowStatus(byId.get(id));
-    const action = current === STATUS.CONFIRMED_UNPAID ? ACTION.MARK_AS_PAID : ACTION.CONFIRM_PAYMENT;
+    // PENDING_USER_CONFIRMATION and CONFIRMED_UNPAID both finalize via
+    // MARK_AS_PAID (a payment superseding the confirm-first order is exactly
+    // what makes an unconfirmed item settlement-eligible at all here - see
+    // SETTLEMENT_ELIGIBLE in ./shared.js); PAYMENT_PENDING_ADMIN_CONFIRMATION
+    // already has a reported payment claim to confirm instead.
+    const action = current === STATUS.PAYMENT_PENDING_ADMIN_CONFIRMATION ? ACTION.CONFIRM_PAYMENT : ACTION.MARK_AS_PAID;
     const next = assertTransition(current, ROLE.ADMIN, action);
     batch.update(db().collection("transactions").doc(id), {
       workflowStatus: next,

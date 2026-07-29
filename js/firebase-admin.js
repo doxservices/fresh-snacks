@@ -172,8 +172,9 @@ FS.admin.recordPermanentPayment = async ({ userId, amount, note, createdDate }) 
 FS.admin.reconcilePayments = async () =>
   FS._apiFetch("/admin/payments/reconcile", { method: "POST" });
 
-// Admin directly records a confirmed-unpaid listing as paid (e.g. cash
-// handed over on the spot) - finalizes immediately.
+// Admin directly records a listing as paid (e.g. cash handed over on the
+// spot) - finalizes immediately, even one still awaiting the customer's own
+// confirmation (an admin's Mark as Paid supersedes that order on purpose).
 FS.admin.markTransactionPaid = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/mark-paid`, { method: "POST" });
 };
@@ -201,9 +202,12 @@ FS.admin.deleteTransaction = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
 
-// "Do nothing to the record, just put it back in the user's hands to
-// confirm" - reverts to PENDING_USER_CONFIRMATION with no quantity/date/
-// price change, unlike Edit/Edit and Resend.
+// "Undo whatever step is in question, with no quantity/date/price change"
+// (unlike Edit/Edit and Resend) - from CONFIRMED_UNPAID/ITEM_UNDER_REVIEW
+// that's the item's own confirmation, reverting to PENDING_USER_CONFIRMATION;
+// from either payment-dispute status it's only the payment CLAIM, reverting
+// to CONFIRMED_UNPAID instead, since the item itself was already confirmed
+// before it ever got there (see functions/src/lib/transactionStatus.js).
 FS.admin.resetTransaction = async (id) => {
   await FS._apiFetch(`/admin/transactions/${encodeURIComponent(id)}/reset`, { method: "POST" });
 };
