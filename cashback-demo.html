@@ -33,9 +33,12 @@
     .demo-field input {
       width: 140px;
     }
+    /* Downward list, not a wrapped row - the specific time within a day
+       doesn't matter for these, just which date you want to preview. */
     .demo-jump-row {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
+      align-items: flex-start;
       gap: 8px;
       margin-bottom: 4px;
     }
@@ -105,7 +108,7 @@
       font-size: 14px;
       padding: 6px 0;
     }
-    /* Credit earned is its own persistent card right alongside Current
+    /* Shop credit is its own persistent card right alongside Current
        balance - always visible starting at $0, not something that
        appears/disappears with payment state, since the whole point is to
        watch it accumulate across repeated test cycles. */
@@ -121,11 +124,11 @@
       font-size: 11px;
       font-weight: 700;
     }
-    .demo-card-tag.not-refundable {
-      background: rgba(214, 130, 30, 0.16);
-      color: #8a5a12;
+    .demo-card-tag.redeemable {
+      background: var(--green-light);
+      color: var(--green-dark);
     }
-    /* Current balance and Credit earned are both always visible - the
+    /* Current balance and Shop credit are both always visible - the
        shared .brand-stats grid uses minmax(140px, 1fr), which would let
        these stretch wide on a big screen. Capping the column width keeps
        them a conservative, consistent size. */
@@ -150,10 +153,12 @@
 
     <p class="demo-banner">
       This is a test/demo page only - a self-contained simulation, not connected to any real
-      account or Firestore data. The clock only runs through each day's 8am-3pm window (8 bricks),
-      jumping straight to the next day's 8am once one closes - 2 real seconds per brick, so one
-      day's window plays out in 16 seconds. Past 4 days it loops into a fresh cycle automatically
-      so testing can continue - nothing reverts to the starting state until you hit Reset.
+      account or Firestore data. Cashback runs on a fixed 7am-3pm window every day (8 one-hour
+      segments) - the same schedule for every customer, regardless of when they actually made
+      their purchase or payment. A rate reached by 3pm holds steady overnight until 7am the next
+      day - 2 real seconds per segment, so one day's window plays out in 16 seconds. Past 4 days
+      it loops into a fresh cycle automatically so testing can continue - nothing reverts to the
+      starting state until you hit Reset.
     </p>
 
     <section class="card section-card">
@@ -166,18 +171,20 @@
         <button type="button" class="primary" id="demo-play">Play</button>
         <button type="button" id="demo-pause">Pause</button>
         <button type="button" id="demo-reset">Reset</button>
+        <button type="button" id="demo-add-balance">Add $100 to balance</button>
+        <button type="button" class="primary" id="demo-pay-now">Pay in full now</button>
       </div>
-      <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting:</p>
+      <div class="demo-result" id="demo-result"></div>
+      <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting - the specific time doesn't matter, just the date:</p>
       <div class="demo-jump-row">
-        <button type="button" data-jump="0">Day 1 - 10% (window opens)</button>
-        <button type="button" data-jump="4">Day 1 - 10% (midday)</button>
+        <button type="button" data-jump="0">Day 1 - 10%</button>
         <button type="button" data-jump="8">Day 2 - 5%</button>
         <button type="button" data-jump="16">Day 3 - expired</button>
         <button type="button" data-jump="24">Day 4 - expired</button>
       </div>
     </section>
 
-    <!-- Credit earned sits right alongside Current balance as a permanent
+    <!-- Shop credit sits right alongside Current balance as a permanent
          part of the same account-summary strip, starting at $0 and
          accumulating as cashback is earned across test cycles. -->
     <div class="brand-stats" id="demo-stats-row" style="margin-bottom:6px;">
@@ -186,13 +193,13 @@
         <div class="stat-value" id="demo-stat-balance">–</div>
       </div>
       <div class="stat-box demo-credit-card" id="demo-credit-card">
-        <div class="stat-label">Credit earned</div>
+        <div class="stat-label">Shop credit</div>
         <div class="stat-value" id="demo-ledger-credit-amount">$0</div>
-        <span class="demo-card-tag not-refundable" title="Credits can only be used toward future snacks - never refunded as cash">Not refundable</span>
+        <span class="demo-card-tag redeemable" title="Shop credit can be applied once a single purchase totals $300 or more">Redeemable on purchase of $300 or more</span>
       </div>
     </div>
 
-    <div class="demo-clock" id="demo-clock">Day 1 · 8:00 AM</div>
+    <div class="demo-clock" id="demo-clock">Day 1 · 7:00 AM</div>
     <div class="demo-day-bar" id="demo-day-bar"></div>
     <p class="demo-stage-label" id="demo-stage-label"></p>
 
@@ -217,11 +224,6 @@
     <p class="demo-cashback-expired hidden" id="demo-expired-note">
       No cashback available right now - it's been more than two days since the balance opened.
     </p>
-
-    <section class="card section-card">
-      <button type="button" class="primary" id="demo-pay-now">Pay in full now</button>
-      <div class="demo-result" id="demo-result"></div>
-    </section>
   </main>
 
   <script>
@@ -232,15 +234,15 @@
     // sync by hand since this static demo has no build step to share it
     // directly with the Cloud Functions source.
     const TIER_RATES = { 0: 0.10, 1: 0.05 };
-    // The daily window is 8am-3pm, split into 8 equal "bricks" (each one
-    // ~52.5 simulated minutes) rather than one segment per literal clock
-    // hour - the clock only ever runs inside this window, jumping straight
-    // from one day's 3pm to the next day's 8am, since nothing interesting
-    // happens overnight and there's no reason to sit and watch it.
-    const WINDOW_START_HOUR = 8;
+    // Fixed daily window, 7am-3pm, one segment per literal clock hour - the
+    // same schedule for every customer no matter when they actually made
+    // their purchase or payment. The clock jumps straight from one day's
+    // 3pm to the next day's 7am; the tier reached by 3pm holds steady
+    // through that overnight gap until the window reopens.
+    const WINDOW_START_HOUR = 7;
     const WINDOW_END_HOUR = 15;
     const SEGMENT_COUNT = 8;
-    const SEGMENT_HOURS = (WINDOW_END_HOUR - WINDOW_START_HOUR) / SEGMENT_COUNT;
+    const SEGMENT_HOURS = (WINDOW_END_HOUR - WINDOW_START_HOUR) / SEGMENT_COUNT; // 1 hour per segment
     const MS_PER_SEGMENT = 2000; // 2 real seconds per brick
     // A "cycle" is 4 simulated days: day 1 (10%), day 2 (5%), then day 3 and
     // day 4 sit expired. Once a cycle finishes it wraps straight into a new
@@ -264,13 +266,18 @@
       return `Day ${dayIndex + 1} · ${hour12}:${String(minute).padStart(2, "0")} ${period}`;
     }
 
+    // The balance input is the single source of truth for what's owed -
+    // paying zeroes it directly and Add $100 adds to it directly, rather
+    // than tracking a separate "paid" flag that masks the real number.
+    // That's what lets a fresh charge after paying show correctly instead
+    // of just re-adding on top of a balance that was never actually zeroed.
+    const DEFAULT_BALANCE = Number($("demo-balance-input").value || 0);
     let tick = 0; // bricks elapsed in the current cycle
     let timer = null;
-    let paid = false;
     let creditEarned = 0; // cumulative across cycles - only Reset clears this
 
     function currentBalance() {
-      return paid ? 0 : Number($("demo-balance-input").value || 0);
+      return Number($("demo-balance-input").value || 0);
     }
 
     function renderDayBar(segment, tier) {
@@ -295,31 +302,32 @@
       const stageLabels = { 1: "Stage: Day 1 - the best rate", 2: "Stage: Day 2 - last chance", 0: "Stage: expired - no cashback left" };
       $("demo-stage-label").textContent = stageLabels[tier] || "";
 
-      const showCard = !paid && balance > 0 && tier > 0;
+      const showCard = balance > 0 && tier > 0;
       $("demo-cashback-card").classList.toggle("hidden", !showCard);
-      $("demo-expired-note").classList.toggle("hidden", paid || balance <= 0 || tier > 0);
+      $("demo-expired-note").classList.toggle("hidden", balance <= 0 || tier > 0);
 
       if (showCard) {
         const pct = Math.round(rate * 100);
         $("demo-badge").textContent = `${pct}% cash back`;
-        $("demo-title").textContent = tier === 1 ? "Clear your balance today" : "Last chance - clear your balance today";
+        $("demo-title").textContent = tier === 1 ? "Clear your balance before 3pm today" : "Last chance before 3pm today";
         $("demo-body").textContent = tier === 1
-          ? `Pay your whole balance in full today and get ${pct}% credited back to your account.`
-          : `Yesterday's 10% window closed - clear your whole balance in full today for ${pct}% back, or it's gone for good.`;
+          ? `Pay your whole balance in full before 3pm and get ${pct}% credited back as shop credit.`
+          : `The rate dropped to ${pct}% overnight and holds until 3pm - clear your whole balance in full before then, or it's gone for good.`;
         $("demo-balance-amount").textContent = money(balance);
         $("demo-earn-amount").textContent = money(balance * rate);
       }
 
-      $("demo-pay-now").disabled = paid || balance <= 0;
+      $("demo-pay-now").disabled = balance <= 0;
     }
 
     function advance() {
       tick += 1;
       if (tick >= CYCLE_TICKS) {
         // Continue on into a new cycle instead of stopping - the balance
-        // reopens (paid resets) but credit earned keeps accumulating.
+        // is untouched (whatever was paid off or added stays that way),
+        // only the day count wraps back to Day 1; credit earned keeps
+        // accumulating regardless.
         tick = 0;
-        paid = false;
       }
       render();
     }
@@ -356,7 +364,7 @@
     function reset() {
       pause();
       tick = 0;
-      paid = false;
+      $("demo-balance-input").value = DEFAULT_BALANCE;
       clearResult();
       render();
     }
@@ -369,8 +377,8 @@
     document.querySelectorAll("[data-jump]").forEach((btn) => {
       btn.onclick = () => {
         pause();
-        paid = false;
         clearResult();
+        $("demo-balance-input").value = DEFAULT_BALANCE;
         tick = Number(btn.dataset.jump);
         render();
       };
@@ -378,22 +386,32 @@
 
     $("demo-balance-input").addEventListener("input", render);
 
-    // Paying doesn't end the demo - it just zeroes the balance for the
-    // rest of this cycle. Credit earned accumulates on top of whatever it
-    // already held; the balance itself reopens once the cycle wraps, so
-    // play can be resumed to keep testing further cycles.
+    // Simulates a new purchase landing on the tab while the routine is
+    // running - adds straight onto whatever balance is currently showing,
+    // even if this cycle's balance was already paid down to $0.
+    $("demo-add-balance").onclick = () => {
+      const input = $("demo-balance-input");
+      input.value = Number(input.value || 0) + 100;
+      render();
+    };
+
+    // Paying doesn't end the demo - it just zeroes the balance. Shop
+    // credit accumulates on top of whatever it already held; the balance
+    // stays at $0 until a new charge (Add $100) or a restart (Reset/jump)
+    // brings it back, so play can be resumed to keep testing further
+    // cycles in the meantime.
     $("demo-pay-now").onclick = () => {
       const dayIndex = Math.floor(tick / SEGMENT_COUNT);
       const { rate, tier } = tierForDayIndex(dayIndex);
       const balance = currentBalance();
       const cashback = tier > 0 ? balance * rate : 0;
-      paid = true;
+      $("demo-balance-input").value = 0;
       pause();
 
       const result = $("demo-result");
       result.className = tier > 0 ? "demo-result show win" : "demo-result show lose";
       result.textContent = tier > 0
-        ? `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back earned. See Credit earned above.`
+        ? `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back earned. See Shop credit above.`
         : `Paid ${money(balance)} in full - no cashback this time, the window already closed.`;
 
       if (cashback > 0) {

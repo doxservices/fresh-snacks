@@ -1,5 +1,36 @@
 # Development notes
 
+## Cashback demo: fixed 7am-3pm window, Add $100, controls reorganized (2026-07-29)
+
+- Window moved from 8am-3pm to a fixed 7am-3pm daily schedule, one segment
+  per literal clock hour (was ~52.5-minute "bricks") - the same schedule
+  for every customer regardless of when they actually made their purchase
+  or payment, not an individually-offset window.
+- Added an "Add $100 to balance" button to simulate a new purchase landing
+  on the tab while the routine runs. This exposed a real bug in how the
+  balance was tracked: `currentBalance()` used to return `paid ? 0 :
+  input.value`, so paying never actually zeroed the input - it just masked
+  it behind the `paid` flag. Adding $100 after paying off $500 showed
+  $600 instead of $100, since the mask hid the stale $500 still sitting in
+  the field. Fixed by making the balance input the single source of truth
+  - paying zeroes it directly, Add $100 adds to it directly - and dropped
+  the now-redundant `paid` flag entirely (`balance <= 0` already covers
+  every case it used to gate). Reset and the stage-jump buttons now
+  explicitly restore the balance to its original starting value; cycling
+  automatically no longer touches the balance at all, so it stays exactly
+  where it was left (paid off, or topped up) until an explicit action
+  changes it.
+- Reorganized Simulation controls: "Pay in full now" moved up alongside
+  Play/Pause/Reset/Add $100 instead of sitting in its own section further
+  down. Stage-jump buttons collapsed from 5 (two of which only differed by
+  a within-day time that doesn't matter) down to one per date, and now
+  list downward instead of wrapping in a row.
+- Card labels: "Credit earned" renamed to "Shop credit"; its subtext
+  changed from "Not refundable" to "Redeemable on purchase of $300 or
+  more," reframed as a positive (green) note instead of a restriction.
+- Demo-only (`cashback-demo.html`) - no changes to the real app's actual
+  cashback settlement logic.
+
 ## Cashback demo: drop Cash card, persistent Credit card, loop into new cycles (2026-07-29)
 
 - Removed the Cash received card entirely - Credit earned is now the only
