@@ -1,5 +1,21 @@
 # Development notes
 
+## Cashback demo: test-banner as a sticky full-width bar (2026-07-29)
+
+- Moved the "this is a test/demo page" notice out of `.page` (which is
+  centered with a max-width) to be a direct child of `<body>`, ahead of
+  everything else including the header - so it's now full-width,
+  edge-to-edge, and the very first thing on the page instead of a rounded
+  card sitting below the header.
+- Made it `position: sticky; top: 0` so it stays pinned at the top of the
+  viewport as the rest of the page scrolls underneath - confirmed with the
+  user that only the banner should behave this way, not the whole page
+  (there's too much content - controls, stats, clock/bar, cashback card -
+  to fit one viewport without a scrollbar somewhere).
+- Dropped the border-radius entirely - it's a bar/tag now, not a card.
+- Demo-only (`cashback-demo.html`) - no changes to the real app or shared
+  `styles.css`.
+
 ## Cashback demo: fixed 7am-3pm window, Add $100, controls reorganized (2026-07-29)
 
 - Window moved from 8am-3pm to a fixed 7am-3pm daily schedule, one segment

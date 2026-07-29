@@ -8,14 +8,24 @@
   <style>
     /* Demo-only styles - not part of the real app, so scoped to this page
        rather than added to styles.css. */
+    /* Test/demo notice - a full-width tag/bar pinned to the very top of the
+       viewport (a sibling of .page, not inside it, so it isn't constrained
+       to the page's centered max-width). Sticky rather than fixed so it
+       still reserves its own space in the flow - no border-radius, this is
+       an edge-to-edge bar, not a card. */
     .demo-banner {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
       background: #fbf4df;
-      border: 1px solid #d9bf72;
+      border: none;
+      border-bottom: 1px solid #d9bf72;
       color: #725313;
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      padding: 8px 16px;
       font-size: 13px;
-      margin-bottom: 14px;
+      text-align: center;
+      margin: 0;
     }
     .demo-controls {
       display: flex;
@@ -138,6 +148,15 @@
   </style>
 </head>
 <body>
+  <p class="demo-banner">
+    This is a test/demo page only - a self-contained simulation, not connected to any real account
+    or Firestore data. Cashback runs on a fixed 7am-3pm window every day (8 one-hour segments) - the
+    same schedule for every customer, regardless of when they actually made their purchase or
+    payment. A rate reached by 3pm holds steady overnight until 7am the next day - 2 real seconds
+    per segment, so one day's window plays out in 16 seconds. Past 4 days it loops into a fresh
+    cycle automatically so testing can continue - nothing reverts to the starting state until you
+    hit Reset.
+  </p>
   <main class="page">
     <header>
       <div class="header-row">
@@ -150,16 +169,6 @@
         </div>
       </div>
     </header>
-
-    <p class="demo-banner">
-      This is a test/demo page only - a self-contained simulation, not connected to any real
-      account or Firestore data. Cashback runs on a fixed 7am-3pm window every day (8 one-hour
-      segments) - the same schedule for every customer, regardless of when they actually made
-      their purchase or payment. A rate reached by 3pm holds steady overnight until 7am the next
-      day - 2 real seconds per segment, so one day's window plays out in 16 seconds. Past 4 days
-      it loops into a fresh cycle automatically so testing can continue - nothing reverts to the
-      starting state until you hit Reset.
-    </p>
 
     <section class="card section-card">
       <h2>Simulation controls</h2>
