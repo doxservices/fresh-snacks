@@ -1,5 +1,32 @@
 # Development notes
 
+## Cashback demo: restore the reverse-drain timeline bar (2026-07-30)
+
+- Confirmed with the user which of two behaviors that changed when the
+  redesign package was adopted should be kept vs. reverted:
+  - Jump-to-day leaving balance/shop credit untouched (only Reset clears
+    them) - **keep as-is**, that stays.
+  - The timeline bar's fill direction - **revert**. The package's
+    `renderTimeline()` filled segments up left-to-right as the day
+    elapsed (`index <= segmentIndex` → `.is-complete`), a standard
+    progress bar. The original hand-rolled demo used the opposite "reverse
+    loading bar": every segment starts lit (colored) and fades to spent
+    as each hour passes, so the bar visually drains rather than fills -
+    `remaining = SEGMENTS_PER_DAY - segmentIndex; spent = index >=
+    remaining`. Restored that exact formula, renamed the CSS/JS around it
+    from `is-complete` to `is-spent` (default is now lit; `.is-spent`
+    overrides to the faded tone), and reinstated the expired-day gray
+    tint (`.is-expired-day`) the original also had, which the package's
+    version had dropped. Fixed the static HTML's hardcoded initial state
+    (`is-complete` on the first segment, `aria-valuenow="1"`) to match the
+    new default (nothing spent yet, `aria-valuenow="8"` remaining).
+- Verified with a headless-Chrome test reading the segments' actual
+  classes tick by tick: Day 1 starts fully lit, the rightmost segment
+  fades first and the faded region grows leftward each hour, and jumping
+  to an expired day (3 or 4) correctly tints the whole bar gray. Re-ran
+  the full play/pay/add/jump/reset smoke test too - zero console errors,
+  balance/credit behavior unchanged.
+
 ## Cashback demo: fix ghosted double borders from stretched background SVGs (2026-07-30)
 
 - User-reported bug: "buttons sat on top of images and overlays that are

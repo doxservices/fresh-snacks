@@ -264,9 +264,12 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .timeline { margin-top: 18px; }
 .timeline__segments { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
-.timeline__segment { height: 11px; border-radius: 999px; background: #e8e4dc; transition: background 220ms ease, transform 220ms ease, box-shadow 220ms ease; }
-.timeline__segment.is-complete { background: linear-gradient(90deg, var(--gold-600), var(--gold-500)); }
+.timeline__segment { height: 11px; border-radius: 999px; background: linear-gradient(90deg, var(--gold-600), var(--gold-500)); transition: background 220ms ease, transform 220ms ease, box-shadow 220ms ease; }
+.timeline__segment.is-spent { background: #e8e4dc; }
+.timeline__segment.is-expired-day { background: #9aa39d; }
+.timeline__segment.is-expired-day.is-spent { background: rgba(154, 163, 157, 0.35); }
 .timeline__segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 3px rgba(226,154,16,.15); }
+.timeline__segment.is-expired-day.is-current { box-shadow: 0 0 0 3px rgba(154,163,157,.25); }
 .timeline-caption { margin: 8px 0 0; color: var(--ink-600); text-align: center; font-size: 0.86rem; }
 .timeline-caption strong { color: var(--ink-700); }
 

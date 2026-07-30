@@ -161,14 +161,21 @@
     }
   }
 
+  // A "reverse loading bar" - every segment starts lit (the whole day still
+  // ahead) and fades to spent as each simulated hour passes, rather than
+  // filling up from empty. Mirrors the real feature's original hourly-
+  // deadline visualization, kept here since it's still a clear way to
+  // *watch* time run out rather than watch it accumulate.
   function renderTimeline() {
-    const completedCount = state.segmentIndex + 1;
+    const remaining = SEGMENTS_PER_DAY - state.segmentIndex;
+    const expiredDay = currentRate() === 0;
     elements.timelineSegments.forEach((segment, index) => {
-      segment.classList.toggle('is-complete', index <= state.segmentIndex);
+      segment.classList.toggle('is-spent', index >= remaining);
+      segment.classList.toggle('is-expired-day', expiredDay);
       segment.classList.toggle('is-current', index === state.segmentIndex);
     });
-    elements.timeline.setAttribute('aria-valuenow', String(completedCount));
-    elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, segment ${completedCount} of ${SEGMENTS_PER_DAY}`);
+    elements.timeline.setAttribute('aria-valuenow', String(remaining));
+    elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining`);
   }
 
   function renderPromo() {
