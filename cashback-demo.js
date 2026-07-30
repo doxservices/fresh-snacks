@@ -10,10 +10,10 @@
   const SEGMENTS_PER_DAY = 8;
   const DAY_RATES = [0.10, 0.05, 0, 0];
   const DAY_STAGES = [
-    'Day 1 — best cashback rate',
-    'Day 2 — reduced cashback rate',
-    'Day 3 — cashback expired',
-    'Day 4 — cashback expired'
+    'Day 1 - the best rate',
+    'Day 2 - last chance',
+    'expired - no cashback left',
+    'expired - no cashback left'
   ];
 
   const elements = {
@@ -25,12 +25,10 @@
     payButton: document.querySelector('#pay-button'),
     dayButtons: [...document.querySelectorAll('.day-button')],
     balanceValue: document.querySelector('#balance-value'),
-    balanceStatus: document.querySelector('#balance-status'),
     creditValue: document.querySelector('#credit-value'),
     dayLabel: document.querySelector('#day-label'),
     timeLabel: document.querySelector('#time-label'),
     stageLabel: document.querySelector('#stage-label'),
-    simulationStatus: document.querySelector('#simulation-status'),
     timeline: document.querySelector('#timeline'),
     timelineSegments: [...document.querySelectorAll('.timeline__segment')],
     promoCard: document.querySelector('#promo-card'),
@@ -95,8 +93,6 @@
     state.isPlaying = playing;
     elements.playButton.disabled = playing;
     elements.pauseButton.disabled = !playing;
-    elements.simulationStatus.classList.toggle('is-running', playing);
-    elements.simulationStatus.lastChild.textContent = playing ? ' Running' : ' Paused';
 
     if (playing && state.intervalId === null) {
       state.intervalId = window.setInterval(advanceSegment, SEGMENT_DURATION_MS);
@@ -201,16 +197,16 @@
       elements.promoTitle.textContent = 'No cashback is available today';
       elements.promoDescription.textContent = 'The promotional window has ended. Payments can still be completed, but no shop credit will be added.';
     } else if (state.dayIndex === 0) {
-      elements.cashbackRate.textContent = `${ratePercent}% cashback`;
-      elements.promoTitle.textContent = 'Clear your balance before 3 PM today';
-      elements.promoDescription.textContent = `Pay your full balance before 3 PM and receive ${ratePercent}% back as shop credit.`;
+      elements.cashbackRate.textContent = `${ratePercent}% cash back`;
+      elements.promoTitle.textContent = 'Clear your balance before 3pm today';
+      elements.promoDescription.textContent = `Pay your whole balance in full before 3pm and get ${ratePercent}% credited back as shop credit.`;
     } else {
       // Day 2 - the rate already stepped down overnight, and there's no
       // third chance after this: say so explicitly rather than repeating
       // Day 1's generic copy with a smaller number.
-      elements.cashbackRate.textContent = `${ratePercent}% cashback`;
-      elements.promoTitle.textContent = 'Last chance before 3 PM today';
-      elements.promoDescription.textContent = `The rate dropped to ${ratePercent}% overnight and holds until 3 PM - clear your whole balance in full before then, or it's gone for good.`;
+      elements.cashbackRate.textContent = `${ratePercent}% cash back`;
+      elements.promoTitle.textContent = 'Last chance before 3pm today';
+      elements.promoDescription.textContent = `The rate dropped to ${ratePercent}% overnight and holds until 3pm - clear your whole balance in full before then, or it's gone for good.`;
     }
   }
 
@@ -220,7 +216,6 @@
 
     elements.balanceValue.textContent = formatMoney(state.balance);
     elements.creditValue.textContent = formatMoney(state.shopCredit);
-    elements.balanceStatus.textContent = state.balance > 0 ? 'Outstanding balance' : 'Balance cleared';
     elements.dayLabel.textContent = `Day ${dayNumber}`;
     elements.timeLabel.textContent = formatTime(state.segmentIndex);
     elements.stageLabel.textContent = DAY_STAGES[state.dayIndex];

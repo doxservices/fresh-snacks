@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-redesign-package">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-1to1">
 </head>
 <body>
   <main class="app-shell">
@@ -40,7 +40,6 @@
         </span>
         <div>
           <h2 id="controls-title">Simulation controls</h2>
-          <p>Adjust the balance, run the schedule, or jump directly to a day.</p>
         </div>
       </header>
 
@@ -48,7 +47,6 @@
         <label class="field" for="starting-balance">
           <span>Starting balance</span>
           <span class="money-input">
-            <span aria-hidden="true">J$</span>
             <input id="starting-balance" type="number" min="0" step="1" value="500" inputmode="decimal">
           </span>
         </label>
@@ -68,7 +66,7 @@
           </button>
           <button class="button button--outline" id="add-balance-button" type="button">
             <img src="assets/cashback-demo/icons/svg/green/plus.svg" alt="">
-            <span>Add J$100</span>
+            <span>Add $100 to balance</span>
           </button>
           <button class="button button--primary" id="pay-button" type="button">
             <img src="assets/cashback-demo/icons/svg/white/card.svg" alt="">
@@ -80,30 +78,23 @@
       <div class="divider" aria-hidden="true"></div>
 
       <div class="jump-section">
-        <div>
-          <h2>Jump to a stage</h2>
-          <p>The date changes immediately; the clock returns to 7:00 AM.</p>
-        </div>
+        <p class="jump-section__hint">Jump straight to a stage instead of waiting - the specific time doesn't matter, just the date:</p>
         <div class="day-buttons" role="group" aria-label="Choose simulation day">
           <button class="day-button is-active" type="button" data-day="0" aria-pressed="true">
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
-            <span>Day 1</span>
-            <strong>10%</strong>
+            <span>Day 1 - 10%</span>
           </button>
           <button class="day-button" type="button" data-day="1" aria-pressed="false">
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
-            <span>Day 2</span>
-            <strong>5%</strong>
+            <span>Day 2 - 5%</span>
           </button>
           <button class="day-button" type="button" data-day="2" aria-pressed="false">
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
-            <span>Day 3</span>
-            <strong>Expired</strong>
+            <span>Day 3 - expired</span>
           </button>
           <button class="day-button" type="button" data-day="3" aria-pressed="false">
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
-            <span>Day 4</span>
-            <strong>Expired</strong>
+            <span>Day 4 - expired</span>
           </button>
         </div>
       </div>
@@ -117,7 +108,6 @@
         <div>
           <p>Current balance</p>
           <strong id="balance-value">J$500</strong>
-          <span id="balance-status">Ready for simulation</span>
         </div>
       </article>
 
@@ -128,21 +118,14 @@
         <div>
           <p>Shop credit</p>
           <strong id="credit-value">J$0</strong>
-          <span class="credit-rule">Redeemable on a purchase of J$300 or more</span>
+          <span class="credit-rule">Redeemable on purchase of $300 or more</span>
         </div>
       </article>
     </section>
 
     <section class="panel timeline-panel" aria-labelledby="timeline-title">
       <div class="timeline-header">
-        <div>
-          <p class="eyebrow">Current schedule</p>
-          <h2 id="timeline-title"><span id="day-label">Day 1</span> <span aria-hidden="true">·</span> <span id="time-label">7:00 AM</span></h2>
-        </div>
-        <span class="simulation-status" id="simulation-status">
-          <span class="status-dot" aria-hidden="true"></span>
-          Paused
-        </span>
+        <h2 id="timeline-title"><span id="day-label">Day 1</span> <span aria-hidden="true">·</span> <span id="time-label">7:00 AM</span></h2>
       </div>
 
       <div class="timeline" id="timeline" role="progressbar" aria-label="Daily cashback window" aria-valuemin="0" aria-valuemax="8" aria-valuenow="1">
@@ -156,11 +139,8 @@
           <span class="timeline__segment"></span>
           <span class="timeline__segment"></span>
         </div>
-        <div class="timeline__labels" aria-hidden="true">
-          <span>7 AM</span><span>8 AM</span><span>9 AM</span><span>10 AM</span><span>11 AM</span><span>12 PM</span><span>1 PM</span><span>3 PM</span>
-        </div>
       </div>
-      <p class="timeline-caption">Stage: <strong id="stage-label">Day 1 — best cashback rate</strong></p>
+      <p class="timeline-caption">Stage: <strong id="stage-label">Day 1 - the best rate</strong></p>
     </section>
 
     <section class="promo-card" id="promo-card" aria-labelledby="promo-title">
@@ -168,11 +148,11 @@
         <div class="promo-card__headline">
           <span class="cashback-pill" id="cashback-pill">
             <img src="assets/cashback-demo/icons/svg/white/star.svg" alt="">
-            <span id="cashback-rate">10% cashback</span>
+            <span id="cashback-rate">10% cash back</span>
           </span>
-          <h2 id="promo-title">Clear your balance before 3 PM today</h2>
+          <h2 id="promo-title">Clear your balance before 3pm today</h2>
         </div>
-        <p id="promo-description">Pay your full balance before 3 PM and receive 10% back as shop credit.</p>
+        <p id="promo-description">Pay your whole balance in full before 3pm and get 10% credited back as shop credit.</p>
 
         <div class="reward-summary">
           <div>
@@ -181,22 +161,16 @@
           </div>
           <img src="assets/cashback-demo/icons/svg/green/arrow_right.svg" alt="becomes">
           <div>
-            <span>You would earn back</span>
+            <span>You'd earn back</span>
             <strong class="reward-value" id="reward-value">J$50</strong>
           </div>
         </div>
-      </div>
-      <div class="promo-card__art" aria-hidden="true">
-        <div class="promo-card__art-ring">
-          <img src="assets/cashback-demo/icons/svg/gold/clock.svg" alt="">
-        </div>
-        <span>Before 3 PM</span>
       </div>
     </section>
 
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-redesign-package"></script>
+  <script src="cashback-demo.js?v=20260730-1to1"></script>
 </body>
 </html>

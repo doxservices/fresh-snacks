@@ -1,5 +1,42 @@
 # Development notes
 
+## Cashback demo: tightened to a 1:1 match against the reference image (2026-07-30)
+
+- The supplied redesign package nailed the visual style (colors, cards,
+  icons) but had drifted from the exact approved reference screenshot on
+  several copy/layout details - it turned out to be an independent
+  reconstruction, not a pixel-checked one. Compared side by side against
+  `assets/design-reference.png` (the same screenshot the whole rebuild was
+  supposed to match) and closed every gap:
+  - Removed subtitle text the reference doesn't have: "Adjust the balance,
+    run the schedule..." under Simulation controls, "The date changes
+    immediately..." under the jump section, "Ready for simulation" under
+    Current balance.
+  - Removed elements the reference doesn't show at all: the timeline's
+    "CURRENT SCHEDULE" eyebrow and Paused/Running status pill, the hour
+    labels under the segment bar, and the promo card's right-side
+    clock-in-a-ring art panel (the card is a single simple column there).
+  - Button/label text: "Add $100 to balance" (not "Add J$100"), day
+    buttons read as one line "Day 1 - 10%" instead of two justified
+    columns, "10% cash back" (two words, not "cashback"), "You'd earn
+    back" (not "You would earn back"), "Redeemable on purchase of $300 or
+    more" (not "on *a* purchase of *J*$300").
+  - Stage/promo copy reverted to the original plain-hyphen wording ("Day 1
+    - the best rate", "Clear your balance before 3pm today" - lowercase,
+    no space) instead of the package's "Day 1 — best cashback rate" /
+    "3 PM" em-dash style.
+  - Day-button alignment: left-aligned (icon + text hugging the left,
+    matching the reference), not centered.
+  - Removed the now-unused CSS this left behind (`.eyebrow`,
+    `.simulation-status`, `.status-dot`, `.timeline__labels`,
+    `.promo-card__art*`, the split grid columns on `.promo-card` and
+    `.jump-section`) and the JS that drove the removed elements
+    (`elements.balanceStatus`, `elements.simulationStatus`).
+- Re-verified with the same headless-Chrome smoke test as before (play/
+  pause, pay-in-full, Add $100, jump-to-day for each of the 4 days, reset)
+  - zero console errors, every displayed value and copy string matches the
+    reference exactly.
+
 ## Cashback demo: rebuilt from the supplied redesign package (2026-07-30)
 
 - Replaced the hand-rolled `cashback-demo.html` (inline SVG icons, CSS
