@@ -362,12 +362,20 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .timeline-header { text-align: center; }
 .timeline-header h2 { margin: 0; font-size: clamp(1.25rem, 2.4vw, 1.7rem); }
+.timeline-status { margin: 6px 0 0; color: var(--ink-600); font-size: 0.86rem; }
 
 .timeline { margin-top: 18px; }
 .timeline__segments { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
 .timeline__segment { height: 11px; border-radius: 999px; background: linear-gradient(90deg, var(--gold-600), var(--gold-500)); transition: background 220ms ease, transform 220ms ease, box-shadow 220ms ease; }
 .timeline__segment.is-spent { background: #e8e4dc; }
 .timeline__segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 3px rgba(226,154,16,.15); }
+
+/* Once nothing is earning a bonus, the bar keeps running (it's still a
+   live clock, hour by hour) but turns grey instead of disappearing - it
+   no longer represents a deadline, just the passage of time. */
+.timeline.is-inactive .timeline__segment { background: #cfd6d1; }
+.timeline.is-inactive .timeline__segment.is-spent { background: #e9ece9; }
+.timeline.is-inactive .timeline__segment.is-current { box-shadow: 0 0 0 3px rgba(90, 103, 96, 0.15); }
 
 .promo-card {
   margin-top: 22px;

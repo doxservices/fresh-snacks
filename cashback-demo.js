@@ -27,7 +27,7 @@
     creditValue: document.querySelector('#credit-value'),
     dayLabel: document.querySelector('#day-label'),
     timeLabel: document.querySelector('#time-label'),
-    timelinePanel: document.querySelector('#timeline-panel'),
+    timelineStatus: document.querySelector('#timeline-status'),
     timeline: document.querySelector('#timeline'),
     timelineSegments: [...document.querySelectorAll('.timeline__segment')],
     promoCard: document.querySelector('#promo-card'),
@@ -240,16 +240,15 @@
   // deadline visualization, kept here since it's still a clear way to
   // *watch* time run out rather than watch it accumulate.
   //
-  // The bar itself only means something while at least one charge is
-  // actively earning something - once every charge has expired (or
-  // there's no balance at all), showing a countdown implies there's still
-  // something to lose, which isn't true anymore. It disappears at that
-  // point; the promo card below still reminds the customer they have a
-  // balance to pay off either way.
+  // The bar is permanent - it never disappears and the day-by-day clock
+  // driving it never resets on its own (only Reset or a manual day-jump
+  // does that). Once nothing is currently earning a bonus, it just turns
+  // grey instead: still a live clock ticking through the day, just not
+  // representing a deadline anymore.
   function renderTimeline() {
     const stillEarning = state.charges.some((charge) => chargeRate(charge) > 0);
-    elements.timelinePanel.classList.toggle('hidden', !stillEarning);
-    if (!stillEarning) return;
+    elements.timeline.classList.toggle('is-inactive', !stillEarning);
+    elements.timelineStatus.classList.toggle('hidden', stillEarning);
 
     const remaining = SEGMENTS_PER_DAY - state.segmentIndex;
     elements.timelineSegments.forEach((segment, index) => {
@@ -260,7 +259,7 @@
       segment.classList.toggle('is-current', index === remaining - 1);
     });
     elements.timeline.setAttribute('aria-valuenow', String(remaining));
-    elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining`);
+    elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining${stillEarning ? '' : ' (no active bonus)'}`);
   }
 
   // One card per charge, living the whole time it's owed - it moves

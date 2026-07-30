@@ -1,5 +1,24 @@
 # Development notes
 
+## Cashback demo: the timeline bar is now permanent, greys out instead of disappearing (2026-07-30)
+
+- The hourly timeline bar used to hide completely once nothing was
+  earning a bonus (every charge expired, or no balance at all). It now
+  never hides - it's a constant, always-visible clock. Once nothing is
+  earning, it turns grey (`.timeline.is-inactive`) instead of vanishing,
+  with a small caption ("No active bonus right now - the clock keeps
+  running either way") explaining why, and keeps draining/refilling
+  through each simulated day exactly as before, just without the gold
+  urgency styling.
+- The underlying day-by-day clock (`state.absoluteDay`) already never
+  reset itself on its own - only Reset or a manual day-jump does that -
+  this change just stopped the BAR from visually implying otherwise by
+  disappearing.
+- Verified via headless Chrome: the bar stays visible and gold while a
+  charge is earning, turns grey with the caption once jumped to the
+  expired day, and stays grey/visible even after paying off the balance
+  down to $0 (previously would have hidden entirely in that case).
+
 ## Cashback demo: charges added in the same bonus period now aggregate (2026-07-30)
 
 - "Add $100 to balance" no longer always starts a new instance card - it
