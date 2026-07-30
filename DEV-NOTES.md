@@ -1,5 +1,26 @@
 # Development notes
 
+## Profile Information modal: auto-fill Display Name from first + last (2026-07-30)
+
+- `index.html`'s "Profile information" modal (`us-username`/`us-first`/
+  `us-last`) is the one place Display Name is a separate, independently-
+  typed field rather than always derived server-side - elsewhere (the
+  name-capture and invitee-name modals) only firstName/lastName are
+  collected and `PATCH /profile` already falls back to `firstName +
+  lastName` there when no displayName is sent.
+- Added client-side auto-fill: typing into First name or Last name now
+  live-updates Display Name to the combined value, as long as the
+  customer hasn't typed into Display Name themselves - one manual edit
+  there and it stops being overwritten for the rest of that modal
+  session (so an intentional nickname like "SnackFan" isn't clobbered by
+  a later name-field tweak). The manually-edited flag resets to false
+  whenever `renderUserSettings()` repopulates the fields from a fresh
+  profile load, so a later modal open starts auto-filling again.
+- Verified via headless Chrome (typing into the fields directly, no
+  backend needed since this is pure DOM/JS): first+last populates Display
+  Name, a manual Display Name edit sticks, and a further first-name edit
+  after that does not overwrite the manual value.
+
 ## Cashback demo: rebuilt on the per-margin model, for live testing before prod (2026-07-30)
 
 - The real backend change (below) is written, tested, and pushed to

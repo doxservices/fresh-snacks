@@ -1694,6 +1694,10 @@
       $id("us-last").value = me.lastName || "";
       $id("us-email").value = me.email || "";
       $id("us-phone").value = me.phone || "";
+      // A fresh load of the profile's own saved values isn't a "manual
+      // edit" of Display Name - only typing into that field directly from
+      // here on counts, so first/last name input can still auto-fill it.
+      usDisplayNameManuallyEdited = false;
       // An invitee (viewing/editing a tab through a link or session claim,
       // not their own identity) is already using an accountable tab someone
       // else opened - only the tab's own opener needs to supply email/phone
@@ -1763,6 +1767,23 @@
         await AppModals.alert("Could not de-link", e.message);
       }
     };
+
+    // Display Name defaults to "first + last" as soon as both are filled
+    // in, so most customers never have to type it separately - but once
+    // someone types into Display Name themselves (e.g. a nickname instead
+    // of their real name), that choice sticks for the rest of this modal
+    // session and stops being overwritten.
+    let usDisplayNameManuallyEdited = false;
+    $id("us-username").addEventListener("input", () => {
+      usDisplayNameManuallyEdited = true;
+    });
+    function syncDisplayNameFromParts() {
+      if (usDisplayNameManuallyEdited) return;
+      const combined = [$id("us-first").value.trim(), $id("us-last").value.trim()].filter(Boolean).join(" ");
+      if (combined) $id("us-username").value = combined;
+    }
+    $id("us-first").addEventListener("input", syncDisplayNameFromParts);
+    $id("us-last").addEventListener("input", syncDisplayNameFromParts);
 
     let linkCode = FS.getLinkCode();
 
