@@ -240,15 +240,18 @@
   // deadline visualization, kept here since it's still a clear way to
   // *watch* time run out rather than watch it accumulate.
   //
-  // The bar is permanent - it never disappears and the day-by-day clock
-  // driving it never resets on its own (only Reset or a manual day-jump
-  // does that). Once nothing is currently earning a bonus, it just turns
-  // grey instead: still a live clock ticking through the day, just not
-  // representing a deadline anymore.
+  // The bar itself is only useful while it's actually counting down
+  // something - once nothing is earning a bonus, it's hidden again rather
+  // than sitting there greyed out, and the space it leaves behind becomes
+  // a purchase prompt instead of a dead-end status message: a new charge
+  // added today still starts a fresh 10% window of its own, same as any
+  // other day, so there's always something actionable to say here even
+  // with no bar showing.
   function renderTimeline() {
     const stillEarning = state.charges.some((charge) => chargeRate(charge) > 0);
-    elements.timeline.classList.toggle('is-inactive', !stillEarning);
+    elements.timeline.classList.toggle('hidden', !stillEarning);
     elements.timelineStatus.classList.toggle('hidden', stillEarning);
+    elements.timelineStatus.textContent = "Purchase now for 10% cash back on today's order - a fresh discount period runs every day until 3pm.";
 
     const remaining = SEGMENTS_PER_DAY - state.segmentIndex;
     elements.timelineSegments.forEach((segment, index) => {

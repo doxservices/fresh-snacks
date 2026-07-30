@@ -1,5 +1,21 @@
 # Development notes
 
+## Cashback demo: revert to hiding the bar, but with a purchase-now CTA (2026-07-30)
+
+- Supersedes the immediately-prior "permanent grey bar" change, per
+  follow-up feedback after seeing it live: the bar (segments) is hidden
+  again once nothing is earning a bonus - it was only useful while it's
+  actually counting something down. The space it leaves behind now shows
+  a purchase-prompt CTA ("Purchase now for 10% cash back on today's order
+  - a fresh discount period runs every day until 3pm") instead of a
+  dead-end status line, since a brand-new charge today always starts its
+  own fresh 10% window regardless of what's happened to any existing
+  balance.
+- Styled the CTA as a pill/banner (`.timeline-status`, mint background)
+  rather than plain grey text, so it reads as an actionable prompt.
+- Verified via headless Chrome: bar shows (hidden CTA) while a charge is
+  still earning; bar hides and the CTA pill shows once expired.
+
 ## Cashback demo: the timeline bar is now permanent, greys out instead of disappearing (2026-07-30)
 
 - The hourly timeline bar used to hide completely once nothing was
