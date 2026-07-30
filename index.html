@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260730-expired-coupon" />
+  <link rel="stylesheet" href="styles.css?v=20260730-cashback-dashboard" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -36,6 +36,18 @@
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
+
+    <!-- Cash back bonuses, one per still-owed charge (see
+         computeBalanceInstances()) - same bell/panel design as the admin
+         notifications bell (admin-notifications-bell / .notif-item /
+         .notifications-modal in styles.css), reused here for a customer-
+         facing purpose. Clicking a row dismisses it (local only, see
+         CASHBACK_NOTIF_DISMISS_KEY) - it never touches Firestore or
+         changes what a payment actually earns. -->
+    <button type="button" class="admin-notifications-bell cashback-notifications-bell hidden" id="cashback-notifications-bell" aria-label="0 cash back notifications">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a5 5 0 0 0-5 5v3.2c0 .9-.35 1.77-.97 2.42L4.6 15.1c-.6.62-.17 1.65.7 1.65h13.4c.87 0 1.3-1.03.7-1.65l-1.43-1.48A3.5 3.5 0 0 1 17 11.2V8a5 5 0 0 0-5-5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span id="cashback-notifications-count" aria-hidden="true">0</span>
+    </button>
     <button type="button" class="primary account-signup hidden" id="us-signup">Sign up</button>
 
     <div id="page-body">
@@ -52,8 +64,11 @@
 
         <div class="brand-stats" id="brand-stats">
           <div class="stat-box balance-stat">
-            <div class="stat-label" id="stat-balance-label">Current balance</div>
-            <div class="stat-value" id="stat-balance">–</div>
+            <div class="stat-box-icon" aria-hidden="true"><img src="assets/cashback-demo/icons/svg/white/dollar.svg" alt=""></div>
+            <div class="stat-box-body">
+              <div class="stat-label" id="stat-balance-label">Current balance</div>
+              <div class="stat-value" id="stat-balance">–</div>
+            </div>
           </div>
         </div>
       </div>
@@ -508,6 +523,16 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="cashback-notifications-backdrop">
+    <div class="modal notifications-modal" role="dialog" aria-modal="true" aria-labelledby="cashback-notifications-title">
+      <button type="button" class="modal-close" id="cashback-notifications-close" aria-label="Close">&times;</button>
+      <h2 id="cashback-notifications-title">Cash back bonuses</h2>
+      <p class="muted-small">Each still-owed charge earns its own cash back based on the day it was added - click one to dismiss it.</p>
+      <p class="notifications-empty hidden" id="cashback-notifications-empty">Nothing to show right now.</p>
+      <div id="cashback-notifications-list"></div>
+    </div>
+  </div>
+
   <div class="cart-toast-stack" id="cart-toast-stack" role="status" aria-live="polite"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
@@ -822,6 +847,116 @@
       $id("cashback-expired-five").textContent = FS.money(missed.fivePercentAmount, cur);
     }
 
+    // Mirrors functions/src/lib/cashback.js's per-margin model (kept in
+    // sync by hand, same as cashback-demo.js) purely for this display -
+    // groups still-owed entries by the day they were added (same-day
+    // charges share a rate anyway, so grouping doesn't change any dollar
+    // figure) and works out each group's own 10%/5%/Expired stage.
+    const CASHBACK_LAUNCH_DATE = "2026-07-29";
+    const CASHBACK_TIER_RATES = [0.10, 0.05];
+    const CASHBACK_BUSINESS_UTC_OFFSET_HOURS = -5;
+    const CASHBACK_STILL_OWED = new Set([
+      FS.workflowStatus.PENDING_USER_CONFIRMATION,
+      FS.workflowStatus.CONFIRMED_UNPAID,
+      FS.workflowStatus.PAYMENT_PENDING_ADMIN_CONFIRMATION,
+      FS.workflowStatus.PAYMENT_UNDER_REVIEW,
+    ]);
+
+    function cashbackDaysSince(dateStr) {
+      if (!dateStr || dateStr < CASHBACK_LAUNCH_DATE || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const opened = Date.UTC(y, m - 1, d);
+      const local = new Date(Date.now() + CASHBACK_BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
+      const today = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+      return Math.round((today - opened) / 86400000);
+    }
+
+    function computeBalanceInstances(data) {
+      const owed = (data.entries || []).filter((e) => CASHBACK_STILL_OWED.has(e.workflowStatus) && e.date);
+      const byDate = new Map();
+      for (const entry of owed) {
+        byDate.set(entry.date, (byDate.get(entry.date) || 0) + Number(entry.value || 0));
+      }
+      return [...byDate.entries()]
+        .map(([date, amount]) => ({ date, amount, daysSince: cashbackDaysSince(date) }))
+        .filter((instance) => instance.daysSince != null)
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    // The customer-facing notification bell - same bell/panel design as
+    // the admin notifications bell (admin-notifications-bell / .notif-item
+    // / .notifications-modal in styles.css). One row per balance instance
+    // (see computeBalanceInstances), each showing a 10% -> 5% -> Expired
+    // stepper; clicking a row dismisses it locally (never touches
+    // Firestore, never affects what a payment actually earns).
+    const CASHBACK_NOTIF_DISMISS_KEY = "fresh_snacks_cashback_notifications_dismissed";
+    function getDismissedCashbackNotifs() {
+      try { return new Set(JSON.parse(localStorage.getItem(CASHBACK_NOTIF_DISMISS_KEY) || "[]")); }
+      catch (_) { return new Set(); }
+    }
+    function dismissCashbackNotif(key) {
+      const set = getDismissedCashbackNotifs();
+      set.add(key);
+      localStorage.setItem(CASHBACK_NOTIF_DISMISS_KEY, JSON.stringify([...set]));
+    }
+
+    function renderCashbackNotifications(data, isVisitor) {
+      const bell = $id("cashback-notifications-bell");
+      const cur = data.profile.currency;
+      const instances = isVisitor ? [] : computeBalanceInstances(data);
+      const dismissed = getDismissedCashbackNotifs();
+      const visible = instances.filter((instance) => !dismissed.has(instance.date));
+
+      bell.classList.toggle("hidden", visible.length === 0);
+      bell.setAttribute("aria-label", `${visible.length} cash back notification${visible.length === 1 ? "" : "s"}`);
+      $id("cashback-notifications-count").textContent = String(visible.length);
+
+      $id("cashback-notifications-empty").classList.toggle("hidden", visible.length > 0);
+      $id("cashback-notifications-list").innerHTML = visible.map((instance) => {
+        const stageIndex = Math.min(instance.daysSince, CASHBACK_TIER_RATES.length);
+        const stages = ["10%", "5%", "Expired"];
+        const stagesHtml = stages.map((label, index) => {
+          const cls = ["cashback-instance-stage"];
+          if (index < stageIndex) cls.push("is-past");
+          if (index === stageIndex) cls.push("is-current");
+          if (index === stageIndex && label === "Expired") cls.push("is-expired-stage");
+          return `<span class="${cls.join(" ")}">${label}</span>`;
+        }).join('<span class="cashback-instance-arrow" aria-hidden="true">&rsaquo;</span>');
+        return `
+          <div class="notif-item cashback-instance-row" data-date="${esc(instance.date)}">
+            <div class="notif-item-photo tone-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.5 9.8c0-1.1 1.1-2 2.5-2s2.5.7 2.5 1.8-1 1.6-2.5 2-2.5.9-2.5 2 1.1 1.8 2.5 1.8 2.5-.9 2.5-2"/></svg>
+            </div>
+            <div class="notif-item-body">
+              <div class="notif-item-title">${esc(FS.money(instance.amount, cur))}</div>
+              <div class="cashback-instance-stages">${stagesHtml}</div>
+            </div>
+            <button type="button" class="notif-dismiss" data-notif-dismiss aria-label="Dismiss">&times;</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    $id("cashback-notifications-bell").addEventListener("click", () => {
+      $id("cashback-notifications-backdrop").classList.add("show");
+    });
+    $id("cashback-notifications-close").addEventListener("click", () => {
+      $id("cashback-notifications-backdrop").classList.remove("show");
+    });
+    $id("cashback-notifications-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("cashback-notifications-backdrop")) $id("cashback-notifications-backdrop").classList.remove("show");
+    });
+    $id("cashback-notifications-list").addEventListener("click", (ev) => {
+      const row = ev.target.closest(".cashback-instance-row");
+      if (!row) return;
+      dismissCashbackNotif(row.dataset.date);
+      row.remove();
+      const remaining = $id("cashback-notifications-list").querySelectorAll(".cashback-instance-row").length;
+      $id("cashback-notifications-bell").classList.toggle("hidden", remaining === 0);
+      $id("cashback-notifications-count").textContent = String(remaining);
+      $id("cashback-notifications-empty").classList.toggle("hidden", remaining > 0);
+    });
+
     function render(data) {
       const cur = data.profile.currency;
       const t = FS.totals(data);
@@ -846,6 +981,7 @@
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
+      renderCashbackNotifications(data, isVisitor);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee

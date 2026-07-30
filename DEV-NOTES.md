@@ -1,5 +1,50 @@
 # Development notes
 
+## Port the demo's balance-instances into a real customer notification bell (2026-07-30)
+
+- Added a customer-facing "cash back bonuses" notification bell to
+  `index.html`, reusing the SAME visual design as the existing admin
+  notifications bell (`.admin-notifications-bell`, `.notifications-modal`,
+  `.notif-item`/`.notif-item-photo`/`.notif-item-body`/`.notif-dismiss` -
+  all already-global classes in `styles.css`, reused as-is rather than
+  duplicated) - positioned at `right: 84px` so it doesn't collide with
+  the existing `.basket-notification` button, which already sits at
+  `right: 18px`.
+- New `computeBalanceInstances(data)` in `index.html` ports the demo's
+  "balance instances" concept to real transaction data: groups every
+  still-owed entry (`FS.workflowStatus` PENDING_USER_CONFIRMATION/
+  CONFIRMED_UNPAID/PAYMENT_PENDING_ADMIN_CONFIRMATION/
+  PAYMENT_UNDER_REVIEW) by the day it was added (same-day entries share a
+  rate anyway, so grouping doesn't change any dollar figure - mirrors the
+  demo's same-period aggregation), and works out each group's own
+  10%/5%/Expired stage using the same LAUNCH_DATE/TIER_RATES constants as
+  `functions/src/lib/cashback.js` (kept in sync by hand, same as the demo
+  - this is display-only, doesn't touch or require the not-yet-deployed
+  backend cashback changes at all, since it's computed purely from
+  `data.entries`, which the API already returns today).
+- Each notification row shows the day-group's amount and a 3-step
+  10%/5%/Expired stepper (new `.cashback-instance-stage` classes, ported
+  from the demo's `.instance-stage`). Clicking a row dismisses it -
+  local-only (`fresh_snacks_cashback_notifications_dismissed` in
+  localStorage), same pattern as the admin bell's dismiss - never touches
+  Firestore or changes what a payment actually earns.
+- Enhanced the "Current balance" hero card (`.balance-stat`) with the
+  demo's wave-texture background (reuses the same
+  `assets/cashback-demo/backgrounds/svg/balance-card.svg` asset) and a
+  circular icon badge, and gave `.cashback-card` a gold left-border accent
+  and a gradient pill badge, matching the demo's `.promo-card`/
+  `.cashback-pill` look.
+- Cache-bust bumped (`styles.css?v=20260730-cashback-dashboard`) across
+  all 14 pages that share it.
+- Verified via headless Chrome with fabricated `data` (bypassing the need
+  for a live backend): correct day-grouping and stage classification for
+  a fresh entry (is-current 10%) and a 1-day-old entry (is-past 10%,
+  is-current 5%), correct exclusion of a PAID_FINALIZED entry, bell
+  showing/count updating correctly, and dismiss-on-click removing a row
+  and decrementing the count. Also confirmed no console/page errors on
+  load for both `index.html` and `admin.html` (style/script changes
+  didn't disturb the existing admin notifications bell).
+
 ## Cashback demo: revert to hiding the bar, but with a purchase-now CTA (2026-07-30)
 
 - Supersedes the immediately-prior "permanent grey bar" change, per
