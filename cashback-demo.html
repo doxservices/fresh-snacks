@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-margin-model">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-instances-well">
 </head>
 <body>
   <main class="app-shell">
@@ -35,18 +35,18 @@
     </section>
 
     <div class="demo-layout">
-      <aside class="panel missed-bonus-well" id="missed-bonus-well" aria-label="Missed cashback bonuses">
+      <aside class="panel instances-well" id="instances-well" aria-label="Balance instances">
         <header class="section-heading">
           <span class="section-heading__icon" aria-hidden="true">
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
           </span>
           <div>
-            <h2>Missed bonuses</h2>
-            <p>Each bonus a balance lost by sitting unpaid past 3pm</p>
+            <h2>Balance instances</h2>
+            <p>Each charge is its own card - watch it move from 10% to 5% to Expired</p>
           </div>
         </header>
-        <p class="missed-bonus-well__empty" id="missed-bonus-empty">None yet - let a balance run past 3pm unpaid to see one appear here.</p>
-        <div class="missed-bonus-list" id="missed-bonus-list"></div>
+        <p class="instances-well__empty" id="instances-empty">No balance yet - add a starting balance or a new charge to see it tracked here.</p>
+        <div class="instances-list" id="instances-list"></div>
       </aside>
 
       <div class="demo-main">
@@ -121,6 +121,7 @@
         <div>
           <p>Current balance</p>
           <strong id="balance-value">J$500</strong>
+          <span class="balance-active-note hidden" id="balance-active-note"></span>
         </div>
       </article>
 
@@ -134,19 +135,6 @@
           <span class="credit-rule">Redeemable on purchase of $300 or more</span>
         </div>
       </article>
-    </section>
-
-    <section class="panel charges-panel hidden" id="charges-panel" aria-label="Balance breakdown by charge">
-      <header class="section-heading">
-        <span class="section-heading__icon" aria-hidden="true">
-          <img src="assets/cashback-demo/icons/svg/green/dollar.svg" alt="">
-        </span>
-        <div>
-          <h2>Balance breakdown</h2>
-          <p>Each charge earns cash back on its own - based on the day it was added, not the balance as a whole</p>
-        </div>
-      </header>
-      <div class="charges-list" id="charges-list"></div>
     </section>
 
     <section class="panel timeline-panel" id="timeline-panel" aria-labelledby="timeline-title">
@@ -198,6 +186,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-margin-model"></script>
+  <script src="cashback-demo.js?v=20260730-instances-well"></script>
 </body>
 </html>

@@ -23,11 +23,10 @@
     payButton: document.querySelector('#pay-button'),
     dayButtons: [...document.querySelectorAll('.day-button')],
     balanceValue: document.querySelector('#balance-value'),
+    balanceActiveNote: document.querySelector('#balance-active-note'),
     creditValue: document.querySelector('#credit-value'),
     dayLabel: document.querySelector('#day-label'),
     timeLabel: document.querySelector('#time-label'),
-    chargesPanel: document.querySelector('#charges-panel'),
-    chargesList: document.querySelector('#charges-list'),
     timelinePanel: document.querySelector('#timeline-panel'),
     timeline: document.querySelector('#timeline'),
     timelineSegments: [...document.querySelectorAll('.timeline__segment')],
@@ -41,8 +40,8 @@
     toast: document.querySelector('#toast'),
     notice: document.querySelector('#notice'),
     noticeClose: document.querySelector('#notice-close'),
-    missedBonusEmpty: document.querySelector('#missed-bonus-empty'),
-    missedBonusList: document.querySelector('#missed-bonus-list')
+    instancesEmpty: document.querySelector('#instances-empty'),
+    instancesList: document.querySelector('#instances-list')
   };
 
   let nextChargeId = 1;
@@ -61,13 +60,7 @@
     segmentIndex: 0,
     isPlaying: false,
     intervalId: null,
-    lastPayment: null,
-    // A running log of bonuses lost by leaving a charge unpaid past 3pm -
-    // one entry per charge per tier it ages out of (10%, then 5%),
-    // captured at the moment each one is gone for good. Persists across
-    // reset-free cycles so the well can show more than just the latest
-    // miss; only Reset clears it.
-    missedBonuses: []
+    lastPayment: null
   };
 
   let toastTimer = null;
@@ -145,32 +138,24 @@
     if (state.segmentIndex < SEGMENTS_PER_DAY - 1) {
       state.segmentIndex += 1;
     } else {
-      // 3pm is passing right now - any charge still sitting at a tier
-      // that actually paid something loses that tier's bonus for good
-      // the instant the clock rolls to the next day. Each charge is
-      // judged on its OWN age, so a single rollover can record more than
-      // one miss at once if multiple charges each lose a tier together.
+      // 3pm is passing right now - notify about any charge whose stage is
+      // about to change, one instance card at a time (each charge's card
+      // in the well updates in place, so the notification just calls out
+      // what just moved rather than logging a separate entry for it).
+      const notices = [];
       for (const charge of state.charges) {
         const age = chargeAge(charge);
-        if (age < CHARGE_AGE_RATES.length - 1) {
-          recordMissedBonus(charge, CHARGE_AGE_RATES[age]);
-        }
+        if (age === 0) notices.push(`${formatMoney(charge.amount)} drops to 5% cash back`);
+        else if (age === 1) notices.push(`${formatMoney(charge.amount)} cash back has expired`);
       }
       state.segmentIndex = 0;
       // The ambient clock always advances - it doesn't pause or reset for
       // anyone, regardless of anyone's balance or payment history.
       state.absoluteDay += 1;
       state.lastPayment = null;
+      if (notices.length) showToast(`🔔 ${notices.join(' · ')}`);
     }
     render();
-  }
-
-  function recordMissedBonus(charge, rate) {
-    state.missedBonuses.unshift({
-      balance: charge.amount,
-      pct: Math.round(rate * 100),
-      amount: round2(charge.amount * rate)
-    });
   }
 
   function jumpToDay(dayIndex) {
@@ -190,14 +175,16 @@
 
   function resetSimulation() {
     setPlaying(false);
-    state.charges = [{ id: nextChargeId++, amount: sanitizeAmount(elements.startingBalance.value), openedOnDay: 0 }];
+    const startingAmount = sanitizeAmount(elements.startingBalance.value);
+    state.charges = [{ id: nextChargeId++, amount: startingAmount, openedOnDay: 0 }];
     state.shopCredit = 0;
     state.absoluteDay = 0;
     state.segmentIndex = 0;
     state.lastPayment = null;
-    state.missedBonuses = [];
     render();
-    showToast('Simulation reset to the starting balance.');
+    showToast(startingAmount > 0
+      ? `🔔 Bonus available: ${formatMoney(startingAmount)} is earning 10% cash back today.`
+      : 'Simulation reset.');
   }
 
   function addToBalance() {
@@ -207,7 +194,7 @@
     state.charges.push({ id: nextChargeId++, amount: 100, openedOnDay: state.absoluteDay });
     state.lastPayment = null;
     render();
-    showToast('J$100 charge added - it earns cash back on its own schedule.');
+    showToast('🔔 Bonus available: J$100 charge added - earns 10% cash back if paid today.');
   }
 
   function payInFull() {
@@ -261,26 +248,29 @@
     elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining`);
   }
 
-  // A per-charge breakdown so the blended balance/reward numbers below
-  // are checkable at a glance - only shown once there's more than one
-  // charge, since a single charge is already fully explained by the
-  // promo card itself.
-  function renderCharges() {
-    elements.chargesPanel.classList.toggle('hidden', state.charges.length < 2);
-    if (state.charges.length < 2) return;
-
-    elements.chargesList.innerHTML = state.charges.map((charge) => {
-      const age = chargeAge(charge);
-      const rate = chargeRate(charge);
-      const expired = rate === 0;
-      const dayWord = age === 0 ? 'today' : age === 1 ? '1 day ago' : `${age} days ago`;
+  // One card per charge, living the whole time it's owed - it moves
+  // through 10% -> 5% -> Expired in place as the clock advances, rather
+  // than spawning a separate card/log entry each time it steps down.
+  // Paying in full clears every charge (and its card) at once.
+  const INSTANCE_STAGES = ['10%', '5%', 'Expired'];
+  function renderInstances() {
+    const hasCharges = state.charges.length > 0;
+    elements.instancesEmpty.classList.toggle('hidden', hasCharges);
+    elements.instancesList.innerHTML = state.charges.map((charge) => {
+      const stageIndex = Math.min(chargeAge(charge), INSTANCE_STAGES.length - 1);
+      const expired = stageIndex === INSTANCE_STAGES.length - 1 && chargeRate(charge) === 0;
+      const stagesHtml = INSTANCE_STAGES.map((label, index) => {
+        const isExpiredStage = label === 'Expired';
+        const classes = ['instance-stage'];
+        if (index < stageIndex) classes.push('is-past');
+        if (index === stageIndex) classes.push('is-current');
+        if (index === stageIndex && isExpiredStage) classes.push('is-expired-stage');
+        return `<span class="${classes.join(' ')}">${label}</span>`;
+      }).join('<span class="instance-arrow" aria-hidden="true">›</span>');
       return `
-        <div class="charge-row${expired ? ' is-expired' : ''}">
-          <div class="charge-row__meta">
-            <span class="charge-row__amount">${formatMoney(charge.amount)}</span>
-            <span class="charge-row__day">Added ${dayWord}</span>
-          </div>
-          <span class="charge-row__rate">${expired ? 'Expired' : `${Math.round(rate * 100)}%`}</span>
+        <div class="instance-card${expired ? ' is-expired' : ''}">
+          <div class="instance-card__amount">${formatMoney(charge.amount)}</div>
+          <div class="instance-card__stages">${stagesHtml}</div>
         </div>
       `;
     }).join('');
@@ -345,26 +335,15 @@
     }
   }
 
-  // The left-side "well" is a running list, not a live snapshot - it only
-  // ever grows (until Reset), so a customer can see every bonus they've
-  // let slip across the whole session, not just the most recent one.
-  function renderMissedBonusWell() {
-    const hasEntries = state.missedBonuses.length > 0;
-    elements.missedBonusEmpty.classList.toggle('hidden', hasEntries);
-    elements.missedBonusList.innerHTML = state.missedBonuses.map((entry) => `
-      <div class="missed-bonus-card">
-        <span class="missed-bonus-card__pct">${entry.pct}% expired</span>
-        <p class="missed-bonus-card__balance">On a balance of ${formatMoney(entry.balance)}</p>
-        <div class="missed-bonus-card__amount">${formatMoney(entry.amount)}</div>
-      </div>
-    `).join('');
-  }
-
   function render() {
     const dayNumber = displayDayNumber();
     const { total } = margin();
+    const activeAmount = state.charges.filter((charge) => chargeRate(charge) > 0).reduce((sum, charge) => sum + charge.amount, 0);
 
     elements.balanceValue.textContent = formatMoney(total);
+    const showActiveNote = total > 0 && activeAmount < total;
+    elements.balanceActiveNote.classList.toggle('hidden', !showActiveNote);
+    if (showActiveNote) elements.balanceActiveNote.textContent = `${formatMoney(activeAmount)} still earning cash back`;
     elements.creditValue.textContent = formatMoney(state.shopCredit);
     elements.dayLabel.textContent = `Day ${dayNumber}`;
     elements.timeLabel.textContent = formatTime(state.segmentIndex);
@@ -377,10 +356,9 @@
     });
 
     document.title = `Day ${dayNumber} - Fresh Snacks Cashback Demo`;
-    renderCharges();
+    renderInstances();
     renderTimeline();
     renderPromo();
-    renderMissedBonusWell();
   }
 
   elements.playButton.addEventListener('click', () => {

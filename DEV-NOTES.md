@@ -1,5 +1,34 @@
 # Development notes
 
+## Cashback demo: one card per balance instance, active-balance note, bonus toasts (2026-07-30)
+
+- Consolidated the "Balance breakdown" panel and the "Missed bonuses" well
+  (two separate, fracturing features added earlier this session) into a
+  single left-side "Balance instances" well - one persistent card per
+  charge for its whole life, showing a 3-step 10% → 5% → Expired
+  indicator that updates in place as the clock advances, instead of
+  spawning a new card/log entry every time a charge's stage changes.
+  Paying in full clears every card at once (all charges are gone).
+- Added an "active balance" note on the Current Balance card: when part
+  of the balance has expired (e.g. an old $500 charge ages out, then a
+  fresh $300 gets added), the big number still shows the true total owed
+  ($800) but a sub-line calls out "$300 still earning cash back" so the
+  two aren't conflated - matches the demo's per-margin math exactly (this
+  is `state.charges.filter(rate > 0)`, same set marginCashback treats as
+  earning in the real backend).
+- Added toast-based "🔔 Bonus available" notifications: firing on Reset
+  (if the starting balance is > 0), on adding a new charge ("earns 10%
+  cash back if paid today"), and on each day rollover for any charge
+  whose stage is about to change ("drops to 5%" / "has expired") - a
+  single rollover can report more than one charge's change in the same
+  toast if several change together.
+- Verified via headless Chrome: aged a $500 starting balance to fully
+  expired, then added three $100 charges - resulting Current Balance
+  showed J$800 total with "J$300 still earning cash back," four separate
+  instance cards each showing the correct stepper state (the old one on
+  "Expired", the three new ones on "10%"), a bonus-available toast fired,
+  and paying in full cleared every card back to the empty-state message.
+
 ## Profile Information modal: auto-fill Display Name from first + last (2026-07-30)
 
 - `index.html`'s "Profile information" modal (`us-username`/`us-first`/
