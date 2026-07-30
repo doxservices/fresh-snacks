@@ -37,7 +37,9 @@
     rewardValue: document.querySelector('#reward-value'),
     toast: document.querySelector('#toast'),
     notice: document.querySelector('#notice'),
-    noticeClose: document.querySelector('#notice-close')
+    noticeClose: document.querySelector('#notice-close'),
+    missedBonusEmpty: document.querySelector('#missed-bonus-empty'),
+    missedBonusList: document.querySelector('#missed-bonus-list')
   };
 
   const state = {
@@ -54,7 +56,13 @@
     segmentIndex: 0,
     isPlaying: false,
     intervalId: null,
-    lastPayment: null
+    lastPayment: null,
+    // A running log of bonuses lost by leaving a balance unpaid past 3pm -
+    // one entry per tier a balance ages out of (10%, then 5%), captured at
+    // the moment each one is gone for good. Persists across reset-free
+    // balance cycles so the well can show more than just the latest miss;
+    // only Reset clears it.
+    missedBonuses: []
   };
 
   let toastTimer = null;
@@ -121,6 +129,16 @@
     if (state.segmentIndex < SEGMENTS_PER_DAY - 1) {
       state.segmentIndex += 1;
     } else {
+      // 3pm is passing right now - if there's still a balance sitting at a
+      // tier that actually paid something, that tier's bonus is gone for
+      // good the instant the clock rolls to the next day. Only the two
+      // paying tiers (age 0 and age 1) are ever recordable this way - once
+      // age reaches 2 there's nothing left to lose, so no further entries
+      // pile up for the same balance cycle.
+      const age = daysSinceBalanceOpened();
+      if (state.balance > 0 && age < BALANCE_AGE_RATES.length - 1) {
+        recordMissedBonus(BALANCE_AGE_RATES[age]);
+      }
       state.segmentIndex = 0;
       // The ambient clock always advances - it doesn't pause or reset for
       // anyone, regardless of anyone's balance or payment history.
@@ -128,6 +146,14 @@
       state.lastPayment = null;
     }
     render();
+  }
+
+  function recordMissedBonus(rate) {
+    state.missedBonuses.unshift({
+      balance: state.balance,
+      pct: Math.round(rate * 100),
+      amount: Math.round(state.balance * rate * 100) / 100
+    });
   }
 
   function jumpToDay(dayIndex) {
@@ -150,6 +176,7 @@
     state.balanceOpenedOnDay = 0;
     state.segmentIndex = 0;
     state.lastPayment = null;
+    state.missedBonuses = [];
     render();
     showToast('Simulation reset to the starting balance.');
   }
@@ -270,6 +297,21 @@
     }
   }
 
+  // The left-side "well" is a running list, not a live snapshot - it only
+  // ever grows (until Reset), so a customer can see every bonus they've
+  // let slip across the whole session, not just the most recent one.
+  function renderMissedBonusWell() {
+    const hasEntries = state.missedBonuses.length > 0;
+    elements.missedBonusEmpty.classList.toggle('hidden', hasEntries);
+    elements.missedBonusList.innerHTML = state.missedBonuses.map((entry) => `
+      <div class="missed-bonus-card">
+        <span class="missed-bonus-card__pct">${entry.pct}% expired</span>
+        <p class="missed-bonus-card__balance">On a balance of ${formatMoney(entry.balance)}</p>
+        <div class="missed-bonus-card__amount">${formatMoney(entry.amount)}</div>
+      </div>
+    `).join('');
+  }
+
   function render() {
     const dayNumber = displayDayNumber();
 
@@ -288,6 +330,7 @@
     document.title = `Day ${dayNumber} - Fresh Snacks Cashback Demo`;
     renderTimeline();
     renderPromo();
+    renderMissedBonusWell();
   }
 
   elements.playButton.addEventListener('click', () => {

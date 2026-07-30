@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-bar-reactivate">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-missed-well">
 </head>
 <body>
   <main class="app-shell">
@@ -34,6 +34,22 @@
       <button type="button" class="notice__close" id="notice-close" aria-label="Dismiss this notice">&times;</button>
     </section>
 
+    <div class="demo-layout">
+      <aside class="panel missed-bonus-well" id="missed-bonus-well" aria-label="Missed cashback bonuses">
+        <header class="section-heading">
+          <span class="section-heading__icon" aria-hidden="true">
+            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
+          </span>
+          <div>
+            <h2>Missed bonuses</h2>
+            <p>Each bonus a balance lost by sitting unpaid past 3pm</p>
+          </div>
+        </header>
+        <p class="missed-bonus-well__empty" id="missed-bonus-empty">None yet - let a balance run past 3pm unpaid to see one appear here.</p>
+        <div class="missed-bonus-list" id="missed-bonus-list"></div>
+      </aside>
+
+      <div class="demo-main">
     <section class="panel controls-panel" aria-labelledby="controls-title">
       <header class="section-heading">
         <span class="section-heading__icon" aria-hidden="true">
@@ -163,10 +179,12 @@
         </div>
       </div>
     </section>
+      </div>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-bar-reactivate"></script>
+  <script src="cashback-demo.js?v=20260730-missed-well"></script>
 </body>
 </html>

@@ -143,6 +143,74 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: var(--shadow-panel);
 }
 
+.demo-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  align-items: start;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.demo-main > :first-child { margin-top: 0; }
+
+.missed-bonus-well {
+  position: sticky;
+  top: 16px;
+  padding: 22px 22px 24px;
+}
+
+.missed-bonus-well .section-heading__icon { background: var(--cream-100); }
+.missed-bonus-well h2 { margin: 0; color: var(--forest-900); font-size: 1.05rem; }
+.missed-bonus-well .section-heading p { margin: 3px 0 0; font-size: 0.82rem; }
+
+.missed-bonus-well__empty {
+  margin: 16px 0 0;
+  color: var(--ink-600);
+  font-size: 0.86rem;
+}
+
+.missed-bonus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.missed-bonus-card {
+  border: 1px dashed #d6c7a8;
+  border-radius: var(--radius-button);
+  padding: 12px 14px;
+  background: linear-gradient(180deg, #fffcf6, #fdf6e8);
+}
+
+.missed-bonus-card__pct {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 9px;
+  color: var(--danger);
+  background: rgba(155, 66, 36, 0.1);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.missed-bonus-card__balance {
+  margin: 8px 0 0;
+  color: var(--ink-600);
+  font-size: 0.78rem;
+}
+
+.missed-bonus-card__amount {
+  margin-top: 2px;
+  color: #8a8178;
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  text-decoration: line-through;
+  text-decoration-color: rgba(155, 66, 36, 0.55);
+}
+
 .controls-panel {
   margin-top: 22px;
   padding: 26px 30px 24px;
@@ -344,6 +412,8 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 1040px) {
   .control-row { grid-template-columns: 190px 1fr; }
   .day-buttons { grid-template-columns: repeat(2, 1fr); }
+  .demo-layout { grid-template-columns: 1fr; }
+  .missed-bonus-well { position: static; }
 }
 
 @media (max-width: 760px) {

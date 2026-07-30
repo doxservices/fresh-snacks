@@ -1,5 +1,27 @@
 # Development notes
 
+## Cashback demo: left-side "missed bonuses" well (2026-07-30)
+
+- Added a persistent, session-long log of every bonus tier a simulated
+  balance let expire unpaid - one card per miss (10% and/or 5%), each
+  showing the balance it applied to and the dollar amount lost, newest
+  first. Displayed in a new sticky left-column "well" (`.demo-layout`
+  grid, collapses to a single column under 1040px) so several misses
+  across a testing session stay visible together instead of only the
+  latest one.
+- Recorded at the exact moment the ambient clock rolls from one day to
+  the next (`advanceSegment`, ~3pm) if a balance is still sitting at a
+  tier that was actually paying something (age 0 or 1) - once age hits 2
+  there's nothing left to lose, so no further entries pile up for the
+  same cycle. Jumping to a day via the day-buttons does not record a
+  miss (it's a preview shortcut, not simulated time actually passing).
+- Only Reset clears the well - reactivating a balance via "Add $100"
+  intentionally leaves prior misses in place, since the point of a
+  running well is to show everything missed so far this session.
+- Verified via headless Chrome: letting a $500 balance run unpaid past
+  two day-rollovers produced exactly two cards (10%/$50, then 5%/$25,
+  newest on top); Reset cleared both back to the empty-state message.
+
 ## Port cashback bar + expired-bonus tracking to the real app (2026-07-30)
 
 - Before touching real payout logic: confirmed with the user that the
