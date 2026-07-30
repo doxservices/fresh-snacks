@@ -34,7 +34,9 @@
     promoDescription: document.querySelector('#promo-description'),
     promoBalance: document.querySelector('#promo-balance'),
     rewardValue: document.querySelector('#reward-value'),
-    toast: document.querySelector('#toast')
+    toast: document.querySelector('#toast'),
+    notice: document.querySelector('#notice'),
+    noticeClose: document.querySelector('#notice-close')
   };
 
   const state = {
@@ -307,6 +309,20 @@
 
   window.addEventListener('beforeunload', () => {
     if (state.intervalId !== null) window.clearInterval(state.intervalId);
+  });
+
+  // Dismissing the test/demo notice persists across reloads - once seen,
+  // there's no need to keep re-showing it every time this page is opened.
+  const NOTICE_DISMISSED_KEY = 'fresh_snacks_cashback_demo_notice_dismissed';
+  try {
+    if (window.localStorage.getItem(NOTICE_DISMISSED_KEY) === '1') {
+      elements.notice.classList.add('hidden');
+    }
+  } catch (_) {}
+
+  elements.noticeClose.addEventListener('click', () => {
+    elements.notice.classList.add('hidden');
+    try { window.localStorage.setItem(NOTICE_DISMISSED_KEY, '1'); } catch (_) {}
   });
 
   render();

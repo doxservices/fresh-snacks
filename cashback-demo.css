@@ -86,11 +86,12 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .notice {
+  position: relative;
   display: flex;
   gap: 18px;
   align-items: flex-start;
   min-height: 118px;
-  padding: 24px 28px;
+  padding: 24px 48px 24px 28px;
   border: 1px solid #e5bb61;
   border-radius: 14px;
   background: linear-gradient(135deg, #fffcf5, #fff5e1);
@@ -110,6 +111,27 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 .notice__icon img { width: 24px; height: 24px; }
+
+.notice__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a6d2f;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.notice__close:hover { background: rgba(201, 131, 0, 0.14); }
+.notice__close:focus-visible { outline: 0; box-shadow: var(--focus); }
 .notice strong { font-size: 1rem; }
 .notice span { font-size: 0.96rem; }
 .notice p { margin: 7px 0 0; color: #6b5527; font-size: 0.9rem; }

@@ -1,5 +1,14 @@
 # Development notes
 
+## Cashback demo: dismissible test/demo notice (2026-07-30)
+
+- Added a small `×` close button to the test/demo banner. Dismissing it
+  persists via `localStorage` (wrapped in try/catch, matching the
+  pattern already used elsewhere for basket-draft persistence) so it
+  stays hidden on future visits instead of reappearing every reload.
+  Verified with headless Chrome: closes on click, and stays closed after
+  a page reload.
+
 ## Cashback demo: separate the ambient clock from the per-balance rate (2026-07-30)
 
 - Correction to yesterday's entry, which had the day count reset to Day 1

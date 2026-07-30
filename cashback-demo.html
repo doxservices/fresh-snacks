@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-ambient-clock">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-notice-close">
 </head>
 <body>
   <main class="app-shell">
@@ -20,7 +20,7 @@
       </div>
     </header>
 
-    <section class="notice" aria-label="Demo information">
+    <section class="notice" aria-label="Demo information" id="notice">
       <div class="notice__icon" aria-hidden="true">
         <img src="assets/cashback-demo/icons/svg/gold/info.svg" alt="">
       </div>
@@ -31,6 +31,7 @@
         <p>Your rate depends on how long your own balance has been open: fresh today earns 10%, one day old earns 5%, two or more days old earns nothing - paying it off in full and starting a new balance resets that count, whatever day the clock happens to be on.</p>
         <p>The cashback offer only appears while there's an actual balance to pay off.</p>
       </div>
+      <button type="button" class="notice__close" id="notice-close" aria-label="Dismiss this notice">&times;</button>
     </section>
 
     <section class="panel controls-panel" aria-labelledby="controls-title">
@@ -166,6 +167,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-ambient-clock"></script>
+  <script src="cashback-demo.js?v=20260730-notice-close"></script>
 </body>
 </html>
