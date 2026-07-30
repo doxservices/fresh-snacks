@@ -1,5 +1,17 @@
 # Development notes
 
+## Cashback demo: fix the current-segment highlight moving the wrong way (2026-07-30)
+
+- User-reported: the highlighted "current" segment was moving left-to-
+  right while the drain (spent boundary) moved right-to-left - carried
+  over unchanged from the package's `index === segmentIndex`, which made
+  sense for a left-to-right fill-up bar but not for the reverse-drain one
+  just restored. Changed it to `index === remaining - 1` - the last
+  still-lit segment, i.e. the actual boundary between lit and spent - so
+  the highlight now travels in the same direction as the drain instead of
+  against it. Verified tick by tick (headless Chrome) that the highlight
+  sits exactly on that boundary all the way through the day.
+
 ## Cashback demo: restore the reverse-drain timeline bar (2026-07-30)
 
 - Confirmed with the user which of two behaviors that changed when the

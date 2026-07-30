@@ -172,7 +172,10 @@
     elements.timelineSegments.forEach((segment, index) => {
       segment.classList.toggle('is-spent', index >= remaining);
       segment.classList.toggle('is-expired-day', expiredDay);
-      segment.classList.toggle('is-current', index === state.segmentIndex);
+      // The highlighted segment is the boundary between lit and spent (the
+      // last still-lit hour), so it travels right-to-left along with the
+      // drain itself instead of drifting the opposite way.
+      segment.classList.toggle('is-current', index === remaining - 1);
     });
     elements.timeline.setAttribute('aria-valuenow', String(remaining));
     elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining`);
