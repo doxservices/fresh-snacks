@@ -1,5 +1,42 @@
 # Development notes
 
+## Gallery columns: switch to a container query, fixes the visitor case too (2026-07-30)
+
+- The previous fixed-column fix (2 by default, 3 at a 1600px viewport
+  breakpoint) solved the dead-gap bug for a customer WITH an active tab,
+  but missed that how much room the gallery actually has depends on
+  more than the viewport: a visitor gets the FULL `.bins-layout` width
+  to themselves (`.bins-layout:has(#basket-panel.hidden)` collapses to
+  one column when there's no basket well to share space with), while a
+  customer with a tab only gets what's left after the well's fixed
+  360px - two very different available widths at the exact same
+  viewport size. Keying the column count off viewport width alone left
+  a visitor stuck at 2 columns even with ~1200px of untouched gallery
+  space to spare.
+- Replaced the viewport `@media` breakpoint with a `@container` query:
+  `.bins-gallery-col` is now a query container
+  (`container-type: inline-size`), and `.bin-grid` switches from 2 to 3
+  columns at `@container (min-width: 800px)` - reading the space this
+  grid actually has, not why it has it. 800px is ~`.page-wide`'s capped
+  1280px minus the basket well (360px + gap) minus the section's own
+  padding - i.e. the most room a customer-with-a-tab's gallery ever
+  reaches, so both the visitor's full-width case and the customer's
+  cart-sharing case now correctly reach 3 columns without two
+  breakpoints to keep in sync by hand.
+- Side benefit: a customer with a tab now reaches 3 columns starting
+  around 1280px viewport instead of needing 1600px, since 800px of
+  actual gallery width is reached earlier than my previous arbitrary
+  viewport guess.
+- Verified via headless Chrome across 901-1920px, both with and without
+  an active tab (using the real 3-item catalog): visitor now shows 3
+  columns at every width from 901px up (398px cards at full width,
+  262px at the narrowest); customer-with-tab shows 2 columns below
+  ~1280px viewport and 3 columns from ~1280px up, with the gallery-to-
+  cart gap holding at exactly 24px (the real grid gap, no dead zone) at
+  every width tested. Confirmed the ≤900px mobile stacked layout is
+  unaffected (still 2 columns there, forced by its own existing media
+  query which is unrelated to this container query).
+
 ## Fix gallery dead-space gap left by auto-fill (2026-07-30)
 
 - The previous fix (auto-fill/minmax) solved the squeeze but introduced

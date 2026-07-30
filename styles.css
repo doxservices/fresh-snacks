@@ -4621,26 +4621,38 @@ tr.healthy-account td {
 /* A fixed repeat(3, 1fr) kept forcing 3 columns into whatever room was
    left beside the basket well's fixed 360px width even as the viewport
    narrowed toward the 900px breakpoint (see .bins-layout above),
-   squeezing each card down as far as ~134px wide there. Swapping to
-   auto-fill/minmax fixed that squeeze, but introduced a different bug:
-   auto-fill still creates as many column TRACKS as geometrically fit
-   (sharing the row's width evenly across all of them, filled or not) -
-   with a small real catalog (as few as 3 snacks), that left extra empty
-   tracks eating a large visible gap next to the basket at any width wide
-   enough to fit more tracks than there are snacks, including the
-   .page-wide-capped ~896px-wide gallery column on ordinary widescreen
-   monitors. Fixed columns avoid both problems at once: 2 comfortably-
-   sized columns by default, 3 only once there's genuinely a lot of
-   width to spare (see the widescreen override below) - a fixed count
-   always fills 100% of the row across however many real cards exist,
-   so there's never an empty phantom track to leave a gap. */
+   squeezing each card down as far as ~134px wide there. auto-fill/
+   minmax fixed the squeeze but introduced a different bug: auto-fill
+   still creates as many column TRACKS as geometrically fit (sharing the
+   row's width evenly across all of them, filled or not) - with a small
+   real catalog (as few as 3 snacks), that left extra empty tracks
+   eating a large visible gap next to the basket.
+   A plain viewport-width @media breakpoint isn't right either, because
+   how much room the GALLERY actually has depends on more than the
+   viewport - a visitor (no basket well to share space with, see
+   .bins-layout's :has(#basket-panel.hidden) rule above) gets the full
+   .bins-layout width to itself, while a customer with an active tab
+   only gets what's left after the well's fixed 360px - two very
+   different available widths at the exact same viewport size. A
+   container query keyed off .bins-gallery-col's own rendered width
+   (see container-type below) reads the space this grid ACTUALLY has,
+   regardless of why it has it, so both cases size correctly without
+   two separate breakpoints to keep in sync by hand. 800px is chosen
+   because that's ~.page-wide's max width (1280px) minus the basket
+   well (360px + gap) minus the section's own padding - i.e. the most
+   room a customer-with-a-tab's gallery ever has, so 3 columns become
+   available there too, not just for a visitor's full-width gallery. */
+.bins-gallery-col {
+  container-type: inline-size;
+}
+
 .bin-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
 }
 
-@media (min-width: 1600px) {
+@container (min-width: 800px) {
   .bin-grid {
     grid-template-columns: repeat(3, 1fr);
   }
