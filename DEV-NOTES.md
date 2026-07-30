@@ -1,5 +1,45 @@
 # Development notes
 
+## Cashback demo: separate the ambient clock from the per-balance rate (2026-07-30)
+
+- Correction to yesterday's entry, which had the day count reset to Day 1
+  whenever a balance was paid off. That was wrong: the clock never resets
+  for anyone - it just keeps running (Day 1 → 2 → 3, cycling every 3 days
+  now instead of 4, since the demo only needs 3 to show the full 10% → 5%
+  → expired range). What actually resets is which day *this specific
+  balance* opened on - a fresh balance always earns 10% today, whatever
+  day the ambient clock happens to be showing everyone else.
+- Split the single `dayIndex` into two independent values:
+  `state.absoluteDay` - an ever-increasing counter that only the day-
+  rollover in `advanceSegment()` touches, never reset by payment, jump, or
+  anything else - and `state.balanceOpenedOnDay` - which `absoluteDay` the
+  current balance last went from $0 to something owed. The rate is
+  `BALANCE_AGE_RATES[absoluteDay - balanceOpenedOnDay]` (10%/5%/0%), and
+  the displayed "Day N" is `absoluteDay % CYCLE_DAYS` - two different
+  numbers that only happen to move together while a balance sits unpaid
+  across a rollover.
+  - `payInFull()` no longer touches `absoluteDay` at all.
+  - `addToBalance()` sets `balanceOpenedOnDay = absoluteDay` only when the
+    balance was at $0 (a genuinely new balance opening), so topping up an
+    already-open balance doesn't reset its own age.
+  - The 3 jump-to-day buttons set both values together (`balanceOpenedOnDay
+    = 0`) so they preview exactly what their own label promises.
+- The promo/CTA card now hides entirely (`.hidden`, new utility class)
+  whenever there's no balance and nothing just got paid - matching the
+  real feature (`index.html` already hides its cashback card the same
+  way). The ambient clock/timeline bar stays visible regardless, since
+  it's the same clock for everyone, balance or not. Removed the
+  redundant "Stage: ..." caption under the timeline (that tier
+  information now only ever lives in the balance-dependent promo card)
+  and the CSS/markup that went with it.
+- Verified with headless Chrome across a full scenario: unpaid balance
+  ages 10% → 5% correctly as the ambient day advances; paying on Day 2
+  leaves the ambient clock on Day 2; a fresh $100 added right after still
+  shows 10% even though the ambient day hasn't moved; leaving that new
+  balance unpaid ages it through 5% and then expired as the ambient
+  clock continues wrapping Day 3 → Day 1; and all three jump buttons
+  match their own labels exactly. Zero console errors throughout.
+
 ## Cashback demo: day count tied to whether a balance exists (2026-07-30)
 
 - New rule, matching how the real mechanic actually works: the day count

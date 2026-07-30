@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-arrow-align">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-ambient-clock">
 </head>
 <body>
   <main class="app-shell">
@@ -27,9 +27,9 @@
       <div>
         <strong>This is a test/demo page only</strong>
         <span> — a self-contained simulation, not connected to any real account or Firestore data.</span>
-        <p>Cashback runs on a fixed 7am–3pm window every day (8 one-hour segments). The same schedule applies to every customer, regardless of when they make a purchase or payment.</p>
-        <p>A rate reached by 3pm holds steady overnight until 7am the next day — 2 real seconds per segment, so one day's window plays out in 16 seconds.</p>
-        <p>Past 4 days it loops into a fresh cycle automatically, so testing can continue — nothing reverts to the starting state until you hit Reset.</p>
+        <p>The clock runs a fixed 7am–3pm window every day (8 one-hour segments, 2 real seconds each) and never pauses or resets for anyone - it just keeps going, day after day (cycling every 3 days here).</p>
+        <p>Your rate depends on how long your own balance has been open: fresh today earns 10%, one day old earns 5%, two or more days old earns nothing - paying it off in full and starting a new balance resets that count, whatever day the clock happens to be on.</p>
+        <p>The cashback offer only appears while there's an actual balance to pay off.</p>
       </div>
     </section>
 
@@ -92,10 +92,6 @@
             <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
             <span>Day 3 - expired</span>
           </button>
-          <button class="day-button" type="button" data-day="3" aria-pressed="false">
-            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
-            <span>Day 4 - expired</span>
-          </button>
         </div>
       </div>
     </section>
@@ -140,7 +136,6 @@
           <span class="timeline__segment"></span>
         </div>
       </div>
-      <p class="timeline-caption">Stage: <strong id="stage-label">Day 1 - the best rate</strong></p>
     </section>
 
     <section class="promo-card" id="promo-card" aria-labelledby="promo-title">
@@ -171,6 +166,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-day-reset-logic"></script>
+  <script src="cashback-demo.js?v=20260730-ambient-clock"></script>
 </body>
 </html>

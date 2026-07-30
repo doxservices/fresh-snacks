@@ -6,15 +6,12 @@
   'use strict';
 
   const SEGMENT_DURATION_MS = 2000;
-  const DAY_COUNT = 4;
+  const CYCLE_DAYS = 3; // the ambient clock's "Day N" label wraps every 3 days
   const SEGMENTS_PER_DAY = 8;
-  const DAY_RATES = [0.10, 0.05, 0, 0];
-  const DAY_STAGES = [
-    'Day 1 - the best rate',
-    'Day 2 - last chance',
-    'expired - no cashback left',
-    'expired - no cashback left'
-  ];
+  // Indexed by *days since the current balance was opened*, not by the
+  // ambient calendar day - a fresh balance always starts at 10%, however
+  // many days the clock has been running for everyone else.
+  const BALANCE_AGE_RATES = [0.10, 0.05, 0];
 
   const elements = {
     startingBalance: document.querySelector('#starting-balance'),
@@ -28,7 +25,6 @@
     creditValue: document.querySelector('#credit-value'),
     dayLabel: document.querySelector('#day-label'),
     timeLabel: document.querySelector('#time-label'),
-    stageLabel: document.querySelector('#stage-label'),
     timeline: document.querySelector('#timeline'),
     timelineSegments: [...document.querySelectorAll('.timeline__segment')],
     promoCard: document.querySelector('#promo-card'),
@@ -44,7 +40,14 @@
   const state = {
     balance: sanitizeAmount(elements.startingBalance.value),
     shopCredit: 0,
-    dayIndex: 0,
+    // The ambient clock: counts every simulated day that's ever passed,
+    // and never resets for any reason - it just keeps going. The "Day N"
+    // label is this value wrapped to CYCLE_DAYS for display.
+    absoluteDay: 0,
+    // Which absoluteDay the *current* balance last went from $0 to
+    // something owed - a fresh balance always starts its own count here,
+    // whatever the ambient clock happens to read at that moment.
+    balanceOpenedOnDay: 0,
     segmentIndex: 0,
     isPlaying: false,
     intervalId: null,
@@ -72,8 +75,17 @@
     return `${hour12}:00 ${suffix}`;
   }
 
+  function daysSinceBalanceOpened() {
+    return state.absoluteDay - state.balanceOpenedOnDay;
+  }
+
   function currentRate() {
-    return DAY_RATES[state.dayIndex];
+    const age = daysSinceBalanceOpened();
+    return age < BALANCE_AGE_RATES.length ? BALANCE_AGE_RATES[age] : 0;
+  }
+
+  function displayDayNumber() {
+    return (state.absoluteDay % CYCLE_DAYS) + 1;
   }
 
   function projectedReward() {
@@ -107,30 +119,32 @@
       state.segmentIndex += 1;
     } else {
       state.segmentIndex = 0;
-      // The day only steps forward (and eventually loops past Day 4) if a
-      // balance is still outstanding - that's the thing actually aging.
-      // A clear balance has nothing accruing against it, so the day
-      // resets to Day 1 instead, ready to start fresh the moment a new
-      // balance appears.
-      state.dayIndex = state.balance > 0 ? (state.dayIndex + 1) % DAY_COUNT : 0;
+      // The ambient clock always advances - it doesn't pause or reset for
+      // anyone, regardless of anyone's balance or payment history.
+      state.absoluteDay += 1;
       state.lastPayment = null;
     }
     render();
   }
 
   function jumpToDay(dayIndex) {
-    state.dayIndex = Math.min(Math.max(dayIndex, 0), DAY_COUNT - 1);
+    const clamped = Math.min(Math.max(dayIndex, 0), CYCLE_DAYS - 1);
+    state.absoluteDay = clamped;
+    // Preview as if the current balance opened on day 0, so the button's
+    // own label (Day N - X%) is what actually shows.
+    state.balanceOpenedOnDay = 0;
     state.segmentIndex = 0;
     state.lastPayment = null;
     render();
-    showToast(`Moved to Day ${state.dayIndex + 1} at 7:00 AM.`);
+    showToast(`Moved to Day ${clamped + 1} at 7:00 AM.`);
   }
 
   function resetSimulation() {
     setPlaying(false);
     state.balance = sanitizeAmount(elements.startingBalance.value);
     state.shopCredit = 0;
-    state.dayIndex = 0;
+    state.absoluteDay = 0;
+    state.balanceOpenedOnDay = 0;
     state.segmentIndex = 0;
     state.lastPayment = null;
     render();
@@ -138,6 +152,11 @@
   }
 
   function addToBalance() {
+    if (state.balance <= 0) {
+      // A fresh balance starts its own cashback window as of right now,
+      // whatever day the ambient clock happens to be on.
+      state.balanceOpenedOnDay = state.absoluteDay;
+    }
     state.balance = Math.round((state.balance + 100) * 100) / 100;
     state.lastPayment = null;
     render();
@@ -157,12 +176,9 @@
     state.balance = 0;
     state.shopCredit = Math.round((state.shopCredit + creditEarned) * 100) / 100;
     state.lastPayment = { paidAmount, creditEarned };
-    // Paying the balance in full clears it, so the next cycle starts over
-    // fresh at Day 1's best rate instead of continuing wherever the day
-    // count happened to be - the same way a real balance that's fully
-    // settled loses its "days since opened" clock entirely.
-    state.dayIndex = 0;
-    state.segmentIndex = 0;
+    // The ambient clock is untouched - paying off a balance doesn't pause
+    // or reset it for anyone. The *next* balance to appear just starts its
+    // own fresh count from whatever day the clock is on then.
     render();
 
     if (creditEarned > 0) {
@@ -176,13 +192,16 @@
   // ahead) and fades to spent as each simulated hour passes, rather than
   // filling up from empty. Mirrors the real feature's original hourly-
   // deadline visualization, kept here since it's still a clear way to
-  // *watch* time run out rather than watch it accumulate.
+  // *watch* time run out rather than watch it accumulate. This is the
+  // ambient clock - it runs the same for everyone, balance or not - so the
+  // gray "nothing left to earn" tint only applies while there's actually a
+  // balance that's stopped earning, not as a global property of the day.
   function renderTimeline() {
     const remaining = SEGMENTS_PER_DAY - state.segmentIndex;
-    const expiredDay = currentRate() === 0;
+    const expiredForBalance = state.balance > 0 && currentRate() === 0;
     elements.timelineSegments.forEach((segment, index) => {
       segment.classList.toggle('is-spent', index >= remaining);
-      segment.classList.toggle('is-expired-day', expiredDay);
+      segment.classList.toggle('is-expired-day', expiredForBalance);
       // The highlighted segment is the boundary between lit and spent (the
       // last still-lit hour), so it travels right-to-left along with the
       // drain itself instead of drifting the opposite way.
@@ -192,15 +211,21 @@
     elements.timeline.setAttribute('aria-valuetext', `${formatTime(state.segmentIndex)}, ${remaining} of ${SEGMENTS_PER_DAY} hours remaining`);
   }
 
+  // The promo card is the actual call-to-action - it only ever shows up
+  // while there's a balance to act on (or a payment to report right after
+  // clearing one), same as the real feature. The ambient clock/timeline
+  // above keeps running either way.
   function renderPromo() {
+    const hasBalance = state.balance > 0;
+    const justPaid = state.lastPayment !== null;
+
+    elements.promoCard.classList.toggle('hidden', !hasBalance && !justPaid);
+    if (!hasBalance && !justPaid) return;
+
+    const age = daysSinceBalanceOpened();
     const rate = currentRate();
     const expired = rate === 0;
     const ratePercent = Math.round(rate * 100);
-    // lastPayment itself is enough to know "show the just-paid summary" -
-    // it's cleared on the next day rollover, a jump, a reset, or a new
-    // charge, so there's no need to also compare day indices (which no
-    // longer holds once paying resets dayIndex back to 0 immediately).
-    const justPaid = state.lastPayment !== null;
 
     elements.promoCard.classList.toggle('is-expired', expired);
     elements.promoBalance.textContent = formatMoney(state.balance);
@@ -221,14 +246,14 @@
       elements.cashbackRate.textContent = 'Offer expired';
       elements.promoTitle.textContent = 'No cashback is available today';
       elements.promoDescription.textContent = 'The promotional window has ended. Payments can still be completed, but no shop credit will be added.';
-    } else if (state.dayIndex === 0) {
-      const nextRatePercent = Math.round(DAY_RATES[state.dayIndex + 1] * 100);
+    } else if (age === 0) {
+      const nextRatePercent = Math.round(BALANCE_AGE_RATES[age + 1] * 100);
       elements.cashbackRate.textContent = `${ratePercent}% cash back`;
       elements.promoTitle.textContent = "Today's the best day to clear your balance";
       elements.promoDescription.textContent = `Pay your balance in full before the timer runs out and earn ${ratePercent}% back as shop credit. Tomorrow the rate drops to ${nextRatePercent}%.`;
     } else {
-      // Day 2 - the rate already stepped down overnight, and there's no
-      // third chance after this - framed around what's earned today and
+      // One day old - the rate already stepped down overnight, and there's
+      // no third chance after this - framed around what's earned today and
       // what's already gone, not a countdown/deadline, so it reads as an
       // incentive to catch rather than pressure to beat the clock.
       elements.cashbackRate.textContent = `${ratePercent}% cash back`;
@@ -238,23 +263,21 @@
   }
 
   function render() {
-    const rate = currentRate();
-    const dayNumber = state.dayIndex + 1;
+    const dayNumber = displayDayNumber();
 
     elements.balanceValue.textContent = formatMoney(state.balance);
     elements.creditValue.textContent = formatMoney(state.shopCredit);
     elements.dayLabel.textContent = `Day ${dayNumber}`;
     elements.timeLabel.textContent = formatTime(state.segmentIndex);
-    elements.stageLabel.textContent = DAY_STAGES[state.dayIndex];
     elements.payButton.disabled = state.balance <= 0;
 
     elements.dayButtons.forEach((button, index) => {
-      const active = index === state.dayIndex;
+      const active = index === state.absoluteDay % CYCLE_DAYS;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', String(active));
     });
 
-    document.title = `Day ${dayNumber} · ${Math.round(rate * 100)}% Cashback Simulation`;
+    document.title = `Day ${dayNumber} - Fresh Snacks Cashback Demo`;
     renderTimeline();
     renderPromo();
   }

@@ -26,6 +26,8 @@
 
 * { box-sizing: border-box; }
 
+.hidden { display: none !important; }
+
 html { min-width: 320px; color-scheme: light; }
 
 body {
@@ -210,7 +212,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .divider { height: 1px; margin: 24px 0 20px; background: var(--line); }
 
 .jump-section__hint { margin: 0 0 12px; color: var(--ink-600); font-size: 0.86rem; }
-.day-buttons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.day-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 
 .day-button {
   display: flex;
@@ -270,8 +272,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .timeline__segment.is-expired-day.is-spent { background: rgba(154, 163, 157, 0.35); }
 .timeline__segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 3px rgba(226,154,16,.15); }
 .timeline__segment.is-expired-day.is-current { box-shadow: 0 0 0 3px rgba(154,163,157,.25); }
-.timeline-caption { margin: 8px 0 0; color: var(--ink-600); text-align: center; font-size: 0.86rem; }
-.timeline-caption strong { color: var(--ink-700); }
 
 .promo-card {
   margin-top: 22px;
