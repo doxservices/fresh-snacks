@@ -4618,9 +4618,17 @@ tr.healthy-account td {
   margin: 4px 0;
 }
 
+/* auto-fill/minmax rather than a fixed repeat(3, 1fr) - a fixed 3-column
+   count kept forcing 3 columns into whatever room was left beside the
+   basket well's fixed 360px width even as the viewport narrowed toward
+   the 900px breakpoint (see .bins-layout above), squeezing each card
+   down as far as ~134px wide there (wrapped names, cramped buttons).
+   This reflows to fewer, comfortably-sized columns instead once there
+   isn't room for 3 at a sane width, and still shows 3+ on wide screens
+   exactly as before. */
 .bin-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 14px;
 }
 

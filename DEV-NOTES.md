@@ -1,5 +1,30 @@
 # Development notes
 
+## Fix squeezed snack gallery on mid-width desktop screens (2026-07-30)
+
+- `.bin-grid` (the snack gallery, shared by `index.html`/`bins.html`/
+  `edit-tab.html`) forced a fixed `repeat(3, 1fr)` column count on
+  desktop. Between the 900px mobile breakpoint and roughly 1150px, the
+  gallery column has to share room with the basket well's fixed 360px
+  width - 3 columns kept getting squeezed as narrow as ~134px per card
+  in that range, wrapping snack names onto two lines and cramming
+  prices/buttons together. Pre-existing, not something introduced this
+  session - just not noticed until now.
+- Fixed by switching to `grid-template-columns: repeat(auto-fill,
+  minmax(210px, 1fr))` - reflows to 2 (or 1, at the very narrowest
+  pre-breakpoint widths) comfortably-sized columns instead of forcing 3
+  cramped ones. Wide desktop widths (1200px+) are unaffected - still 3
+  columns at essentially the same size as before.
+- Verified via headless Chrome with a fabricated catalog at
+  901/920/960/1024/1200/1440px: card widths now range ~205-270px at
+  every width (previously as low as 134px at 901px), zero wrapped names,
+  zero horizontal overflow. Also ran a full end-to-end pass (patching
+  `FS.loadData`/`FS.getMyProfile` and re-running the real `startTabFlow()`
+  so the actual "Add to basket" click handlers execute, not just a
+  static render) at 1024px and 1400px - basket fills correctly with
+  quantity steppers, running total, and toast confirmations, no console
+  errors, no layout artifacts alongside the reflowed gallery.
+
 ## Fix two responsive/visibility regressions from the dashboard restyle (2026-07-30)
 
 - **Admin dashboard overflow (the real bug)**: the previous pass enlarged
