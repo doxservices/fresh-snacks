@@ -1,5 +1,38 @@
 # Development notes
 
+## Cashback demo: rebuilt on the per-margin model, for live testing before prod (2026-07-30)
+
+- The real backend change (below) is written, tested, and pushed to
+  `main`, but NOT yet deployed to Firebase Functions - the user asked to
+  hold off on the live payout logic and try the new per-margin math in
+  the demo first.
+- Rebuilt `cashback-demo.js`'s state model to match: `state.balance` (one
+  number) + `state.balanceOpenedOnDay` (one age) became `state.charges`
+  (an array of `{ amount, openedOnDay }`) - each charge now earns cash
+  back on its own age, exactly mirroring `marginCashback` in
+  `functions/src/lib/cashback.js`. "Add $100 to balance" now pushes a
+  brand-new charge instead of resetting the whole balance's age - the
+  demo's old "any new charge reactivates everything" behavior is gone,
+  replaced by the real per-margin model.
+- Added a "Balance breakdown" panel (`#charges-panel`, only shown once
+  there are 2+ charges) listing each charge's amount, when it was added,
+  and its current rate (or "Expired") - lets the blended balance/reward
+  numbers be checked at a glance instead of just trusted.
+- Promo card copy now has a fourth branch for genuinely mixed-age
+  balances ("Part of your balance is still earning cash back... blended
+  across everything you owe"), alongside the original fresh/day-old/
+  expired copy which is unchanged and still exact for the common single-
+  charge case.
+- The missed-bonus well now records misses per CHARGE (a day rollover can
+  log more than one miss at once if several charges each lose a tier
+  together), rather than per whole-balance.
+- Verified via headless Chrome: single-charge day-by-day behavior is
+  byte-for-byte the same as before; adding a $100 charge to a balance
+  that had already aged to day 1 produced a $600 balance, a "Balance
+  breakdown" showing $500@5%/$100@10%, a blended $35 reward, and paying
+  in full credited exactly $35 - matching `marginCashback`'s math
+  (500*0.05 + 100*0.10 = 35) exactly.
+
 ## Cashback: calculate per-margin, not on the whole balance (2026-07-30)
 
 - Changed the real payout logic (`functions/src/lib/cashback.js`): every

@@ -346,6 +346,47 @@ button { -webkit-tap-highlight-color: transparent; }
 .metric-card strong { display: block; margin-top: 2px; font-size: clamp(2rem, 4vw, 2.85rem); line-height: 1.1; letter-spacing: -0.045em; }
 .credit-rule { display: inline-block; margin-top: 12px; border-radius: 999px; padding: 7px 12px; color: var(--forest-800); background: var(--mint-100); font-weight: 700; font-size: 0.82rem; }
 
+.charges-panel {
+  margin-top: 22px;
+  padding: 22px 30px 24px;
+}
+
+.charges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.charge-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  padding: 10px 14px;
+  background: var(--mint-050);
+}
+
+.charge-row.is-expired { background: #f6f4f0; border-color: #e6e1d6; }
+
+.charge-row__meta { display: flex; flex-direction: column; gap: 2px; }
+.charge-row__amount { font-weight: 750; color: var(--ink-900); }
+.charge-row__day { font-size: 0.78rem; color: var(--ink-600); }
+
+.charge-row__rate {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--forest-800);
+  background: var(--mint-100);
+}
+
+.charge-row.is-expired .charge-row__rate { color: #7c8580; background: #e8e4dc; }
+
 .timeline-panel {
   margin-top: 22px;
   padding: 22px 30px 18px;

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#185638">
   <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="cashback-demo.css?v=20260730-missed-well">
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-margin-model">
 </head>
 <body>
   <main class="app-shell">
@@ -28,7 +28,7 @@
         <strong>This is a test/demo page only</strong>
         <span> — a self-contained simulation, not connected to any real account or Firestore data.</span>
         <p>The clock runs a fixed 7am–3pm window every day (8 one-hour segments, 2 real seconds each) and never pauses or resets for anyone - it just keeps going, day after day (cycling every 3 days here).</p>
-        <p>Your rate depends on how long your own balance has been open: fresh today earns 10%, one day old earns 5%, two or more days old earns nothing - paying it off in full and starting a new balance resets that count, whatever day the clock happens to be on.</p>
+        <p>Cash back is calculated per charge, not on the whole balance - each charge earns based on how long IT has been open: fresh today earns 10%, one day old earns 5%, two or more days old earns nothing. Adding a new charge doesn't reset older ones - it just starts its own fresh count.</p>
         <p>The cashback offer only appears while there's an actual balance to pay off.</p>
       </div>
       <button type="button" class="notice__close" id="notice-close" aria-label="Dismiss this notice">&times;</button>
@@ -136,6 +136,19 @@
       </article>
     </section>
 
+    <section class="panel charges-panel hidden" id="charges-panel" aria-label="Balance breakdown by charge">
+      <header class="section-heading">
+        <span class="section-heading__icon" aria-hidden="true">
+          <img src="assets/cashback-demo/icons/svg/green/dollar.svg" alt="">
+        </span>
+        <div>
+          <h2>Balance breakdown</h2>
+          <p>Each charge earns cash back on its own - based on the day it was added, not the balance as a whole</p>
+        </div>
+      </header>
+      <div class="charges-list" id="charges-list"></div>
+    </section>
+
     <section class="panel timeline-panel" id="timeline-panel" aria-labelledby="timeline-title">
       <div class="timeline-header">
         <h2 id="timeline-title"><span id="day-label">Day 1</span> <span aria-hidden="true">·</span> <span id="time-label">7:00 AM</span></h2>
@@ -185,6 +198,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script src="cashback-demo.js?v=20260730-missed-well"></script>
+  <script src="cashback-demo.js?v=20260730-margin-model"></script>
 </body>
 </html>
