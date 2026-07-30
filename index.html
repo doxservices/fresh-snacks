@@ -767,11 +767,11 @@
       const pct = Math.round(offer.rate * 100);
       $id("cashback-badge").textContent = `${pct}% cash back`;
       $id("cashback-card-title").textContent = offer.tier === 1
-        ? "Clear your balance today"
-        : "Last chance - clear your balance today";
+        ? "Today's the best day to clear your balance"
+        : "Don't miss today's cash back";
       $id("cashback-card-body").textContent = offer.tier === 1
-        ? `Pay your whole balance in full today and get ${pct}% credited back to your account.`
-        : `Yesterday's 10% window closed - clear your whole balance in full today for ${pct}% back, or it's gone for good.`;
+        ? `Pay your whole balance in full today and get ${pct}% credited back to your account - tomorrow the rate drops.`
+        : `Yesterday's 10% is gone, but paying in full today still earns you ${pct}% credited back - tomorrow there's nothing left to earn.`;
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
     }

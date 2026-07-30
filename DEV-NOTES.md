@@ -1,5 +1,28 @@
 # Development notes
 
+## Cashback CTA: reframe as FOMO, not a countdown (2026-07-30)
+
+- User asked for the cashback call-to-action copy to stop feeling rushed
+  and read more like FOMO instead. Updated both the real feature
+  (index.html's `renderCashbackCard`) and its demo (cashback-demo.js's
+  `renderPromo`), which is what customers actually see - the demo was
+  just simulating it. Dropped deadline-pressure phrasing ("Last chance",
+  "or it's gone for good", the demo's "before 3pm") in favor of framing
+  around what's already been missed and what's still earnable today:
+  - Day 1/best-rate: "Today's the best day to clear your balance" / "Pay
+    your whole balance in full today and get {pct}% credited back... -
+    tomorrow the rate drops."
+  - Day 2/reduced-rate: "Don't miss today's cash back" / "Yesterday's 10%
+    is gone, but paying in full today still earns you {pct}% back... -
+    tomorrow there's nothing left to earn."
+- Kept the real app's wording ("credited back to your account") distinct
+  from the demo's ("as shop credit") - the real backend settles cashback
+  as a plain payment/credit line, not a separate shop-credit bucket with
+  its own $300 minimum; that concept only exists in the demo.
+- The demo's underlying 7am-3pm hourly visualization (banner, clock, bar)
+  is unchanged - only the promo card's persuasive copy changed, since
+  that's the actual call-to-action, not the informational elements.
+
 ## Cashback demo: fix the current-segment highlight moving the wrong way (2026-07-30)
 
 - User-reported: the highlighted "current" segment was moving left-to-
