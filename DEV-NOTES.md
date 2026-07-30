@@ -1,5 +1,34 @@
 # Development notes
 
+## Cashback demo: day count tied to whether a balance exists (2026-07-30)
+
+- New rule, matching how the real mechanic actually works: the day count
+  only advances (and eventually loops past Day 4) while a balance stays
+  outstanding - that's the thing whose age is being tracked. A balance
+  that's been fully paid off has nothing accruing against it, so:
+  - `payInFull()` now resets `dayIndex`/`segmentIndex` back to Day 1, 7am
+    immediately on a full payment, instead of leaving the day count
+    wherever it was and continuing on. The next balance to appear (Add
+    $100, or a real new purchase) starts fresh at the best rate.
+  - `advanceSegment()`'s day-rollover only steps `dayIndex` forward when
+    `state.balance > 0`; with a clear balance it resets to 0 instead, so
+    the day count stays pinned at Day 1 for as long as nothing is owed,
+    rather than silently ticking forward in the background.
+  - Fixed a bug this exposed: `renderPromo()`'s "show the just-paid
+    summary" check compared `lastPayment.dayIndex === state.dayIndex`,
+    which broke the moment payment started resetting `dayIndex` to 0 (a
+    payment made on any day other than Day 1 would fail the comparison
+    and never show the confirmation). Simplified to just check
+    `lastPayment !== null`, which was already correctly cleared by every
+    other state change (day rollover, jump, reset, new charge) - the day-
+    index comparison wasn't adding anything.
+- Verified with headless Chrome: paying on Day 2 resets immediately to
+  Day 1 with the payment confirmation still showing correctly; a new
+  charge right after shows the fresh Day 1/10% offer; an unpaid balance
+  left to run correctly advances Day 1 → Day 2 on schedule; and a paid-off
+  ($0) balance stays pinned at Day 1 across 3 full day-cycles (24 ticks)
+  with zero console errors.
+
 ## Cashback demo: exact promo copy, arrow alignment (2026-07-30)
 
 - Replaced the demo's promo body text with the user's exact wording: "Pay

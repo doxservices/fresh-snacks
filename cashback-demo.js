@@ -107,7 +107,12 @@
       state.segmentIndex += 1;
     } else {
       state.segmentIndex = 0;
-      state.dayIndex = (state.dayIndex + 1) % DAY_COUNT;
+      // The day only steps forward (and eventually loops past Day 4) if a
+      // balance is still outstanding - that's the thing actually aging.
+      // A clear balance has nothing accruing against it, so the day
+      // resets to Day 1 instead, ready to start fresh the moment a new
+      // balance appears.
+      state.dayIndex = state.balance > 0 ? (state.dayIndex + 1) % DAY_COUNT : 0;
       state.lastPayment = null;
     }
     render();
@@ -151,7 +156,13 @@
 
     state.balance = 0;
     state.shopCredit = Math.round((state.shopCredit + creditEarned) * 100) / 100;
-    state.lastPayment = { paidAmount, creditEarned, dayIndex: state.dayIndex };
+    state.lastPayment = { paidAmount, creditEarned };
+    // Paying the balance in full clears it, so the next cycle starts over
+    // fresh at Day 1's best rate instead of continuing wherever the day
+    // count happened to be - the same way a real balance that's fully
+    // settled loses its "days since opened" clock entirely.
+    state.dayIndex = 0;
+    state.segmentIndex = 0;
     render();
 
     if (creditEarned > 0) {
@@ -185,13 +196,17 @@
     const rate = currentRate();
     const expired = rate === 0;
     const ratePercent = Math.round(rate * 100);
-    const paymentOnCurrentDay = state.lastPayment && state.lastPayment.dayIndex === state.dayIndex;
+    // lastPayment itself is enough to know "show the just-paid summary" -
+    // it's cleared on the next day rollover, a jump, a reset, or a new
+    // charge, so there's no need to also compare day indices (which no
+    // longer holds once paying resets dayIndex back to 0 immediately).
+    const justPaid = state.lastPayment !== null;
 
     elements.promoCard.classList.toggle('is-expired', expired);
     elements.promoBalance.textContent = formatMoney(state.balance);
     elements.rewardValue.textContent = formatMoney(projectedReward());
 
-    if (paymentOnCurrentDay) {
+    if (justPaid) {
       elements.cashbackRate.textContent = state.lastPayment.creditEarned > 0 ? 'Cashback credited' : 'No cashback';
       elements.promoTitle.textContent = 'Payment complete';
       elements.promoDescription.textContent = state.lastPayment.creditEarned > 0
