@@ -1,557 +1,202 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#185638">
+  <meta name="description" content="Fresh Snacks - a self-contained cashback schedule simulation, not connected to any real account or Firestore data.">
   <title>Fresh Snacks — Cashback Demo</title>
-  <link rel="stylesheet" href="styles.css?v=20260729-cashback-demo" />
-  <style>
-    /* Demo-only styles - not part of the real app, so scoped to this page
-       rather than added to styles.css. */
-    /* Test/demo notice - a rounded card like the rest of the page, pinned
-       to the top of the viewport with position:sticky so it stays visible
-       while the rest of the page scrolls underneath it. */
-    .demo-banner {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      background: #fbf4df;
-      border: 1px solid #d9bf72;
-      border-radius: var(--radius);
-      color: #725313;
-      padding: 14px 16px;
-      font-size: 13px;
-      margin-bottom: 14px;
-    }
-    .demo-banner-icon {
-      flex: 0 0 auto;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1.5px solid #d9bf72;
-      color: #c8860a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .demo-banner-text p {
-      margin: 0 0 6px;
-    }
-    .demo-banner-text p:last-child {
-      margin-bottom: 0;
-    }
-    .demo-controls-heading {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .demo-controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-    .demo-controls button,
-    .demo-jump-row button {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .demo-field label {
-      display: block;
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 4px;
-    }
-    .demo-field input {
-      width: 140px;
-    }
-    .demo-divider {
-      border: none;
-      border-top: 1px solid var(--line);
-      margin: 14px 0;
-    }
-    /* Even row, not a wrapped list - the specific time within a day
-       doesn't matter for these, just which date you want to preview. */
-    .demo-jump-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-    .demo-jump-row button {
-      flex: 1;
-      justify-content: center;
-    }
-    .demo-clock {
-      text-align: center;
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--muted);
-      margin: 0 0 10px;
-      letter-spacing: 0.02em;
-    }
-    /* 24 hourly segments for the CURRENT simulated day - filled (colored)
-       segments are hours still left before this day ends (and the tier
-       steps down or expires); a segment turns "spent" as each simulated
-       hour passes. Same "reverse loading bar" concept the real feature
-       used before it moved from an hourly deadline to a purely day-based
-       one - kept here since it's still a clear way to *watch* time pass. */
-    .demo-day-bar {
-      display: flex;
-      gap: 2px;
-      margin: 10px 0 4px;
-    }
-    .demo-segment {
-      flex: 1;
-      height: 10px;
-      border-radius: 3px;
-      background: #e8790a;
-      transition: background-color 0.3s ease;
-    }
-    .demo-segment.spent {
-      background: rgba(214, 130, 30, 0.16);
-    }
-    .demo-segment.tier-0 {
-      background: #9aa39d;
-    }
-    .demo-segment.tier-0.spent {
-      background: rgba(154, 163, 157, 0.2);
-    }
-    .demo-stage-label {
-      text-align: center;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 0;
-    }
-    .demo-result {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      display: none;
-    }
-    .demo-result.show {
-      display: block;
-    }
-    .demo-result.win {
-      background: var(--green-light);
-      color: var(--green-dark);
-      border: 1px solid rgba(47, 122, 68, 0.3);
-    }
-    .demo-result.lose {
-      background: #faefed;
-      color: #8a2f2f;
-      border: 1px solid rgba(138, 47, 47, 0.3);
-    }
-    .demo-cashback-expired {
-      color: var(--muted);
-      font-size: 14px;
-      padding: 6px 0;
-    }
-    /* Shop credit is its own persistent card right alongside Current
-       balance - always visible starting at $0, not something that
-       appears/disappears with payment state, since the whole point is to
-       watch it accumulate across repeated test cycles. */
-    .demo-credit-card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255, 244, 227, 0.88));
-      border-color: rgba(214, 130, 30, 0.32);
-    }
-    .demo-card-tag {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .demo-card-tag.redeemable {
-      background: var(--green-light);
-      color: var(--green-dark);
-    }
-    /* Current balance gets noticeably more room than Shop credit - it's
-       the number a customer should notice first. */
-    #demo-stats-row {
-      grid-template-columns: 1.5fr 1fr;
-    }
-    .demo-stat-box {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .demo-stat-icon {
-      flex: 0 0 auto;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .balance-stat .demo-stat-icon {
-      background: rgba(255, 255, 255, 0.18);
-      color: #fff;
-    }
-    .demo-credit-card .demo-stat-icon {
-      background: rgba(214, 130, 30, 0.14);
-      color: #b5790c;
-    }
-    /* A couple of soft translucent blobs give the balance card the same
-       "wavy texture" feel as the rest of the brand's green cards, without
-       needing a hand-drawn background asset. */
-    #demo-stats-row .balance-stat {
-      position: relative;
-      overflow: hidden;
-    }
-    #demo-stats-row .balance-stat::before {
-      content: "";
-      position: absolute;
-      left: -30px;
-      top: -40px;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    #demo-stats-row .balance-stat::after {
-      content: "";
-      position: absolute;
-      right: -20px;
-      bottom: -40px;
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.14) 0%, transparent 65%);
-      pointer-events: none;
-    }
-    #demo-stats-row .balance-stat > * {
-      position: relative;
-      z-index: 1;
-    }
-    /* Cashback CTA gets a highlight strip along its leading edge. */
-    #demo-cashback-card {
-      border-left: 4px solid #e8790a;
-    }
-    #demo-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-  </style>
+  <link rel="stylesheet" href="cashback-demo.css?v=20260730-redesign-package">
 </head>
 <body>
-  <main class="page">
-    <div class="demo-banner">
-      <span class="demo-banner-icon" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-      </span>
-      <div class="demo-banner-text">
-        <p><strong>This is a test/demo page only</strong> — a self-contained simulation, not connected to any real account or Firestore data.</p>
+  <main class="app-shell">
+    <header class="demo-header">
+      <a href="index.html" class="demo-header__logo-link" aria-label="Fresh Snacks home">
+        <img class="demo-header__logo" src="banner-logo.png" alt="Fresh Snacks" />
+      </a>
+      <div>
+        <h1 class="demo-header__title">Earn cashback on your tab</h1>
+        <p class="demo-header__subtitle">A demo of how the early-payment cashback plays out for a customer, hour by hour.</p>
+      </div>
+    </header>
+
+    <section class="notice" aria-label="Demo information">
+      <div class="notice__icon" aria-hidden="true">
+        <img src="assets/cashback-demo/icons/svg/gold/info.svg" alt="">
+      </div>
+      <div>
+        <strong>This is a test/demo page only</strong>
+        <span> — a self-contained simulation, not connected to any real account or Firestore data.</span>
         <p>Cashback runs on a fixed 7am–3pm window every day (8 one-hour segments). The same schedule applies to every customer, regardless of when they make a purchase or payment.</p>
         <p>A rate reached by 3pm holds steady overnight until 7am the next day — 2 real seconds per segment, so one day's window plays out in 16 seconds.</p>
         <p>Past 4 days it loops into a fresh cycle automatically, so testing can continue — nothing reverts to the starting state until you hit Reset.</p>
       </div>
-    </div>
+    </section>
 
-    <header>
-      <div class="header-row">
-        <div class="header-lead">
-          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+    <section class="panel controls-panel" aria-labelledby="controls-title">
+      <header class="section-heading">
+        <span class="section-heading__icon" aria-hidden="true">
+          <img src="assets/cashback-demo/icons/svg/green/controls.svg" alt="">
+        </span>
+        <div>
+          <h2 id="controls-title">Simulation controls</h2>
+          <p>Adjust the balance, run the schedule, or jump directly to a day.</p>
+        </div>
+      </header>
+
+      <div class="control-row">
+        <label class="field" for="starting-balance">
+          <span>Starting balance</span>
+          <span class="money-input">
+            <span aria-hidden="true">J$</span>
+            <input id="starting-balance" type="number" min="0" step="1" value="500" inputmode="decimal">
+          </span>
+        </label>
+
+        <div class="action-group" aria-label="Simulation actions">
+          <button class="button button--primary" id="play-button" type="button">
+            <img src="assets/cashback-demo/icons/svg/white/play.svg" alt="">
+            <span>Play</span>
+          </button>
+          <button class="button button--secondary" id="pause-button" type="button" disabled>
+            <img src="assets/cashback-demo/icons/svg/green/pause.svg" alt="">
+            <span>Pause</span>
+          </button>
+          <button class="button button--secondary" id="reset-button" type="button">
+            <img src="assets/cashback-demo/icons/svg/green/reset.svg" alt="">
+            <span>Reset</span>
+          </button>
+          <button class="button button--outline" id="add-balance-button" type="button">
+            <img src="assets/cashback-demo/icons/svg/green/plus.svg" alt="">
+            <span>Add J$100</span>
+          </button>
+          <button class="button button--primary" id="pay-button" type="button">
+            <img src="assets/cashback-demo/icons/svg/white/card.svg" alt="">
+            <span>Pay in full now</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="jump-section">
+        <div>
+          <h2>Jump to a stage</h2>
+          <p>The date changes immediately; the clock returns to 7:00 AM.</p>
+        </div>
+        <div class="day-buttons" role="group" aria-label="Choose simulation day">
+          <button class="day-button is-active" type="button" data-day="0" aria-pressed="true">
+            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
+            <span>Day 1</span>
+            <strong>10%</strong>
+          </button>
+          <button class="day-button" type="button" data-day="1" aria-pressed="false">
+            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
+            <span>Day 2</span>
+            <strong>5%</strong>
+          </button>
+          <button class="day-button" type="button" data-day="2" aria-pressed="false">
+            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
+            <span>Day 3</span>
+            <strong>Expired</strong>
+          </button>
+          <button class="day-button" type="button" data-day="3" aria-pressed="false">
+            <img src="assets/cashback-demo/icons/svg/green/calendar.svg" alt="">
+            <span>Day 4</span>
+            <strong>Expired</strong>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-grid" aria-label="Account summary">
+      <article class="metric-card metric-card--balance">
+        <div class="metric-card__icon metric-card__icon--light" aria-hidden="true">
+          <img src="assets/cashback-demo/icons/svg/white/dollar.svg" alt="">
+        </div>
+        <div>
+          <p>Current balance</p>
+          <strong id="balance-value">J$500</strong>
+          <span id="balance-status">Ready for simulation</span>
+        </div>
+      </article>
+
+      <article class="metric-card metric-card--credit">
+        <div class="metric-card__icon metric-card__icon--gold" aria-hidden="true">
+          <img src="assets/cashback-demo/icons/svg/gold/shopping_bag.svg" alt="">
+        </div>
+        <div>
+          <p>Shop credit</p>
+          <strong id="credit-value">J$0</strong>
+          <span class="credit-rule">Redeemable on a purchase of J$300 or more</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel timeline-panel" aria-labelledby="timeline-title">
+      <div class="timeline-header">
+        <div>
+          <p class="eyebrow">Current schedule</p>
+          <h2 id="timeline-title"><span id="day-label">Day 1</span> <span aria-hidden="true">·</span> <span id="time-label">7:00 AM</span></h2>
+        </div>
+        <span class="simulation-status" id="simulation-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          Paused
+        </span>
+      </div>
+
+      <div class="timeline" id="timeline" role="progressbar" aria-label="Daily cashback window" aria-valuemin="0" aria-valuemax="8" aria-valuenow="1">
+        <div class="timeline__segments" aria-hidden="true">
+          <span class="timeline__segment is-complete"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+          <span class="timeline__segment"></span>
+        </div>
+        <div class="timeline__labels" aria-hidden="true">
+          <span>7 AM</span><span>8 AM</span><span>9 AM</span><span>10 AM</span><span>11 AM</span><span>12 PM</span><span>1 PM</span><span>3 PM</span>
+        </div>
+      </div>
+      <p class="timeline-caption">Stage: <strong id="stage-label">Day 1 — best cashback rate</strong></p>
+    </section>
+
+    <section class="promo-card" id="promo-card" aria-labelledby="promo-title">
+      <div class="promo-card__content">
+        <div class="promo-card__headline">
+          <span class="cashback-pill" id="cashback-pill">
+            <img src="assets/cashback-demo/icons/svg/white/star.svg" alt="">
+            <span id="cashback-rate">10% cashback</span>
+          </span>
+          <h2 id="promo-title">Clear your balance before 3 PM today</h2>
+        </div>
+        <p id="promo-description">Pay your full balance before 3 PM and receive 10% back as shop credit.</p>
+
+        <div class="reward-summary">
           <div>
-            <h1>Earn cashback on your tab</h1>
-            <p>A demo of how the early-payment cashback plays out for a customer, hour by hour.</p>
+            <span>Your balance</span>
+            <strong id="promo-balance">J$500</strong>
+          </div>
+          <img src="assets/cashback-demo/icons/svg/green/arrow_right.svg" alt="becomes">
+          <div>
+            <span>You would earn back</span>
+            <strong class="reward-value" id="reward-value">J$50</strong>
           </div>
         </div>
       </div>
-    </header>
-
-    <section class="card section-card">
-      <h2 class="demo-controls-heading">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-        Simulation controls
-      </h2>
-      <div class="demo-controls">
-        <div class="demo-field">
-          <label for="demo-balance-input">Starting balance</label>
-          <input id="demo-balance-input" type="number" min="1" step="1" value="500" />
+      <div class="promo-card__art" aria-hidden="true">
+        <div class="promo-card__art-ring">
+          <img src="assets/cashback-demo/icons/svg/gold/clock.svg" alt="">
         </div>
-        <button type="button" class="primary" id="demo-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play</button>
-        <button type="button" id="demo-pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause</button>
-        <button type="button" id="demo-reset"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Reset</button>
-        <button type="button" id="demo-add-balance"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add $100 to balance</button>
-        <button type="button" class="primary" id="demo-pay-now"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Pay in full now</button>
-      </div>
-      <div class="demo-result" id="demo-result"></div>
-      <hr class="demo-divider" />
-      <p class="muted-small" style="margin-bottom:6px;">Jump straight to a stage instead of waiting - the specific time doesn't matter, just the date:</p>
-      <div class="demo-jump-row">
-        <button type="button" data-jump="0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 1 - 10%</button>
-        <button type="button" data-jump="8"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 2 - 5%</button>
-        <button type="button" data-jump="16"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 3 - expired</button>
-        <button type="button" data-jump="24"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Day 4 - expired</button>
+        <span>Before 3 PM</span>
       </div>
     </section>
 
-    <!-- Shop credit sits right alongside Current balance as a permanent
-         part of the same account-summary strip, starting at $0 and
-         accumulating as cashback is earned across test cycles. -->
-    <div class="brand-stats" id="demo-stats-row" style="margin-bottom:6px;">
-      <div class="stat-box balance-stat demo-stat-box">
-        <span class="demo-stat-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        </span>
-        <div>
-          <div class="stat-label">Current balance</div>
-          <div class="stat-value" id="demo-stat-balance">–</div>
-        </div>
-      </div>
-      <div class="stat-box demo-credit-card demo-stat-box" id="demo-credit-card">
-        <span class="demo-stat-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        </span>
-        <div>
-          <div class="stat-label">Shop credit</div>
-          <div class="stat-value" id="demo-ledger-credit-amount">$0</div>
-          <span class="demo-card-tag redeemable" title="Shop credit can be applied once a single purchase totals $300 or more">Redeemable on purchase of $300 or more</span>
-        </div>
-      </div>
-    </div>
-
-    <section class="card section-card">
-      <div class="demo-clock" id="demo-clock">Day 1 · 7:00 AM</div>
-      <div class="demo-day-bar" id="demo-day-bar"></div>
-      <p class="demo-stage-label" id="demo-stage-label"></p>
-    </section>
-
-    <section class="card section-card cashback-card" id="demo-cashback-card" aria-label="Early payment cashback">
-      <div class="cashback-card-head">
-        <span class="cashback-badge" id="demo-badge">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span id="demo-badge-text">10% cash back</span>
-        </span>
-        <span class="cashback-card-title" id="demo-title">Clear your balance today</span>
-      </div>
-      <p class="muted-small" id="demo-body"></p>
-      <div class="cashback-card-amounts">
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">Your balance</span>
-          <span class="cashback-amount" id="demo-balance-amount"></span>
-        </div>
-        <span class="cashback-arrow" aria-hidden="true">&rarr;</span>
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">You'd earn back</span>
-          <span class="cashback-amount cashback-earn" id="demo-earn-amount"></span>
-        </div>
-      </div>
-    </section>
-    <p class="demo-cashback-expired hidden" id="demo-expired-note">
-      No cashback available right now - it's been more than two days since the balance opened.
-    </p>
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   </main>
 
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const money = (n) => `J$${Math.round(n).toLocaleString("en-US")}`;
-
-    // Mirrors functions/src/lib/cashback.js's TIER_RATES exactly - kept in
-    // sync by hand since this static demo has no build step to share it
-    // directly with the Cloud Functions source.
-    const TIER_RATES = { 0: 0.10, 1: 0.05 };
-    // Fixed daily window, 7am-3pm, one segment per literal clock hour - the
-    // same schedule for every customer no matter when they actually made
-    // their purchase or payment. The clock jumps straight from one day's
-    // 3pm to the next day's 7am; the tier reached by 3pm holds steady
-    // through that overnight gap until the window reopens.
-    const WINDOW_START_HOUR = 7;
-    const WINDOW_END_HOUR = 15;
-    const SEGMENT_COUNT = 8;
-    const SEGMENT_HOURS = (WINDOW_END_HOUR - WINDOW_START_HOUR) / SEGMENT_COUNT; // 1 hour per segment
-    const MS_PER_SEGMENT = 2000; // 2 real seconds per brick
-    // A "cycle" is 4 simulated days: day 1 (10%), day 2 (5%), then day 3 and
-    // day 4 sit expired. Once a cycle finishes it wraps straight into a new
-    // one (Day 1 again) rather than stopping, so testing can continue
-    // indefinitely - only the Reset button ever fully starts over.
-    const CYCLE_DAYS = 4;
-    const CYCLE_TICKS = SEGMENT_COUNT * CYCLE_DAYS;
-
-    function tierForDayIndex(dayIndex) {
-      const rate = TIER_RATES[dayIndex];
-      return rate ? { rate, tier: dayIndex + 1 } : { rate: 0, tier: 0 };
-    }
-
-    function formatClock(dayIndex, segment) {
-      const totalMinutes = Math.round((WINDOW_START_HOUR + segment * SEGMENT_HOURS) * 60);
-      const hour24 = Math.floor(totalMinutes / 60);
-      const minute = totalMinutes % 60;
-      const period = hour24 < 12 ? "AM" : "PM";
-      let hour12 = hour24 % 12;
-      if (hour12 === 0) hour12 = 12;
-      return `Day ${dayIndex + 1} · ${hour12}:${String(minute).padStart(2, "0")} ${period}`;
-    }
-
-    // The balance input is the single source of truth for what's owed -
-    // paying zeroes it directly and Add $100 adds to it directly, rather
-    // than tracking a separate "paid" flag that masks the real number.
-    // That's what lets a fresh charge after paying show correctly instead
-    // of just re-adding on top of a balance that was never actually zeroed.
-    const DEFAULT_BALANCE = Number($("demo-balance-input").value || 0);
-    let tick = 0; // bricks elapsed in the current cycle
-    let timer = null;
-    let creditEarned = 0; // cumulative across cycles - only Reset clears this
-
-    function currentBalance() {
-      return Number($("demo-balance-input").value || 0);
-    }
-
-    function renderDayBar(segment, tier) {
-      const remaining = SEGMENT_COUNT - segment;
-      $("demo-day-bar").innerHTML = Array.from({ length: SEGMENT_COUNT }, (_, i) => {
-        const spent = i >= remaining;
-        const tierClass = tier === 0 ? " tier-0" : "";
-        return `<span class="demo-segment${tierClass}${spent ? " spent" : ""}"></span>`;
-      }).join("");
-    }
-
-    function render() {
-      const dayIndex = Math.floor(tick / SEGMENT_COUNT);
-      const segment = tick % SEGMENT_COUNT;
-      const { rate, tier } = tierForDayIndex(dayIndex);
-      const balance = currentBalance();
-
-      $("demo-stat-balance").textContent = money(balance);
-      $("demo-clock").textContent = formatClock(dayIndex, segment);
-      renderDayBar(segment, tier);
-
-      const stageLabels = { 1: "Stage: Day 1 - the best rate", 2: "Stage: Day 2 - last chance", 0: "Stage: expired - no cashback left" };
-      $("demo-stage-label").textContent = stageLabels[tier] || "";
-
-      const showCard = balance > 0 && tier > 0;
-      $("demo-cashback-card").classList.toggle("hidden", !showCard);
-      $("demo-expired-note").classList.toggle("hidden", balance <= 0 || tier > 0);
-
-      if (showCard) {
-        const pct = Math.round(rate * 100);
-        $("demo-badge-text").textContent = `${pct}% cash back`;
-        $("demo-title").textContent = tier === 1 ? "Clear your balance before 3pm today" : "Last chance before 3pm today";
-        $("demo-body").textContent = tier === 1
-          ? `Pay your whole balance in full before 3pm and get ${pct}% credited back as shop credit.`
-          : `The rate dropped to ${pct}% overnight and holds until 3pm - clear your whole balance in full before then, or it's gone for good.`;
-        $("demo-balance-amount").textContent = money(balance);
-        $("demo-earn-amount").textContent = money(balance * rate);
-      }
-
-      $("demo-pay-now").disabled = balance <= 0;
-    }
-
-    function advance() {
-      tick += 1;
-      if (tick >= CYCLE_TICKS) {
-        // Continue on into a new cycle instead of stopping - the balance
-        // is untouched (whatever was paid off or added stays that way),
-        // only the day count wraps back to Day 1; credit earned keeps
-        // accumulating regardless.
-        tick = 0;
-      }
-      render();
-    }
-
-    function play() {
-      if (timer) return;
-      timer = setInterval(advance, MS_PER_SEGMENT);
-      $("demo-play").disabled = true;
-      $("demo-pause").disabled = false;
-    }
-
-    function pause() {
-      clearInterval(timer);
-      timer = null;
-      $("demo-play").disabled = false;
-      $("demo-pause").disabled = true;
-    }
-
-    function renderLedger() {
-      $("demo-ledger-credit-amount").textContent = money(creditEarned);
-    }
-
-    function resetLedger() {
-      creditEarned = 0;
-      renderLedger();
-    }
-
-    function clearResult() {
-      $("demo-result").className = "demo-result";
-      $("demo-result").textContent = "";
-      resetLedger();
-    }
-
-    function reset() {
-      pause();
-      tick = 0;
-      $("demo-balance-input").value = DEFAULT_BALANCE;
-      clearResult();
-      render();
-    }
-
-    $("demo-play").onclick = play;
-    $("demo-pause").onclick = pause;
-    $("demo-reset").onclick = reset;
-    $("demo-pause").disabled = true;
-
-    document.querySelectorAll("[data-jump]").forEach((btn) => {
-      btn.onclick = () => {
-        pause();
-        clearResult();
-        $("demo-balance-input").value = DEFAULT_BALANCE;
-        tick = Number(btn.dataset.jump);
-        render();
-      };
-    });
-
-    $("demo-balance-input").addEventListener("input", render);
-
-    // Simulates a new purchase landing on the tab while the routine is
-    // running - adds straight onto whatever balance is currently showing,
-    // even if this cycle's balance was already paid down to $0.
-    $("demo-add-balance").onclick = () => {
-      const input = $("demo-balance-input");
-      input.value = Number(input.value || 0) + 100;
-      render();
-    };
-
-    // Paying doesn't end the demo - it just zeroes the balance. Shop
-    // credit accumulates on top of whatever it already held; the balance
-    // stays at $0 until a new charge (Add $100) or a restart (Reset/jump)
-    // brings it back. The clock itself is never paused here - if it was
-    // already running, it keeps running straight through the payment so
-    // natural behavior (a new day arriving, a new cycle starting) can
-    // still be observed without needing to manually resume play.
-    $("demo-pay-now").onclick = () => {
-      const dayIndex = Math.floor(tick / SEGMENT_COUNT);
-      const { rate, tier } = tierForDayIndex(dayIndex);
-      const balance = currentBalance();
-      const cashback = tier > 0 ? balance * rate : 0;
-      $("demo-balance-input").value = 0;
-
-      const result = $("demo-result");
-      result.className = tier > 0 ? "demo-result show win" : "demo-result show lose";
-      result.textContent = tier > 0
-        ? `Paid ${money(balance)} in full - ${Math.round(rate * 100)}% cash back earned. See Shop credit above.`
-        : `Paid ${money(balance)} in full - no cashback this time, the window already closed.`;
-
-      if (cashback > 0) {
-        creditEarned += cashback;
-        renderLedger();
-      }
-
-      render();
-    };
-
-    renderLedger();
-    render();
-  </script>
+  <script src="cashback-demo.js?v=20260730-redesign-package"></script>
 </body>
 </html>

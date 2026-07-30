@@ -1,5 +1,45 @@
 # Development notes
 
+## Cashback demo: rebuilt from the supplied redesign package (2026-07-30)
+
+- Replaced the hand-rolled `cashback-demo.html` (inline SVG icons, CSS
+  radial-gradient approximations of the card texture) with the approved
+  design package (`cashback_simulator_html_package.zip`) built to match the
+  reference image directly. Real icon/background SVG assets copied to
+  `assets/cashback-demo/` (icons in green/gold/white, card/panel/button
+  textures) - only the `svg` variants, since the CSS never references the
+  supplied `@2x` PNGs. Skipped `design-tokens.json`/`design-reference.png`/
+  `color-palette.png` - reference-only, not used at runtime.
+- New `cashback-demo.css` and `cashback-demo.js` (both new files, not
+  inline) adapted from the package's `css/styles.css`/`js/app.js`: fixed
+  the asset `url()` paths, and added `.demo-header` styles so the page
+  still shows the Fresh Snacks logo linking back to index.html (the
+  standalone package had no site branding at all).
+- Deliberately did NOT reuse the site's shared `styles.css` on this page -
+  the package defines its own generic class names (`.panel`, `.button`,
+  `.field`, `.notice`, `.summary-grid`, `.section-heading`, ...), several
+  of which collide with unrelated rules already in the shared stylesheet.
+  This page is now fully self-contained again, just like the original
+  hand-rolled version was meant to be.
+- Kept our own banner copy (four separate lines) instead of the package's
+  single consolidated paragraph, and kept a Day-2-specific promo message
+  ("Last chance before 3 PM today...") instead of the package's generic
+  "Day N, X% back" copy reused for every non-expired day - both are
+  refinements from earlier in this project that the generic package didn't
+  carry.
+- One intentional behavior change from adopting the package's JS: jumping
+  to a day no longer resets the balance/shop credit (previously it reset
+  to the starting balance) - only Reset does that now. The package's state
+  model (a plain `{balance, shopCredit}` object) also sidesteps the exact
+  bug fixed a few sessions ago, where reading the balance straight from
+  the input field let a stale pre-payment value resurface.
+- Verified with a real headless-Chrome smoke test (puppeteer-core, the
+  project's established pattern) driving the actual page: play/pause,
+  pay-in-full (confirmed the clock keeps advancing through it), Add J$100
+  (confirmed it reflects the post-payment balance, not a stale one),
+  jump-to-day, and Reset all produced the expected values with zero
+  console errors.
+
 ## Cashback demo: paying no longer pauses the clock (2026-07-29)
 
 - "Pay in full now" used to call `pause()`, freezing the simulated clock

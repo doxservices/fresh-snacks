@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FBFDFB"/>
+    <stop offset="1" stop-color="#F0F7F2"/>
+  </linearGradient>
+  <pattern id="diag" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">
+    <line x1="0" y1="0" x2="0" y2="28" stroke="#CFE5D6" stroke-width="1" opacity=".28"/>
+  </pattern>
+  <radialGradient id="blob1"><stop offset="0" stop-color="#E8F4EC" stop-opacity=".9"/><stop offset="1" stop-color="#E8F4EC" stop-opacity="0"/></radialGradient>
+  <radialGradient id="blob2"><stop offset="0" stop-color="#FFF1D3" stop-opacity=".55"/><stop offset="1" stop-color="#FFF1D3" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1440" height="1024" fill="url(#bg)"/>
+<rect width="1440" height="1024" fill="url(#diag)"/>
+<ellipse cx="1260" cy="900" rx="360" ry="240" fill="url(#blob1)"/>
+<ellipse cx="90" cy="950" rx="210" ry="180" fill="url(#blob2)"/>
+</svg>

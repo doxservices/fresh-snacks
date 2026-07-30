@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="260" viewBox="0 0 800 260">
+<defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFFCF6"/></linearGradient>
+  <radialGradient id="glow"><stop offset="0" stop-color="#F4C66F" stop-opacity=".22"/><stop offset="1" stop-color="#F4C66F" stop-opacity="0"/></radialGradient>
+  <filter id="s" x="-10%" y="-30%" width="120%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="9" flood-color="#123F2C" flood-opacity=".09"/></filter>
+</defs>
+<rect x="8" y="8" width="784" height="244" rx="22" fill="url(#g)" stroke="#E3E8E5" filter="url(#s)"/>
+<ellipse cx="710" cy="40" rx="240" ry="170" fill="url(#glow)"/>
+</svg>
