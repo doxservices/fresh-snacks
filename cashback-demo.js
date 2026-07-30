@@ -207,9 +207,10 @@
       elements.promoTitle.textContent = 'No cashback is available today';
       elements.promoDescription.textContent = 'The promotional window has ended. Payments can still be completed, but no shop credit will be added.';
     } else if (state.dayIndex === 0) {
+      const nextRatePercent = Math.round(DAY_RATES[state.dayIndex + 1] * 100);
       elements.cashbackRate.textContent = `${ratePercent}% cash back`;
       elements.promoTitle.textContent = "Today's the best day to clear your balance";
-      elements.promoDescription.textContent = `Pay your whole balance in full today and earn ${ratePercent}% back as shop credit - tomorrow the rate drops.`;
+      elements.promoDescription.textContent = `Pay your balance in full before the timer runs out and earn ${ratePercent}% back as shop credit. Tomorrow the rate drops to ${nextRatePercent}%.`;
     } else {
       // Day 2 - the rate already stepped down overnight, and there's no
       // third chance after this - framed around what's earned today and
@@ -217,7 +218,7 @@
       // incentive to catch rather than pressure to beat the clock.
       elements.cashbackRate.textContent = `${ratePercent}% cash back`;
       elements.promoTitle.textContent = "Don't miss today's cash back";
-      elements.promoDescription.textContent = `Yesterday's 10% is gone, but paying in full today still earns you ${ratePercent}% back as shop credit - tomorrow there's nothing left to earn.`;
+      elements.promoDescription.textContent = `Pay your balance in full before the timer runs out and earn ${ratePercent}% back as shop credit. Tomorrow there's nothing left to earn.`;
     }
   }
 

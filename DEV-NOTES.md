@@ -1,5 +1,23 @@
 # Development notes
 
+## Cashback demo: exact promo copy, arrow alignment (2026-07-30)
+
+- Replaced the demo's promo body text with the user's exact wording: "Pay
+  your balance in full before the timer runs out and earn {pct}% back as
+  shop credit. Tomorrow the rate drops to {pct}%." (Day 2's "tomorrow"
+  line becomes "there's nothing left to earn" instead of a rate, since
+  Day 3 is expired) - "the timer" refers to the demo's own hour-by-hour
+  bar, so this only applies to cashback-demo.js, not the real app's
+  index.html copy (which has no timer/bar UI to reference).
+- Fixed the reward-summary arrow's vertical alignment - it was centered
+  against the full label+value block (`align-items: center`), which put
+  it about 11px above the actual center of the big "J$500"/"J$50" numbers
+  since the small label line above them skewed the middle upward.
+  Measured the real rendered boxes (headless Chrome) rather than guessing,
+  switched to `align-items: flex-end` with a tuned `margin-bottom` on the
+  arrow - re-measured afterward and it now lines up with the numbers'
+  center within 0.2px.
+
 ## Cashback CTA: reframe as FOMO, not a countdown (2026-07-30)
 
 - User asked for the cashback call-to-action copy to stop feeling rushed
