@@ -1,5 +1,39 @@
 # Development notes
 
+## Port cashback bar + expired-bonus tracking to the real app (2026-07-30)
+
+- Before touching real payout logic: confirmed with the user that the
+  demo's "any new charge reactivates the whole balance to 10%" should NOT
+  be ported as-is - it doesn't match how `functions/src/lib/cashback.js`
+  actually works (tier is keyed off the OLDEST still-owed transaction's
+  date; a top-up doesn't change that), and copying the demo's simplified
+  version verbatim would be a real, gameable discount loophole (keep a
+  token balance alive, add small charges, reset the whole balance to 10%
+  each time). `evaluateCashback`/`projectedCashback` are unchanged.
+- Instead, added `expiredCashbackAmounts(transactions, now)` - purely
+  informational, computed from the same `accountSnapshot`/
+  `daysSinceBalanceOpened` already used elsewhere in this file. Once a
+  balance has sat unpaid 2+ days (both tiers gone), it returns what the
+  10% and 5% bonuses *would have been*, for a "these bonuses expired"
+  display - it does not change what a payment actually earns. Exposed as
+  `expiredCashback` on `GET /store/data` alongside the existing
+  `cashback` projection (the two are mutually exclusive - never both
+  non-null at once). Added regression tests, including one confirming a
+  top-up to an already-expired balance does NOT get a fresh tier.
+- index.html: added a 2-segment day-bar to the existing cashback card
+  (tier 1 lights one segment, tier 2 lights both with the first marked
+  spent) - a day-granularity version of the demo's hourly bar, since the
+  real mechanic has no intra-day deadline to visualize. Added a new,
+  visually distinct "expired coupon" card (`#cashback-expired-card`,
+  dashed border, "Expired" stamp, struck-through amounts) shown only once
+  `expiredCashback` is present - mutually exclusive with the live
+  cashback card, matching the backend.
+- Verified the new render functions directly (extracted and run against
+  a stubbed DOM) for tier 1, tier 2, and the expired-coupon state - all
+  produced the correct copy, day-bar segment states, and dollar amounts.
+  Ran the full functions/test suite (5/5 passing, including the new
+  cashback tests) before deploying via `firebase deploy --only functions`.
+
 ## Cashback demo: bar disappears once expired, new charges reactivate (2026-07-30)
 
 - The timeline/expiry bar now hides entirely once the current balance is

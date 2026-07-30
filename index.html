@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260729-nested-date-log" />
+  <link rel="stylesheet" href="styles.css?v=20260730-expired-coupon" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -73,6 +73,10 @@
         <span class="cashback-badge" id="cashback-badge">10% cash back</span>
         <span class="cashback-card-title" id="cashback-card-title">Clear your balance today</span>
       </div>
+      <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true">
+        <span class="cashback-day-segment"></span>
+        <span class="cashback-day-segment"></span>
+      </div>
       <p class="muted-small" id="cashback-card-body"></p>
       <div class="cashback-card-amounts">
         <div class="cashback-amount-block">
@@ -83,6 +87,25 @@
         <div class="cashback-amount-block">
           <span class="cashback-amount-label">You'd earn back</span>
           <span class="cashback-amount cashback-earn" id="cashback-earn"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Only shown once a balance has sat unpaid past both cashback tiers -
+         a "these bonuses expired" reminder, not a live offer (see
+         renderExpiredCashbackCard()). Purely informational: doesn't affect
+         what a payment actually earns. -->
+    <section class="card section-card cashback-expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
+      <span class="cashback-expired-stamp">Expired</span>
+      <p class="muted-small">Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</p>
+      <div class="cashback-expired-amounts">
+        <div class="cashback-expired-amount-block">
+          <span class="cashback-expired-pct">10%</span>
+          <span class="cashback-expired-value" id="cashback-expired-ten"></span>
+        </div>
+        <div class="cashback-expired-amount-block">
+          <span class="cashback-expired-pct">5%</span>
+          <span class="cashback-expired-value" id="cashback-expired-five"></span>
         </div>
       </div>
     </section>
@@ -758,7 +781,10 @@
     // qualifies - most of the time, for most customers - in which case the
     // card just stays hidden. This is a projection only: nothing is
     // credited until the whole balance is actually paid in full (see
-    // evaluateCashback, run at settlement time).
+    // evaluateCashback, run at settlement time). The 2-segment bar is a day-
+    // granularity view of the same tier the demo's hourly bar shows - tier 1
+    // (today) lights just the first segment, tier 2 (tomorrow) lights both
+    // with the first marked spent, since there's no intra-day deadline here.
     function renderCashbackCard(data, isVisitor) {
       const offer = data.cashback;
       $id("cashback-card").classList.toggle("hidden", isVisitor || !offer);
@@ -774,6 +800,23 @@
         : `Yesterday's 10% is gone, but paying in full today still earns you ${pct}% credited back - tomorrow there's nothing left to earn.`;
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
+      const daySegments = $id("cashback-day-bar").querySelectorAll(".cashback-day-segment");
+      daySegments.forEach((segment, index) => segment.classList.toggle("is-spent", offer.tier === 2 && index === 0));
+    }
+
+    // data.expiredCashback (see functions/src/lib/cashback.js's
+    // expiredCashbackAmounts) is purely informational - it never affects
+    // what a payment actually earns, just shows what was missed once a
+    // balance has sat unpaid past both tiers. Mutually exclusive with the
+    // live cashback-card above (the backend never returns both at once).
+    function renderExpiredCashbackCard(data, isVisitor) {
+      const missed = data.expiredCashback;
+      $id("cashback-expired-card").classList.toggle("hidden", isVisitor || !missed);
+      if (isVisitor || !missed) return;
+      const cur = data.profile.currency;
+      $id("cashback-expired-balance").textContent = FS.money(missed.balance, cur);
+      $id("cashback-expired-ten").textContent = FS.money(missed.tenPercentAmount, cur);
+      $id("cashback-expired-five").textContent = FS.money(missed.fivePercentAmount, cur);
     }
 
     function render(data) {
@@ -799,6 +842,7 @@
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
       renderCashbackCard(data, isVisitor);
+      renderExpiredCashbackCard(data, isVisitor);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee

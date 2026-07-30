@@ -13,7 +13,7 @@ const {
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
-const { projectedCashback } = require("../lib/cashback");
+const { projectedCashback, expiredCashbackAmounts } = require("../lib/cashback");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -306,6 +306,10 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     // clearing the whole balance right now would earn back, or null when
     // there's no balance or the timing no longer qualifies for any tier.
     cashback: projectedCashback(rawTransactions),
+    // Informational only - the 10%/5% amounts that were on the table and
+    // went unclaimed, once a balance has sat unpaid past every tier. Null
+    // while a tier is still live (cashback above covers that case).
+    expiredCashback: expiredCashbackAmounts(rawTransactions),
   });
 }));
 

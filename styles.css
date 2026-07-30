@@ -872,6 +872,83 @@ header.banner {
   color: var(--muted);
 }
 
+/* Day-granularity view of the same tier the demo's hourly bar shows - no
+   intra-day deadline here, so 2 segments (today / tomorrow) is the whole
+   window. Tier 1 lights just the first; tier 2 lights both with the
+   first marked spent - the rate already stepped down overnight. */
+.cashback-day-bar {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 2px;
+}
+
+.cashback-day-segment {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: #e8790a;
+  transition: background-color 0.3s ease;
+}
+
+.cashback-day-segment.is-spent {
+  background: rgba(214, 130, 30, 0.16);
+}
+
+/* A "these bonuses expired" reminder once a balance has sat unpaid past
+   both tiers - dashed/muted/struck-through, deliberately reading like a
+   lapsed coupon rather than a live offer (compare .cashback-card above,
+   which is warm/active). Purely informational - never affects an actual
+   payout. */
+.cashback-expired-card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(241,242,240,0.92));
+  border: 1px dashed rgba(102, 115, 106, 0.4);
+}
+
+.cashback-expired-stamp {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  padding: 4px 12px;
+  border: 2px solid #8a2f2f;
+  border-radius: 6px;
+  color: #8a2f2f;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(6deg);
+}
+
+.cashback-expired-amounts {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.cashback-expired-amount-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 16px;
+  border: 1px dashed rgba(102, 115, 106, 0.35);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.6);
+}
+
+.cashback-expired-pct {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.cashback-expired-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
 .main-grid {
   display: grid;
   grid-template-columns: 1.02fr 0.98fr;

@@ -108,8 +108,30 @@ function projectedCashback(transactions, now = new Date()) {
   return { rate, tier, balance: total, cashbackAmount: round2(total * rate), oldestDate };
 }
 
+/* Purely informational - "here's what you missed" once a balance has sat
+ * unpaid past every tier (2+ days since it opened). Nothing here changes
+ * what a payment actually earns (that's still evaluateCashback, driven
+ * solely by the oldest still-owed transaction's date) - this just derives
+ * a display of the 10%/5% amounts that were on the table each day this
+ * balance sat open, computed against its current total, for a "these
+ * bonuses expired" coupon-style card. Adding a new charge does NOT reset
+ * this or grant a fresh 10% for the combined balance - the tier a payment
+ * actually earns is still tied to the oldest unpaid item, same as ever. */
+function expiredCashbackAmounts(transactions, now = new Date()) {
+  const { total, oldestDate } = accountSnapshot(transactions);
+  if (total <= 0 || !oldestDate) return null;
+  const daysSince = daysSinceBalanceOpened(oldestDate, now);
+  if (daysSince == null || daysSince < 2) return null; // still within a live tier, or pre-launch
+  return {
+    balance: total,
+    tenPercentAmount: round2(total * TIER_RATES[0]),
+    fivePercentAmount: round2(total * TIER_RATES[1]),
+    oldestDate,
+  };
+}
+
 module.exports = {
   BUSINESS_UTC_OFFSET_HOURS, TIER_RATES, LAUNCH_DATE,
   isOwed, accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
-  evaluateCashback, projectedCashback,
+  evaluateCashback, projectedCashback, expiredCashbackAmounts,
 };

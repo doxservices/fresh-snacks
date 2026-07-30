@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const { STATUS } = require("../src/lib/transactionStatus");
 const {
   accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
-  evaluateCashback, projectedCashback, LAUNCH_DATE, TIER_RATES,
+  evaluateCashback, projectedCashback, expiredCashbackAmounts, LAUNCH_DATE, TIER_RATES,
 } = require("../src/lib/cashback");
 
 assert.equal(LAUNCH_DATE, "2026-07-29");
@@ -78,5 +78,36 @@ const projection = projectedCashback(sameDayTxns, new Date("2026-08-01T15:00:00Z
 assert.deepEqual(projection, { rate: 0.10, tier: 1, balance: 100, cashbackAmount: 10, oldestDate: "2026-08-01" });
 assert.equal(projectedCashback(sameDayTxns, new Date("2026-08-05T15:00:00Z")), null, "expired - no projection shown");
 assert.equal(projectedCashback([], new Date()), null, "no balance at all - no projection");
+
+// --- expiredCashbackAmounts: the "here's what you missed" coupon display ---
+// Still within a live tier (same day, or next day) - nothing expired yet.
+assert.equal(expiredCashbackAmounts(sameDayTxns, new Date("2026-08-01T15:00:00Z")), null, "day 0 - still eligible for 10%, nothing expired");
+assert.equal(expiredCashbackAmounts(sameDayTxns, new Date("2026-08-02T15:00:00Z")), null, "day 1 - still eligible for 5%, nothing expired");
+// Third day (or later) with the balance still unpaid - both tiers gone.
+assert.deepEqual(
+  expiredCashbackAmounts(sameDayTxns, new Date("2026-08-03T15:00:00Z")),
+  { balance: 100, tenPercentAmount: 10, fivePercentAmount: 5, oldestDate: "2026-08-01" }
+);
+assert.deepEqual(
+  expiredCashbackAmounts(sameDayTxns, new Date("2026-09-01T15:00:00Z")),
+  { balance: 100, tenPercentAmount: 10, fivePercentAmount: 5, oldestDate: "2026-08-01" },
+  "still shows the missed amounts arbitrarily far past expiry, not just on the exact third day"
+);
+// No balance at all, or a pre-launch balance - nothing to show either way.
+assert.equal(expiredCashbackAmounts([], new Date()), null, "no balance at all");
+assert.equal(expiredCashbackAmounts(preLaunch, new Date("2026-09-01T15:00:00Z")), null, "pre-launch balance never had a tier to expire");
+// Adding a second, newer item to an already-expired balance does NOT reset
+// anything - the combined total's missed amounts are still based on the
+// oldest item's date, and a payment would still only earn based on that
+// same oldest date (see evaluateCashback - unchanged by this function).
+const toppedUp = [
+  { id: "old", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
+  { id: "new", total: 20, createdDate: "2026-08-03", workflowStatus: STATUS.CONFIRMED_UNPAID },
+];
+assert.deepEqual(
+  expiredCashbackAmounts(toppedUp, new Date("2026-08-03T15:00:00Z")),
+  { balance: 120, tenPercentAmount: 12, fivePercentAmount: 6, oldestDate: "2026-08-01" },
+  "still keyed off the oldest item's date - a new charge doesn't grant a fresh tier for the combined balance"
+);
 
 console.log("early-payment cashback regression checks passed");
