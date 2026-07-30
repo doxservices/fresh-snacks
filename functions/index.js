@@ -13,9 +13,14 @@ const app = express();
 
 // The site lives on GitHub Pages, a different origin from this API, plus
 // the local static server used for development - both need explicit CORS
-// since there's no same-origin Hosting rewrite available here.
+// since there's no same-origin Hosting rewrite available here. Kept
+// doxservices.github.io alongside the custom domain since GitHub Pages
+// still serves that origin directly (it 301-redirects browsers, but a
+// stale cached page or in-flight request could still originate from it).
 const ALLOWED_ORIGINS = [
   "https://doxservices.github.io",
+  "https://freshsnacksja.com",
+  "https://www.freshsnacksja.com",
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
   /^http:\/\/localhost(:\d+)?$/,
 ];

@@ -1,5 +1,27 @@
 # Development notes
 
+## Fix "Failed to fetch" on the new custom domain: CORS allow-list (2026-07-29)
+
+- After pointing freshsnacksja.com at GitHub Pages, the page shell loaded
+  fine (header, styling, background - all static assets, no CORS involved)
+  but every API call failed with "Failed to fetch." Red herring chase
+  through DNS propagation and certificate issuance turned out to be beside
+  the point - the actual cause was `functions/index.js`'s `ALLOWED_ORIGINS`
+  CORS allow-list only ever listing `https://doxservices.github.io`. A
+  browser on the new domain sends `Origin: https://freshsnacksja.com`,
+  which wasn't on the list, so the browser blocked every fetch to the API
+  before a response body ever reached the page.
+- Added `https://freshsnacksja.com` and `https://www.freshsnacksja.com` to
+  `ALLOWED_ORIGINS`, kept `https://doxservices.github.io` since GitHub
+  Pages still serves that origin directly (it redirects browsers, but a
+  stale cached page or in-flight request could still originate from it).
+  Verified with a real preflight OPTIONS request per origin against the
+  deployed function - all three now get back a matching
+  `Access-Control-Allow-Origin`.
+- `npx firebase deploy --only functions` run immediately after, since this
+  was the actual live-breaking bug on a domain customers may already be
+  hitting.
+
 ## Snack Log: date-level collapse nested inside month collapse, not instead of it (2026-07-29)
 
 - Correction to the previous entry: replacing month-level collapse with
