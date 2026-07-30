@@ -1,5 +1,39 @@
 # Development notes
 
+## Cashback: calculate per-margin, not on the whole balance (2026-07-30)
+
+- Changed the real payout logic (`functions/src/lib/cashback.js`): every
+  still-owed transaction ("margin") now earns its own tier off its own
+  createdDate, summed into one blended reward - instead of one rate for
+  the entire cleared total, keyed off only the OLDEST unpaid item's date.
+  A charge added after an existing balance already aged past a tier still
+  gets its own fresh shot at 10%/5%; an old, already-expired charge no
+  longer drags a newer one on the same balance down to 0% either.
+- New `marginCashback(transactions, now)` does the per-transaction sum;
+  `evaluateCashback` (real payout) and `projectedCashback` (customer-
+  facing preview) both use it now. `evaluateCashback`'s `tier` field was
+  dropped (a blended settlement doesn't map to one table entry anymore) -
+  `rate` is now the true blended fraction (`amount / clearedTotal`).
+  `admin.js`/`settlement.js` stopped writing `cashbackTier` on cashback
+  payment records accordingly (nothing else read it).
+- Real behavior change worth flagging: `projectedCashback` can now return
+  non-null even when the oldest item in the balance has fully expired, as
+  long as a newer charge on the same balance is still earning - the old
+  whole-balance rule hid this entirely. `projectedCashback.tier` is kept
+  only as a headline-copy hint (1 = every margin is fresh today, 2 =
+  otherwise), not a rate lookup.
+- `expiredCashbackAmounts` (the "missed bonus" coupon card) became margin-
+  aware too, so it never double-counts with the live projection above:
+  `balance` is now just the sum of the EXPIRED margins, not the whole
+  account total. A balance can show both cards at once now - an old
+  expired charge alongside a newer one still earning - which is correct,
+  not a bug.
+- Updated `functions/test/cashback.test.js` for the new shapes, including
+  a mixed-margin fixture (one 2-day-old expired charge + one fresh charge
+  on the same balance) proving the blended amount, the previously-hidden
+  live projection, and the non-overlapping expired-coupon total. Full
+  suite (5/5) passing before deploy.
+
 ## Cashback demo: left-side "missed bonuses" well (2026-07-30)
 
 - Added a persistent, session-long log of every bonus tier a simulated

@@ -806,9 +806,12 @@
 
     // data.expiredCashback (see functions/src/lib/cashback.js's
     // expiredCashbackAmounts) is purely informational - it never affects
-    // what a payment actually earns, just shows what was missed once a
-    // balance has sat unpaid past both tiers. Mutually exclusive with the
-    // live cashback-card above (the backend never returns both at once).
+    // what a payment actually earns, just shows what's been permanently
+    // missed on whichever individual charges have each sat unpaid past
+    // both of their own tiers. Cashback is now calculated per charge, not
+    // on the balance as a whole, so this CAN show alongside the live
+    // cashback-card above at the same time - one older charge can be
+    // expired while a newer one on the same balance is still earning.
     function renderExpiredCashbackCard(data, isVisitor) {
       const missed = data.expiredCashback;
       $id("cashback-expired-card").classList.toggle("hidden", isVisitor || !missed);

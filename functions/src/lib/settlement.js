@@ -79,7 +79,6 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
       paymentId, userId, amount: cashback.amount,
       note: `${Math.round(cashback.rate * 100)}% early-payment cashback`,
       source: "cashback",
-      cashbackTier: cashback.tier,
       cashbackRate: cashback.rate,
       clearedTotal: cashback.clearedTotal,
       createdBy: "cashback-system",

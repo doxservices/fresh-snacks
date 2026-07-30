@@ -7,7 +7,8 @@ const assert = require("node:assert/strict");
 const { STATUS } = require("../src/lib/transactionStatus");
 const {
   accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
-  evaluateCashback, projectedCashback, expiredCashbackAmounts, LAUNCH_DATE, TIER_RATES,
+  marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
+  LAUNCH_DATE, TIER_RATES,
 } = require("../src/lib/cashback");
 
 assert.equal(LAUNCH_DATE, "2026-07-29");
@@ -37,17 +38,48 @@ assert.equal(snap.total, 150, "only the two genuinely-owed records count (100 + 
 assert.equal(snap.oldestDate, "2026-07-30", "the earlier of the two owed records' dates");
 assert.deepEqual(accountSnapshot([]), { total: 0, oldestDate: null });
 
-// --- evaluateCashback: the whole-balance-clearing trigger ---
-// Same-day clearing -> 10%.
+// --- marginCashback: every still-owed transaction judged on its OWN date ---
 const sameDayTxns = [{ id: "t1", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID }];
 assert.deepEqual(
+  marginCashback(sameDayTxns, new Date("2026-08-01T15:00:00Z")),
+  { total: 100, amount: 10, oldestDate: "2026-08-01" },
+  "a single fresh margin earns its own 10%"
+);
+
+const twoTxns = [
+  { id: "t1", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
+  { id: "t2", total: 50, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
+];
+assert.deepEqual(
+  marginCashback(twoTxns, new Date("2026-08-01T15:00:00Z")),
+  { total: 150, amount: 15, oldestDate: "2026-08-01" },
+  "two margins opened the same day both earn 10% - same as treating them as one lump sum"
+);
+
+// The case this whole model exists for: an old, already-expired charge
+// sitting alongside a freshly added one on the SAME balance. The fresh
+// charge still earns its own 10% - it isn't dragged down to the old
+// charge's 0%, and the old charge doesn't dilute the new one either.
+const mixedMargins = [
+  { id: "old", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
+  { id: "new", total: 50, createdDate: "2026-08-03", workflowStatus: STATUS.CONFIRMED_UNPAID },
+];
+assert.deepEqual(
+  marginCashback(mixedMargins, new Date("2026-08-03T15:00:00Z")),
+  { total: 150, amount: 5, oldestDate: "2026-08-01" },
+  "old margin (2 days old) earns 0, new margin (fresh today) earns 10% of its own $50 -> $5 total"
+);
+
+// --- evaluateCashback: the whole-balance-clearing trigger ---
+// Same-day clearing -> 10%.
+assert.deepEqual(
   evaluateCashback(sameDayTxns, ["t1"], new Date("2026-08-01T15:00:00Z")),
-  { amount: 10, rate: 0.10, tier: 1, clearedTotal: 100, oldestDate: "2026-08-01" }
+  { amount: 10, rate: 0.10, clearedTotal: 100, oldestDate: "2026-08-01" }
 );
 // Next-day clearing -> 5%.
 assert.deepEqual(
   evaluateCashback(sameDayTxns, ["t1"], new Date("2026-08-02T15:00:00Z")),
-  { amount: 5, rate: 0.05, tier: 2, clearedTotal: 100, oldestDate: "2026-08-01" }
+  { amount: 5, rate: 0.05, clearedTotal: 100, oldestDate: "2026-08-01" }
 );
 // Third-day (or later) clearing -> nothing, even though it's paid in full.
 assert.equal(evaluateCashback(sameDayTxns, ["t1"], new Date("2026-08-03T15:00:00Z")), null);
@@ -55,15 +87,20 @@ assert.equal(evaluateCashback(sameDayTxns, ["t1"], new Date("2026-09-01T15:00:00
 
 // Clearing only PART of the balance earns nothing - the rule is "clear it
 // in full," not "clear whatever this one payment happened to cover."
-const twoTxns = [
-  { id: "t1", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
-  { id: "t2", total: 50, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
-];
 assert.equal(evaluateCashback(twoTxns, ["t1"], new Date("2026-08-01T15:00:00Z")), null, "one of two items still owed - no cashback yet");
 assert.deepEqual(
   evaluateCashback(twoTxns, ["t1", "t2"], new Date("2026-08-01T15:00:00Z")),
-  { amount: 15, rate: 0.10, tier: 1, clearedTotal: 150, oldestDate: "2026-08-01" },
-  "clearing both together earns 10% of the combined total"
+  { amount: 15, rate: 0.10, clearedTotal: 150, oldestDate: "2026-08-01" },
+  "clearing both together earns 10% of the combined total, since both margins are fresh"
+);
+
+// The mixed-margin case, cleared in full: earns a BLENDED rate (the old
+// margin's 0% and the new margin's 10%, weighted by size), not the 0%
+// the whole-balance-keyed-off-oldest rule would have given before, and
+// not the 10% a naive "any new charge resets everything" rule would give.
+assert.deepEqual(
+  evaluateCashback(mixedMargins, ["old", "new"], new Date("2026-08-03T15:00:00Z")),
+  { amount: 5, rate: 0.0333, clearedTotal: 150, oldestDate: "2026-08-01" }
 );
 
 // Nothing was owed to begin with - no cashback, regardless of what's "settled".
@@ -76,8 +113,16 @@ assert.equal(evaluateCashback(preLaunch, ["old"], new Date("2026-07-20T15:00:00Z
 // --- projectedCashback: what the customer-facing card shows before paying ---
 const projection = projectedCashback(sameDayTxns, new Date("2026-08-01T15:00:00Z"));
 assert.deepEqual(projection, { rate: 0.10, tier: 1, balance: 100, cashbackAmount: 10, oldestDate: "2026-08-01" });
-assert.equal(projectedCashback(sameDayTxns, new Date("2026-08-05T15:00:00Z")), null, "expired - no projection shown");
+assert.equal(projectedCashback(sameDayTxns, new Date("2026-08-05T15:00:00Z")), null, "the only margin present has expired - no projection shown");
 assert.equal(projectedCashback([], new Date()), null, "no balance at all - no projection");
+
+// The key behavioral change: a fresh margin stacked on an already-expired
+// one still produces a (blended) projection - the old whole-balance rule
+// would have shown nothing at all here, hiding a real, still-earning $2.
+assert.deepEqual(
+  projectedCashback(mixedMargins, new Date("2026-08-03T15:00:00Z")),
+  { rate: 0.0333, tier: 2, balance: 150, cashbackAmount: 5, oldestDate: "2026-08-01" }
+);
 
 // --- expiredCashbackAmounts: the "here's what you missed" coupon display ---
 // Still within a live tier (same day, or next day) - nothing expired yet.
@@ -96,18 +141,15 @@ assert.deepEqual(
 // No balance at all, or a pre-launch balance - nothing to show either way.
 assert.equal(expiredCashbackAmounts([], new Date()), null, "no balance at all");
 assert.equal(expiredCashbackAmounts(preLaunch, new Date("2026-09-01T15:00:00Z")), null, "pre-launch balance never had a tier to expire");
-// Adding a second, newer item to an already-expired balance does NOT reset
-// anything - the combined total's missed amounts are still based on the
-// oldest item's date, and a payment would still only earn based on that
-// same oldest date (see evaluateCashback - unchanged by this function).
-const toppedUp = [
-  { id: "old", total: 100, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID },
-  { id: "new", total: 20, createdDate: "2026-08-03", workflowStatus: STATUS.CONFIRMED_UNPAID },
-];
+
+// A newer charge added on top of an already-expired one only shows the
+// OLD margin as expired - the new one is still live, so it's excluded
+// here (it shows up in projectedCashback instead, above). The two never
+// double-count the same dollar.
 assert.deepEqual(
-  expiredCashbackAmounts(toppedUp, new Date("2026-08-03T15:00:00Z")),
-  { balance: 120, tenPercentAmount: 12, fivePercentAmount: 6, oldestDate: "2026-08-01" },
-  "still keyed off the oldest item's date - a new charge doesn't grant a fresh tier for the combined balance"
+  expiredCashbackAmounts(mixedMargins, new Date("2026-08-03T15:00:00Z")),
+  { balance: 100, tenPercentAmount: 10, fivePercentAmount: 5, oldestDate: "2026-08-01" },
+  "only the $100 old margin counts as expired - the fresh $50 margin is excluded, not lumped in"
 );
 
 console.log("early-payment cashback regression checks passed");

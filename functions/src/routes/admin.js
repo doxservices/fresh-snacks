@@ -637,16 +637,16 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
 
 // The cashback reward for clearing a whole balance in full - a NEW credit
 // line, separate from (and in addition to) whatever payment(s) actually
-// settled the balance, worth cashback.tier% of the total that just got
-// cleared. Not tied to any one transaction, since it rewards the account
-// reaching $0 overall, not any single purchase.
+// settled the balance, worth cashback.rate (blended across every margin
+// that earned something) of the total that just got cleared. Not tied to
+// any one transaction, since it rewards the account reaching $0 overall,
+// not any single purchase.
 function cashbackPaymentWrite(transaction, userId, cashback) {
   const paymentId = genId("fs_pay");
   transaction.set(db().collection("payments").doc(paymentId), {
     paymentId, userId, amount: cashback.amount,
     note: `${Math.round(cashback.rate * 100)}% early-payment cashback`,
     source: "cashback",
-    cashbackTier: cashback.tier,
     cashbackRate: cashback.rate,
     clearedTotal: cashback.clearedTotal,
     createdBy: "cashback-system",
