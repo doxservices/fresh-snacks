@@ -91,7 +91,7 @@ button { -webkit-tap-highlight-color: transparent; }
   padding: 24px 28px;
   border: 1px solid #e5bb61;
   border-radius: 14px;
-  background: var(--cream-050) url("assets/cashback-demo/backgrounds/svg/info-banner.svg") center / 100% 100% no-repeat;
+  background: linear-gradient(135deg, #fffcf5, #fff5e1);
   box-shadow: 0 4px 16px rgba(123, 90, 18, 0.08);
   color: #493a1c;
 }
@@ -122,10 +122,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .controls-panel {
   margin-top: 22px;
   padding: 26px 30px 24px;
-  background-image: url("assets/cashback-demo/backgrounds/svg/controls-panel.svg");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
 }
 
 .section-heading {
@@ -196,7 +192,7 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .button--primary {
   color: #fff;
-  background: var(--forest-800) url("assets/cashback-demo/backgrounds/svg/green-button.svg") center / 100% 100% no-repeat;
+  background: linear-gradient(180deg, #237349, #145231);
   box-shadow: var(--shadow-button);
 }
 
@@ -205,7 +201,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .button--secondary {
   color: var(--forest-900);
   border-color: #c8d8ce;
-  background: #fff url("assets/cashback-demo/backgrounds/svg/secondary-button.svg") center / 100% 100% no-repeat;
+  background: linear-gradient(180deg, #ffffff, #f4f8f5);
 }
 
 .button--outline { color: var(--forest-800); border-color: var(--forest-600); background: #fff; }
@@ -261,10 +257,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .timeline-panel {
   margin-top: 22px;
   padding: 22px 30px 18px;
-  background-image: url("assets/cashback-demo/backgrounds/svg/timeline-panel.svg");
-  background-size: 100% 100%;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 .timeline-header { text-align: center; }
@@ -282,8 +274,9 @@ button { -webkit-tap-highlight-color: transparent; }
   margin-top: 22px;
   overflow: hidden;
   border: 1px solid #e4e9e6;
+  border-left: 8px solid var(--gold-500);
   border-radius: var(--radius-panel);
-  background: #fff url("assets/cashback-demo/backgrounds/svg/promo-card.svg") center / 100% 100% no-repeat;
+  background: linear-gradient(135deg, #ffffff, #fffcf7);
   box-shadow: var(--shadow-panel);
 }
 

@@ -1,5 +1,38 @@
 # Development notes
 
+## Cashback demo: fix ghosted double borders from stretched background SVGs (2026-07-30)
+
+- User-reported bug: "buttons sat on top of images and overlays that are
+  not accurate" - a real rendering artifact my own screenshot review had
+  missed. Root cause: several of the supplied package's decorative
+  "background" SVGs (`green-button.svg`, `secondary-button.svg`,
+  `controls-panel.svg`, `timeline-panel.svg`, `promo-card.svg`,
+  `info-banner.svg`) each bake in their OWN border + drop-shadow around an
+  inset rect at a fixed pixel size - and the CSS applied them via
+  `background-size: 100% 100%`, which stretches non-uniformly to fit
+  whatever the real element's actual (different) aspect ratio is. That
+  distorts the baked-in inset/corner-radius so it no longer lines up with
+  the real CSS-drawn border/radius/shadow already set on `.panel`/
+  `.button`/`.notice`/`.promo-card` - producing a second, misaligned
+  "ghost" border/shadow layered on top of the real one.
+- Fix: dropped the `background-image` on all six of those and replaced
+  them with the equivalent plain CSS (`linear-gradient` matching each
+  SVG's own gradient stops) - they added nothing beyond a border+shadow+
+  fill that real CSS already draws correctly at any size. The `promo-card`
+  lost its baked-in orange accent strip this way, so added a real
+  `border-left: 8px solid var(--gold-500)` in its place.
+- `balance-card.svg`/`credit-card.svg`/`page-background.svg` were left as
+  real image backgrounds - they use `background-size: cover` (which
+  preserves aspect ratio, no stretching) and contain genuine decorative
+  texture (wavy lines, a soft glow) worth keeping. `credit-card.svg` did
+  still have the same baked-in border+shadow problem as the others though
+  (duplicating `.metric-card--credit`'s own CSS border) - edited that SVG
+  directly to drop the stroke/filter/inset, keeping only the gradient fill
+  and glow ellipse.
+- Re-verified with a headless-Chrome screenshot (including a tight crop
+  around the button row) and the full play/pay/add/reset smoke test -
+  zero console errors, no visible seams or misaligned borders anywhere.
+
 ## Cashback demo: tightened to a 1:1 match against the reference image (2026-07-30)
 
 - The supplied redesign package nailed the visual style (colors, cards,
