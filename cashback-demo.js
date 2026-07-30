@@ -25,6 +25,7 @@
     creditValue: document.querySelector('#credit-value'),
     dayLabel: document.querySelector('#day-label'),
     timeLabel: document.querySelector('#time-label'),
+    timelinePanel: document.querySelector('#timeline-panel'),
     timeline: document.querySelector('#timeline'),
     timelineSegments: [...document.querySelectorAll('.timeline__segment')],
     promoCard: document.querySelector('#promo-card'),
@@ -154,11 +155,11 @@
   }
 
   function addToBalance() {
-    if (state.balance <= 0) {
-      // A fresh balance starts its own cashback window as of right now,
-      // whatever day the ambient clock happens to be on.
-      state.balanceOpenedOnDay = state.absoluteDay;
-    }
+    // Any new charge re-activates the cashback window for the whole
+    // balance - it's "fresh" again as of right now, whatever day the
+    // ambient clock happens to be on, even if the existing balance had
+    // already expired.
+    state.balanceOpenedOnDay = state.absoluteDay;
     state.balance = Math.round((state.balance + 100) * 100) / 100;
     state.lastPayment = null;
     render();
@@ -194,16 +195,21 @@
   // ahead) and fades to spent as each simulated hour passes, rather than
   // filling up from empty. Mirrors the real feature's original hourly-
   // deadline visualization, kept here since it's still a clear way to
-  // *watch* time run out rather than watch it accumulate. This is the
-  // ambient clock - it runs the same for everyone, balance or not - so the
-  // gray "nothing left to earn" tint only applies while there's actually a
-  // balance that's stopped earning, not as a global property of the day.
+  // *watch* time run out rather than watch it accumulate.
+  //
+  // The bar itself only means something while there's a balance actively
+  // earning something - once it's expired (or there's no balance at all),
+  // showing a countdown implies there's still something to lose, which
+  // isn't true anymore. It disappears at that point; the promo card below
+  // still reminds the customer they have a balance to pay off either way.
   function renderTimeline() {
+    const stillEarning = state.balance > 0 && currentRate() > 0;
+    elements.timelinePanel.classList.toggle('hidden', !stillEarning);
+    if (!stillEarning) return;
+
     const remaining = SEGMENTS_PER_DAY - state.segmentIndex;
-    const expiredForBalance = state.balance > 0 && currentRate() === 0;
     elements.timelineSegments.forEach((segment, index) => {
       segment.classList.toggle('is-spent', index >= remaining);
-      segment.classList.toggle('is-expired-day', expiredForBalance);
       // The highlighted segment is the boundary between lit and spent (the
       // last still-lit hour), so it travels right-to-left along with the
       // drain itself instead of drifting the opposite way.

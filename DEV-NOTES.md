@@ -1,5 +1,28 @@
 # Development notes
 
+## Cashback demo: bar disappears once expired, new charges reactivate (2026-07-30)
+
+- The timeline/expiry bar now hides entirely once the current balance is
+  no longer earning anything (2+ days old, or no balance at all) -
+  showing a countdown once there's nothing left to lose was misleading.
+  The promo card stays visible in that case (balance > 0 but expired),
+  still showing its existing "No cashback is available today... Payments
+  can still be completed" copy - that's the reminder to pay that
+  persists once the bar is gone. Added `#timeline-panel` id so JS can
+  toggle the whole section; removed the now-unreachable `is-expired-day`
+  gray-tint styling, since the bar simply isn't shown anymore in that
+  state.
+- New dynamic: adding any new charge (`Add $100 to balance`) now always
+  re-activates the cashback window for the whole balance - previously
+  this only happened if the balance was exactly $0 first. Now even an
+  already-expired balance gets bumped back to a fresh 10% the moment a
+  new amount is added, whatever day the ambient clock is on.
+- Verified with headless Chrome: a fresh balance shows the bar; jumping
+  to Day 3 (expired) hides the bar but keeps the reminder card visible;
+  adding $100 while expired brings the bar back at 10%; paying off in
+  full hides the bar again while the payment-complete confirmation still
+  shows. Zero console errors.
+
 ## Cashback demo: dismissible test/demo notice (2026-07-30)
 
 - Added a small `×` close button to the test/demo banner. Dismissing it
