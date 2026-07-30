@@ -188,9 +188,24 @@
   }
 
   function addToBalance() {
-    // A new charge is its own margin - it earns its own fresh 10% as of
-    // today, whatever day the ambient clock is on, but it does NOT reset
-    // or reactivate any existing charge already on the balance.
+    // Parity with real snacks being logged to a tab: everything added
+    // during the SAME bonus period (the same day a charge was already
+    // opened on) piles onto that one charge instead of starting a
+    // separate instance - a customer adding a few snacks over the course
+    // of one day sees one balance, not one card per snack. It only
+    // becomes its own new instance once no charge is open for today yet,
+    // e.g. an older charge has already moved into a later stage.
+    const openToday = state.charges.find((charge) => charge.openedOnDay === state.absoluteDay);
+    if (openToday) {
+      openToday.amount = round2(openToday.amount + 100);
+      state.lastPayment = null;
+      render();
+      showToast(`🔔 Bonus available: J$100 added to today's ${formatMoney(openToday.amount)} balance - still earns 10% cash back if paid today.`);
+      return;
+    }
+    // No charge is open for today yet (a brand-new balance, or every
+    // existing charge already aged into a later stage) - this starts its
+    // own fresh instance.
     state.charges.push({ id: nextChargeId++, amount: 100, openedOnDay: state.absoluteDay });
     state.lastPayment = null;
     render();

@@ -1,5 +1,26 @@
 # Development notes
 
+## Cashback demo: charges added in the same bonus period now aggregate (2026-07-30)
+
+- "Add $100 to balance" no longer always starts a new instance card - it
+  now piles onto whichever existing charge already opened TODAY (the
+  same bonus period), same as a customer logging a few snacks to a tab
+  over the course of one day being one balance, not one card per snack.
+  A new instance is only started when no charge is open for today yet -
+  typically because every existing charge already aged into a later
+  stage (5%/Expired) on a previous rollover.
+- This is a display/aggregation simplification only, not a math change -
+  same-day charges already earned the identical rate individually, so
+  summing them into one number was always equal to the old per-charge
+  total; `marginCashback` in the real backend is unaffected either way.
+- Verified via headless Chrome: two same-period adds on top of a $500
+  starting balance produced exactly one $700 card; advancing a full
+  simulated day (so that $700 charge aged to its own 5% stage) and then
+  adding $100 correctly started a second, separate fresh-10% card
+  instead of merging into the aged one; a second add on that same new
+  day merged into the second card ($100 -> $200) rather than creating a
+  third.
+
 ## Cashback demo: one card per balance instance, active-balance note, bonus toasts (2026-07-30)
 
 - Consolidated the "Balance breakdown" panel and the "Missed bonuses" well
