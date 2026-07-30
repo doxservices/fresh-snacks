@@ -4618,18 +4618,32 @@ tr.healthy-account td {
   margin: 4px 0;
 }
 
-/* auto-fill/minmax rather than a fixed repeat(3, 1fr) - a fixed 3-column
-   count kept forcing 3 columns into whatever room was left beside the
-   basket well's fixed 360px width even as the viewport narrowed toward
-   the 900px breakpoint (see .bins-layout above), squeezing each card
-   down as far as ~134px wide there (wrapped names, cramped buttons).
-   This reflows to fewer, comfortably-sized columns instead once there
-   isn't room for 3 at a sane width, and still shows 3+ on wide screens
-   exactly as before. */
+/* A fixed repeat(3, 1fr) kept forcing 3 columns into whatever room was
+   left beside the basket well's fixed 360px width even as the viewport
+   narrowed toward the 900px breakpoint (see .bins-layout above),
+   squeezing each card down as far as ~134px wide there. Swapping to
+   auto-fill/minmax fixed that squeeze, but introduced a different bug:
+   auto-fill still creates as many column TRACKS as geometrically fit
+   (sharing the row's width evenly across all of them, filled or not) -
+   with a small real catalog (as few as 3 snacks), that left extra empty
+   tracks eating a large visible gap next to the basket at any width wide
+   enough to fit more tracks than there are snacks, including the
+   .page-wide-capped ~896px-wide gallery column on ordinary widescreen
+   monitors. Fixed columns avoid both problems at once: 2 comfortably-
+   sized columns by default, 3 only once there's genuinely a lot of
+   width to spare (see the widescreen override below) - a fixed count
+   always fills 100% of the row across however many real cards exist,
+   so there's never an empty phantom track to leave a gap. */
 .bin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 14px;
+}
+
+@media (min-width: 1600px) {
+  .bin-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .snack-shop-section {

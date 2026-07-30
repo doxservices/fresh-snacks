@@ -1,5 +1,34 @@
 # Development notes
 
+## Fix gallery dead-space gap left by auto-fill (2026-07-30)
+
+- The previous fix (auto-fill/minmax) solved the squeeze but introduced
+  a different bug the user then caught live: auto-fill creates as many
+  grid TRACKS as geometrically fit the row, sharing width evenly across
+  all of them whether or not they hold a real card. With a small real
+  catalog (as few as 3 snacks), any viewport wide enough to fit MORE
+  tracks than there are snacks left one or more empty phantom tracks -
+  visible as a large dead gap between the last card and the basket well,
+  reproducible at essentially any width once `.page-wide`'s ~896px-
+  capped gallery column has room for a 4th 210px track (so also on
+  ordinary widescreen monitors, not just huge ones, since `.page-wide`
+  never grows past 1280px regardless of actual monitor width).
+- Replaced with explicit fixed column counts instead, per the user's
+  own ask: 2 columns by default (a fixed `repeat(2, 1fr)` always fills
+  100% of the row across however many real cards exist - no phantom
+  tracks, no gap, at any width from just above the 900px mobile
+  breakpoint up through 1599px), stepping up to 3 columns only at
+  `@media (min-width: 1600px)` - a deliberate "widescreen" tier.
+- Verified via headless Chrome with the real 3-item catalog at
+  1024/1280/1440/1600/1920/2400px: the gap between the gallery grid and
+  the basket well is now a consistent, correct 24px (the actual grid
+  gap) at every single width tested - previously it grew into a large
+  dead zone at any width past ~4 columns' worth of room. 2 columns show
+  below 1600px, 3 columns from 1600px up, and (since `.page-wide` caps
+  at 1280px) the gallery column's actual width - and therefore card
+  size - stays identical from 1600px all the way up to 2400px+, so an
+  ultrawide monitor doesn't produce absurdly stretched cards either.
+
 ## Fix squeezed snack gallery on mid-width desktop screens (2026-07-30)
 
 - `.bin-grid` (the snack gallery, shared by `index.html`/`bins.html`/
