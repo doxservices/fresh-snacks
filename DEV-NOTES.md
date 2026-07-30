@@ -1,5 +1,43 @@
 # Development notes
 
+## Fix two responsive/visibility regressions from the dashboard restyle (2026-07-30)
+
+- **Admin dashboard overflow (the real bug)**: the previous pass enlarged
+  `.balance-stat` (bigger font, flex row, icon gap) so index.html's
+  Current Balance card would look like the demo's hero card - but
+  `.balance-stat` is a SHARED class, also used as-is by admin.html's
+  "Open balance" dashboard stat (and accounting.html's equivalent),
+  which has no icon markup and sits in a much narrower `minmax(120px,
+  1fr)` grid column. A large total (e.g. J$45,230) at the enlarged font
+  size overflowed straight out of the box on both desktop and mobile.
+  Fixed by reverting `.balance-stat` to its original plain/compact
+  styling and moving every enlargement (icon layout, bigger font, wave
+  background) onto a new `.balance-stat--hero` modifier applied only to
+  index.html's own balance card - admin's usage is untouched.
+- **Wave background barely visible**: the raw demo SVG asset
+  (`balance-card.svg`) is deliberately subtle (curve strokes at
+  7-12% opacity) - it reads fine on the demo's large 178px-tall hero
+  card, but was nearly invisible once cropped onto index.html's much
+  more compact card via `background-size: cover`. Fixed by layering a
+  visible diagonal white sheen (`linear-gradient(135deg, rgba(255,255,
+  255,.16), transparent 45%)`) on top of the same SVG, so the texture
+  reads clearly regardless of card size, rather than depending only on
+  cropping a large asset down small.
+- **Expired-coupon stamp collision**: `.cashback-expired-stamp` is
+  absolutely positioned in the card's top-right corner with no reserved
+  space - at narrow (mobile) widths the intro paragraph's full-width
+  line ran directly underneath it, overlapping the stamp text. Fixed
+  with `padding-right: 96px` on that paragraph so it wraps clear of the
+  stamp at any width.
+- Verified via headless Chrome across 320/375/414/768/1024/1440px:
+  admin.html's Open Balance box now fits `J$45,230` cleanly at every
+  width; index.html's balance card shows a clearly-visible wave texture
+  at every width; the expired-card stamp no longer collides with its
+  paragraph text at 320px; zero horizontal-scroll overflow
+  (`document.documentElement.scrollWidth`) at any tested width; the
+  notification bell panel renders cleanly at 320px too. Also re-confirmed
+  admin.html loads with no console errors after the CSS changes.
+
 ## Port the demo's balance-instances into a real customer notification bell (2026-07-30)
 
 - Added a customer-facing "cash back bonuses" notification bell to

@@ -792,15 +792,42 @@ header.banner {
 .warm { color: var(--green); }
 .blue { color: var(--blue-dark); }
 
-/* Deliberately more prominent than any other stat box - a green hero
-   card with white text and the same wave-texture background/icon-badge
-   language as the cashback demo (cashback-demo.css's .metric-card--
-   balance), since the balance is the one number a customer should
-   notice first when they land on the page. */
+/* Deliberately more prominent than any other stat box - a blue card with
+   white text, since the balance is the one number a customer should
+   notice first when they land on the page. Also reused as-is (this
+   plain, compact form) by admin.html's "Open balance" dashboard stat -
+   see .balance-stat--hero below for the enlarged, icon+wave-textured
+   variant used only on index.html's own balance card, so a much larger
+   admin-wide total never has to fit the same compact box this class
+   was originally sized for. */
 .balance-stat {
-  align-items: center;
-  background: var(--green-dark) url("assets/cashback-demo/backgrounds/svg/balance-card.svg") center / cover no-repeat;
+  background: linear-gradient(180deg, var(--green), var(--green-dark));
   border-color: var(--green-dark);
+}
+
+.balance-stat .stat-label {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.balance-stat .stat-value {
+  color: #fff;
+}
+
+/* index.html's own "Current balance" card only - a bigger hero
+   treatment with an icon badge and the cashback demo's wave-texture
+   background (cashback-demo.css's .metric-card--balance), layered under
+   a visible diagonal sheen so the texture actually reads at this size
+   (the raw demo asset alone is too subtle against a solid dark green
+   fill once cropped down to a compact card). */
+.balance-stat--hero {
+  align-items: center;
+  background-color: var(--green-dark);
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 45%),
+    url("assets/cashback-demo/backgrounds/svg/balance-card.svg");
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, cover;
   border-radius: 18px;
   display: flex;
   gap: 16px;
@@ -823,12 +850,7 @@ header.banner {
 
 .stat-box-body { min-width: 0; }
 
-.balance-stat .stat-label {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.balance-stat .stat-value {
-  color: #fff;
+.balance-stat--hero .stat-value {
   font-size: 28px;
 }
 
@@ -946,6 +968,14 @@ header.banner {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   transform: rotate(6deg);
+}
+
+/* Reserves room for the absolutely-positioned stamp above so the intro
+   line's text wraps before reaching it instead of running underneath -
+   only matters at narrower widths, where this paragraph's full-width
+   line would otherwise collide with the stamp's corner. */
+.cashback-expired-card > p {
+  padding-right: 96px;
 }
 
 .cashback-expired-amounts {
@@ -6196,11 +6226,11 @@ tr.disputed td {
     font-size: 19px;
   }
 
-  .balance-stat {
+  .balance-stat--hero {
     padding: 14px 16px;
   }
 
-  .balance-stat .stat-value {
+  .balance-stat--hero .stat-value {
     font-size: 21px;
   }
 
