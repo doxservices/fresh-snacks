@@ -1,5 +1,15 @@
 # Development notes
 
+## Cashback demo: paying no longer pauses the clock (2026-07-29)
+
+- "Pay in full now" used to call `pause()`, freezing the simulated clock
+  right when you paid. Removed that call - if the clock was already
+  running, it now keeps ticking straight through a payment, so natural
+  behavior (a new day arriving, the cycle wrapping) can still be watched
+  without needing to manually hit Play again. Reset and the stage-jump
+  buttons still pause deliberately, since those are explicit "start over
+  from here" actions. Demo-only (`cashback-demo.html`).
+
 ## Fix "Failed to fetch" on the new custom domain: CORS allow-list (2026-07-29)
 
 - After pointing freshsnacksja.com at GitHub Pages, the page shell loaded

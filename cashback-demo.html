@@ -525,15 +525,16 @@
     // Paying doesn't end the demo - it just zeroes the balance. Shop
     // credit accumulates on top of whatever it already held; the balance
     // stays at $0 until a new charge (Add $100) or a restart (Reset/jump)
-    // brings it back, so play can be resumed to keep testing further
-    // cycles in the meantime.
+    // brings it back. The clock itself is never paused here - if it was
+    // already running, it keeps running straight through the payment so
+    // natural behavior (a new day arriving, a new cycle starting) can
+    // still be observed without needing to manually resume play.
     $("demo-pay-now").onclick = () => {
       const dayIndex = Math.floor(tick / SEGMENT_COUNT);
       const { rate, tier } = tierForDayIndex(dayIndex);
       const balance = currentBalance();
       const cashback = tier > 0 ? balance * rate : 0;
       $("demo-balance-input").value = 0;
-      pause();
 
       const result = $("demo-result");
       result.className = tier > 0 ? "demo-result show win" : "demo-result show lose";
