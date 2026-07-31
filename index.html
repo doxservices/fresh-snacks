@@ -705,11 +705,12 @@
 
     // A month's content used to always be one flat table. It's now further
     // split into one collapsible sub-section per calendar date nested
-    // inside the month - unless there's nothing to gain from it: the
-    // opening balance has no real per-entry dates to group by, and an
+    // inside the month (open by default, same as the month level - see
+    // render()) - unless there's nothing to gain from splitting it at all:
+    // the opening balance has no real per-entry dates to group by, and an
     // account whose entire history is a single day of purchases only ever
-    // has one month and one date anyway, so both stay flat with nothing to
-    // click through.
+    // has one month and one date anyway, so both just render one flat
+    // table directly with nothing to collapse.
     function trackerTable(data, group, cur, purchaseDayCount) {
       const opening = group.key === "opening";
       const label = opening ? data.profile.openingLabel : FS.monthLabel(group.key);
@@ -735,7 +736,9 @@
         dg.paid = dg.payments.reduce((t, p) => t + Number(p.amount || 0), 0);
         const dayLabel = FS.fmtDay(dg.key);
         const flagged = dg.entries.some((e) => e.workflowStatus === "ITEM_UNDER_REVIEW");
-        return `<details class="log-day-group" data-key="${esc(group.key + ":" + dg.key)}">
+        // Expanded by default, same as the month level above - the whole
+        // log reads as one flat, invoice-style record on first load.
+        return `<details class="log-day-group" data-key="${esc(group.key + ":" + dg.key)}" open>
           <summary>
             <span class="toggle"></span>
             <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(dayLabel)}</span> <span class="month-note">${dg.entries.length} snack${dg.entries.length === 1 ? "" : "s"}</span></span>
@@ -1077,12 +1080,11 @@
           ? data.profile.openingNote
           : `${new Set(g.entries.map((e) => e.date)).size} snack day(s)`;
         const flagged = g.entries.some((e) => e.workflowStatus === "ITEM_UNDER_REVIEW");
-        // Collapsed by default, including the current month - unless the
-        // customer's whole history is a single day of purchases, in which
-        // case there's only one month anyway and nothing worth hiding it
-        // behind, so it (and the single day inside it) render open.
-        const openAttr = !opening && purchaseDayCount <= 1 ? " open" : "";
-        return `<details data-key="${esc(g.key)}"${openAttr}>
+        // Expanded by default - the log reads as one flat, invoice-style
+        // record of activity on first load, nothing hidden behind a click.
+        // The +/- toggle (and Expand all/Collapse all) still work for
+        // anyone who wants to tidy the view back down.
+        return `<details data-key="${esc(g.key)}" open>
           <summary>
             <span class="toggle"></span>
             <span><span class="month-name${flagged ? " needs-review" : ""}"${flagged ? ' title="Contains a listing flagged for review"' : ""}>${esc(label)}</span> <span class="month-note">${esc(note)}</span></span>

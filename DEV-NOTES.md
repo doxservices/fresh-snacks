@@ -1,5 +1,35 @@
 # Development notes
 
+## Snack Log: expanded by default instead of collapsed (2026-07-31)
+
+- Both levels of the Snack Log's collapsible `<details>` structure
+  (month-level in `render()`, and the per-calendar-date sub-groups
+  nested inside each month in `trackerTable()`) defaulted to collapsed
+  unless a customer's entire history was a single day - now both always
+  render with the `open` attribute, so the whole log reads as one flat,
+  invoice-style record on first load instead of needing every section
+  clicked open first.
+- Investigated the "+ icon isn't showing" report directly:
+  `.toggle::before { content: "+" }` / `details[open] .toggle::before
+  { content: "\2013" }` (styles.css) were already correct and rendered
+  fine in a from-scratch headless-Chrome test (confirmed via
+  `getComputedStyle(..., '::before').content`) - no CSS bug found there.
+  Most likely explanation is that with everything now open by default,
+  there's rarely a collapsed "+" left to notice missing in the first
+  place; the toggle still works correctly for anyone who collapses a
+  section and wants to reopen it.
+- The existing Expand all / Collapse all buttons, and each individual
+  +/- toggle, are unchanged and still fully functional - this only
+  changes the starting state, not the mechanism.
+- Verified via headless Chrome with a fabricated multi-month, multi-day
+  dataset: every `<details>` (9 total: 3 months + 6 day sub-groups)
+  renders open on first load; Collapse all closes all of them; Expand
+  all reopens all of them; clicking a single summary still toggles just
+  that one section independently. Visually confirmed (cropped
+  screenshot of the May group) that the nested day breakdown actually
+  renders open with correct per-day rows and totals, not just the
+  attribute being present with empty content.
+
 ## Gallery columns: switch to a container query, fixes the visitor case too (2026-07-30)
 
 - The previous fixed-column fix (2 by default, 3 at a 1600px viewport
