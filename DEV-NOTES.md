@@ -1,5 +1,35 @@
 # Development notes
 
+## Keeping GitHub Pages as a real second front door, not just a mirror (2026-07-31)
+
+- Some networks/security appliances block freshsnacksja.com outright for
+  being a newly-registered domain (a common heuristic - many vendors flag
+  any domain for its first 30-90+ days). GitHub Pages
+  (`https://doxservices.github.io/fresh-snacks/`) is kept live specifically
+  as a fully working fallback entry point for anyone in that position, not
+  just a stale backup.
+- Confirmed the two origins are already fully independent, no changes
+  needed: GitHub Pages has **no custom domain configured**
+  (`gh api repos/doxservices/fresh-snacks/pages` shows `"cname": null`),
+  so it never redirects to freshsnacksja.com. In-page navigation (nav
+  links, the "Tell a Friend"/device-link QR codes) already builds URLs off
+  `location.origin`/relative paths rather than any hardcoded domain, and
+  `functions/index.js`'s `ALLOWED_ORIGINS` CORS list already allows both
+  `https://doxservices.github.io` and `https://freshsnacksja.com`. Whichever
+  one a visitor lands on, they stay on it with full functionality.
+- Every deploy still needs both `git push origin main` (GitHub Pages
+  rebuilds automatically from `main`) and `firebase deploy --only hosting`
+  (freshsnacksja.com) to keep the two in sync - unchanged from the existing
+  dual-deploy pattern.
+- **Later, once freshsnacksja.com's reputation has matured**: proactively
+  submit it for re-categorization to major web-filtering vendors (Cisco
+  Talos, Palo Alto Networks, Fortinet FortiGuard, Zscaler, McAfee/Trellix -
+  most have a free "request a category change" form), confirm with anyone
+  who reported it as blocked that it now loads, then decide whether to
+  keep both entry points permanently or fold back to a single canonical
+  domain. Not urgent - no action needed until the domain's had more time
+  to age.
+
 ## PayPal test page: fixed the real client-id/secret mismatch, now working end-to-end (2026-07-31)
 
 - The client-id originally provided (`BAARFoVc...`) turned out to be from
