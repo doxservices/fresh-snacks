@@ -1,5 +1,42 @@
 # Development notes
 
+## Migrated hosting from GitHub Pages to Firebase Hosting (2026-07-31)
+
+- Root cause of the earlier "gap is still there" confusion: two hosting
+  targets existed for the same files (GitHub Pages, the actual live
+  site; Firebase Hosting, a forgotten mirror days out of date), and
+  only `git push origin main` ever deployed to the one that mattered.
+  Consolidated onto Firebase Hosting - the same project already running
+  Functions/Firestore/Auth - so `firebase deploy` is now the one
+  deploy mechanism for everything.
+- Migration steps actually taken: `firebase deploy --only hosting` to
+  bring the mirror current; registered `freshsnacksja.com` as a custom
+  domain via the Hosting REST API directly (`POST .../sites/{site}/
+  domains` with `{domainName, site}` in the body - the `firebase` CLI
+  has no domain-management command, only the console or this API);
+  added the `_acme-challenge` TXT record Firebase's DNS-01 challenge
+  required for cert issuance (safe - doesn't touch live traffic);
+  waited for `certStatus` to go PENDING -> PROPAGATING -> ACTIVE (took
+  roughly an hour); then the user replaced GoDaddy's 4 GitHub Pages A
+  records AND 4 AAAA records with single ones pointing at Firebase's
+  `199.36.158.100` / `2620:0:890::100` (the AAAA side was easy to miss -
+  GitHub Pages publishes IPv6 records too, and leaving them pointed at
+  GitHub would have left IPv6 clients on the old host indefinitely).
+- Verified the cutover directly: DNS resolves to Firebase on multiple
+  public resolvers, HTTPS serves via Fastly (Firebase Hosting's CDN)
+  with a valid Google Trust Services cert, and content matches the
+  latest deploy exactly.
+- Cleanup: disabled GitHub Pages for the repo (`DELETE /repos/.../
+  pages`, confirmed via a follow-up 404) and removed the now-unused
+  `CNAME` file (a GitHub-Pages-specific mechanism with no equivalent
+  need on Firebase Hosting).
+- Noted but not yet resolved: the live response shows `Cache-Control:
+  max-age=3600` on `index.html`, while `firebase.json` explicitly
+  configures `no-store` for `**/*.html`. Worth checking why the header
+  isn't taking effect - low urgency since HTML doesn't carry a cache-
+  busting query string the way `styles.css`/JS assets do, but it's the
+  kind of staleness risk this whole migration was meant to eliminate.
+
 ## Snack Log: expanded by default instead of collapsed (2026-07-31)
 
 - Both levels of the Snack Log's collapsible `<details>` structure
