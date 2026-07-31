@@ -40,20 +40,33 @@
     header.demo-header p { margin: 4px 0 0; color: var(--ink-600); font-size: 0.92rem; }
 
     .notice {
+      position: relative;
       display: flex; gap: 14px; align-items: flex-start;
-      padding: 18px 20px; margin-bottom: 22px;
+      padding: 18px 44px 18px 20px; margin-bottom: 22px;
       border: 1px solid #e5bb61; border-radius: 14px;
       background: linear-gradient(135deg, #fffcf5, #fff5e1);
       color: #493a1c; font-size: 0.9rem;
     }
+    .notice.hidden { display: none; }
     .notice strong { display: block; margin-bottom: 4px; font-size: 0.98rem; }
     .notice p { margin: 6px 0 0; color: #6b5527; }
-    .notice.danger {
-      border-color: rgba(155, 66, 36, 0.4);
-      background: linear-gradient(135deg, #fff7f5, #fdece6);
-      color: #6b2d16;
+    .notice__close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: #8a6d2f;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
     }
-    .notice.danger p { color: #7a3319; }
+    .notice__close:hover { background: rgba(201, 131, 0, 0.14); }
 
     .panel {
       border: 1px solid var(--line);
@@ -167,28 +180,30 @@
     <header class="demo-header">
       <img src="banner-logo.png" alt="Fresh Snacks" />
       <div>
-        <h1>Clear Tab via PayPal — Test Page</h1>
-        <p>Standalone demo only — not linked from or wired into the main Fresh Snacks app.</p>
+        <h1>Clear Your Tab with PayPal</h1>
+        <p>A quick preview of how paying off your tab will work.</p>
       </div>
     </header>
 
-    <section class="notice">
+    <section class="notice" id="notice-preview">
       <div>
-        <strong>Test page, not integrated with the main app</strong>
-        <p>This page simulates a customer paying off their tab balance in full via PayPal, converted from JMD to USD. The balance below is just a number you type in - nothing here reads or writes real tab/transaction data. Everything about the exchange rate and the resulting charge amount, though, works exactly like production would: computed and locked in entirely server-side, once per day.</p>
+        <strong>Just a preview</strong>
+        <p>This page is here so we can try out the PayPal checkout before it's part of the app. The balance below is just a number you type in for testing - it doesn't touch any real tab. The exchange rate and total, though, work exactly like they will for real: they're set once a day and can't be changed.</p>
       </div>
+      <button type="button" class="notice__close" data-notice-close aria-label="Close">&times;</button>
     </section>
 
-    <section class="notice">
+    <section class="notice" id="notice-safe">
       <div>
-        <strong>Safe to test end-to-end</strong>
-        <p>This page is running in test mode - go ahead and complete a full checkout below. No real money moves and no real PayPal account is charged.</p>
+        <strong>Nothing to worry about</strong>
+        <p>Go ahead and try a full payment below - it's safe to complete. No real money will move.</p>
       </div>
+      <button type="button" class="notice__close" data-notice-close aria-label="Close">&times;</button>
     </section>
 
     <section class="panel checkout-panel" id="checkout-panel">
       <h2>Your tab balance</h2>
-      <p class="lead">Enter the balance to clear - same as what a customer's "Current balance" shows on their tab.</p>
+      <p class="lead">Enter the balance you'd like to clear.</p>
 
       <div class="field">
         <label for="balance-jmd">Tab balance</label>
@@ -201,7 +216,7 @@
       <p class="rate-status" id="rate-status">
         <span class="rate-lock-note">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-          Fetching today's locked-in rate from the server…
+          Getting today's exchange rate…
         </span>
       </p>
 
@@ -247,7 +262,7 @@
         <div class="invoice-line total"><span>Total paid (USD)</span><span id="invoice-usd">—</span></div>
       </div>
 
-      <p class="invoice-footnote">Paid via PayPal. This receipt is generated locally from the server's payment confirmation - keep a copy for your records.</p>
+      <p class="invoice-footnote">Paid via PayPal. Keep this receipt for your records.</p>
 
       <div class="invoice-actions">
         <button type="button" class="icon-button primary" id="print-invoice">
@@ -260,10 +275,10 @@
         </button>
       </div>
 
-      <div class="start-over"><button type="button" id="start-over">Start another test payment</button></div>
+      <div class="start-over"><button type="button" id="start-over">Make another payment</button></div>
     </section>
 
-    <footer class="note">Fresh Snacks &middot; internal test page &middot; not publicly linked</footer>
+    <footer class="note">Fresh Snacks &middot; Secure checkout with PayPal</footer>
   </div>
 
   <!-- Live PayPal SDK - components=buttons (not hosted-buttons) so the
@@ -330,14 +345,29 @@
           els.rateStatus.classList.remove('err');
           els.rateStatus.innerHTML = `<span class="rate-lock-note">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            Today's rate (${quote.forDate}), locked in server-side: J$${quote.rate} = US$1
+            Today's exchange rate: J$${quote.rate} = US$1
           </span>`;
         } catch (err) {
           els.rateStatus.classList.add('err');
-          els.rateStatus.textContent = `Could not reach the server for today's rate (${err.message}).`;
+          els.rateStatus.textContent = `Couldn't load today's exchange rate. Please try again.`;
           els.summaryUsd.textContent = '—';
         }
       }
+
+      // Each notice remembers its own dismissed state so closing one
+      // doesn't hide the other, and both stay closed on a later visit.
+      document.querySelectorAll('[data-notice-close]').forEach((btn) => {
+        const notice = btn.closest('.notice');
+        if (!notice) return;
+        const key = `fresh_snacks_paypal_demo_${notice.id}_dismissed`;
+        try {
+          if (window.localStorage.getItem(key) === '1') notice.classList.add('hidden');
+        } catch (_) {}
+        btn.addEventListener('click', () => {
+          notice.classList.add('hidden');
+          try { window.localStorage.setItem(key, '1'); } catch (_) {}
+        });
+      });
 
       let debounceTimer = null;
       els.balance.addEventListener('input', () => {
@@ -407,10 +437,10 @@
           createOrder: async () => {
             const balance = Number(els.balance.value) || 0;
             if (balance <= 0) {
-              showPayStatus('err', 'Enter a tab balance above 0 first.');
+              showPayStatus('err', 'Please enter an amount first.');
               throw new Error('Invalid balance');
             }
-            showPayStatus('pending', 'Starting checkout…');
+            showPayStatus('pending', 'Starting your payment…');
             const res = await fetch(`${API_BASE}/paypal/create-order`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -418,18 +448,18 @@
             });
             const data = await res.json();
             if (!res.ok) {
-              showPayStatus('err', data.error || 'Could not start checkout.');
+              showPayStatus('err', 'We couldn\'t start your payment. Please try again.');
               throw new Error(data.error || 'create-order failed');
             }
             lastQuote = data;
-            showPayStatus('pending', `Order created for ${formatUsd(data.usdAmount)} - complete checkout in the PayPal window.`);
+            showPayStatus('pending', `Complete your payment of ${formatUsd(data.usdAmount)} in the PayPal window.`);
             return data.orderID;
           },
 
           // Capture also happens server-side - this just tells the server
           // which order to capture and shows whatever it confirms back.
           onApprove: async (data) => {
-            showPayStatus('pending', 'Confirming payment…');
+            showPayStatus('pending', 'Confirming your payment…');
             const res = await fetch(`${API_BASE}/paypal/capture-order`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -437,22 +467,22 @@
             });
             const result = await res.json();
             if (!res.ok) {
-              showPayStatus('err', result.error || 'Payment did not complete.');
+              showPayStatus('err', 'Your payment didn\'t go through. Please try again.');
               return;
             }
-            showPayStatus('ok', 'Payment captured - opening your receipt.');
+            showPayStatus('ok', 'Payment successful! Here\'s your receipt.');
             showInvoice(lastQuote || {}, result.capture);
           },
 
           onCancel: () => {
-            showPayStatus('pending', 'Checkout cancelled - nothing was charged.');
+            showPayStatus('pending', 'Payment cancelled - nothing was charged.');
           },
-          onError: (err) => {
-            showPayStatus('err', `PayPal error: ${err && err.message ? err.message : 'something went wrong'}`);
+          onError: () => {
+            showPayStatus('err', 'Something went wrong with PayPal. Please try again.');
           },
         }).render('#paypal-button-container');
       } else {
-        showPayStatus('err', 'PayPal SDK failed to load - check the console for details.');
+        showPayStatus('err', 'PayPal couldn\'t load. Please refresh the page.');
       }
     })();
   </script>
