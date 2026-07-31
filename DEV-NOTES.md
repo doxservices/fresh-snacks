@@ -1,5 +1,46 @@
 # Development notes
 
+## Real "Clear tab with PayPal", wired to actual balances (2026-07-31)
+
+- Building on the standalone `paypal-clear-tab-demo.html` test page, added
+  the real feature to `index.html`: a signed-in customer can now clear their
+  actual balance via PayPal. The amount is always computed server-side
+  (`functions/src/routes/paypalTab.js`, mounted at `/paypal/tab/*`,
+  `requireAuth` + `resolveEffectiveUid`) - never a number the client sends.
+  The demo page and its original unauthenticated `/paypal/*` routes are
+  untouched, still there for isolated PayPal-flow testing.
+- Found and fixed a real gap along the way: admin balance adjustments
+  (`POST /admin/adjustments`) already counted toward a customer's balance in
+  the admin's own view, but were never shown to the customer anywhere - so a
+  PayPal charge based on the "true" balance could differ from what the
+  customer saw on their own Snack Log. Fixed by making adjustments a real,
+  visible line item in the customer's own transaction view (new `toAdjustment`
+  mapper in `functions/src/lib/shared.js`, merged into `entries` via a new
+  shared `functions/src/lib/ledger.js#fetchCustomerLedger`, which both
+  `GET /store/data` and the new PayPal balance quote now read from - so the
+  displayed balance and the charged balance can never disagree).
+- `paypalOrders/{orderId}` anchors the whole payment flow so nothing can be
+  captured or settled twice: status moves `created -> capturing -> captured
+  -> settled`, with the `created -> capturing` transition inside a Firestore
+  transaction (closes a double-click/concurrent-request race), and every
+  step safe to retry/replay from wherever it left off - a crash after PayPal
+  actually captures the money but before the local payment record finishes
+  resumes from the payment-write step without ever calling PayPal again.
+  Successful capture writes a `payments` doc (amount in **JMD**, not the USD
+  PayPal actually processed - every other amount in this app's ledger is
+  JMD) and calls the existing `allocateApprovedTransactions()` - the exact
+  same settlement path an admin-recorded payment uses, defaulting to its
+  `AUTO_SETTLE_ACTOR` sentinel since this is the customer's own action.
+- Verified against the deployed functions with a throwaway anonymous guest:
+  real balance quoting, a real PayPal sandbox order actually created,
+  cross-account capture correctly rejected (403), an unapproved-order
+  capture failing cleanly and leaving the order retryable (not stuck), and
+  an admin adjustment correctly showing up in the guest's own data and
+  flowing through into both the displayed balance and the PayPal quote.
+  Full buyer-approval capture (actually clicking through PayPal's sandbox
+  checkout) still needs a manual pass - that step can't be scripted without
+  a PayPal sandbox buyer login.
+
 ## Keeping GitHub Pages as a real second front door, not just a mirror (2026-07-31)
 
 - Some networks/security appliances block freshsnacksja.com outright for
