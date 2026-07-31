@@ -18,6 +18,7 @@ const paypalClientSecret = defineSecret("PAYPAL_CLIENT_SECRET");
 const storeRoutes = require("./src/routes/store");
 const adminRoutes = require("./src/routes/admin");
 const paypalRoutes = require("./src/routes/paypal");
+const paypalTabRoutes = require("./src/routes/paypalTab");
 const { trackRequest } = require("./src/lib/stats");
 const { refreshDailyRate } = require("./src/lib/paypalRate");
 const { todayISO } = require("./src/lib/shared");
@@ -68,6 +69,7 @@ app.use((req, res, next) => {
 app.use("/store", storeRoutes);
 app.use("/admin", adminRoutes);
 app.use("/paypal", paypalRoutes);
+app.use("/paypal/tab", paypalTabRoutes);
 
 app.use((err, req, res, next) => {
   res.status(err.status || 500).json({

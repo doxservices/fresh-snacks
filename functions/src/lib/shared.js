@@ -224,6 +224,35 @@ const toPayment = (p) => ({
   note: p.note || "",
 });
 
+// Admin-entered corrections (functions/src/routes/admin.js's POST
+// /adjustments) used to only ever show up in the admin-wide accounting()
+// rollup, never on the customer's own tab - shaped here to merge straight
+// into the same `entries` array toEntry() produces, so trackerRows/
+// trackerTable render it like any other line with no special-casing.
+const toAdjustment = (a) => ({
+  id: a.adjustmentId || a.id,
+  date: a.createdDate || null,
+  snackId: null,
+  label: a.reason ? `Balance adjustment — ${a.reason}` : "Balance adjustment",
+  count: null,
+  value: Number(a.amount || 0),
+  source: "adjustment",
+  workflowStatus: "ADJUSTMENT",
+  itemReviewReason: null,
+  reviewRequestType: null,
+  availableActions: [],
+});
+
+// Mirrors FS.totals() (js/firebase-store.js) exactly - the client and this
+// server-side copy must always agree, since PayPal charges whatever this
+// computes and the customer only ever sees what FS.totals() displays.
+const isBillable = (e) => e.workflowStatus !== "ITEM_UNDER_REVIEW";
+const computeBalance = (entries, payments) => {
+  const value = entries.filter(isBillable).reduce((t, e) => t + Number(e.value || 0), 0);
+  const paid = payments.reduce((t, p) => t + Number(p.amount || 0), 0);
+  return { value, paid, balance: value - paid };
+};
+
 const clean = (v) => {
   const s = (v ?? "").toString().trim();
   return s || null;
@@ -246,5 +275,8 @@ module.exports = {
   templateBinItems,
   toEntry,
   toPayment,
+  toAdjustment,
+  isBillable,
+  computeBalance,
   clean,
 };

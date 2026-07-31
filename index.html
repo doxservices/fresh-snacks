@@ -125,6 +125,15 @@
       </div>
     </section>
 
+    <!-- Always available whenever there's a balance to pay, independent of
+         the time-limited cashback offer above (renderCashbackCard shows
+         only while a cashback tier is live). See openPaypalPayModal(). -->
+    <section class="card section-card paypal-pay-card hidden" id="paypal-pay-card">
+      <span class="cashback-card-title">Clear your balance</span>
+      <p class="muted-small">Pay your tab balance securely with PayPal.</p>
+      <button type="button" class="primary" id="paypal-pay-open">Clear tab with PayPal</button>
+    </section>
+
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
       <article class="snack-card favorite-card">
         <div class="snack-image">
@@ -399,6 +408,27 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="paypal-pay-backdrop">
+    <div class="modal paypal-pay-modal" role="dialog" aria-modal="true" aria-labelledby="paypal-pay-title">
+      <button type="button" class="modal-close" id="paypal-pay-close" aria-label="Close">&times;</button>
+      <h2 id="paypal-pay-title">Clear your tab with PayPal</h2>
+      <p class="muted-small" id="paypal-pay-rate">Getting today's exchange rate…</p>
+      <div class="cashback-card-amounts">
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">Your balance</span>
+          <span class="cashback-amount" id="paypal-pay-balance">–</span>
+        </div>
+        <span aria-hidden="true">&rarr;</span>
+        <div class="cashback-amount-block">
+          <span class="cashback-amount-label">You'll pay (USD)</span>
+          <span class="cashback-amount" id="paypal-pay-usd">–</span>
+        </div>
+      </div>
+      <div id="paypal-pay-button-container" style="margin-top: 18px;"></div>
+      <div class="status" id="paypal-pay-status"></div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="profile-info-backdrop">
     <div class="modal profile-info-modal" role="dialog" aria-modal="true" aria-labelledby="profile-info-title">
       <button type="button" class="modal-close" id="profile-info-close" aria-label="Close">&times;</button>
@@ -539,7 +569,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260729-date-level-log"></script>
+  <script src="js/firebase-store.js?v=20260731-paypal-tab-payment"></script>
+  <!-- Same sandbox client-id as paypal-clear-tab-demo.html - components=buttons
+       so the amount can be set per checkout (createOrder), unlike a fixed
+       hosted-buttons price. Switches together with the rest once live. -->
+  <script src="https://www.paypal.com/sdk/js?client-id=ATsbP8Pn9MQbCbxeB74E2j3UNj3rjzrVlTRsvD4nbw3D0I5HM4dCCcRE6LLqNE6yN3dnMbo7MTrLd37B&components=buttons&enable-funding=venmo&currency=USD"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -606,6 +640,7 @@
         case "PAYMENT_PENDING_ADMIN_CONFIRMATION": return "Payment awaiting admin confirmation";
         case "PAYMENT_UNDER_REVIEW": return "Payment under review";
         case "PAID_FINALIZED": return "Paid and final";
+        case "ADJUSTMENT": return "Balance adjustment";
         default: return "Confirmed transaction";
       }
     }
@@ -985,6 +1020,7 @@
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
+      $id("paypal-pay-card").classList.toggle("hidden", isVisitor || !(t.balance > 0));
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
@@ -1666,6 +1702,113 @@
     });
     $id("mark-paid-backdrop").addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") closeMarkPaid(false);
+    });
+
+    // "Clear tab with PayPal" - the balance shown here always comes from
+    // FS.getTabPaypalQuote() (server-computed, real balance), never
+    // anything typed in - see functions/src/routes/paypalTab.js.
+    let paypalPayReturnFocus = null;
+    let paypalPayQuote = null;
+    let paypalButtonsRendered = false;
+
+    function setPaypalPayStatus(kind, message) {
+      $id("paypal-pay-status").className = kind ? `status ${kind}` : "status";
+      $id("paypal-pay-status").textContent = message || "";
+    }
+
+    function closePaypalPayModal() {
+      $id("paypal-pay-backdrop").classList.remove("show");
+      setPaypalPayStatus(null, "");
+      if (paypalPayReturnFocus && document.contains(paypalPayReturnFocus)) paypalPayReturnFocus.focus();
+      paypalPayReturnFocus = null;
+    }
+
+    async function loadPaypalPayQuote() {
+      $id("paypal-pay-rate").classList.remove("err");
+      try {
+        const quote = await FS.getTabPaypalQuote();
+        paypalPayQuote = quote;
+        $id("paypal-pay-balance").textContent = FS.money(quote.balanceJmd, LAST_DATA.profile.currency);
+        $id("paypal-pay-usd").textContent = `$${Number(quote.usdAmount).toFixed(2)}`;
+        $id("paypal-pay-rate").textContent = `Today's exchange rate: J$${quote.rate} = US$1`;
+      } catch (e) {
+        paypalPayQuote = null;
+        $id("paypal-pay-rate").classList.add("err");
+        $id("paypal-pay-rate").textContent = e.message || "Couldn't load today's exchange rate. Please try again.";
+      }
+    }
+
+    function renderPaypalPayButtons() {
+      if (paypalButtonsRendered) return;
+      if (!window.paypal || !window.paypal.Buttons) {
+        setPaypalPayStatus("err", "PayPal couldn't load. Please refresh the page.");
+        return;
+      }
+      paypalButtonsRendered = true;
+      window.paypal.Buttons({
+        style: { layout: "vertical", color: "gold", label: "pay" },
+
+        // Never builds the order itself - only ever asks the server to,
+        // sending nothing but the request's own auth. The server re-derives
+        // the real balance and USD amount and creates the real PayPal
+        // order; this callback just hands PayPal the resulting orderID.
+        createOrder: async () => {
+          if (!paypalPayQuote) {
+            setPaypalPayStatus("err", "Please wait for your balance to load first.");
+            throw new Error("No quote loaded yet");
+          }
+          setPaypalPayStatus(null, "Starting your payment…");
+          try {
+            const order = await FS.createTabPaypalOrder();
+            return order.orderID;
+          } catch (e) {
+            setPaypalPayStatus("err", e.message || "We couldn't start your payment. Please try again.");
+            throw e;
+          }
+        },
+
+        // Capture also happens server-side, and settles real transactions
+        // against this payment - this just tells the server which order to
+        // capture and reloads the page's own data once it confirms.
+        onApprove: async (data) => {
+          setPaypalPayStatus(null, "Confirming your payment…");
+          try {
+            await FS.captureTabPaypalOrder(data.orderID);
+            setPaypalPayStatus("ok", "Payment successful! Your balance has been cleared.");
+            LAST_DATA = await refreshTabData();
+            CLAIM = LAST_DATA.claim || null;
+            render(LAST_DATA);
+            setTimeout(closePaypalPayModal, 1800);
+          } catch (e) {
+            setPaypalPayStatus("err", e.message || "Your payment didn't go through. Please try again.");
+          }
+        },
+
+        onCancel: () => setPaypalPayStatus(null, "Payment cancelled - nothing was charged."),
+        onError: () => setPaypalPayStatus("err", "Something went wrong with PayPal. Please try again."),
+      }).render("#paypal-pay-button-container");
+    }
+
+    async function openPaypalPayModal() {
+      paypalPayReturnFocus = document.activeElement;
+      $id("paypal-pay-balance").textContent = "–";
+      $id("paypal-pay-usd").textContent = "–";
+      $id("paypal-pay-rate").classList.remove("err");
+      $id("paypal-pay-rate").textContent = "Getting today's exchange rate…";
+      setPaypalPayStatus(null, "");
+      $id("paypal-pay-backdrop").classList.add("show");
+      $id("paypal-pay-close").focus();
+      await loadPaypalPayQuote();
+      renderPaypalPayButtons();
+    }
+
+    $id("paypal-pay-open").onclick = () => openPaypalPayModal();
+    $id("paypal-pay-close").onclick = () => closePaypalPayModal();
+    $id("paypal-pay-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("paypal-pay-backdrop")) closePaypalPayModal();
+    });
+    $id("paypal-pay-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closePaypalPayModal();
     });
 
     document.getElementById("expand-all").onclick = () =>

@@ -8,12 +8,13 @@ const { requireAuth, optionalAuth, resolveEffectiveUid, asyncRoute } = require("
 const { canAccessTab, isLinkedMember } = require("../lib/authz");
 const {
   uid: genId, todayISO, withBundledSnackArtwork, compareSnackOrder,
-  bundledSnackArtwork, toEntry, toPayment, clean, randomCode,
+  bundledSnackArtwork, clean, randomCode,
 } = require("../lib/shared");
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
 const { projectedCashback, expiredCashbackAmounts } = require("../lib/cashback");
+const { fetchCustomerLedger } = require("../lib/ledger");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -268,27 +269,16 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     }
   }
 
-  const fetchFor = async (userId) => {
-    const [txnSnap, paySnap] = await Promise.all([
-      db().collection("transactions").where("userId", "==", userId).where("status", "==", "active").get(),
-      db().collection("payments").where("userId", "==", userId).where("status", "==", "active").get(),
-    ]);
-    return {
-      transactions: txnSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-      payments: paySnap.docs.map((d) => ({ id: d.id, ...d.data() })),
-    };
-  };
-
-  const own = await fetchFor(effectiveUid);
-  let entries = own.transactions.map(toEntry);
-  let pays = own.payments.map(toPayment);
-  let rawTransactions = own.transactions;
+  const own = await fetchCustomerLedger(effectiveUid);
+  let entries = own.entries;
+  let pays = own.payments;
+  let rawTransactions = own.rawTransactions;
 
   if (claim) {
-    const claimed = await fetchFor(claim.userId);
-    entries = entries.concat(claimed.transactions.map(toEntry));
-    pays = pays.concat(claimed.payments.map(toPayment));
-    rawTransactions = rawTransactions.concat(claimed.transactions);
+    const claimed = await fetchCustomerLedger(claim.userId);
+    entries = entries.concat(claimed.entries);
+    pays = pays.concat(claimed.payments);
+    rawTransactions = rawTransactions.concat(claimed.rawTransactions);
   }
 
   // An item under review stays visible with its own status message rather

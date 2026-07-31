@@ -682,6 +682,27 @@ FS.loadData = async () => {
   });
 };
 
+/* Real "clear tab with PayPal" wrappers - the amount charged is always
+ * computed server-side from the caller's real balance, same effectiveUid
+ * resolution FS.addTransaction uses below, never a client-supplied number. */
+FS.getTabPaypalQuote = async () => {
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
+  return FS._apiFetch("/paypal/tab/quote", { query: { effectiveUid: linkedTo || undefined } });
+};
+
+FS.createTabPaypalOrder = async () => {
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
+  return FS._apiFetch("/paypal/tab/create-order", { method: "POST", body: { effectiveUid: linkedTo || undefined } });
+};
+
+FS.captureTabPaypalOrder = async (orderID) => {
+  const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+    || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
+  return FS._apiFetch("/paypal/tab/capture-order", { method: "POST", body: { orderID, effectiveUid: linkedTo || undefined } });
+};
+
 FS.addTransaction = async (items) => {
   const validItems = (items || []).map((item) => {
     const snack = item.snack || item;
