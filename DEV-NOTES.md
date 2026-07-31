@@ -1,5 +1,69 @@
 # Development notes
 
+## PayPal "clear tab" test page: server-locked rate, real invoice UI (2026-07-31)
+
+- Built `paypal-clear-tab-demo.html` - standalone, not linked from or
+  wired into the main app, per explicit ask. First pass had a client-side
+  editable exchange rate (trivially tamperable via DevTools - exactly the
+  kind of thing that would let someone pay a fraction of what they owe).
+  Rebuilt so the rate and the resulting charge amount are both computed
+  entirely server-side, with zero front-end-reachable variable that
+  affects either one - there is no rate input anywhere in the page at all
+  anymore, only a read-only status line.
+- New backend (`functions/`):
+  - `src/lib/paypalRate.js` - fetches a live JMD rate (same free
+    open.er-api.com endpoint the old client-side version used), rounds
+    up to the nearest 10, and stores it in Firestore
+    (`settings/paypalRate`) keyed by calendar date. `getTodayRate()` is
+    the only read path every route uses - reuses today's stored rate if
+    already generated, self-heals with a fresh live fetch if not, but
+    never accepts a rate from a request.
+  - `index.js` - new scheduled function `refreshPaypalRate` (`onSchedule`,
+    00:05 America/Jamaica daily) locks in the day's rate before the
+    first customer of the day; added `"null"` to `ALLOWED_ORIGINS` so a
+    page opened directly as a local file (no server) can still call the
+    API for testing - only genuine `file://` pages can send that origin,
+    nothing on the web can spoof it.
+  - `src/lib/paypalClient.js` - server-side PayPal REST client (OAuth2
+    client-credentials, create-order, capture-order). Requires
+    `PAYPAL_CLIENT_SECRET` (not yet set - see below) - the client-id
+    alone (already public, embedded in the page) can't authenticate
+    server-to-server calls.
+  - `src/routes/paypal.js` - `GET /paypal/quote` (read-only preview),
+    `POST /paypal/create-order`, `POST /paypal/capture-order`. Every one
+    re-derives the USD amount itself from `getTodayRate()` - a
+    `balanceJmd` is the only thing the client ever sends; nothing about
+    the rate or the amount is trusted from the request.
+  - `test/paypal-rate.test.js` - covers `roundUpToTen`'s rounding
+    boundary cases (the one pure, deterministic piece; the live-fetch/
+    Firestore paths were instead verified directly against the real
+    project's Firestore - see below).
+- Frontend: `createOrder`/`onApprove` now call the server endpoints
+  instead of building the PayPal order object client-side. Added an
+  invoice/receipt view (shown after a successful capture) matching the
+  Fresh Snacks visual language, with Print/Save-PDF (same `window.print()`
+  + `@media print` pattern as `invoice.html`) and a dependency-free
+  Blob-based "Download receipt" (plain-text) icon button.
+- Verified: `roundUpToTen` unit tests pass; `refreshDailyRate`/
+  `getTodayRate` tested directly against the real project Firestore
+  (service account credentials) - confirmed a fresh rate gets generated
+  and stored, a same-day read reuses it without refetching, and a
+  different date self-heals with a new live fetch (test artifact
+  immediately cleaned up by restoring the real current day's rate
+  afterward, so production reads aren't left pointing at a fake date).
+  Frontend verified via headless Chrome: no rate input exists anywhere in
+  the DOM, the page degrades gracefully (clear error message, no crash)
+  while the backend routes aren't deployed yet, the invoice view renders
+  correctly with real Fresh Snacks styling, and the print view
+  (`emulateMediaType('print')`) correctly isolates just the receipt.
+- **Not yet deployed / blocked on the user**: needs a PayPal
+  `PAYPAL_CLIENT_SECRET` (from the same PayPal app as the client-id
+  already in the page, via developer.paypal.com) before
+  `create-order`/`capture-order` can work at all, and needs
+  `firebase deploy --only functions` to ship the new route/scheduled
+  function - both deliberately held per this session's established
+  "confirm before deploying" pattern.
+
 ## Migrated hosting from GitHub Pages to Firebase Hosting (2026-07-31)
 
 - Root cause of the earlier "gap is still there" confusion: two hosting

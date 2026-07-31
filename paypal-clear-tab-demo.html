@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#185638">
+  <meta name="description" content="Fresh Snacks - PayPal tab-clearing test page, not linked from or integrated with the main app.">
+  <title>Fresh Snacks — Clear Tab via PayPal (Demo)</title>
+  <style>
+    :root {
+      --forest-900: #123f2c;
+      --forest-800: #185638;
+      --forest-700: #1f6a43;
+      --mint-100: #eaf5ee;
+      --mint-050: #f5faf7;
+      --gold-600: #c98300;
+      --gold-500: #e29a10;
+      --cream-100: #fff7e8;
+      --ink-900: #1e2b24;
+      --ink-600: #5a6760;
+      --line: #dce5df;
+      --danger: #9b4224;
+      --radius-panel: 16px;
+      --radius-button: 10px;
+      --shadow-panel: 0 6px 22px rgba(18, 63, 44, 0.1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #f4f8f5;
+      color: var(--ink-900);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+    }
+    .shell { width: min(680px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 60px; }
+    header.demo-header { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+    header.demo-header img { height: 48px; width: auto; display: block; }
+    header.demo-header h1 { margin: 0; color: var(--forest-900); font-size: clamp(1.35rem, 2.4vw, 1.8rem); letter-spacing: -0.02em; }
+    header.demo-header p { margin: 4px 0 0; color: var(--ink-600); font-size: 0.92rem; }
+
+    .notice {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 18px 20px; margin-bottom: 22px;
+      border: 1px solid #e5bb61; border-radius: 14px;
+      background: linear-gradient(135deg, #fffcf5, #fff5e1);
+      color: #493a1c; font-size: 0.9rem;
+    }
+    .notice strong { display: block; margin-bottom: 4px; font-size: 0.98rem; }
+    .notice p { margin: 6px 0 0; color: #6b5527; }
+    .notice.danger {
+      border-color: rgba(155, 66, 36, 0.4);
+      background: linear-gradient(135deg, #fff7f5, #fdece6);
+      color: #6b2d16;
+    }
+    .notice.danger p { color: #7a3319; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-panel);
+      background: #fff;
+      box-shadow: var(--shadow-panel);
+      padding: 26px 28px;
+      margin-bottom: 22px;
+    }
+    .panel h2 { margin: 0 0 4px; color: var(--forest-900); font-size: 1.2rem; }
+    .panel > p.lead { margin: 0 0 20px; color: var(--ink-600); font-size: 0.9rem; }
+
+    .field { display: grid; gap: 7px; margin-bottom: 18px; }
+    .field label { color: var(--ink-600); font-size: 0.85rem; font-weight: 600; }
+    .field .input-row { display: flex; align-items: center; gap: 8px; }
+    .field input {
+      width: 100%; height: 50px; border: 1px solid #ccd9d1; border-radius: var(--radius-button);
+      padding: 0 14px; font-size: 1rem; font-weight: 700; color: var(--ink-900); background: #fff;
+    }
+    .field input:focus { outline: none; border-color: var(--gold-500); box-shadow: 0 0 0 4px rgba(226,154,16,0.2); }
+    .field .prefix { color: var(--ink-600); font-weight: 700; padding: 0 2px; }
+
+    /* The exchange rate is read-only, server-computed information - never
+       an input. Rendered as small grey subtext, matching how it should
+       read: context, not something anyone here can change. */
+    .rate-status { font-size: 0.82rem; color: var(--ink-600); margin: 0 0 18px; }
+    .rate-status.err { color: var(--danger); }
+    .rate-lock-note { display: inline-flex; align-items: center; gap: 4px; }
+    .rate-lock-note svg { width: 12px; height: 12px; flex: none; }
+
+    .summary {
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid var(--line); margin-top: 4px; padding-top: 18px;
+    }
+    .summary span { display: block; color: var(--ink-600); font-size: 0.84rem; }
+    .summary strong { display: block; margin-top: 2px; font-size: 1.9rem; color: var(--forest-900); letter-spacing: -0.03em; }
+    .summary .usd strong { color: var(--gold-600); }
+    .summary-arrow { color: var(--ink-600); font-size: 1.3rem; opacity: 0.6; }
+
+    #paypal-button-container { margin-top: 22px; min-height: 45px; }
+
+    .status-box {
+      margin-top: 16px; padding: 12px 14px; border-radius: var(--radius-button);
+      font-size: 0.86rem; display: none;
+    }
+    .status-box.show { display: block; }
+    .status-box.ok { background: var(--mint-100); color: var(--forest-800); }
+    .status-box.err { background: #faf0ef; color: #8a2f2f; }
+    .status-box.pending { background: var(--cream-100); color: #7a4408; }
+
+    footer.note { color: var(--ink-600); font-size: 0.82rem; text-align: center; }
+
+    /* ---- invoice / receipt ---- */
+    .invoice-panel { display: none; }
+    .invoice-panel.show { display: block; }
+    .invoice-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 2px solid var(--mint-100);
+    }
+    .invoice-head-brand { display: flex; align-items: center; gap: 12px; }
+    .invoice-head-brand img { height: 34px; width: auto; }
+    .invoice-head-brand div strong { display: block; color: var(--forest-900); font-size: 1.05rem; }
+    .invoice-head-brand div span { color: var(--ink-600); font-size: 0.8rem; }
+    .invoice-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px; padding: 6px 13px;
+      background: var(--mint-100); color: var(--forest-800);
+      font-size: 0.8rem; font-weight: 800; white-space: nowrap;
+    }
+    .invoice-badge svg { width: 14px; height: 14px; }
+
+    .invoice-meta { display: flex; justify-content: space-between; color: var(--ink-600); font-size: 0.84rem; margin-bottom: 20px; }
+    .invoice-meta strong { color: var(--ink-900); font-weight: 700; }
+
+    .invoice-lines { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 14px 0; margin-bottom: 20px; }
+    .invoice-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.92rem; }
+    .invoice-line span:first-child { color: var(--ink-600); }
+    .invoice-line span:last-child { font-weight: 700; color: var(--ink-900); }
+    .invoice-line.total { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 12px; font-size: 1.05rem; }
+    .invoice-line.total span:last-child { color: var(--gold-600); font-size: 1.3rem; }
+
+    .invoice-footnote { color: var(--ink-600); font-size: 0.78rem; margin-bottom: 20px; }
+
+    .invoice-actions { display: flex; gap: 10px; }
+    .icon-button {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 16px; border-radius: var(--radius-button);
+      border: 1px solid #c8d8ce; background: linear-gradient(180deg, #fff, #f4f8f5);
+      color: var(--forest-800); font-weight: 700; font-size: 0.88rem; cursor: pointer;
+    }
+    .icon-button:hover { background: var(--mint-050); }
+    .icon-button svg { width: 18px; height: 18px; }
+    .icon-button.primary { background: linear-gradient(180deg, #237349, #145231); border-color: transparent; color: #fff; }
+
+    .start-over { text-align: center; margin-top: 18px; }
+    .start-over button {
+      background: none; border: none; color: var(--forest-700); font-size: 0.85rem;
+      font-weight: 700; cursor: pointer; text-decoration: underline;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .demo-header, .notice, .checkout-panel, footer.note, .start-over { display: none !important; }
+      .invoice-panel { box-shadow: none; border: 1px solid #ccc; }
+      .invoice-actions { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="demo-header">
+      <img src="banner-logo.png" alt="Fresh Snacks" />
+      <div>
+        <h1>Clear Tab via PayPal — Test Page</h1>
+        <p>Standalone demo only — not linked from or wired into the main Fresh Snacks app.</p>
+      </div>
+    </header>
+
+    <section class="notice">
+      <div>
+        <strong>Test page, not integrated with the main app</strong>
+        <p>This page simulates a customer paying off their tab balance in full via PayPal, converted from JMD to USD. The balance below is just a number you type in - nothing here reads or writes real tab/transaction data. Everything about the exchange rate and the resulting charge amount, though, works exactly like production would: computed and locked in entirely server-side, once per day.</p>
+      </div>
+    </section>
+
+    <section class="notice danger">
+      <div>
+        <strong>This uses a LIVE PayPal client ID, not a sandbox one</strong>
+        <p>Completing checkout below attempts a REAL charge to a real PayPal account. Only click through to actual payment if you intend to move real money - otherwise just test the amount/button rendering, and stop before approving payment. Swap in a PayPal Sandbox client-id (from developer.paypal.com) if you want to safely test the full checkout flow, including a completed payment.</p>
+      </div>
+    </section>
+
+    <section class="panel checkout-panel" id="checkout-panel">
+      <h2>Your tab balance</h2>
+      <p class="lead">Enter the balance to clear - same as what a customer's "Current balance" shows on their tab.</p>
+
+      <div class="field">
+        <label for="balance-jmd">Tab balance</label>
+        <div class="input-row">
+          <span class="prefix">J$</span>
+          <input id="balance-jmd" type="number" min="0" step="1" value="5000" inputmode="decimal">
+        </div>
+      </div>
+
+      <p class="rate-status" id="rate-status">
+        <span class="rate-lock-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          Fetching today's locked-in rate from the server…
+        </span>
+      </p>
+
+      <div class="summary">
+        <div class="jmd">
+          <span>Tab balance</span>
+          <strong id="summary-jmd">J$5,000</strong>
+        </div>
+        <span class="summary-arrow" aria-hidden="true">&rarr;</span>
+        <div class="usd">
+          <span>You'll pay (USD)</span>
+          <strong id="summary-usd">—</strong>
+        </div>
+      </div>
+
+      <div id="paypal-button-container"></div>
+      <div class="status-box" id="pay-status"></div>
+    </section>
+
+    <section class="panel invoice-panel" id="invoice-panel">
+      <div class="invoice-head">
+        <div class="invoice-head-brand">
+          <img src="banner-logo.png" alt="Fresh Snacks" />
+          <div>
+            <strong>Fresh Snacks</strong>
+            <span>Payment receipt</span>
+          </div>
+        </div>
+        <span class="invoice-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          Paid
+        </span>
+      </div>
+
+      <div class="invoice-meta">
+        <span>Date <strong id="invoice-date">—</strong></span>
+        <span>Order ID <strong id="invoice-order-id">—</strong></span>
+      </div>
+
+      <div class="invoice-lines">
+        <div class="invoice-line"><span>Tab balance cleared</span><span id="invoice-jmd">—</span></div>
+        <div class="invoice-line"><span>Exchange rate applied</span><span id="invoice-rate">—</span></div>
+        <div class="invoice-line total"><span>Total paid (USD)</span><span id="invoice-usd">—</span></div>
+      </div>
+
+      <p class="invoice-footnote">Paid via PayPal. This receipt is generated locally from the server's payment confirmation - keep a copy for your records.</p>
+
+      <div class="invoice-actions">
+        <button type="button" class="icon-button primary" id="print-invoice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="6" y="13" width="12" height="8"/><path d="M6 17H4a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2"/></svg>
+          Print / Save PDF
+        </button>
+        <button type="button" class="icon-button" id="download-invoice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          Download receipt
+        </button>
+      </div>
+
+      <div class="start-over"><button type="button" id="start-over">Start another test payment</button></div>
+    </section>
+
+    <footer class="note">Fresh Snacks &middot; internal test page &middot; not publicly linked</footer>
+  </div>
+
+  <!-- Live PayPal SDK - components=buttons (not hosted-buttons) so the
+       amount can be set dynamically per checkout via createOrder, rather
+       than a single fixed price baked in once via the PayPal dashboard
+       (which is what components=hosted-buttons is for - the wrong tool
+       for a balance that's different for every customer). Same client-id
+       and currency/funding options as the snippet provided. -->
+  <script src="https://www.paypal.com/sdk/js?client-id=BAARFoVcZvbU49J60TWLx3pvGhTTgmzksPDFs7C9YsUKPKaFV1f_7pit7vYrm45Rcm-ZHRCmaxyDnA1HSU&components=buttons&enable-funding=venmo&currency=USD"></script>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // The same deployed Cloud Functions API the main app talks to -
+      // every number this page shows or charges comes from here, never
+      // computed in this file. See functions/src/routes/paypal.js.
+      const API_BASE = 'https://us-central1-fresh-snacks-ee79f.cloudfunctions.net/api';
+
+      const els = {
+        checkoutPanel: document.querySelector('#checkout-panel'),
+        balance: document.querySelector('#balance-jmd'),
+        rateStatus: document.querySelector('#rate-status'),
+        summaryJmd: document.querySelector('#summary-jmd'),
+        summaryUsd: document.querySelector('#summary-usd'),
+        payStatus: document.querySelector('#pay-status'),
+        invoicePanel: document.querySelector('#invoice-panel'),
+        invoiceDate: document.querySelector('#invoice-date'),
+        invoiceOrderId: document.querySelector('#invoice-order-id'),
+        invoiceJmd: document.querySelector('#invoice-jmd'),
+        invoiceRate: document.querySelector('#invoice-rate'),
+        invoiceUsd: document.querySelector('#invoice-usd'),
+        printBtn: document.querySelector('#print-invoice'),
+        downloadBtn: document.querySelector('#download-invoice'),
+        startOverBtn: document.querySelector('#start-over'),
+      };
+
+      function formatJmd(n) {
+        return `J$${Number(n || 0).toLocaleString('en-US')}`;
+      }
+      function formatUsd(n) {
+        return `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
+      // The last quote the SERVER returned - what createOrder actually
+      // relies on being close to correct is irrelevant, since the server
+      // re-derives the real amount itself from the stored rate right
+      // before creating the order. This is only ever used for display.
+      let lastQuote = null;
+
+      async function refreshQuote() {
+        const balance = Number(els.balance.value) || 0;
+        if (balance <= 0) {
+          els.summaryUsd.textContent = '—';
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE}/paypal/quote?balanceJmd=${encodeURIComponent(balance)}`);
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+          const quote = await res.json();
+          lastQuote = quote;
+          els.summaryJmd.textContent = formatJmd(quote.balanceJmd);
+          els.summaryUsd.textContent = formatUsd(quote.usdAmount);
+          els.rateStatus.classList.remove('err');
+          els.rateStatus.innerHTML = `<span class="rate-lock-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            Today's rate (${quote.forDate}), locked in server-side: J$${quote.rate} = US$1
+          </span>`;
+        } catch (err) {
+          els.rateStatus.classList.add('err');
+          els.rateStatus.textContent = `Could not reach the server for today's rate (${err.message}).`;
+          els.summaryUsd.textContent = '—';
+        }
+      }
+
+      let debounceTimer = null;
+      els.balance.addEventListener('input', () => {
+        els.summaryJmd.textContent = formatJmd(Number(els.balance.value) || 0);
+        window.clearTimeout(debounceTimer);
+        debounceTimer = window.setTimeout(refreshQuote, 350);
+      });
+      refreshQuote();
+
+      function showPayStatus(kind, message) {
+        els.payStatus.className = `status-box show ${kind}`;
+        els.payStatus.textContent = message;
+      }
+
+      function showInvoice(quote, capture) {
+        const now = new Date();
+        els.invoiceDate.textContent = now.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        els.invoiceOrderId.textContent = capture && capture.id ? capture.id : '—';
+        els.invoiceJmd.textContent = formatJmd(quote.balanceJmd);
+        els.invoiceRate.textContent = `J$${quote.rate} = US$1`;
+        els.invoiceUsd.textContent = formatUsd(quote.usdAmount);
+        els.checkoutPanel.style.display = 'none';
+        els.invoicePanel.classList.add('show');
+      }
+
+      els.printBtn.addEventListener('click', () => window.print());
+
+      els.downloadBtn.addEventListener('click', () => {
+        const lines = [
+          'FRESH SNACKS - PAYMENT RECEIPT',
+          '================================',
+          `Date: ${els.invoiceDate.textContent}`,
+          `Order ID: ${els.invoiceOrderId.textContent}`,
+          '',
+          `Tab balance cleared: ${els.invoiceJmd.textContent}`,
+          `Exchange rate applied: ${els.invoiceRate.textContent}`,
+          `Total paid (USD): ${els.invoiceUsd.textContent}`,
+          '',
+          'Paid via PayPal.',
+        ].join('\n');
+        const blob = new Blob([lines], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fresh-snacks-receipt-${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+
+      els.startOverBtn.addEventListener('click', () => {
+        els.invoicePanel.classList.remove('show');
+        els.checkoutPanel.style.display = '';
+        els.payStatus.classList.remove('show');
+        refreshQuote();
+      });
+
+      if (window.paypal && window.paypal.Buttons) {
+        window.paypal.Buttons({
+          style: { layout: 'vertical', color: 'gold', label: 'pay' },
+
+          // Never builds the order itself - only ever asks the server to,
+          // sending nothing but the JMD balance. The server re-derives the
+          // rate and USD amount from Firestore and creates the real PayPal
+          // order; this callback just hands PayPal the resulting orderID.
+          createOrder: async () => {
+            const balance = Number(els.balance.value) || 0;
+            if (balance <= 0) {
+              showPayStatus('err', 'Enter a tab balance above 0 first.');
+              throw new Error('Invalid balance');
+            }
+            showPayStatus('pending', 'Starting checkout…');
+            const res = await fetch(`${API_BASE}/paypal/create-order`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ balanceJmd: balance }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              showPayStatus('err', data.error || 'Could not start checkout.');
+              throw new Error(data.error || 'create-order failed');
+            }
+            lastQuote = data;
+            showPayStatus('pending', `Order created for ${formatUsd(data.usdAmount)} - complete checkout in the PayPal window.`);
+            return data.orderID;
+          },
+
+          // Capture also happens server-side - this just tells the server
+          // which order to capture and shows whatever it confirms back.
+          onApprove: async (data) => {
+            showPayStatus('pending', 'Confirming payment…');
+            const res = await fetch(`${API_BASE}/paypal/capture-order`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderID: data.orderID }),
+            });
+            const result = await res.json();
+            if (!res.ok) {
+              showPayStatus('err', result.error || 'Payment did not complete.');
+              return;
+            }
+            showPayStatus('ok', 'Payment captured - opening your receipt.');
+            showInvoice(lastQuote || {}, result.capture);
+          },
+
+          onCancel: () => {
+            showPayStatus('pending', 'Checkout cancelled - nothing was charged.');
+          },
+          onError: (err) => {
+            showPayStatus('err', `PayPal error: ${err && err.message ? err.message : 'something went wrong'}`);
+          },
+        }).render('#paypal-button-container');
+      } else {
+        showPayStatus('err', 'PayPal SDK failed to load - check the console for details.');
+      }
+    })();
+  </script>
+</body>
+</html>

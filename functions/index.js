@@ -4,10 +4,14 @@ admin.initializeApp();
 const express = require("express");
 const cors = require("cors");
 const { onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 const storeRoutes = require("./src/routes/store");
 const adminRoutes = require("./src/routes/admin");
+const paypalRoutes = require("./src/routes/paypal");
 const { trackRequest } = require("./src/lib/stats");
+const { refreshDailyRate } = require("./src/lib/paypalRate");
+const { todayISO } = require("./src/lib/shared");
 
 const app = express();
 
@@ -23,6 +27,12 @@ const ALLOWED_ORIGINS = [
   "https://www.freshsnacksja.com",
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
   /^http:\/\/localhost(:\d+)?$/,
+  // A page opened directly as a local file (no server) sends the literal
+  // string "null" as its Origin - only real file:// pages can send this
+  // (no ordinary web page can spoof it), so allowing it just enables
+  // testing standalone demo pages (e.g. paypal-clear-tab-demo.html)
+  // straight off disk without weakening the allow-list for anything else.
+  "null",
 ];
 app.use(cors({
   origin: (origin, callback) => {
@@ -48,6 +58,7 @@ app.use((req, res, next) => {
 
 app.use("/store", storeRoutes);
 app.use("/admin", adminRoutes);
+app.use("/paypal", paypalRoutes);
 
 app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
@@ -61,3 +72,15 @@ app.use((err, req, res, next) => {
 // here - the v2 `cors` option would layer a second, less precise handler
 // on top and risks duplicate/conflicting Access-Control-Allow-Origin headers.
 exports.api = onRequest({ region: "us-central1" }, app);
+
+// Generates and locks in the day's JMD->USD PayPal conversion rate once,
+// server-side, before anyone's checkout can read it - see
+// src/lib/paypalRate.js for why this exists instead of trusting a rate
+// from the client. 00:05 America/Jamaica so it's ready before the first
+// customer of the day, comfortably past midnight rollover.
+exports.refreshPaypalRate = onSchedule(
+  { schedule: "5 0 * * *", timeZone: "America/Jamaica", region: "us-central1" },
+  async () => {
+    await refreshDailyRate(todayISO());
+  },
+);
