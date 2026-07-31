@@ -11,12 +11,12 @@
  * is not enough to call PayPal's REST API; the secret is what makes this
  * a genuine server-to-server call PayPal can trust. */
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID
-  || "BAARFoVcZvbU49J60TWLx3pvGhTTgmzksPDFs7C9YsUKPKaFV1f_7pit7vYrm45Rcm-ZHRCmaxyDnA1HSU";
+  || "ATsbP8Pn9MQbCbxeB74E2j3UNj3rjzrVlTRsvD4nbw3D0I5HM4dCCcRE6LLqNE6yN3dnMbo7MTrLd37B";
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
-// api-m.paypal.com is the LIVE endpoint, matching the live client-id above.
-// Point PAYPAL_API_BASE at https://api-m.sandbox.paypal.com (with a
-// sandbox client-id/secret pair) to test without moving real money.
-const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || "https://api-m.paypal.com";
+// Test mode by default, matching the credentials currently set - flip
+// PAYPAL_API_BASE to https://api-m.paypal.com (with the matching live
+// client-id/secret) once ready to accept real payments.
+const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || "https://api-m.sandbox.paypal.com";
 
 function requireConfigured() {
   if (!PAYPAL_CLIENT_SECRET) {

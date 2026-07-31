@@ -5,6 +5,15 @@ const express = require("express");
 const cors = require("cors");
 const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
+
+// Bound to `api` below via the `secrets` option - that's what actually
+// exposes it as process.env.PAYPAL_CLIENT_SECRET at runtime (see
+// src/lib/paypalClient.js). Set the value with `firebase functions:
+// secrets:set PAYPAL_CLIENT_SECRET` (prompts for it with hidden input -
+// never put the actual value in code, chat, or a plain .env file that
+// might get committed).
+const paypalClientSecret = defineSecret("PAYPAL_CLIENT_SECRET");
 
 const storeRoutes = require("./src/routes/store");
 const adminRoutes = require("./src/routes/admin");
@@ -71,7 +80,11 @@ app.use((err, req, res, next) => {
 // CORS is handled by the `cors` middleware above (origin allow-list), not
 // here - the v2 `cors` option would layer a second, less precise handler
 // on top and risks duplicate/conflicting Access-Control-Allow-Origin headers.
-exports.api = onRequest({ region: "us-central1" }, app);
+// `secrets` is what makes PAYPAL_CLIENT_SECRET available to this function
+// at all - without it, process.env.PAYPAL_CLIENT_SECRET is undefined here
+// even after the secret has been set, since Cloud Functions only injects
+// a secret into the specific functions that declare they need it.
+exports.api = onRequest({ region: "us-central1", secrets: [paypalClientSecret] }, app);
 
 // Generates and locks in the day's JMD->USD PayPal conversion rate once,
 // server-side, before anyone's checkout can read it - see

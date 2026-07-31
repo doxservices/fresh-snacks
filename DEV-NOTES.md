@@ -1,5 +1,32 @@
 # Development notes
 
+## PayPal test page: fixed the real client-id/secret mismatch, now working end-to-end (2026-07-31)
+
+- The client-id originally provided (`BAARFoVc...`) turned out to be from
+  a regular PayPal account's simple "create a payment button" feature,
+  not a proper developer app - it was never going to pair with any
+  server-side secret. Swapped in the actual `fresh-snacks` REST API app's
+  client-id (`ATsbP8Pn9...`, from developer.paypal.com's Sandbox > REST
+  API apps) in both `functions/src/lib/paypalClient.js` and the page's
+  PayPal SDK script tag.
+- Bound `PAYPAL_CLIENT_SECRET` to the `api` function via
+  `defineSecret`/the `secrets` option in `functions/index.js` - Cloud
+  Functions only injects a secret into functions that explicitly declare
+  they need it; without this, the value set via `firebase functions:
+  secrets:set` was never actually reaching `process.env` at runtime.
+- Defaulted `PAYPAL_API_BASE` to PayPal's sandbox endpoint (matching the
+  sandbox app credentials in use) instead of live, and softened the
+  page's danger notice into a plain "safe to test end-to-end" one now
+  that a real payment can be completed without moving real money.
+- Root-caused the persistent 401/`invalid_client` through direct curl
+  calls to PayPal's own OAuth endpoint (bypassing our server entirely) -
+  confirmed it was a genuine mismatched credential pair, not a bug in our
+  code, before the correct client-id/secret combination (both pulled
+  fresh from the `fresh-snacks` app's Sandbox > REST API apps entry)
+  finally returned a real access token.
+- Verified live: `POST /paypal/create-order` returns a real PayPal
+  sandbox order ID for the correct server-computed amount.
+
 ## PayPal "clear tab" test page: server-locked rate, real invoice UI (2026-07-31)
 
 - Built `paypal-clear-tab-demo.html` - standalone, not linked from or
