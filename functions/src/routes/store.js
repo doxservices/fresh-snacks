@@ -94,15 +94,32 @@ router.get("/profile", optionalAuth, asyncRoute(async (req, res) => {
   res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(profile || {}), hasTab, accessMode });
 }));
 
+// First name needs a real minimum so a stray initial or keyboard-mash
+// can't pass as a name. Last name deliberately allows a single initial
+// (MIN_LAST_NAME_LENGTH stays at 1, and no UI copy anywhere mentions this) -
+// only kept as its own named constant for symmetry with first name, not
+// because it's expected to ever actually reject anything.
+const MIN_FIRST_NAME_LENGTH = 3;
+const MIN_LAST_NAME_LENGTH = 1;
+
 router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   const effectiveUid = await resolveEffectiveUid(req);
   const ref = db().collection("users").doc(effectiveUid);
   const existing = await ref.get();
+  const existingData = existing.exists ? existing.data() : null;
   const firstName = clean(req.body.firstName);
   const lastName = clean(req.body.lastName);
   const email = clean(req.body.email);
   const phone = clean(req.body.phone);
-  const displayName = clean(req.body.displayName) || clean(`${firstName || ""} ${lastName || ""}`);
+  if (firstName && firstName.length < MIN_FIRST_NAME_LENGTH) {
+    throw Object.assign(
+      new Error(`First name must be at least ${MIN_FIRST_NAME_LENGTH} characters.`),
+      { status: 400, code: "invalid-first-name" },
+    );
+  }
+  if (lastName && lastName.length < MIN_LAST_NAME_LENGTH) {
+    throw Object.assign(new Error("Enter a valid last name."), { status: 400, code: "invalid-last-name" });
+  }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw Object.assign(new Error("Enter a valid work email address."), { status: 400, code: "invalid-email" });
   }
@@ -110,6 +127,14 @@ router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   if (phone && (phoneDigits.length < 7 || phoneDigits.length > 15)) {
     throw Object.assign(new Error("Enter a valid phone number with 7 to 15 digits."), { status: 400, code: "invalid-phone" });
   }
+  // A real first+last name always wins over a separately-typed Display Name
+  // (whether that name arrived just now or was already on file) - this is
+  // what keeps a stale/placeholder display name (e.g. "Guest ABCD") from
+  // sticking around forever once a customer has a real name on their
+  // profile, even on an edit that doesn't touch the name fields directly.
+  const effectiveFirstName = firstName || (existingData && existingData.firstName) || "";
+  const effectiveLastName = lastName || (existingData && existingData.lastName) || "";
+  const displayName = clean(`${effectiveFirstName} ${effectiveLastName}`) || clean(req.body.displayName);
   const payload = {
     firstName,
     lastName,
