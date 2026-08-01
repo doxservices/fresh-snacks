@@ -130,7 +130,7 @@
          only while a cashback tier is live). See openPaypalPayModal(). -->
     <section class="card section-card paypal-pay-card hidden" id="paypal-pay-card">
       <span class="cashback-card-title">Clear your balance</span>
-      <p class="muted-small">Pay your tab balance securely with PayPal.</p>
+      <p class="muted-small" id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
       <button type="button" class="primary" id="paypal-pay-open">Clear tab with PayPal</button>
     </section>
 
@@ -887,6 +887,21 @@
       $id("cashback-expired-five").textContent = FS.money(missed.fivePercentAmount, cur);
     }
 
+    // Keep in sync with functions/src/routes/paypalTab.js's MIN_BALANCE_JMD -
+    // that's the actual enforcement; this just explains it early instead of
+    // only after someone clicks through and hits the server's rejection.
+    const PAYPAL_MIN_BALANCE_JMD = 5000;
+    function renderPaypalPayCard(t, isVisitor, cur) {
+      const show = !isVisitor && t.balance > 0;
+      $id("paypal-pay-card").classList.toggle("hidden", !show);
+      if (!show) return;
+      const eligible = t.balance >= PAYPAL_MIN_BALANCE_JMD;
+      $id("paypal-pay-open").classList.toggle("hidden", !eligible);
+      $id("paypal-pay-card-body").textContent = eligible
+        ? "Pay your tab balance securely with PayPal."
+        : `PayPal is available for balances of ${FS.money(PAYPAL_MIN_BALANCE_JMD, cur)} or more. For smaller balances, please pay in person.`;
+    }
+
     // Mirrors functions/src/lib/cashback.js's per-margin model (kept in
     // sync by hand, same as cashback-demo.js) purely for this display -
     // groups still-owed entries by the day they were added (same-day
@@ -1022,7 +1037,7 @@
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
-      $id("paypal-pay-card").classList.toggle("hidden", isVisitor || !(t.balance > 0));
+      renderPaypalPayCard(t, isVisitor, cur);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee

@@ -24,10 +24,18 @@ function bad(message, status = 400) {
   return Object.assign(new Error(message), { status });
 }
 
+// Keep in sync with index.html's PAYPAL_MIN_BALANCE_JMD - that copy is only
+// UX (hides the button, shows the explanation early); this is what actually
+// stops a too-small balance from reaching PayPal at all.
+const MIN_BALANCE_JMD = 5000;
+
 async function quoteForUser(userId) {
   const { entries, payments } = await fetchCustomerLedger(userId);
   const { balance } = computeBalance(entries, payments);
   if (!(balance > 0)) throw bad("Your tab is already clear.");
+  if (balance < MIN_BALANCE_JMD) {
+    throw bad(`PayPal is available for balances of J$${MIN_BALANCE_JMD.toLocaleString("en-US")} or more. For smaller balances, please pay in person.`);
+  }
   const forDate = todayISO();
   const rate = await getTodayRate(forDate);
   const usdAmount = Math.round((balance / rate) * 100) / 100;
