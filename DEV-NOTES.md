@@ -1,5 +1,34 @@
 # Development notes
 
+## Went live with PayPal for real customers (2026-08-01)
+
+- The real "Clear tab with PayPal" feature (index.html) now runs against a
+  real, live PayPal app - actual money moves when a customer pays. The
+  standalone `paypal-clear-tab-demo.html` deliberately stayed on the
+  original sandbox app instead of following along automatically.
+- Split `functions/src/lib/paypalClient.js` from one shared client into a
+  factory (`createPaypalClient`) plus two separate instances -
+  `paypalClientLive.js` (used only by `routes/paypalTab.js`) and
+  `paypalClientSandbox.js` (used only by `routes/paypal.js`, the demo page)
+  - each with its own client-id and its own Firebase secret
+  (`PAYPAL_CLIENT_SECRET` vs `PAYPAL_SANDBOX_CLIENT_SECRET`, both bound to
+  the `api` function in `functions/index.js`). The point: going live for
+  real customers must never be able to silently turn the test page into a
+  real-money page just because they share code.
+- `index.html`'s PayPal SDK script tag now loads the live app's client-id;
+  `paypal-clear-tab-demo.html`'s stays on the original sandbox client-id.
+  These have to stay matched to their respective server-side credentials -
+  a page's client-id and its server's secret must be from the *same* PayPal
+  app, live or sandbox, or checkout breaks.
+- Verified directly against the deployed functions before calling it done:
+  a real order successfully created against PayPal's live API (confirms
+  the live client-id/secret pairing actually works) - deliberately never
+  captured, so no real money moved during verification - and the demo page
+  re-confirmed working unchanged on its now-separately-named sandbox secret.
+- Not yet done, worth a follow-up: the amount safety cap discussed earlier
+  (a sane upper limit on what a single charge can be) never got added -
+  more relevant now that real money is actually on the line.
+
 ## Real "Clear tab with PayPal", wired to actual balances (2026-07-31)
 
 - Building on the standalone `paypal-clear-tab-demo.html` test page, added
