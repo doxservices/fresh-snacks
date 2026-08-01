@@ -298,7 +298,7 @@
     </section>
 
     <footer>
-      Thank you.
+      Thank you. <button type="button" class="footer-link" id="open-donate">Support Fresh Snacks</button>
     </footer>
     </div>
   </main>
@@ -405,6 +405,16 @@
         <button type="button" id="mark-paid-cancel">Not yet</button>
         <button type="button" class="primary" id="mark-paid-ok">Mark as Paid</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="donate-backdrop">
+    <div class="modal donate-modal" role="dialog" aria-modal="true" aria-labelledby="donate-title">
+      <button type="button" class="modal-close" id="donate-close" aria-label="Close">&times;</button>
+      <h2 id="donate-title">Support Fresh Snacks</h2>
+      <p class="muted-small">If Fresh Snacks has been useful to you, a donation helps keep it running. Every bit is appreciated.</p>
+      <div id="donate-button-container"></div>
+      <div class="status" id="donate-status"></div>
     </div>
   </div>
 
@@ -576,6 +586,13 @@
        (createOrder), unlike a fixed hosted-buttons price. The standalone
        demo page deliberately keeps its own separate sandbox client-id. -->
   <script src="https://www.paypal.com/sdk/js?client-id=AbUfyOs_HCKQuvW5o1S5MdZ-EZy5eoUFY-j06jPcTVzJhSdVyVb_4N9t9ZCf43HVDfzE2GD6yKdLHz8G&components=buttons&enable-funding=venmo&currency=USD"></script>
+  <!-- Separate donate widget (its own global `PayPal.Donation`, distinct
+       from `window.paypal` above) - the only PayPal-controlled place a
+       donation page can carry Fresh Snacks branding at all is item_name;
+       the "Donate to ..." heading itself is the PayPal account's own
+       registered business name and isn't something this embed can
+       override - see openDonateModal() below. -->
+  <script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>
@@ -1826,6 +1843,63 @@
     });
     $id("paypal-pay-backdrop").addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") closePaypalPayModal();
+    });
+
+    // Support Fresh Snacks (donate) - a plain PayPal-hosted button, not a
+    // server-driven flow like "Clear tab with PayPal" above: the whole
+    // payment happens on PayPal's own page/popup, so there's no order to
+    // create or capture on our side. item_name is the one field PayPal
+    // actually surfaces to the donor on its own page - everything else
+    // here is just how the button/modal looks on freshsnacksja.com itself.
+    let donateReturnFocus = null;
+    let donateButtonRendered = false;
+
+    function closeDonateModal() {
+      $id("donate-backdrop").classList.remove("show");
+      if (donateReturnFocus && document.contains(donateReturnFocus)) donateReturnFocus.focus();
+      donateReturnFocus = null;
+    }
+
+    function renderDonateButton() {
+      if (donateButtonRendered) return;
+      if (!window.PayPal || !window.PayPal.Donation) {
+        $id("donate-status").className = "status err";
+        $id("donate-status").textContent = "PayPal couldn't load. Please refresh the page.";
+        return;
+      }
+      donateButtonRendered = true;
+      window.PayPal.Donation.Button({
+        env: "production",
+        hosted_button_id: "UGM5MJ3BMWAE2",
+        item_name: "Support Fresh Snacks",
+        image: {
+          src: "https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif",
+          title: "Donate with PayPal to support Fresh Snacks",
+          alt: "Donate with PayPal to support Fresh Snacks",
+        },
+        onComplete: () => {
+          $id("donate-status").className = "status ok";
+          $id("donate-status").textContent = "Thank you for supporting Fresh Snacks!";
+        },
+      }).render("#donate-button-container");
+    }
+
+    function openDonateModal() {
+      donateReturnFocus = document.activeElement;
+      $id("donate-status").className = "status";
+      $id("donate-status").textContent = "";
+      $id("donate-backdrop").classList.add("show");
+      $id("donate-close").focus();
+      renderDonateButton();
+    }
+
+    $id("open-donate").onclick = () => openDonateModal();
+    $id("donate-close").onclick = () => closeDonateModal();
+    $id("donate-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("donate-backdrop")) closeDonateModal();
+    });
+    $id("donate-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeDonateModal();
     });
 
     document.getElementById("expand-all").onclick = () =>

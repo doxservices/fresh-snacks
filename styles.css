@@ -1528,6 +1528,16 @@ footer {
   padding: 4px 2px 18px;
 }
 
+.footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ---- Forms / admin / bins ---- */
 
 .admin-login-shell {
