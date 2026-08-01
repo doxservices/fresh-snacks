@@ -570,10 +570,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260731-paypal-tab-payment"></script>
-  <!-- Same sandbox client-id as paypal-clear-tab-demo.html - components=buttons
-       so the amount can be set per checkout (createOrder), unlike a fixed
-       hosted-buttons price. Switches together with the rest once live. -->
-  <script src="https://www.paypal.com/sdk/js?client-id=ATsbP8Pn9MQbCbxeB74E2j3UNj3rjzrVlTRsvD4nbw3D0I5HM4dCCcRE6LLqNE6yN3dnMbo7MTrLd37B&components=buttons&enable-funding=venmo&currency=USD"></script>
+  <!-- Live PayPal app's client-id (must match functions/src/lib/
+       paypalClientLive.js's server-side credentials, or checkout breaks) -
+       components=buttons so the amount can be set per checkout
+       (createOrder), unlike a fixed hosted-buttons price. The standalone
+       demo page deliberately keeps its own separate sandbox client-id. -->
+  <script src="https://www.paypal.com/sdk/js?client-id=AbUfyOs_HCKQuvW5o1S5MdZ-EZy5eoUFY-j06jPcTVzJhSdVyVb_4N9t9ZCf43HVDfzE2GD6yKdLHz8G&components=buttons&enable-funding=venmo&currency=USD"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/banner.js"></script>

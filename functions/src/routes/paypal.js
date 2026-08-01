@@ -6,15 +6,19 @@
  * resulting USD amount are computed entirely server-side from the
  * Firestore-stored daily rate (see ../lib/paypalRate.js) - the client
  * never sends, sets, or overrides either one, and PayPal's actual order
- * creation/capture happen server-side too (../lib/paypalClient.js), so
- * there's no front-end-reachable variable that changes what gets charged.
- */
+ * creation/capture happen server-side too, so there's no front-end-
+ * reachable variable that changes what gets charged.
+ *
+ * Always talks to PayPal's SANDBOX via ../lib/paypalClientSandbox.js -
+ * deliberately separate credentials from ../lib/paypalClientLive.js (used
+ * by ../routes/paypalTab.js for real customers), so this page can never
+ * start moving real money just because the real feature went live. */
 const express = require("express");
 const router = express.Router();
 const { asyncRoute } = require("../middleware");
 const { todayISO } = require("../lib/shared");
 const { getTodayRate } = require("../lib/paypalRate");
-const { createOrder, captureOrder } = require("../lib/paypalClient");
+const { createOrder, captureOrder } = require("../lib/paypalClientSandbox");
 
 function bad(message, status = 400) {
   return Object.assign(new Error(message), { status });

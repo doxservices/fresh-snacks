@@ -8,12 +8,18 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 
 // Bound to `api` below via the `secrets` option - that's what actually
-// exposes it as process.env.PAYPAL_CLIENT_SECRET at runtime (see
-// src/lib/paypalClient.js). Set the value with `firebase functions:
-// secrets:set PAYPAL_CLIENT_SECRET` (prompts for it with hidden input -
-// never put the actual value in code, chat, or a plain .env file that
-// might get committed).
+// exposes these as process.env.PAYPAL_CLIENT_SECRET / process.env.
+// PAYPAL_SANDBOX_CLIENT_SECRET at runtime (see src/lib/paypalClientLive.js
+// and src/lib/paypalClientSandbox.js). Deliberately two separate secrets -
+// the live one is real customers' actual money (src/routes/paypalTab.js),
+// the sandbox one only ever backs the standalone test page
+// (src/routes/paypal.js) - so going live on one can never accidentally
+// turn the other into a real-money page too. Set each value with
+// `firebase functions:secrets:set <NAME>` (prompts for it with hidden
+// input - never put the actual value in code, chat, or a plain .env file
+// that might get committed).
 const paypalClientSecret = defineSecret("PAYPAL_CLIENT_SECRET");
+const paypalSandboxClientSecret = defineSecret("PAYPAL_SANDBOX_CLIENT_SECRET");
 
 const storeRoutes = require("./src/routes/store");
 const adminRoutes = require("./src/routes/admin");
@@ -86,7 +92,7 @@ app.use((err, req, res, next) => {
 // at all - without it, process.env.PAYPAL_CLIENT_SECRET is undefined here
 // even after the secret has been set, since Cloud Functions only injects
 // a secret into the specific functions that declare they need it.
-exports.api = onRequest({ region: "us-central1", secrets: [paypalClientSecret] }, app);
+exports.api = onRequest({ region: "us-central1", secrets: [paypalClientSecret, paypalSandboxClientSecret] }, app);
 
 // Generates and locks in the day's JMD->USD PayPal conversion rate once,
 // server-side, before anyone's checkout can read it - see

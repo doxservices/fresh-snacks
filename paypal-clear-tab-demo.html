@@ -281,12 +281,15 @@
     <footer class="note">Fresh Snacks &middot; Secure checkout with PayPal</footer>
   </div>
 
-  <!-- Live PayPal SDK - components=buttons (not hosted-buttons) so the
-       amount can be set dynamically per checkout via createOrder, rather
-       than a single fixed price baked in once via the PayPal dashboard
-       (which is what components=hosted-buttons is for - the wrong tool
-       for a balance that's different for every customer). Same client-id
-       and currency/funding options as the snippet provided. -->
+  <!-- components=buttons (not hosted-buttons) so the amount can be set
+       dynamically per checkout via createOrder, rather than a single
+       fixed price baked in once via the PayPal dashboard (which is what
+       components=hosted-buttons is for - the wrong tool for a balance
+       that's different for every customer). This is the SANDBOX app's
+       client-id, deliberately kept separate from the real client-id used
+       on index.html - matches functions/src/lib/paypalClientSandbox.js's
+       server-side credentials, so this page can never process real
+       money even after the real feature goes live. -->
   <script src="https://www.paypal.com/sdk/js?client-id=ATsbP8Pn9MQbCbxeB74E2j3UNj3rjzrVlTRsvD4nbw3D0I5HM4dCCcRE6LLqNE6yN3dnMbo7MTrLd37B&components=buttons&enable-funding=venmo&currency=USD"></script>
 
   <script>

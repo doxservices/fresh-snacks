@@ -14,7 +14,7 @@ const { requireAuth, resolveEffectiveUid, asyncRoute } = require("../middleware"
 const { uid: genId, todayISO, computeBalance } = require("../lib/shared");
 const { fetchCustomerLedger } = require("../lib/ledger");
 const { getTodayRate } = require("../lib/paypalRate");
-const { createOrder, captureOrder } = require("../lib/paypalClient");
+const { createOrder, captureOrder } = require("../lib/paypalClientLive");
 const { allocateApprovedTransactions } = require("../lib/settlement");
 
 const db = () => admin.firestore();
