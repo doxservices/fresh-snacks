@@ -977,6 +977,12 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .amount-flow > img { width: 20px; margin-bottom: 4px; }
 .reward strong { color: #e79a00; }
 
+/* The grand balance is context, not the basis of the discount - shown
+   smaller/greyer and fenced off with a rule so the qualifying-purchases ->
+   earn-back pair reads as the actual calculation. */
+.amount-muted { padding-right: 18px; border-right: 1px solid #e1e8e3; }
+.amount-muted strong { font-size: 17px; color: #65706b; }
+
 .offer-primary {
   min-height: 40px;
   padding: 0 18px;

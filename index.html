@@ -97,7 +97,8 @@
       <div class="divider"></div>
       <div class="active-bottom">
         <div class="amount-flow">
-          <div><span>Your balance</span><strong id="cashback-balance"></strong></div>
+          <div class="amount-muted"><span>Your balance</span><strong id="cashback-balance"></strong></div>
+          <div><span id="cashback-basis-label">Today's purchases</span><strong id="cashback-basis"></strong></div>
           <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
           <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
         </div>
@@ -942,6 +943,19 @@
       $id("cashback-card-body").textContent = isBestTier
         ? "Today's purchases are earning 10% cash back - not older charges already on your tab. Clear your whole balance in full right now to collect it; tomorrow the rate drops to 5%."
         : "Yesterday's purchases still earn 5% cash back today - not older charges already on your tab. Clear your whole balance in full right now to collect it; after today, that's gone too.";
+      // The value the discount is actually computed ON - only the still-
+      // qualifying purchases (added today at 10%, or yesterday at 5%),
+      // shown next to the grand balance so the earn-back amount visibly
+      // follows from a specific number instead of appearing to be a
+      // (tiny-looking) percentage of the whole balance.
+      const qualifying = instances.filter((i) => i.daysSince <= 1);
+      const qualifyingTotal = qualifying.reduce((t, i) => t + i.amount, 0);
+      const allToday = qualifying.length && qualifying.every((i) => i.daysSince === 0);
+      const allYesterday = qualifying.length && qualifying.every((i) => i.daysSince === 1);
+      $id("cashback-basis-label").textContent = allToday
+        ? "Today's purchases"
+        : allYesterday ? "Yesterday's purchases" : "Recent purchases";
+      $id("cashback-basis").textContent = FS.money(qualifyingTotal || offer.balance, cur);
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
       renderCashbackDayBar();
