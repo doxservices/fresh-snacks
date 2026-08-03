@@ -1049,6 +1049,15 @@ a.stat-box:hover, a.stat-box:focus-visible {
 /* Balance + CTA, fenced off on the right - the balance keeps its slot
    and size no matter how many transaction cards render on the left. */
 .payment-zone { display: flex; align-items: center; gap: 18px; padding-left: 20px; border-left: 1px solid #e1e8e3; }
+
+/* Expired-window state: the earning chips are gone, so the payment zone
+   is the only thing in the bottom row - without this it would fall into
+   the full-width grid column and the CTA (width:100%) would stretch
+   across the whole card. Collapse to one right-aligned, content-sized
+   group instead, and drop the now-pointless left fence. */
+.active-offer.window-over .active-bottom { grid-template-columns: 1fr; justify-items: end; }
+.active-offer.window-over .payment-zone { border-left: 0; padding-left: 0; }
+.active-offer.window-over .offer-primary { width: auto; }
 .balance-block { min-width: 92px; text-align: center; }
 .balance-block span { display: block; color: #65706b; font-size: 12px; }
 .balance-block strong { display: block; margin-top: 3px; font-size: 22px; line-height: 1; letter-spacing: -.03em; }

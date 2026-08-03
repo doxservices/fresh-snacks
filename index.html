@@ -979,6 +979,7 @@
       // tomorrow instead - no earning chips, just the look-forward message.
       const windowOver = currentBusinessHour() >= CASHBACK_BUSINESS_START_HOUR + CASHBACK_DAY_SEGMENTS;
       $id("cashback-instances").classList.toggle("hidden", windowOver);
+      $id("cashback-card").classList.toggle("window-over", windowOver);
       if (windowOver) {
         $id("cashback-badge").textContent = "Bonus period ended";
         $id("cashback-card-title").textContent = "Today's bonus period has expired";
