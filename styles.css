@@ -987,9 +987,30 @@ a.stat-box:hover, a.stat-box:focus-visible {
   border: 1px dashed rgba(102, 115, 106, 0.4);
 }
 
+.card-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-close:hover, .card-close:focus-visible {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 .cashback-expired-stamp {
   position: absolute;
-  top: 16px;
+  top: 44px;
   right: 18px;
   padding: 4px 12px;
   border: 2px solid #8a2f2f;

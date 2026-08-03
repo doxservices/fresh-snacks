@@ -111,6 +111,7 @@
          renderExpiredCashbackCard()). Purely informational: doesn't affect
          what a payment actually earns. -->
     <section class="card section-card cashback-expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
+      <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">&times;</button>
       <span class="cashback-expired-stamp">Expired</span>
       <p class="muted-small">Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</p>
       <div class="cashback-expired-amounts">
@@ -876,18 +877,31 @@
       $id("cashback-card").classList.toggle("hidden", isVisitor || !offer);
       if (isVisitor || !offer) return;
       const cur = data.profile.currency;
-      const pct = Math.round(offer.rate * 100);
-      $id("cashback-badge").textContent = `${pct}% cash back`;
-      $id("cashback-card-title").textContent = offer.tier === 1
+      // offer.tier reflects the OLDEST still-owed charge's age, which is
+      // the wrong signal once a balance mixes an old, already-expired
+      // charge with a fresh one - it can claim "day 2/5%" while a
+      // just-added charge is actually still earning the full 10% today.
+      // computeBalanceInstances (below) groups by date and sorts newest
+      // first, so its first entry's daysSince is what's ACTUALLY still
+      // earning the best rate right now - that's what the badge/title/
+      // body describe, never offer.rate (a blended rate across the WHOLE
+      // balance that can look tiny/nonsensical, e.g. "1%", once older
+      // non-qualifying charges dilute a small recent purchase).
+      const instances = computeBalanceInstances(data);
+      const bestDaysSince = instances.length ? instances[0].daysSince : (offer.tier === 1 ? 0 : 1);
+      const isBestTier = bestDaysSince === 0;
+      const tierPct = isBestTier ? 10 : 5;
+      $id("cashback-badge").textContent = `${tierPct}% cash back`;
+      $id("cashback-card-title").textContent = isBestTier
         ? "Today's the best day to clear your balance"
         : "Don't miss today's cash back";
-      $id("cashback-card-body").textContent = offer.tier === 1
-        ? `Pay your whole balance in full today and get ${pct}% credited back to your account - tomorrow the rate drops.`
-        : `Yesterday's 10% is gone, but paying in full today still earns you ${pct}% credited back - tomorrow there's nothing left to earn.`;
+      $id("cashback-card-body").textContent = isBestTier
+        ? "Today's purchases are earning 10% cash back - not older charges already on your tab. Clear your whole balance in full right now to collect it; tomorrow the rate drops to 5%."
+        : "Yesterday's purchases still earn 5% cash back today - not older charges already on your tab. Clear your whole balance in full right now to collect it; after today, that's gone too.";
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
       const daySegments = $id("cashback-day-bar").querySelectorAll(".cashback-day-segment");
-      daySegments.forEach((segment, index) => segment.classList.toggle("is-spent", offer.tier === 2 && index === 0));
+      daySegments.forEach((segment, index) => segment.classList.toggle("is-spent", !isBestTier && index === 0));
     }
 
     // data.expiredCashback (see functions/src/lib/cashback.js's
@@ -900,12 +914,25 @@
     // expired while a newer one on the same balance is still earning.
     function renderExpiredCashbackCard(data, isVisitor) {
       const missed = data.expiredCashback;
-      $id("cashback-expired-card").classList.toggle("hidden", isVisitor || !missed);
-      if (isVisitor || !missed) return;
+      const card = $id("cashback-expired-card");
+      if (isVisitor || !missed) { card.classList.add("hidden"); return; }
+      // Dismissal is keyed to the specific missed amounts, not "expired
+      // cashback in general" - if a different/additional charge ages out
+      // later and changes these numbers, the card comes back rather than
+      // staying permanently silenced by an old dismissal.
+      const dismissKey = `fresh_snacks_cashback_expired_dismissed_${missed.oldestDate}_${missed.balance}`;
+      let dismissed = false;
+      try { dismissed = localStorage.getItem(dismissKey) === "1"; } catch (_) {}
+      card.classList.toggle("hidden", dismissed);
+      if (dismissed) return;
       const cur = data.profile.currency;
       $id("cashback-expired-balance").textContent = FS.money(missed.balance, cur);
       $id("cashback-expired-ten").textContent = FS.money(missed.tenPercentAmount, cur);
       $id("cashback-expired-five").textContent = FS.money(missed.fivePercentAmount, cur);
+      $id("cashback-expired-close").onclick = () => {
+        card.classList.add("hidden");
+        try { localStorage.setItem(dismissKey, "1"); } catch (_) {}
+      };
     }
 
     // Keep in sync with functions/src/routes/paypalTab.js's MIN_BALANCE_JMD -
