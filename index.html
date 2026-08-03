@@ -96,13 +96,11 @@
       </div>
       <div class="divider"></div>
       <div class="active-bottom">
-        <div class="amount-flow">
-          <div class="amount-muted"><span>Your balance</span><strong id="cashback-balance"></strong></div>
-          <div class="cashback-instances" id="cashback-instances"></div>
-          <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
-          <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
+        <div class="transaction-flow" id="cashback-instances" aria-label="Cashback calculation"></div>
+        <div class="payment-zone">
+          <div class="balance-block"><span>Your balance</span><strong id="cashback-balance"></strong></div>
+          <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true">Pay in full now</button>
         </div>
-        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true">Pay in full now</button>
       </div>
     </section>
 
@@ -601,7 +599,7 @@
        components=buttons so the amount can be set per checkout
        (createOrder), unlike a fixed hosted-buttons price. The standalone
        demo page deliberately keeps its own separate sandbox client-id. -->
-  <script src="https://www.paypal.com/sdk/js?client-id=AbUfyOs_HCKQuvW5o1S5MdZ-EZy5eoUFY-j06jPcTVzJhSdVyVb_4N9t9ZCf43HVDfzE2GD6yKdLHz8G&components=buttons&enable-funding=venmo&currency=USD"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AbUfyOs_HCKQuvW5o1S5MdZ-EZy5eoUFY-j06jPcTVzJhSdVyVb_4N9t9ZCf43HVDfzE2GD6yKdLHz8G&components=buttons&enable-funding=card&disable-funding=venmo,paylater&currency=USD"></script>
   <!-- Separate donate widget (its own global `PayPal.Donation`, distinct
        from `window.paypal` above) - the only PayPal-controlled place a
        donation page can carry Fresh Snacks branding at all is item_name;
@@ -893,6 +891,10 @@
       const local = new Date(Date.now() + CASHBACK_BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
       return local.getUTCHours();
     }
+    // Clicking the red final-hour segment flips the whole bar into a
+    // 60-minute view of that last hour (and back again) - see the click
+    // handler below renderCashbackDayBar.
+    let cashbackBarMinutesMode = false;
     function renderCashbackDayBar() {
       const bar = $id("cashback-day-bar");
       if (bar.children.length !== CASHBACK_DAY_SEGMENTS) {
@@ -900,25 +902,41 @@
       }
       // Same "reverse loading bar" the demo uses (DEV-NOTES 2026-07-30):
       // every segment starts lit and the drain grows from the RIGHT edge
-      // leftward as hours pass - remaining shrinks, spent = index >=
+      // leftward as time passes - remaining shrinks, spent = index >=
       // remaining, current = the last still-lit segment (remaining - 1).
-      // Down to the final hour of the window, what's still lit turns red.
+      // Down to the final hour of the window, what's still lit turns red
+      // and pulses; in minutes mode the same full-width bar counts down
+      // the 60 minutes of that final hour instead of the day's hours.
       const elapsed = Math.max(0, Math.min(CASHBACK_DAY_SEGMENTS, currentBusinessHour() - CASHBACK_BUSINESS_START_HOUR));
-      const remaining = CASHBACK_DAY_SEGMENTS - elapsed;
-      const finalHour = remaining <= 1;
+      const hoursRemaining = CASHBACK_DAY_SEGMENTS - elapsed;
+      const finalHour = hoursRemaining <= 1;
+      if (!finalHour) cashbackBarMinutesMode = false;
+      let remaining = hoursRemaining;
+      if (finalHour && cashbackBarMinutesMode) {
+        const local = new Date(Date.now() + CASHBACK_BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
+        const minutesLeft = 60 - local.getUTCMinutes();
+        remaining = Math.max(1, Math.ceil((minutesLeft / 60) * CASHBACK_DAY_SEGMENTS));
+      }
+      bar.classList.toggle("is-minutes", finalHour && cashbackBarMinutesMode);
       [...bar.children].forEach((segment, index) => {
         segment.classList.toggle("is-spent", index >= remaining);
         segment.classList.toggle("is-current", index === remaining - 1);
         segment.classList.toggle("is-final", finalHour && index < remaining);
       });
     }
+    $id("cashback-day-bar").addEventListener("click", (ev) => {
+      if (!ev.target.classList || !ev.target.classList.contains("is-final")) return;
+      cashbackBarMinutesMode = !cashbackBarMinutesMode;
+      renderCashbackDayBar();
+    });
     // Keeps the bar ticking forward for anyone who leaves the tab open -
     // recomputes from the real clock, doesn't touch data.cashback/re-fetch
-    // anything, so it's cheap to run on a timer.
+    // anything, so it's cheap to run every minute (the final hour's
+    // minutes view needs that granularity; the hour view just ignores it).
     setInterval(() => {
       if ($id("cashback-card").classList.contains("hidden")) return;
       renderCashbackDayBar();
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
 
     function renderCashbackCard(data, isVisitor) {
       const offer = data.cashback;
@@ -952,22 +970,35 @@
       // earn-back total visibly adds up from specific numbers instead of
       // appearing to be a (tiny-looking) percentage of the whole balance.
       const qualifying = instances.filter((i) => i.daysSince <= 1);
-      // Oldest on the left, most recent on the right - the chip nearest
-      // the arrow (and the earn-back total it feeds) is always today's.
+      // Oldest on the left, most recent on the right - transactions read
+      // in ascending date order, flowing card -> arrow -> card -> arrow ->
+      // earn-back total, so the newest day feeds directly into the reward.
       const chips = (qualifying.length
         ? qualifying
         : [{ date: null, amount: offer.balance, daysSince: offer.tier === 1 ? 0 : 1 }]
       ).slice().sort((a, b) => b.daysSince - a.daysSince);
-      $id("cashback-instances").innerHTML = chips.map((i) => {
+      const flowParts = chips.map((i) => {
         const rate = CASHBACK_TIER_RATES[i.daysSince];
         const label = i.daysSince === 0 ? "Today" : "Yesterday";
-        return `<div class="cashback-instance">
-          <span class="cashback-instance-label">${label} &middot; ${Math.round(rate * 100)}%</span>
-          <strong>${esc(FS.money(i.amount, cur))}</strong>
-          <span class="cashback-instance-earn">earns ${esc(FS.money(Math.round(i.amount * rate * 100) / 100, cur))}</span>
-        </div>`;
-      }).join("");
-      $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
+        return `<article class="transaction-card">
+          <span class="icon-shell"><img src="assets/cashback-calendar.svg" alt="" aria-hidden="true"></span>
+          <div>
+            <p class="eyebrow">${label} &middot; ${Math.round(rate * 100)}%</p>
+            <strong>${esc(FS.money(i.amount, cur))}</strong>
+            <span class="subtext">earns ${esc(FS.money(Math.round(i.amount * rate * 100) / 100, cur))}</span>
+          </div>
+        </article>`;
+      });
+      flowParts.push(`<article class="reward-card">
+        <span class="icon-shell"><img src="assets/cashback-star-green.svg" alt="" aria-hidden="true"></span>
+        <div>
+          <p class="eyebrow eyebrow-reward">You'd earn back</p>
+          <strong class="reward-amount">${esc(FS.money(offer.cashbackAmount, cur))}</strong>
+        </div>
+      </article>`);
+      $id("cashback-instances").innerHTML = flowParts.join(
+        '<img class="flow-arrow" src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">'
+      );
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       renderCashbackDayBar();
     }

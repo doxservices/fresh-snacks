@@ -969,43 +969,72 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 .cashback-day-segment.is-spent { background: rgba(214, 130, 30, 0.16); }
 .cashback-day-segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 2px rgba(232, 121, 10, 0.15); }
-/* Final hour of the window - whatever is still lit goes red. */
-.cashback-day-segment.is-final { background: #c62828; }
+/* Final hour of the window - whatever is still lit goes red with a slow
+   pulse, and becomes clickable: tapping it flips the whole bar into a
+   60-minute countdown of that last hour (and back). */
+.cashback-day-segment.is-final {
+  background: #c62828;
+  cursor: pointer;
+  animation: cashback-final-pulse 2.4s ease-in-out infinite;
+}
 .cashback-day-segment.is-final.is-current { box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.2); }
+@keyframes cashback-final-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cashback-day-segment.is-final { animation: none; }
+}
 
 .wallet { justify-self: center; width: min(96px, 100%); mix-blend-mode: multiply; }
 
 .divider { height: 1px; margin: 14px 0 12px; background: #e1e8e3; }
 
-.amount-flow { display: flex; align-items: center; gap: 18px; }
-.amount-flow > div { display: grid; gap: 3px; }
-.amount-flow span { color: #65706b; font-size: 12px; }
-.amount-flow strong { font-size: 21px; line-height: 1; letter-spacing: -.02em; }
-.amount-flow > img { width: 20px; flex: none; }
-.reward strong { color: #e79a00; }
-
-/* The grand balance, fixed on the left of the row - always present and in
-   the same spot regardless of how many (or few) discount chips render. */
-.amount-muted { flex: none; padding-right: 18px; border-right: 1px solid #e1e8e3; }
-.amount-muted strong { font-size: 17px; color: #65706b; }
-
-/* One little card per purchase-day still earning (today @10%, yesterday
-   @5%) - together they visibly add up to the earn-back total on the right.
-   Right-aligned so the newest day's chip always sits beside the arrow. */
-.amount-flow > .cashback-instances { display: flex; flex-wrap: wrap; align-items: stretch; justify-content: flex-end; gap: 10px; flex: 1; }
-.cashback-instance {
-  display: grid;
-  gap: 2px;
-  min-width: 118px;
-  padding: 8px 12px;
-  border: 1.5px solid rgba(231, 154, 0, .45);
-  border-radius: 10px;
-  background: #fffaf0;
+/* Transaction flow (compact adaptation of professional_cashback_html):
+   one card per purchase-day still earning, ascending by date left to
+   right, each flowing through an arrow into the next and finally into
+   the earn-back total card. */
+.transaction-flow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; flex: 1; }
+.transaction-card, .reward-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 150px;
+  padding: 10px 14px;
+  border-radius: 12px;
 }
-.cashback-instance-label { color: #a5690a; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
-.cashback-instance > strong { font-size: 18px; line-height: 1.1; letter-spacing: -.02em; }
-.cashback-instance-earn { color: #65706b; font-size: 11.5px; }
-.cashback-instance-earn, .cashback-instance-label { white-space: nowrap; }
+.transaction-card {
+  border: 1px solid rgba(224, 157, 26, 0.34);
+  background: linear-gradient(180deg, #fffaf0, #fff8eb);
+}
+.reward-card {
+  background: linear-gradient(180deg, #f7faf7, #f0f6f2);
+  border: 1px solid rgba(25, 105, 61, 0.08);
+}
+.icon-shell {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 3px 9px rgba(46, 75, 58, 0.10);
+}
+.icon-shell img { width: 17px; }
+.eyebrow { margin: 0 0 2px; color: #a5690a; font-size: 10.5px; font-weight: 850; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.eyebrow-reward { color: #177746; }
+.transaction-card strong, .reward-card strong { display: block; font-size: 18px; line-height: 1.1; letter-spacing: -.02em; }
+.reward-amount { color: #d68b00; }
+.subtext { display: block; margin-top: 2px; color: #65706b; font-size: 11.5px; white-space: nowrap; }
+.flow-arrow { width: 18px; flex: 0 0 auto; }
+
+/* Balance + CTA, fenced off on the right - the balance keeps its slot
+   and size no matter how many transaction cards render on the left. */
+.payment-zone { display: flex; align-items: center; gap: 18px; padding-left: 20px; border-left: 1px solid #e1e8e3; }
+.balance-block { min-width: 92px; text-align: center; }
+.balance-block span { display: block; color: #65706b; font-size: 12px; }
+.balance-block strong { display: block; margin-top: 3px; font-size: 22px; line-height: 1; letter-spacing: -.03em; }
 
 .offer-primary {
   min-height: 40px;
@@ -1129,7 +1158,9 @@ a.stat-box:hover, a.stat-box:focus-visible {
   .active-offer, .expired-card, .payment-card { padding: 14px 14px 16px 20px; }
   .active-top, .active-bottom { grid-template-columns: 1fr; gap: 12px; }
   .wallet { display: none; }
-  .amount-flow { flex-wrap: wrap; row-gap: 10px; }
+  .transaction-card, .reward-card { flex: 1 1 100%; min-width: 0; }
+  .flow-arrow { width: 14px; margin: 0 auto; transform: rotate(90deg); }
+  .payment-zone { padding-left: 0; border-left: 0; padding-top: 12px; border-top: 1px solid #e1e8e3; justify-content: space-between; }
   .bonus-grid { margin-left: 0; }
   .bonus { flex: 1 1 100%; min-width: 0; }
   .payment-card { grid-template-columns: 1fr; }
