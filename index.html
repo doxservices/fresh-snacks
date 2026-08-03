@@ -453,6 +453,23 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="pay-options-backdrop">
+    <div class="modal pay-options-modal" role="dialog" aria-modal="true" aria-labelledby="pay-options-title">
+      <button type="button" class="modal-close" id="pay-options-close" aria-label="Close">&times;</button>
+      <h2 id="pay-options-title">How would you like to pay?</h2>
+      <div class="pay-options-list">
+        <button type="button" class="pay-option" id="pay-option-person">
+          <strong>Pay in person</strong>
+          <span>Hand your payment to Fresh Snacks and your balance will be updated once it's recorded.</span>
+        </button>
+        <button type="button" class="pay-option hidden" id="pay-option-paypal">
+          <strong>Pay with PayPal</strong>
+          <span>Clear your balance online right now. Attracts a 5% fee.</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="profile-info-backdrop">
     <div class="modal profile-info-modal" role="dialog" aria-modal="true" aria-labelledby="profile-info-title">
       <button type="button" class="modal-close" id="profile-info-close" aria-label="Close">&times;</button>
@@ -957,6 +974,19 @@
       const bestDaysSince = instances.length ? instances[0].daysSince : (offer.tier === 1 ? 0 : 1);
       const isBestTier = bestDaysSince === 0;
       const tierPct = isBestTier ? 10 : 5;
+      // Once the day's bonus window has fully run out (the urgency bar is
+      // completely drained), the card stops selling today and points at
+      // tomorrow instead - no earning chips, just the look-forward message.
+      const windowOver = currentBusinessHour() >= CASHBACK_BUSINESS_START_HOUR + CASHBACK_DAY_SEGMENTS;
+      $id("cashback-instances").classList.toggle("hidden", windowOver);
+      if (windowOver) {
+        $id("cashback-badge").textContent = "Bonus period ended";
+        $id("cashback-card-title").textContent = "Today's bonus period has expired";
+        $id("cashback-card-body").textContent = "More cash back bonuses will be available tomorrow - every day's purchases start their own fresh bonus window.";
+        $id("cashback-balance").textContent = FS.money(offer.balance, cur);
+        renderCashbackDayBar();
+        return;
+      }
       $id("cashback-badge").textContent = `${tierPct}% cash back`;
       $id("cashback-card-title").textContent = isBestTier
         ? "Today's the best day to clear your balance"
@@ -1967,11 +1997,44 @@
     }
 
     $id("paypal-pay-open").onclick = () => openPaypalPayModal();
-    // "Pay in full now" on the cashback card - same PayPal flow as the
-    // dedicated payment card below; if the balance is under PayPal's
-    // minimum, the modal's own quote step surfaces that plainly (same
-    // message shown on the entry card itself), no separate gating needed.
-    $id("cashback-pay-now").onclick = () => openPaypalPayModal();
+
+    // "Pay in full now" opens a payment chooser, not PayPal directly:
+    // in-person is always offered; PayPal appears only once the balance
+    // meets its J$3,000 minimum (the server enforces that independently -
+    // this just never dangles an option that would be rejected).
+    let payOptionsReturnFocus = null;
+    function openPayOptionsModal() {
+      payOptionsReturnFocus = document.activeElement;
+      const balance = LAST_DATA ? FS.totals(LAST_DATA).balance : 0;
+      $id("pay-option-paypal").classList.toggle("hidden", balance < PAYPAL_MIN_BALANCE_JMD);
+      $id("pay-options-backdrop").classList.add("show");
+      $id("pay-options-close").focus();
+    }
+    function closePayOptionsModal() {
+      $id("pay-options-backdrop").classList.remove("show");
+      if (payOptionsReturnFocus && document.contains(payOptionsReturnFocus)) payOptionsReturnFocus.focus();
+      payOptionsReturnFocus = null;
+    }
+    $id("cashback-pay-now").onclick = () => openPayOptionsModal();
+    $id("pay-options-close").onclick = () => closePayOptionsModal();
+    $id("pay-options-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("pay-options-backdrop")) closePayOptionsModal();
+    });
+    $id("pay-options-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closePayOptionsModal();
+    });
+    $id("pay-option-person").onclick = async () => {
+      closePayOptionsModal();
+      await AppModals.alert(
+        "Pay in person",
+        "Hand your payment to Fresh Snacks and your balance will be updated as soon as it's recorded."
+      );
+    };
+    $id("pay-option-paypal").onclick = () => {
+      closePayOptionsModal();
+      openPaypalPayModal();
+    };
+
     $id("paypal-pay-close").onclick = () => closePaypalPayModal();
     $id("paypal-pay-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("paypal-pay-backdrop")) closePaypalPayModal();

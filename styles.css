@@ -787,6 +787,22 @@ a.stat-box:hover, a.stat-box:focus-visible {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
+/* "Pay in full now" chooser - in-person always, PayPal only at J$3,000+ */
+.pay-options-list { display: grid; gap: 10px; margin-top: 14px; }
+.pay-option {
+  display: grid;
+  gap: 3px;
+  padding: 13px 15px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #fff, #f7faf7);
+  cursor: pointer;
+}
+.pay-option:hover { border-color: var(--green); background: var(--green-soft); }
+.pay-option strong { font-size: 15px; color: var(--green-dark); }
+.pay-option span { font-size: 12.5px; color: var(--muted); }
+
 .paypal-pay-breakdown {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
