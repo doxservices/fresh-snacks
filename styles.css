@@ -916,39 +916,38 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .accent {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 9px;
+  width: 7px;
   background: linear-gradient(#f2a500, #d98b00);
 }
 
 .active-offer {
-  padding: 56px 72px 48px 82px;
+  padding: 22px 20px 20px 26px;
   background: radial-gradient(circle at 90% 35%, rgba(242,170,33,.1), transparent 28%), rgba(255,255,255,.95);
 }
 
 .active-top, .active-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 44px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(140px, .8fr);
+  gap: 22px;
   align-items: center;
 }
 
 .cashback-pill {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 54px;
-  padding: 0 24px;
+  gap: 8px;
+  padding: 8px 20px 8px 16px;
   border-radius: 999px;
   color: #fff;
   background: linear-gradient(#f4a900, #e28a00);
-  font-size: 1.2rem;
+  font-size: 15px;
   font-weight: 800;
-  box-shadow: 0 8px 20px rgba(229,143,0,.18);
+  box-shadow: 0 6px 14px rgba(229,143,0,.28);
 }
-.cashback-pill img { width: 24px; filter: brightness(0) invert(1); }
+.cashback-pill img { width: 18px; filter: brightness(0) invert(1); }
 
-.active-top h2 { margin: 28px 0 18px; font-size: clamp(2rem, 3vw, 3rem); line-height: 1.08; letter-spacing: -.03em; }
-.lead { max-width: 760px; margin-bottom: 0; color: #65706b; font-size: clamp(1.05rem, 1.6vw, 1.45rem); line-height: 1.55; }
+.active-top h2 { margin: 16px 0 10px; font-size: clamp(1.35rem, 3.2vw, 2rem); line-height: 1.15; letter-spacing: -.02em; }
+.lead { max-width: 620px; margin-bottom: 4px; color: #65706b; font-size: clamp(.92rem, 1.5vw, 1.05rem); line-height: 1.5; }
 
 /* Purely a human-urgency visual, not tied to the actual payout rule
    (which only checks calendar days, never the hour) - tracks real
@@ -966,66 +965,68 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .cashback-day-segment.is-spent { background: rgba(214, 130, 30, 0.16); }
 .cashback-day-segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 3px rgba(232, 121, 10, 0.15); }
 
-.wallet { justify-self: end; width: min(100%, 330px); mix-blend-mode: multiply; }
+.wallet { justify-self: end; width: min(120px, 100%); mix-blend-mode: multiply; }
 
-.divider { height: 1px; margin: 30px 0 26px; background: #e1e8e3; }
+.divider { height: 1px; margin: 18px 0 16px; background: #e1e8e3; }
 
-.amount-flow { display: flex; align-items: flex-end; gap: 42px; }
-.amount-flow > div { display: grid; gap: 8px; }
-.amount-flow span { color: #65706b; font-size: 1.02rem; }
-.amount-flow strong { font-size: clamp(2.25rem, 4vw, 3.45rem); line-height: 1; letter-spacing: -.04em; }
-.amount-flow > img { width: 56px; margin-bottom: 13px; }
+.amount-flow { display: flex; align-items: flex-end; gap: 22px; }
+.amount-flow > div { display: grid; gap: 4px; }
+.amount-flow span { color: #65706b; font-size: .82rem; }
+.amount-flow strong { font-size: clamp(1.4rem, 3vw, 1.9rem); line-height: 1; letter-spacing: -.03em; }
+.amount-flow > img { width: 28px; margin-bottom: 6px; }
 .reward strong { color: #e79a00; }
 
 .offer-primary {
-  min-height: 66px;
-  padding: 0 30px;
+  min-height: 44px;
+  padding: 0 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 10px;
   border: 0;
   border-radius: 12px;
   color: #fff;
   background: linear-gradient(#177344, #0e4e30);
-  box-shadow: 0 10px 20px rgba(14,78,48,.16);
-  font-size: 1.2rem;
+  box-shadow: 0 8px 16px rgba(14,78,48,.16);
+  font-size: .92rem;
   font-weight: 760;
   cursor: pointer;
   transition: .18s;
+  width: 100%;
 }
-.offer-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(14,78,48,.22); }
-.offer-primary img { width: 30px; filter: brightness(0) invert(1); }
+.offer-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(14,78,48,.22); }
+.offer-primary img { width: 18px; filter: brightness(0) invert(1); }
 
 /* A "these bonuses expired" reminder once a balance has sat unpaid past
    both tiers - dashed/muted/struck-through, deliberately reading like a
    lapsed coupon rather than a live offer (compare .active-offer, which
    is warm/active). Purely informational - never affects an actual
    payout. */
-.expired-card { padding: 34px 50px 38px 62px; }
-.expired-head { display: flex; align-items: center; justify-content: space-between; gap: 28px; }
-.heading-row { display: flex; align-items: center; gap: 18px; }
-.round-icon { width: 58px; height: 58px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #fff4dd; }
-.round-icon img { width: 28px; }
+.expired-card { padding: 22px 20px 24px 26px; }
+.expired-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.heading-row { display: flex; align-items: center; gap: 12px; }
+.round-icon { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #fff4dd; }
+.round-icon img { width: 18px; }
 .expired-pill {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
+  gap: 6px;
+  padding: 7px 12px;
   border: 1.5px solid #d45359;
   border-radius: 10px;
   color: #b3262d;
   text-transform: uppercase;
   letter-spacing: .08em;
+  font-size: .78rem;
   font-weight: 850;
 }
-.expired-pill img { width: 23px; }
-.bonus-grid { display: flex; flex-wrap: wrap; gap: 14px; margin: 22px 0 0 76px; }
+.expired-pill img { width: 14px; }
+.bonus-grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0 50px; }
 .bonus {
-  width: 270px;
-  min-height: 120px;
-  padding: 20px 22px;
+  flex: 1;
+  min-width: 160px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1033,11 +1034,11 @@ a.stat-box:hover, a.stat-box:focus-visible {
   border-radius: 14px;
   background: rgba(255,255,255,.8);
 }
-.bonus > div { display: grid; gap: 6px; }
-.bonus span { color: #65706b; font-weight: 750; }
-.bonus strong { font-size: 2.05rem; text-decoration: line-through; }
-.ghost-star { flex: none; width: 66px; height: 66px; display: grid; place-items: center; border-radius: 50%; background: #f3f6f4; }
-.ghost-star img { width: 30px; filter: grayscale(1); opacity: .35; }
+.bonus > div { display: grid; gap: 4px; }
+.bonus span { color: #65706b; font-weight: 750; font-size: .84rem; }
+.bonus strong { font-size: 1.3rem; text-decoration: line-through; }
+.ghost-star { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #f3f6f4; }
+.ghost-star img { width: 20px; filter: grayscale(1); opacity: .35; }
 
 .card-close {
   position: absolute;
@@ -1060,49 +1061,36 @@ a.stat-box:hover, a.stat-box:focus-visible {
 
 /* PayPal payment entry card */
 .payment-card {
-  min-height: 250px;
-  padding: 42px 54px 42px 62px;
+  min-height: 0;
+  padding: 22px 20px 20px 26px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 390px;
-  gap: 30px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(100px, .8fr);
+  gap: 22px;
   align-items: center;
   background: radial-gradient(circle at 88% 55%, rgba(20,113,66,.05), transparent 22%), rgba(255,255,255,.94);
 }
 .payment-heading { align-items: flex-start; }
-.payment-heading p { margin: 12px 0 0; color: #65706b; font-size: 1.08rem; }
-.paypal { margin: 26px 0 0 76px; }
-.paypal-logo { width: 34px; height: 34px; display: block; filter: none; flex: 0 0 auto; }
+.payment-heading p { margin: 6px 0 0; color: #65706b; font-size: .92rem; }
+.paypal { margin-top: 18px; }
+.paypal-logo { width: 22px; height: 22px; display: block; filter: none; flex: 0 0 auto; }
 .offer-paypal {
-  gap: 12px;
+  gap: 10px;
   background: linear-gradient(180deg, #ffc93c, #ffa000);
   color: #1a1a1a;
-  box-shadow: 0 10px 20px rgba(255, 160, 0, .25);
+  box-shadow: 0 8px 16px rgba(255, 160, 0, .25);
 }
-.shield { justify-self: end; width: min(100%, 320px); opacity: .82; mix-blend-mode: multiply; }
+.shield { justify-self: end; width: min(110px, 100%); opacity: .82; mix-blend-mode: multiply; }
 
-@media (max-width: 980px) {
-  .active-offer, .expired-card, .payment-card { padding-left: 42px; padding-right: 34px; }
-  .active-top, .active-bottom, .payment-card { grid-template-columns: 1fr; }
-  .wallet { justify-self: start; width: 230px; }
-  .active-bottom { gap: 28px; }
-  .shield { display: none; }
-  .offer-primary { width: max-content; }
-}
-
-@media (max-width: 680px) {
-  .offer-card { border-radius: 17px; }
-  .active-offer, .expired-card, .payment-card { padding: 28px 22px 28px 30px; }
-  .wallet { display: none; }
-  .cashback-pill { min-height: 44px; padding: 0 18px; font-size: .98rem; }
-  .amount-flow { gap: 18px; }
-  .amount-flow > img { width: 38px; }
-  .expired-head { align-items: flex-start; flex-direction: column; }
-  .heading-row { align-items: flex-start; }
-  .round-icon { width: 46px; height: 46px; }
+@media (max-width: 640px) {
+  .active-offer, .expired-card, .payment-card { padding-left: 20px; padding-right: 16px; }
+  .active-top, .active-bottom { grid-template-columns: 1fr; gap: 14px; }
+  .wallet { justify-self: start; width: 56px; }
+  .amount-flow { flex-wrap: wrap; row-gap: 10px; }
   .bonus-grid { margin-left: 0; }
-  .bonus { width: 100%; }
-  .paypal { width: 100%; margin-left: 0; }
-  .offer-primary { width: 100%; }
+  .bonus { min-width: 0; width: 100%; }
+  .payment-card { grid-template-columns: 1fr; }
+  .shield { display: none; }
+  .expired-head { align-items: flex-start; }
 }
 
 .main-grid {
