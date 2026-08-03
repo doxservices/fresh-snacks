@@ -904,9 +904,10 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .offer-card {
   position: relative;
   overflow: hidden;
+  margin-bottom: 18px;
   border: 1px solid rgba(25, 72, 45, .12);
   border-radius: 14px;
-  background: rgba(255,255,255,.95);
+  background: #fff;
   box-shadow: 0 8px 20px rgba(33, 72, 49, .08);
 }
 
@@ -922,7 +923,6 @@ a.stat-box:hover, a.stat-box:focus-visible {
 
 .active-offer {
   padding: 16px 16px 16px 22px;
-  background: radial-gradient(circle at 90% 35%, rgba(242,170,33,.1), transparent 28%), rgba(255,255,255,.95);
 }
 
 .active-top, .active-bottom {
@@ -1070,7 +1070,6 @@ a.stat-box:hover, a.stat-box:focus-visible {
   grid-template-columns: minmax(0, 1fr) 130px;
   gap: 18px;
   align-items: center;
-  background: radial-gradient(circle at 88% 55%, rgba(20,113,66,.05), transparent 22%), rgba(255,255,255,.94);
 }
 .payment-heading { align-items: flex-start; }
 .payment-heading p { margin: 5px 0 0; color: #65706b; font-size: 13px; line-height: 1.5; }
