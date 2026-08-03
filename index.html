@@ -867,13 +867,14 @@
     // credited until the whole balance is actually paid in full (see
     // evaluateCashback, run at settlement time).
     //
-    // The hourly bar (like the demo's) is purely a human-urgency visual -
-    // "today is running out" - and is NOT tied to the actual payout rule,
-    // which only cares about calendar days, never the hour. It just tracks
-    // real elapsed hours toward the one genuine deadline that does exist:
-    // midnight, when today's rate actually steps down. See
-    // renderCashbackDayBar() below.
-    const CASHBACK_DAY_SEGMENTS = 24;
+    // The hourly bar (same 8-segment, 7am-3pm shape as the cashback demo's
+    // timeline) is purely a human-urgency visual - "today is running out" -
+    // and is NOT tied to the actual payout rule, which only cares about
+    // calendar days, never the hour. Unlike the demo (a compressed,
+    // simulated clock), this one runs off the real current time - fresh
+    // again by the next real business day. See renderCashbackDayBar() below.
+    const CASHBACK_DAY_SEGMENTS = 8;
+    const CASHBACK_BUSINESS_START_HOUR = 7;
     function currentBusinessHour() {
       const local = new Date(Date.now() + CASHBACK_BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
       return local.getUTCHours();
@@ -883,8 +884,11 @@
       if (bar.children.length !== CASHBACK_DAY_SEGMENTS) {
         bar.innerHTML = Array.from({ length: CASHBACK_DAY_SEGMENTS }, () => '<span class="cashback-day-segment"></span>').join("");
       }
-      const hourNow = currentBusinessHour();
-      [...bar.children].forEach((segment, index) => segment.classList.toggle("is-spent", index < hourNow));
+      const elapsed = Math.max(0, Math.min(CASHBACK_DAY_SEGMENTS, currentBusinessHour() - CASHBACK_BUSINESS_START_HOUR));
+      [...bar.children].forEach((segment, index) => {
+        segment.classList.toggle("is-spent", index < elapsed);
+        segment.classList.toggle("is-current", index === elapsed);
+      });
     }
     // Keeps the bar ticking forward for anyone who leaves the tab open -
     // recomputes from the real clock, doesn't touch data.cashback/re-fetch

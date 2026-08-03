@@ -960,21 +960,26 @@ a.stat-box:hover, a.stat-box:focus-visible {
    first marked spent - the rate already stepped down overnight. */
 .cashback-day-bar {
   display: flex;
-  gap: 2px;
+  gap: 5px;
   margin: 10px 0 2px;
 }
 
 .cashback-day-segment {
   flex: 1;
   min-width: 0;
-  height: 8px;
-  border-radius: 2px;
+  height: 11px;
+  border-radius: 999px;
   background: #e8790a;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, transform 220ms ease, box-shadow 220ms ease;
 }
 
 .cashback-day-segment.is-spent {
   background: rgba(214, 130, 30, 0.16);
+}
+
+.cashback-day-segment.is-current {
+  transform: scaleY(1.35);
+  box-shadow: 0 0 0 3px rgba(232, 121, 10, 0.15);
 }
 
 /* A "these bonuses expired" reminder once a balance has sat unpaid past
