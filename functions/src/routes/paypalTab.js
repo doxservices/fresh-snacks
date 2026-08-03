@@ -29,9 +29,11 @@ function bad(message, status = 400) {
 // stops a too-small balance from reaching PayPal at all.
 const MIN_BALANCE_JMD = 3000;
 
-// PayPal's own cut, passed straight to the customer as an upfront,
-// disclosed fee - never silently folded into the balance. Keep in sync
-// with index.html's PAYPAL_FEE_RATE (that copy is only for showing the
+// Our own processing fee for offering this payment option - shown to the
+// customer as "processing fee", deliberately not labeled "PayPal fee" so
+// it isn't confused with PayPal's own separate transaction fee. Disclosed
+// upfront, never silently folded into the balance. Keep in sync with
+// index.html's PAYPAL_FEE_RATE (that copy is only for showing the
 // breakdown before checkout; this is what the order is actually created for).
 const FEE_RATE = 0.05;
 
@@ -63,7 +65,7 @@ router.get("/quote", requireAuth, asyncRoute(async (req, res) => {
 router.post("/create-order", requireAuth, asyncRoute(async (req, res) => {
   const effectiveUid = await resolveEffectiveUid(req);
   const quote = await quoteForUser(effectiveUid);
-  const order = await createOrder(quote.usdAmount, "Fresh Snacks - clear tab balance (incl. 5% PayPal fee)");
+  const order = await createOrder(quote.usdAmount, "Fresh Snacks - clear tab balance (incl. 5% processing fee)");
   const orderId = order.id;
   await db().collection("paypalOrders").doc(orderId).set({
     orderId,

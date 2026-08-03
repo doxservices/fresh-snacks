@@ -83,33 +83,25 @@
 
     <!-- Only shown while clearing the whole balance in full, right now,
          would actually earn cashback - see renderCashbackCard(). -->
-    <section class="card section-card cashback-card cashback-card--active hidden" id="cashback-card" aria-label="Early payment cashback">
-      <div class="accent-line" aria-hidden="true"></div>
-      <div class="active-content">
-        <div class="active-copy">
-          <span class="cashback-badge" id="cashback-badge">10% cash back</span>
+    <section class="offer-card active-offer hidden" id="cashback-card" aria-label="Early payment cashback">
+      <span class="accent" aria-hidden="true"></span>
+      <div class="active-top">
+        <div>
+          <div class="cashback-pill"><img src="assets/cashback-star.svg" alt=""><span id="cashback-badge">10% cash back</span></div>
           <h2 id="cashback-card-title">Clear your balance today</h2>
           <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
           <p class="lead" id="cashback-card-body"></p>
-          <div class="value-row" aria-label="Cashback calculation">
-            <div class="value-block">
-              <span>Your balance</span>
-              <strong id="cashback-balance"></strong>
-            </div>
-            <span class="arrow" aria-hidden="true">&rarr;</span>
-            <div class="value-block value-block--reward">
-              <span>You'd earn back</span>
-              <strong id="cashback-earn"></strong>
-            </div>
-          </div>
         </div>
-        <div class="active-visual">
-          <img src="assets/cashback-wallet.png" alt="" aria-hidden="true" loading="lazy" />
-          <button type="button" class="primary-button" id="cashback-pay-now">
-            <span class="card-icon" aria-hidden="true"></span>
-            Pay in full now
-          </button>
+        <img class="wallet" src="assets/cashback-wallet.png" alt="" aria-hidden="true" loading="lazy" />
+      </div>
+      <div class="divider"></div>
+      <div class="active-bottom">
+        <div class="amount-flow">
+          <div><span>Your balance</span><strong id="cashback-balance"></strong></div>
+          <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
+          <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
         </div>
+        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true">Pay in full now</button>
       </div>
     </section>
 
@@ -117,53 +109,38 @@
          a "these bonuses expired" reminder, not a live offer (see
          renderExpiredCashbackCard()). Purely informational: doesn't affect
          what a payment actually earns. -->
-    <section class="card section-card cashback-expired-card cashback-card--missed hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
+    <section class="offer-card expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
       <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">&times;</button>
-      <div class="missed-header">
-        <div class="title-with-icon">
-          <img src="assets/cashback-star-badge.png" alt="" aria-hidden="true" loading="lazy" />
+      <span class="accent" aria-hidden="true"></span>
+      <div class="expired-head">
+        <div class="heading-row">
+          <span class="round-icon"><img src="assets/cashback-star.svg" alt="" aria-hidden="true"></span>
           <h2>Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</h2>
         </div>
-        <img class="expired-badge" src="assets/cashback-expired-badge.png" alt="Expired" loading="lazy" />
+        <div class="expired-pill"><img src="assets/cashback-clock.svg" alt="" aria-hidden="true">Expired</div>
       </div>
-      <div class="missed-offers" aria-label="Missed cashback bonuses">
-        <article class="offer-chip">
-          <span>10%</span>
-          <strong id="cashback-expired-ten"></strong>
-          <div class="ghost-star" aria-hidden="true">&#9733;</div>
-        </article>
-        <article class="offer-chip">
-          <span>5%</span>
-          <strong id="cashback-expired-five"></strong>
-          <div class="ghost-star" aria-hidden="true">&#9733;</div>
-        </article>
+      <div class="bonus-grid">
+        <div class="bonus"><div><span>10%</span><strong id="cashback-expired-ten"></strong></div><span class="ghost-star"><img src="assets/cashback-star.svg" alt="" aria-hidden="true"></span></div>
+        <div class="bonus"><div><span>5%</span><strong id="cashback-expired-five"></strong></div><span class="ghost-star"><img src="assets/cashback-star.svg" alt="" aria-hidden="true"></span></div>
       </div>
     </section>
 
     <!-- Always available whenever there's a balance to pay, independent of
          the time-limited cashback offer above (renderCashbackCard shows
          only while a cashback tier is live). See openPaypalPayModal(). -->
-    <section class="card section-card paypal-pay-card cashback-card--payment hidden" id="paypal-pay-card">
-      <div class="payment-content">
-        <div class="payment-copy">
-          <div class="payment-heading">
-            <span class="payment-icon" aria-hidden="true"><span class="card-icon card-icon--gold"></span></span>
-            <div>
-              <h2>Clear your balance</h2>
-              <p id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
-            </div>
+    <section class="offer-card payment-card hidden" id="paypal-pay-card">
+      <span class="accent" aria-hidden="true"></span>
+      <div class="payment-copy">
+        <div class="heading-row payment-heading">
+          <span class="round-icon"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"></span>
+          <div>
+            <h2>Clear your balance</h2>
+            <p id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
           </div>
-          <button type="button" class="primary-button primary-button--paypal" id="paypal-pay-open">
-            <span class="paypal-mark" aria-hidden="true">P</span>
-            Clear tab with PayPal
-          </button>
         </div>
-        <div class="security-art" aria-hidden="true">
-          <div class="spark spark--one">&#10022;</div>
-          <div class="spark spark--two">&#10022;</div>
-          <div class="shield"><div class="lock"></div></div>
-        </div>
+        <button type="button" id="paypal-pay-open" class="offer-primary offer-paypal"><img class="paypal-logo" src="assets/cashback-paypal-mark.svg" alt="" aria-hidden="true">Clear tab with PayPal</button>
       </div>
+      <img class="shield" src="assets/cashback-shield.png" alt="" aria-hidden="true" loading="lazy">
     </section>
 
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
@@ -461,7 +438,7 @@
           <span id="paypal-pay-balance">–</span>
         </div>
         <div class="paypal-pay-line">
-          <span>PayPal fee (5%)</span>
+          <span>Processing fee (5%)</span>
           <span id="paypal-pay-fee">–</span>
         </div>
         <div class="paypal-pay-line paypal-pay-line-total">
@@ -1010,7 +987,7 @@
       const eligible = t.balance >= PAYPAL_MIN_BALANCE_JMD;
       $id("paypal-pay-open").classList.toggle("hidden", !eligible);
       $id("paypal-pay-card-body").textContent = eligible
-        ? "Pay your tab balance securely with PayPal. A 5% PayPal fee applies."
+        ? "Pay your tab balance securely with PayPal. A 5% processing fee applies."
         : `PayPal is available for balances of ${FS.money(PAYPAL_MIN_BALANCE_JMD, cur)} or more. For smaller balances, please pay in person.`;
     }
 

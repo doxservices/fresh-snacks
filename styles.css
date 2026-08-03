@@ -887,94 +887,73 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 
 /* ---- early-payment cashback card ----
-   Transplanted from the supplied cashback_sections_html redesign as
-   closely as possible (same class names/structure/sizing) - the only
-   deliberate departures: colors are hardcoded here instead of the
-   redesign's own :root custom properties (those names - --text, --muted,
-   --line, --shadow - collide with this app's existing global variables
-   of the same name; reusing them would have silently changed colors
-   everywhere else on the site), the cashback badge is live CSS/text
-   instead of the supplied static PNG (so it can actually show 5% on day
-   two, not just a fixed 10%), and the hourly urgency bar + dismissible
-   close (x) on the expired card are additions this app already needed
-   that weren't part of the original mockup. */
+   Transplanted from the supplied cashback_html_package_paypal_official
+   redesign as closely as possible (same class names/structure/sizing).
+   Deliberate departures: colors are hardcoded instead of the redesign's
+   own :root variables (those names - --muted/--line/--shadow etc - would
+   collide with this app's existing global variables of the same name and
+   silently change colors elsewhere on the site); h1/h2/p are scoped to
+   .offer-card instead of left as bare element selectors (this page has
+   many other headings); the cashback badge and "Pay in full now"/"Clear
+   tab with PayPal" buttons use their own class names (.offer-primary/
+   .offer-paypal, not .primary) because this app already has a real,
+   differently-styled button.primary used everywhere else; the hourly
+   urgency bar and the expired card's dismissible close (x) are additions
+   this app already needed that aren't part of the original mockup. */
 
-.cashback-card {
+.offer-card {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(28, 87, 56, .12);
+  border: 1px solid rgba(25, 72, 45, .12);
+  border-radius: 22px;
   background: rgba(255,255,255,.95);
-  box-shadow: 0 16px 38px rgba(26, 64, 45, .10);
+  box-shadow: 0 14px 34px rgba(33, 72, 49, .09);
 }
 
-.cashback-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(120deg, transparent 55%, rgba(255,246,225,.65));
-}
+.offer-card p { margin-top: 0; }
+.offer-card h2 { margin-top: 0; margin-bottom: 0; font-size: clamp(1.3rem, 2vw, 2rem); line-height: 1.2; letter-spacing: -.02em; color: #173f2d; }
 
-.accent-line {
+.accent {
   position: absolute;
-  z-index: 2;
   inset: 0 auto 0 0;
   width: 7px;
-  background: linear-gradient(#f6ad00, #d58a00);
+  background: linear-gradient(#f2a500, #d98b00);
 }
 
-.active-content,
-.payment-content {
-  position: relative;
-  z-index: 3;
+.active-offer {
+  padding: 22px 20px 20px 26px;
+  background: radial-gradient(circle at 90% 35%, rgba(242,170,33,.1), transparent 28%), rgba(255,255,255,.95);
+}
+
+.active-top, .active-bottom {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(140px, .8fr);
   gap: 22px;
   align-items: center;
-  padding: 22px 20px 20px 26px;
 }
 
-.cashback-badge {
+.cashback-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 20px 8px 16px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f3a400, #d99200);
-  box-shadow: 0 0 0 1px rgba(217,146,0,.25), 0 8px 20px rgba(217, 146, 0, .35);
   color: #fff;
+  background: linear-gradient(#f4a900, #e28a00);
   font-size: 15px;
   font-weight: 800;
-  white-space: nowrap;
+  box-shadow: 0 6px 14px rgba(229,143,0,.28);
 }
+.cashback-pill img { width: 18px; filter: brightness(0) invert(1); }
 
-.cashback-badge::before { content: "\2605"; font-size: 13px; }
+.active-top h2 { margin: 16px 0 10px; font-size: clamp(1.35rem, 3.2vw, 2rem); line-height: 1.15; letter-spacing: -.02em; }
+.lead { max-width: 620px; margin-bottom: 4px; color: #65706b; font-size: clamp(.92rem, 1.5vw, 1.05rem); line-height: 1.5; }
 
-.active-copy h2 {
-  margin: 16px 0 10px;
-  font-size: clamp(1.35rem, 3.2vw, 2rem);
-  line-height: 1.15;
-  letter-spacing: -.02em;
-  color: #183c2b;
-}
-
-.active-copy .lead {
-  margin-bottom: 18px;
-  color: #69756f;
-  font-size: clamp(.92rem, 1.5vw, 1.05rem);
-  line-height: 1.5;
-}
-
-/* Day-granularity view of the same tier the demo's hourly bar shows - no
-   intra-day deadline here, so 2 segments (today / tomorrow) is the whole
-   window. Tier 1 lights just the first; tier 2 lights both with the
-   first marked spent - the rate already stepped down overnight. */
-.cashback-day-bar {
-  display: flex;
-  gap: 5px;
-  margin: 12px 0 4px;
-}
-
+/* Purely a human-urgency visual, not tied to the actual payout rule
+   (which only checks calendar days, never the hour) - tracks real
+   elapsed hours toward the one deadline that genuinely exists: midnight,
+   when today's rate steps down. */
+.cashback-day-bar { display: flex; gap: 5px; margin: 10px 0 2px; }
 .cashback-day-segment {
   flex: 1;
   min-width: 0;
@@ -983,96 +962,83 @@ a.stat-box:hover, a.stat-box:focus-visible {
   background: #e8790a;
   transition: background-color 0.3s ease, transform 220ms ease, box-shadow 220ms ease;
 }
+.cashback-day-segment.is-spent { background: rgba(214, 130, 30, 0.16); }
+.cashback-day-segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 3px rgba(232, 121, 10, 0.15); }
 
-.cashback-day-segment.is-spent {
-  background: rgba(214, 130, 30, 0.16);
-}
+.wallet { justify-self: end; width: min(120px, 100%); mix-blend-mode: multiply; }
 
-.cashback-day-segment.is-current {
-  transform: scaleY(1.35);
-  box-shadow: 0 0 0 3px rgba(232, 121, 10, 0.15);
-}
+.divider { height: 1px; margin: 18px 0 16px; background: #e1e8e3; }
 
-.value-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 22px;
-  border-top: 1px solid #dfe8e2;
-  padding-top: 16px;
-}
-.value-block { display: grid; gap: 4px; }
-.value-block span { color: #69756f; font-size: .82rem; }
-.value-block strong { font-size: clamp(1.4rem, 3vw, 1.9rem); letter-spacing: -.03em; color: #183c2b; }
-.value-block--reward strong { color: #d99200; }
-.arrow { color: #6f7c76; font-size: 1.6rem; line-height: 1; padding-bottom: 5px; }
+.amount-flow { display: flex; align-items: flex-end; gap: 22px; }
+.amount-flow > div { display: grid; gap: 4px; }
+.amount-flow span { color: #65706b; font-size: .82rem; }
+.amount-flow strong { font-size: clamp(1.4rem, 3vw, 1.9rem); line-height: 1; letter-spacing: -.03em; }
+.amount-flow > img { width: 28px; margin-bottom: 6px; }
+.reward strong { color: #e79a00; }
 
-.active-visual {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-}
-.active-visual > img {
-  width: min(120px, 100%);
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  border-radius: 50%;
-  mask-image: radial-gradient(circle, #000 59%, transparent 76%);
-}
-
-.primary-button {
+.offer-primary {
   min-height: 44px;
   padding: 0 20px;
   display: inline-flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  border: 1px solid #0a4d2f;
+  border: 0;
   border-radius: 12px;
-  background: linear-gradient(180deg, #177c48, #07552f);
   color: #fff;
-  font-weight: 750;
+  background: linear-gradient(#177344, #0e4e30);
+  box-shadow: 0 8px 16px rgba(14,78,48,.16);
   font-size: .92rem;
-  box-shadow: 0 8px 16px rgba(8, 85, 47, .18), inset 0 1px rgba(255,255,255,.2);
+  font-weight: 760;
   cursor: pointer;
-  transition: transform .18s ease, box-shadow .18s ease;
+  transition: .18s;
   width: 100%;
 }
-.primary-button:hover { transform: translateY(-1px); box-shadow: 0 10px 18px rgba(8, 85, 47, .24); }
-.primary-button:active { transform: translateY(0); }
-.card-icon {
-  width: 22px; height: 17px; border: 2px solid currentColor; border-radius: 4px; position: relative; display: inline-block; flex: none;
-}
-.card-icon::before { content: ""; position: absolute; left: 2px; right: 2px; top: 4px; border-top: 2px solid currentColor; }
-.card-icon::after { content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; right: 3px; bottom: 2px; background: currentColor; }
+.offer-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(14,78,48,.22); }
+.offer-primary img { width: 18px; filter: brightness(0) invert(1); }
 
 /* A "these bonuses expired" reminder once a balance has sat unpaid past
    both tiers - dashed/muted/struck-through, deliberately reading like a
-   lapsed coupon rather than a live offer (compare .cashback-card--active,
-   which is warm/active). Purely informational - never affects an actual
+   lapsed coupon rather than a live offer (compare .active-offer, which
+   is warm/active). Purely informational - never affects an actual
    payout. */
-.cashback-card--missed { padding: 20px 20px 22px 26px; }
-.missed-header { position: relative; z-index: 3; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
-.title-with-icon { display: flex; gap: 12px; align-items: center; }
-.title-with-icon img { width: 38px; height: 38px; flex: none; border-radius: 50%; object-fit: cover; mix-blend-mode: multiply; }
-.title-with-icon h2 { margin: 0; font-size: clamp(1.05rem, 2.3vw, 1.3rem); letter-spacing: -.02em; color: #183c2b; }
-.expired-badge { flex: none; width: 84px; max-width: 30vw; object-fit: contain; mix-blend-mode: multiply; }
-.missed-offers { position: relative; z-index: 3; display: flex; gap: 12px; margin: 16px 0 0; }
-.offer-chip {
-  position: relative;
+.expired-card { padding: 22px 20px 24px 26px; }
+.expired-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.heading-row { display: flex; align-items: center; gap: 12px; }
+.round-icon { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: #fff4dd; }
+.round-icon img { width: 18px; }
+.expired-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1.5px solid #d45359;
+  border-radius: 10px;
+  color: #b3262d;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .78rem;
+  font-weight: 850;
+}
+.expired-pill img { width: 14px; }
+.bonus-grid { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0 50px; }
+.bonus {
   flex: 1;
-  min-width: 0;
-  padding: 12px 40px 12px 14px;
-  display: grid;
-  align-content: center;
-  border: 2px dashed #cdd8d1;
+  min-width: 160px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1.5px dashed #c8d3cc;
   border-radius: 14px;
-  background: rgba(255,255,255,.72);
+  background: rgba(255,255,255,.8);
 }
-.offer-chip span { color: #69756f; font-size: .82rem; font-weight: 700; }
-.offer-chip strong { margin-top: 2px; font-size: 1.2rem; text-decoration: line-through; text-decoration-thickness: 2px; color: #69756f; }
-.ghost-star {
-  position: absolute; right: 10px; top: 50%; translate: 0 -50%; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #f1f4f1; color: #cbd3ce; font-size: .95rem;
-}
+.bonus > div { display: grid; gap: 4px; }
+.bonus span { color: #65706b; font-weight: 750; font-size: .84rem; }
+.bonus strong { font-size: 1.3rem; text-decoration: line-through; }
+.ghost-star { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #f3f6f4; }
+.ghost-star img { width: 20px; filter: grayscale(1); opacity: .35; }
 
 .card-close {
   position: absolute;
@@ -1086,7 +1052,7 @@ a.stat-box:hover, a.stat-box:focus-visible {
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: #69756f;
+  color: #65706b;
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
@@ -1094,38 +1060,37 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .card-close:hover, .card-close:focus-visible { background: rgba(0, 0, 0, 0.08); }
 
 /* PayPal payment entry card */
-.cashback-card--payment { min-height: 0; }
-.payment-heading { display: flex; gap: 14px; align-items: flex-start; }
-.payment-heading h2 { margin: 0; font-size: clamp(1.05rem, 2.3vw, 1.3rem); letter-spacing: -.02em; color: #183c2b; }
-.payment-heading p { margin: 6px 0 16px; color: #69756f; font-size: .9rem; }
-.payment-icon { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: #d99200; background: #fff5df; }
-.card-icon--gold { width: 20px; height: 15px; }
-.primary-button--paypal { background: linear-gradient(180deg, #ffc93c, #ffa000); border-color: #d99200; color: #1a1a1a; box-shadow: 0 8px 16px rgba(255, 160, 0, .25); }
-.paypal-mark { font-size: 1.15rem; font-weight: 900; font-style: italic; }
-.security-art { position: relative; min-height: 90px; display: grid; place-items: center; opacity: .55; }
-.shield {
-  width: 66px; height: 74px; position: relative; display: grid; place-items: center;
-  border: 6px solid #a9d4bc; border-radius: 48% 48% 55% 55% / 36% 36% 64% 64%;
-  clip-path: polygon(50% 0, 92% 18%, 89% 67%, 50% 100%, 11% 67%, 8% 18%);
-  background: linear-gradient(180deg, rgba(234,247,239,.75), rgba(204,234,216,.65));
+.payment-card {
+  min-height: 0;
+  padding: 22px 20px 20px 26px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(100px, .8fr);
+  gap: 22px;
+  align-items: center;
+  background: radial-gradient(circle at 88% 55%, rgba(20,113,66,.05), transparent 22%), rgba(255,255,255,.94);
 }
-.lock { width: 22px; height: 20px; border-radius: 4px; background: #6cad89; position: relative; }
-.lock::before { content: ""; position: absolute; width: 12px; height: 12px; left: 5px; top: -9px; border: 3.5px solid #6cad89; border-bottom: 0; border-radius: 8px 8px 0 0; }
-.lock::after { content: ""; position: absolute; width: 3px; height: 6px; left: 9.5px; top: 6px; border-radius: 2px; background: white; }
-.spark { position: absolute; color: #f3a400; font-size: .9rem; }
-.spark--one { left: 8%; top: 20%; }
-.spark--two { right: 8%; bottom: 20%; }
+.payment-heading { align-items: flex-start; }
+.payment-heading p { margin: 6px 0 0; color: #65706b; font-size: .92rem; }
+.paypal { margin-top: 18px; }
+.paypal-logo { width: 22px; height: 22px; display: block; filter: none; flex: 0 0 auto; }
+.offer-paypal {
+  gap: 10px;
+  background: linear-gradient(180deg, #ffc93c, #ffa000);
+  color: #1a1a1a;
+  box-shadow: 0 8px 16px rgba(255, 160, 0, .25);
+}
+.shield { justify-self: end; width: min(110px, 100%); opacity: .82; mix-blend-mode: multiply; }
 
 @media (max-width: 640px) {
-  .active-content, .payment-content { grid-template-columns: 1fr; padding: 20px 18px 18px 24px; gap: 16px; }
-  .active-visual { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 14px; }
-  .active-visual > img { width: 56px; }
-  .active-visual .primary-button { width: auto; flex: 1; }
-  .cashback-card--missed { padding: 18px 16px 18px 22px; }
-  .missed-header { align-items: center; }
-  .expired-badge { width: 56px; }
-  .payment-content { grid-template-columns: 1fr; }
-  .security-art { display: none; }
+  .active-offer, .expired-card, .payment-card { padding-left: 20px; padding-right: 16px; }
+  .active-top, .active-bottom { grid-template-columns: 1fr; gap: 14px; }
+  .wallet { justify-self: start; width: 56px; }
+  .amount-flow { flex-wrap: wrap; row-gap: 10px; }
+  .bonus-grid { margin-left: 0; }
+  .bonus { min-width: 0; width: 100%; }
+  .payment-card { grid-template-columns: 1fr; }
+  .shield { display: none; }
+  .expired-head { align-items: flex-start; }
 }
 
 .main-grid {
