@@ -960,14 +960,15 @@ a.stat-box:hover, a.stat-box:focus-visible {
    first marked spent - the rate already stepped down overnight. */
 .cashback-day-bar {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin: 10px 0 2px;
 }
 
 .cashback-day-segment {
   flex: 1;
+  min-width: 0;
   height: 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   background: #e8790a;
   transition: background-color 0.3s ease;
 }

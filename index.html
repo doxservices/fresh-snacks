@@ -88,10 +88,7 @@
         <span class="cashback-badge" id="cashback-badge">10% cash back</span>
         <span class="cashback-card-title" id="cashback-card-title">Clear your balance today</span>
       </div>
-      <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true">
-        <span class="cashback-day-segment"></span>
-        <span class="cashback-day-segment"></span>
-      </div>
+      <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
       <p class="muted-small" id="cashback-card-body"></p>
       <div class="cashback-card-amounts">
         <div class="cashback-amount-block">
@@ -868,10 +865,35 @@
     // qualifies - most of the time, for most customers - in which case the
     // card just stays hidden. This is a projection only: nothing is
     // credited until the whole balance is actually paid in full (see
-    // evaluateCashback, run at settlement time). The 2-segment bar is a day-
-    // granularity view of the same tier the demo's hourly bar shows - tier 1
-    // (today) lights just the first segment, tier 2 (tomorrow) lights both
-    // with the first marked spent, since there's no intra-day deadline here.
+    // evaluateCashback, run at settlement time).
+    //
+    // The hourly bar (like the demo's) is purely a human-urgency visual -
+    // "today is running out" - and is NOT tied to the actual payout rule,
+    // which only cares about calendar days, never the hour. It just tracks
+    // real elapsed hours toward the one genuine deadline that does exist:
+    // midnight, when today's rate actually steps down. See
+    // renderCashbackDayBar() below.
+    const CASHBACK_DAY_SEGMENTS = 24;
+    function currentBusinessHour() {
+      const local = new Date(Date.now() + CASHBACK_BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
+      return local.getUTCHours();
+    }
+    function renderCashbackDayBar() {
+      const bar = $id("cashback-day-bar");
+      if (bar.children.length !== CASHBACK_DAY_SEGMENTS) {
+        bar.innerHTML = Array.from({ length: CASHBACK_DAY_SEGMENTS }, () => '<span class="cashback-day-segment"></span>').join("");
+      }
+      const hourNow = currentBusinessHour();
+      [...bar.children].forEach((segment, index) => segment.classList.toggle("is-spent", index < hourNow));
+    }
+    // Keeps the bar ticking forward for anyone who leaves the tab open -
+    // recomputes from the real clock, doesn't touch data.cashback/re-fetch
+    // anything, so it's cheap to run on a timer.
+    setInterval(() => {
+      if ($id("cashback-card").classList.contains("hidden")) return;
+      renderCashbackDayBar();
+    }, 5 * 60 * 1000);
+
     function renderCashbackCard(data, isVisitor) {
       const offer = data.cashback;
       $id("cashback-card").classList.toggle("hidden", isVisitor || !offer);
@@ -900,8 +922,7 @@
         : "Yesterday's purchases still earn 5% cash back today - not older charges already on your tab. Clear your whole balance in full right now to collect it; after today, that's gone too.";
       $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
-      const daySegments = $id("cashback-day-bar").querySelectorAll(".cashback-day-segment");
-      daySegments.forEach((segment, index) => segment.classList.toggle("is-spent", !isBestTier && index === 0));
+      renderCashbackDayBar();
     }
 
     // data.expiredCashback (see functions/src/lib/cashback.js's
