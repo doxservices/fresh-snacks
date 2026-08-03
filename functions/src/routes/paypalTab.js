@@ -27,7 +27,13 @@ function bad(message, status = 400) {
 // Keep in sync with index.html's PAYPAL_MIN_BALANCE_JMD - that copy is only
 // UX (hides the button, shows the explanation early); this is what actually
 // stops a too-small balance from reaching PayPal at all.
-const MIN_BALANCE_JMD = 5000;
+const MIN_BALANCE_JMD = 3000;
+
+// PayPal's own cut, passed straight to the customer as an upfront,
+// disclosed fee - never silently folded into the balance. Keep in sync
+// with index.html's PAYPAL_FEE_RATE (that copy is only for showing the
+// breakdown before checkout; this is what the order is actually created for).
+const FEE_RATE = 0.05;
 
 async function quoteForUser(userId) {
   const { entries, payments } = await fetchCustomerLedger(userId);
@@ -38,8 +44,15 @@ async function quoteForUser(userId) {
   }
   const forDate = todayISO();
   const rate = await getTodayRate(forDate);
-  const usdAmount = Math.round((balance / rate) * 100) / 100;
-  return { balanceJmd: balance, rate, usdAmount, forDate };
+  // The fee rides on top of the balance - it's what the customer pays
+  // PayPal to use this option, not part of what clears their tab. Only
+  // balanceJmd ever becomes the `payments` doc's amount (see capture-order
+  // below); feeJmd/totalJmd exist purely to charge and disclose the real
+  // total upfront.
+  const feeJmd = Math.round(balance * FEE_RATE);
+  const totalJmd = balance + feeJmd;
+  const usdAmount = Math.round((totalJmd / rate) * 100) / 100;
+  return { balanceJmd: balance, feeJmd, totalJmd, feeRate: FEE_RATE, rate, usdAmount, forDate };
 }
 
 router.get("/quote", requireAuth, asyncRoute(async (req, res) => {
@@ -50,13 +63,15 @@ router.get("/quote", requireAuth, asyncRoute(async (req, res) => {
 router.post("/create-order", requireAuth, asyncRoute(async (req, res) => {
   const effectiveUid = await resolveEffectiveUid(req);
   const quote = await quoteForUser(effectiveUid);
-  const order = await createOrder(quote.usdAmount, "Fresh Snacks - clear tab balance");
+  const order = await createOrder(quote.usdAmount, "Fresh Snacks - clear tab balance (incl. 5% PayPal fee)");
   const orderId = order.id;
   await db().collection("paypalOrders").doc(orderId).set({
     orderId,
     userId: effectiveUid,
     createdBy: req.uid,
     balanceJmd: quote.balanceJmd,
+    feeJmd: quote.feeJmd,
+    totalJmd: quote.totalJmd,
     rate: quote.rate,
     usdAmount: quote.usdAmount,
     forDate: quote.forDate,
@@ -134,6 +149,8 @@ router.post("/capture-order", requireAuth, asyncRoute(async (req, res) => {
     paypalCaptureId: order.paypalCaptureId || null,
     paypalUsdAmount: order.usdAmount,
     paypalRate: order.rate,
+    paypalFeeJmd: order.feeJmd,
+    paypalTotalJmd: order.totalJmd,
     createdBy: req.uid,
     createdAt: FieldValue.serverTimestamp(),
     createdDate: todayISO(),

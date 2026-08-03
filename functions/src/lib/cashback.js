@@ -28,6 +28,12 @@ const TIER_RATES = { 0: 0.10, 1: 0.05 }; // daysSince 0 (same day) -> 10%, daysS
 // $0 to something owed) on or after this date is ever eligible.
 const LAUNCH_DATE = "2026-07-29";
 
+// The whole cashback mechanic - both the customer-facing projection and the
+// actual payout - only ever applies once a balance is at least this much.
+// A trivial balance (a couple of snacks) was never meant to trigger a
+// percentage payout in the first place.
+const MIN_BALANCE_FOR_CASHBACK_JMD = 300;
+
 function businessDateOnlyUTC(date) {
   const local = new Date(date.getTime() + BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
   return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
@@ -111,7 +117,7 @@ function marginCashback(transactions, now = new Date()) {
  * moment this settlement action is happening. */
 function evaluateCashback(transactionsBefore, settledIds, now = new Date()) {
   const before = accountSnapshot(transactionsBefore);
-  if (before.total <= 0 || !before.oldestDate) return null; // nothing was owed to begin with
+  if (before.total < MIN_BALANCE_FOR_CASHBACK_JMD || !before.oldestDate) return null; // nothing owed, or below the floor
   const settled = new Set(settledIds);
   const stillOwed = (transactionsBefore || []).some((t) => t.status !== "void" && isOwed(t) && !settled.has(t.id));
   if (stillOwed) return null; // this action doesn't clear everything
@@ -132,7 +138,7 @@ function evaluateCashback(transactionsBefore, settledIds, now = new Date()) {
  * amount, which is the true per-margin sum. */
 function projectedCashback(transactions, now = new Date()) {
   const { total, amount, oldestDate } = marginCashback(transactions, now);
-  if (total <= 0 || amount <= 0) return null;
+  if (total < MIN_BALANCE_FOR_CASHBACK_JMD || amount <= 0) return null;
   const oldestAge = daysSinceBalanceOpened(oldestDate, now);
   const tier = oldestAge === 0 ? 1 : 2;
   return { rate: round4(amount / total), tier, balance: total, cashbackAmount: amount, oldestDate };
@@ -170,7 +176,7 @@ function expiredCashbackAmounts(transactions, now = new Date()) {
 }
 
 module.exports = {
-  BUSINESS_UTC_OFFSET_HOURS, TIER_RATES, LAUNCH_DATE,
+  BUSINESS_UTC_OFFSET_HOURS, TIER_RATES, LAUNCH_DATE, MIN_BALANCE_FOR_CASHBACK_JMD,
   isOwed, accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
   marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
 };

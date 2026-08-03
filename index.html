@@ -423,17 +423,21 @@
       <button type="button" class="modal-close" id="paypal-pay-close" aria-label="Close">&times;</button>
       <h2 id="paypal-pay-title">Clear your tab with PayPal</h2>
       <p class="muted-small" id="paypal-pay-rate">Getting today's exchange rate…</p>
-      <div class="cashback-card-amounts">
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">Your balance</span>
-          <span class="cashback-amount" id="paypal-pay-balance">–</span>
+      <div class="paypal-pay-breakdown">
+        <div class="paypal-pay-line">
+          <span>Your balance</span>
+          <span id="paypal-pay-balance">–</span>
         </div>
-        <span aria-hidden="true">&rarr;</span>
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">You'll pay (USD)</span>
-          <span class="cashback-amount" id="paypal-pay-usd">–</span>
+        <div class="paypal-pay-line">
+          <span>PayPal fee (5%)</span>
+          <span id="paypal-pay-fee">–</span>
+        </div>
+        <div class="paypal-pay-line paypal-pay-line-total">
+          <span>Total charged</span>
+          <span id="paypal-pay-total">–</span>
         </div>
       </div>
+      <p class="muted-small" id="paypal-pay-usd-note">–</p>
       <div id="paypal-pay-button-container" style="margin-top: 18px;"></div>
       <div class="status" id="paypal-pay-status"></div>
     </div>
@@ -907,7 +911,7 @@
     // Keep in sync with functions/src/routes/paypalTab.js's MIN_BALANCE_JMD -
     // that's the actual enforcement; this just explains it early instead of
     // only after someone clicks through and hits the server's rejection.
-    const PAYPAL_MIN_BALANCE_JMD = 5000;
+    const PAYPAL_MIN_BALANCE_JMD = 3000;
     function renderPaypalPayCard(t, isVisitor, cur) {
       const show = !isVisitor && t.balance > 0;
       $id("paypal-pay-card").classList.toggle("hidden", !show);
@@ -915,7 +919,7 @@
       const eligible = t.balance >= PAYPAL_MIN_BALANCE_JMD;
       $id("paypal-pay-open").classList.toggle("hidden", !eligible);
       $id("paypal-pay-card-body").textContent = eligible
-        ? "Pay your tab balance securely with PayPal."
+        ? "Pay your tab balance securely with PayPal. A 5% PayPal fee applies."
         : `PayPal is available for balances of ${FS.money(PAYPAL_MIN_BALANCE_JMD, cur)} or more. For smaller balances, please pay in person.`;
     }
 
@@ -1762,8 +1766,11 @@
       try {
         const quote = await FS.getTabPaypalQuote();
         paypalPayQuote = quote;
-        $id("paypal-pay-balance").textContent = FS.money(quote.balanceJmd, LAST_DATA.profile.currency);
-        $id("paypal-pay-usd").textContent = `$${Number(quote.usdAmount).toFixed(2)}`;
+        const cur = LAST_DATA.profile.currency;
+        $id("paypal-pay-balance").textContent = FS.money(quote.balanceJmd, cur);
+        $id("paypal-pay-fee").textContent = FS.money(quote.feeJmd, cur);
+        $id("paypal-pay-total").textContent = FS.money(quote.totalJmd, cur);
+        $id("paypal-pay-usd-note").textContent = `≈ US$${Number(quote.usdAmount).toFixed(2)} at today's rate`;
         $id("paypal-pay-rate").textContent = `Today's exchange rate: J$${quote.rate} = US$1`;
       } catch (e) {
         paypalPayQuote = null;
@@ -1826,7 +1833,9 @@
     async function openPaypalPayModal() {
       paypalPayReturnFocus = document.activeElement;
       $id("paypal-pay-balance").textContent = "–";
-      $id("paypal-pay-usd").textContent = "–";
+      $id("paypal-pay-fee").textContent = "–";
+      $id("paypal-pay-total").textContent = "–";
+      $id("paypal-pay-usd-note").textContent = "";
       $id("paypal-pay-rate").classList.remove("err");
       $id("paypal-pay-rate").textContent = "Getting today's exchange rate…";
       setPaypalPayStatus(null, "");
