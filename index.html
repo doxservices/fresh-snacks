@@ -83,29 +83,32 @@
 
     <!-- Only shown while clearing the whole balance in full, right now,
          would actually earn cashback - see renderCashbackCard(). -->
-    <section class="card section-card cashback-card hidden" id="cashback-card" aria-label="Early payment cashback">
-      <div class="cbv2-accent" aria-hidden="true"></div>
-      <div class="cbv2-content">
-        <div class="cbv2-copy">
-          <span class="cbv2-badge" id="cashback-badge">10% cash back</span>
-          <h2 class="cbv2-title" id="cashback-card-title">Clear your balance today</h2>
+    <section class="card section-card cashback-card cashback-card--active hidden" id="cashback-card" aria-label="Early payment cashback">
+      <div class="accent-line" aria-hidden="true"></div>
+      <div class="active-content">
+        <div class="active-copy">
+          <span class="cashback-badge" id="cashback-badge">10% cash back</span>
+          <h2 id="cashback-card-title">Clear your balance today</h2>
           <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
-          <p class="cbv2-lead" id="cashback-card-body"></p>
-          <div class="cbv2-value-row">
-            <div class="cbv2-value-block">
+          <p class="lead" id="cashback-card-body"></p>
+          <div class="value-row" aria-label="Cashback calculation">
+            <div class="value-block">
               <span>Your balance</span>
               <strong id="cashback-balance"></strong>
             </div>
-            <span class="cbv2-arrow" aria-hidden="true">&rarr;</span>
-            <div class="cbv2-value-block cbv2-value-block--reward">
+            <span class="arrow" aria-hidden="true">&rarr;</span>
+            <div class="value-block value-block--reward">
               <span>You'd earn back</span>
               <strong id="cashback-earn"></strong>
             </div>
           </div>
         </div>
-        <div class="cbv2-visual">
+        <div class="active-visual">
           <img src="assets/cashback-wallet.png" alt="" aria-hidden="true" loading="lazy" />
-          <button type="button" class="cbv2-primary-button" id="cashback-pay-now">Pay in full now</button>
+          <button type="button" class="primary-button" id="cashback-pay-now">
+            <span class="card-icon" aria-hidden="true"></span>
+            Pay in full now
+          </button>
         </div>
       </div>
     </section>
@@ -114,47 +117,51 @@
          a "these bonuses expired" reminder, not a live offer (see
          renderExpiredCashbackCard()). Purely informational: doesn't affect
          what a payment actually earns. -->
-    <section class="card section-card cashback-expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
+    <section class="card section-card cashback-expired-card cashback-card--missed hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
       <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">&times;</button>
-      <div class="cbv2-missed-header">
-        <div class="cbv2-missed-title">
+      <div class="missed-header">
+        <div class="title-with-icon">
           <img src="assets/cashback-star-badge.png" alt="" aria-hidden="true" loading="lazy" />
-          <h3>Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</h3>
+          <h2>Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</h2>
         </div>
-        <img class="cbv2-expired-stamp" src="assets/cashback-expired-badge.png" alt="Expired" loading="lazy" />
+        <img class="expired-badge" src="assets/cashback-expired-badge.png" alt="Expired" loading="lazy" />
       </div>
-      <div class="cbv2-missed-offers">
-        <div class="cbv2-offer-chip">
+      <div class="missed-offers" aria-label="Missed cashback bonuses">
+        <article class="offer-chip">
           <span>10%</span>
           <strong id="cashback-expired-ten"></strong>
-        </div>
-        <div class="cbv2-offer-chip">
+          <div class="ghost-star" aria-hidden="true">&#9733;</div>
+        </article>
+        <article class="offer-chip">
           <span>5%</span>
           <strong id="cashback-expired-five"></strong>
-        </div>
+          <div class="ghost-star" aria-hidden="true">&#9733;</div>
+        </article>
       </div>
     </section>
 
     <!-- Always available whenever there's a balance to pay, independent of
          the time-limited cashback offer above (renderCashbackCard shows
          only while a cashback tier is live). See openPaypalPayModal(). -->
-    <section class="card section-card paypal-pay-card hidden" id="paypal-pay-card">
-      <div class="cbv2-payment-content">
-        <div class="cbv2-payment-copy">
-          <div class="cbv2-payment-heading">
-            <span class="cbv2-payment-icon" aria-hidden="true"></span>
+    <section class="card section-card paypal-pay-card cashback-card--payment hidden" id="paypal-pay-card">
+      <div class="payment-content">
+        <div class="payment-copy">
+          <div class="payment-heading">
+            <span class="payment-icon" aria-hidden="true"><span class="card-icon card-icon--gold"></span></span>
             <div>
-              <h3 class="cbv2-title cbv2-title--sm">Clear your balance</h3>
-              <p class="muted-small" id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
+              <h2>Clear your balance</h2>
+              <p id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
             </div>
           </div>
-          <button type="button" class="cbv2-primary-button cbv2-primary-button--paypal" id="paypal-pay-open">
-            <span class="cbv2-paypal-mark" aria-hidden="true">P</span>
+          <button type="button" class="primary-button primary-button--paypal" id="paypal-pay-open">
+            <span class="paypal-mark" aria-hidden="true">P</span>
             Clear tab with PayPal
           </button>
         </div>
-        <div class="cbv2-security-art" aria-hidden="true">
-          <div class="cbv2-shield"><div class="cbv2-lock"></div></div>
+        <div class="security-art" aria-hidden="true">
+          <div class="spark spark--one">&#10022;</div>
+          <div class="spark spark--two">&#10022;</div>
+          <div class="shield"><div class="lock"></div></div>
         </div>
       </div>
     </section>
