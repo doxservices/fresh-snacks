@@ -84,21 +84,28 @@
     <!-- Only shown while clearing the whole balance in full, right now,
          would actually earn cashback - see renderCashbackCard(). -->
     <section class="card section-card cashback-card hidden" id="cashback-card" aria-label="Early payment cashback">
-      <div class="cashback-card-head">
-        <span class="cashback-badge" id="cashback-badge">10% cash back</span>
-        <span class="cashback-card-title" id="cashback-card-title">Clear your balance today</span>
-      </div>
-      <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
-      <p class="muted-small" id="cashback-card-body"></p>
-      <div class="cashback-card-amounts">
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">Your balance</span>
-          <span class="cashback-amount" id="cashback-balance"></span>
+      <div class="cbv2-accent" aria-hidden="true"></div>
+      <div class="cbv2-content">
+        <div class="cbv2-copy">
+          <span class="cbv2-badge" id="cashback-badge">10% cash back</span>
+          <h2 class="cbv2-title" id="cashback-card-title">Clear your balance today</h2>
+          <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
+          <p class="cbv2-lead" id="cashback-card-body"></p>
+          <div class="cbv2-value-row">
+            <div class="cbv2-value-block">
+              <span>Your balance</span>
+              <strong id="cashback-balance"></strong>
+            </div>
+            <span class="cbv2-arrow" aria-hidden="true">&rarr;</span>
+            <div class="cbv2-value-block cbv2-value-block--reward">
+              <span>You'd earn back</span>
+              <strong id="cashback-earn"></strong>
+            </div>
+          </div>
         </div>
-        <span class="cashback-arrow" aria-hidden="true">&rarr;</span>
-        <div class="cashback-amount-block">
-          <span class="cashback-amount-label">You'd earn back</span>
-          <span class="cashback-amount cashback-earn" id="cashback-earn"></span>
+        <div class="cbv2-visual">
+          <img src="assets/cashback-wallet.png" alt="" aria-hidden="true" loading="lazy" />
+          <button type="button" class="cbv2-primary-button" id="cashback-pay-now">Pay in full now</button>
         </div>
       </div>
     </section>
@@ -109,16 +116,21 @@
          what a payment actually earns. -->
     <section class="card section-card cashback-expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
       <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">&times;</button>
-      <span class="cashback-expired-stamp">Expired</span>
-      <p class="muted-small">Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</p>
-      <div class="cashback-expired-amounts">
-        <div class="cashback-expired-amount-block">
-          <span class="cashback-expired-pct">10%</span>
-          <span class="cashback-expired-value" id="cashback-expired-ten"></span>
+      <div class="cbv2-missed-header">
+        <div class="cbv2-missed-title">
+          <img src="assets/cashback-star-badge.png" alt="" aria-hidden="true" loading="lazy" />
+          <h3>Cash back bonuses missed on your <span id="cashback-expired-balance"></span> balance:</h3>
         </div>
-        <div class="cashback-expired-amount-block">
-          <span class="cashback-expired-pct">5%</span>
-          <span class="cashback-expired-value" id="cashback-expired-five"></span>
+        <img class="cbv2-expired-stamp" src="assets/cashback-expired-badge.png" alt="Expired" loading="lazy" />
+      </div>
+      <div class="cbv2-missed-offers">
+        <div class="cbv2-offer-chip">
+          <span>10%</span>
+          <strong id="cashback-expired-ten"></strong>
+        </div>
+        <div class="cbv2-offer-chip">
+          <span>5%</span>
+          <strong id="cashback-expired-five"></strong>
         </div>
       </div>
     </section>
@@ -127,9 +139,24 @@
          the time-limited cashback offer above (renderCashbackCard shows
          only while a cashback tier is live). See openPaypalPayModal(). -->
     <section class="card section-card paypal-pay-card hidden" id="paypal-pay-card">
-      <span class="cashback-card-title">Clear your balance</span>
-      <p class="muted-small" id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
-      <button type="button" class="primary" id="paypal-pay-open">Clear tab with PayPal</button>
+      <div class="cbv2-payment-content">
+        <div class="cbv2-payment-copy">
+          <div class="cbv2-payment-heading">
+            <span class="cbv2-payment-icon" aria-hidden="true"></span>
+            <div>
+              <h3 class="cbv2-title cbv2-title--sm">Clear your balance</h3>
+              <p class="muted-small" id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
+            </div>
+          </div>
+          <button type="button" class="cbv2-primary-button cbv2-primary-button--paypal" id="paypal-pay-open">
+            <span class="cbv2-paypal-mark" aria-hidden="true">P</span>
+            Clear tab with PayPal
+          </button>
+        </div>
+        <div class="cbv2-security-art" aria-hidden="true">
+          <div class="cbv2-shield"><div class="cbv2-lock"></div></div>
+        </div>
+      </div>
     </section>
 
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
@@ -1903,6 +1930,11 @@
     }
 
     $id("paypal-pay-open").onclick = () => openPaypalPayModal();
+    // "Pay in full now" on the cashback card - same PayPal flow as the
+    // dedicated payment card below; if the balance is under PayPal's
+    // minimum, the modal's own quote step surfaces that plainly (same
+    // message shown on the entry card itself), no separate gating needed.
+    $id("cashback-pay-now").onclick = () => openPaypalPayModal();
     $id("paypal-pay-close").onclick = () => closePaypalPayModal();
     $id("paypal-pay-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("paypal-pay-backdrop")) closePaypalPayModal();
