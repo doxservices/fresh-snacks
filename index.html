@@ -125,20 +125,22 @@
       </div>
     </section>
 
-    <!-- Always available whenever there's a balance to pay, independent of
-         the time-limited cashback offer above (renderCashbackCard shows
-         only while a cashback tier is live). See openPaypalPayModal(). -->
+    <!-- Only shown once the balance meets PayPal's J$3,000 minimum
+         (renderPaypalPayCard) - below that the card simply isn't there,
+         no explanation shown. See openPaypalPayModal(). -->
     <section class="offer-card payment-card hidden" id="paypal-pay-card">
       <span class="accent" aria-hidden="true"></span>
       <div class="payment-copy">
         <div class="heading-row payment-heading">
           <span class="round-icon"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"></span>
           <div>
-            <h2>Clear your balance</h2>
-            <p id="paypal-pay-card-body">Pay your tab balance securely with PayPal.</p>
+            <h2>Clear my balance with PayPal</h2>
+            <p id="paypal-pay-card-body">Attracts a 5% fee.</p>
           </div>
         </div>
-        <button type="button" id="paypal-pay-open" class="offer-primary offer-paypal"><img class="paypal-logo" src="assets/cashback-paypal-mark.svg" alt="" aria-hidden="true">Clear tab with PayPal</button>
+        <button type="button" id="paypal-pay-open" class="paypal-branded-button" aria-label="Clear my balance with PayPal">
+          <img src="assets/paypal-wordmark.svg" alt="PayPal">
+        </button>
       </div>
       <img class="shield" src="assets/cashback-shield.png" alt="" aria-hidden="true" loading="lazy">
     </section>
@@ -977,18 +979,13 @@
     }
 
     // Keep in sync with functions/src/routes/paypalTab.js's MIN_BALANCE_JMD -
-    // that's the actual enforcement; this just explains it early instead of
-    // only after someone clicks through and hits the server's rejection.
+    // that's the actual enforcement; below the minimum the whole card is
+    // simply absent (deliberately unannotated), rather than shown disabled
+    // with an explanation.
     const PAYPAL_MIN_BALANCE_JMD = 3000;
     function renderPaypalPayCard(t, isVisitor, cur) {
-      const show = !isVisitor && t.balance > 0;
+      const show = !isVisitor && t.balance >= PAYPAL_MIN_BALANCE_JMD;
       $id("paypal-pay-card").classList.toggle("hidden", !show);
-      if (!show) return;
-      const eligible = t.balance >= PAYPAL_MIN_BALANCE_JMD;
-      $id("paypal-pay-open").classList.toggle("hidden", !eligible);
-      $id("paypal-pay-card-body").textContent = eligible
-        ? "Pay your tab balance securely with PayPal. A 5% processing fee applies."
-        : `PayPal is available for balances of ${FS.money(PAYPAL_MIN_BALANCE_JMD, cur)} or more. For smaller balances, please pay in person.`;
     }
 
     // Mirrors functions/src/lib/cashback.js's per-margin model (kept in

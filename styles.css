@@ -896,7 +896,7 @@ a.stat-box:hover, a.stat-box:focus-visible {
    .offer-card instead of left as bare element selectors (this page has
    many other headings); the cashback badge and "Pay in full now"/"Clear
    tab with PayPal" buttons use their own class names (.offer-primary/
-   .offer-paypal, not .primary) because this app already has a real,
+   .paypal-branded-button, not .primary) because this app already has a real,
    differently-styled button.primary used everywhere else; the hourly
    urgency bar and the expired card's dismissible close (x) are additions
    this app already needed that aren't part of the original mockup. */
@@ -1073,16 +1073,26 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 .payment-heading { align-items: flex-start; }
 .payment-heading p { margin: 5px 0 0; color: #65706b; font-size: 13px; line-height: 1.5; }
-.paypal-logo { width: 18px; height: 18px; display: block; filter: none; flex: 0 0 auto; }
-.offer-paypal {
-  gap: 9px;
+/* Official-style PayPal button: gold #FFC439 with the real PayPal
+   wordmark centered, matching how PayPal's own SDK renders its smart
+   button (their brand guidelines: gold fill, no added text, logo only). */
+.paypal-branded-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
   min-width: 220px;
+  min-height: 40px;
   margin: 12px 0 0 44px;
-  background: linear-gradient(180deg, #ffc93c, #ffa000);
-  color: #1a1a1a;
-  box-shadow: 0 5px 12px rgba(255, 160, 0, .25);
+  padding: 0 24px;
+  border: 0;
+  border-radius: 20px;
+  background: #ffc439;
+  cursor: pointer;
+  transition: filter .15s ease;
 }
+.paypal-branded-button:hover { filter: brightness(.95); }
+.paypal-branded-button img { height: 22px; display: block; }
 .shield { justify-self: center; width: min(90px, 100%); opacity: .82; mix-blend-mode: multiply; }
 
 @media (max-width: 640px) {
@@ -1095,7 +1105,7 @@ a.stat-box:hover, a.stat-box:focus-visible {
   .payment-card { grid-template-columns: 1fr; }
   .shield { display: none; }
   .expired-head { align-items: flex-start; padding-right: 18px; }
-  .offer-paypal { width: 100%; min-width: 0; margin-left: 0; }
+  .paypal-branded-button { width: 100%; min-width: 0; margin-left: 0; }
 }
 
 .main-grid {
