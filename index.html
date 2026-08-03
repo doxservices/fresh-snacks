@@ -97,8 +97,7 @@
       <div class="divider"></div>
       <div class="active-bottom">
         <div class="amount-flow">
-          <div class="amount-muted"><span>Your balance</span><strong id="cashback-balance"></strong></div>
-          <div><span id="cashback-basis-label">Today's purchases</span><strong id="cashback-basis"></strong></div>
+          <div class="cashback-instances" id="cashback-instances"></div>
           <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
           <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
         </div>
@@ -943,20 +942,24 @@
       $id("cashback-card-body").textContent = isBestTier
         ? "Today's purchases are earning 10% cash back - not older charges already on your tab. Clear your whole balance in full right now to collect it; tomorrow the rate drops to 5%."
         : "Yesterday's purchases still earn 5% cash back today - not older charges already on your tab. Clear your whole balance in full right now to collect it; after today, that's gone too.";
-      // The value the discount is actually computed ON - only the still-
-      // qualifying purchases (added today at 10%, or yesterday at 5%),
-      // shown next to the grand balance so the earn-back amount visibly
-      // follows from a specific number instead of appearing to be a
-      // (tiny-looking) percentage of the whole balance.
+      // Every purchase-day still earning gets its own little card - the
+      // values the discount is actually computed ON (today's at 10%,
+      // yesterday's at 5%), each showing what it contributes, so the
+      // earn-back total visibly adds up from specific numbers instead of
+      // appearing to be a (tiny-looking) percentage of the whole balance.
       const qualifying = instances.filter((i) => i.daysSince <= 1);
-      const qualifyingTotal = qualifying.reduce((t, i) => t + i.amount, 0);
-      const allToday = qualifying.length && qualifying.every((i) => i.daysSince === 0);
-      const allYesterday = qualifying.length && qualifying.every((i) => i.daysSince === 1);
-      $id("cashback-basis-label").textContent = allToday
-        ? "Today's purchases"
-        : allYesterday ? "Yesterday's purchases" : "Recent purchases";
-      $id("cashback-basis").textContent = FS.money(qualifyingTotal || offer.balance, cur);
-      $id("cashback-balance").textContent = FS.money(offer.balance, cur);
+      const chips = qualifying.length
+        ? qualifying
+        : [{ date: null, amount: offer.balance, daysSince: offer.tier === 1 ? 0 : 1 }];
+      $id("cashback-instances").innerHTML = chips.map((i) => {
+        const rate = CASHBACK_TIER_RATES[i.daysSince];
+        const label = i.daysSince === 0 ? "Today" : "Yesterday";
+        return `<div class="cashback-instance">
+          <span class="cashback-instance-label">${label} &middot; ${Math.round(rate * 100)}%</span>
+          <strong>${esc(FS.money(i.amount, cur))}</strong>
+          <span class="cashback-instance-earn">earns ${esc(FS.money(Math.round(i.amount * rate * 100) / 100, cur))}</span>
+        </div>`;
+      }).join("");
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
       renderCashbackDayBar();
     }
