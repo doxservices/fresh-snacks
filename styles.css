@@ -932,6 +932,10 @@ a.stat-box:hover, a.stat-box:focus-visible {
   align-items: center;
 }
 
+/* The CTA now carries the balance amount, so its column must size to
+   the label instead of the fixed 150px the wallet column above uses. */
+.active-bottom { grid-template-columns: minmax(0, 1fr) auto; }
+
 .cashback-pill {
   display: inline-flex;
   align-items: center;
@@ -970,16 +974,17 @@ a.stat-box:hover, a.stat-box:focus-visible {
 
 .divider { height: 1px; margin: 14px 0 12px; background: #e1e8e3; }
 
-.amount-flow { display: flex; align-items: flex-end; gap: 18px; }
+.amount-flow { display: flex; align-items: center; gap: 18px; }
 .amount-flow > div { display: grid; gap: 3px; }
 .amount-flow span { color: #65706b; font-size: 12px; }
 .amount-flow strong { font-size: 21px; line-height: 1; letter-spacing: -.02em; }
-.amount-flow > img { width: 20px; margin-bottom: 4px; }
+.amount-flow > img { width: 20px; flex: none; }
 .reward strong { color: #e79a00; }
 
 /* One little card per purchase-day still earning (today @10%, yesterday
-   @5%) - together they visibly add up to the earn-back total on the right. */
-.amount-flow > .cashback-instances { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+   @5%) - together they visibly add up to the earn-back total on the right.
+   Right-aligned so the newest day's chip always sits beside the arrow. */
+.amount-flow > .cashback-instances { display: flex; flex-wrap: wrap; align-items: stretch; justify-content: flex-end; gap: 10px; flex: 1; }
 .cashback-instance {
   display: grid;
   gap: 2px;

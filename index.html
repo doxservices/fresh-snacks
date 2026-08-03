@@ -101,7 +101,7 @@
           <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
           <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
         </div>
-        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true">Pay in full now</button>
+        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"><span id="cashback-pay-now-label">Pay in full now</span></button>
       </div>
     </section>
 
@@ -948,9 +948,12 @@
       // earn-back total visibly adds up from specific numbers instead of
       // appearing to be a (tiny-looking) percentage of the whole balance.
       const qualifying = instances.filter((i) => i.daysSince <= 1);
-      const chips = qualifying.length
+      // Oldest on the left, most recent on the right - the chip nearest
+      // the arrow (and the earn-back total it feeds) is always today's.
+      const chips = (qualifying.length
         ? qualifying
-        : [{ date: null, amount: offer.balance, daysSince: offer.tier === 1 ? 0 : 1 }];
+        : [{ date: null, amount: offer.balance, daysSince: offer.tier === 1 ? 0 : 1 }]
+      ).slice().sort((a, b) => b.daysSince - a.daysSince);
       $id("cashback-instances").innerHTML = chips.map((i) => {
         const rate = CASHBACK_TIER_RATES[i.daysSince];
         const label = i.daysSince === 0 ? "Today" : "Yesterday";
@@ -961,6 +964,7 @@
         </div>`;
       }).join("");
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
+      $id("cashback-pay-now-label").textContent = `Pay ${FS.money(offer.balance, cur)} in full now`;
       renderCashbackDayBar();
     }
 
