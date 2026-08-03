@@ -97,11 +97,12 @@
       <div class="divider"></div>
       <div class="active-bottom">
         <div class="amount-flow">
+          <div class="amount-muted"><span>Your balance</span><strong id="cashback-balance"></strong></div>
           <div class="cashback-instances" id="cashback-instances"></div>
           <img src="assets/cashback-arrow-right.svg" alt="" aria-hidden="true">
           <div class="reward"><span>You'd earn back</span><strong id="cashback-earn"></strong></div>
         </div>
-        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"><span id="cashback-pay-now-label">Pay in full now</span></button>
+        <button type="button" id="cashback-pay-now" class="offer-primary"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true">Pay in full now</button>
       </div>
     </section>
 
@@ -901,11 +902,14 @@
       // every segment starts lit and the drain grows from the RIGHT edge
       // leftward as hours pass - remaining shrinks, spent = index >=
       // remaining, current = the last still-lit segment (remaining - 1).
+      // Down to the final hour of the window, what's still lit turns red.
       const elapsed = Math.max(0, Math.min(CASHBACK_DAY_SEGMENTS, currentBusinessHour() - CASHBACK_BUSINESS_START_HOUR));
       const remaining = CASHBACK_DAY_SEGMENTS - elapsed;
+      const finalHour = remaining <= 1;
       [...bar.children].forEach((segment, index) => {
         segment.classList.toggle("is-spent", index >= remaining);
         segment.classList.toggle("is-current", index === remaining - 1);
+        segment.classList.toggle("is-final", finalHour && index < remaining);
       });
     }
     // Keeps the bar ticking forward for anyone who leaves the tab open -
@@ -964,7 +968,7 @@
         </div>`;
       }).join("");
       $id("cashback-earn").textContent = FS.money(offer.cashbackAmount, cur);
-      $id("cashback-pay-now-label").textContent = `Pay ${FS.money(offer.balance, cur)} in full now`;
+      $id("cashback-balance").textContent = FS.money(offer.balance, cur);
       renderCashbackDayBar();
     }
 

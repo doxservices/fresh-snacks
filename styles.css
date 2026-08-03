@@ -969,6 +969,9 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 .cashback-day-segment.is-spent { background: rgba(214, 130, 30, 0.16); }
 .cashback-day-segment.is-current { transform: scaleY(1.35); box-shadow: 0 0 0 2px rgba(232, 121, 10, 0.15); }
+/* Final hour of the window - whatever is still lit goes red. */
+.cashback-day-segment.is-final { background: #c62828; }
+.cashback-day-segment.is-final.is-current { box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.2); }
 
 .wallet { justify-self: center; width: min(96px, 100%); mix-blend-mode: multiply; }
 
@@ -980,6 +983,11 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .amount-flow strong { font-size: 21px; line-height: 1; letter-spacing: -.02em; }
 .amount-flow > img { width: 20px; flex: none; }
 .reward strong { color: #e79a00; }
+
+/* The grand balance, fixed on the left of the row - always present and in
+   the same spot regardless of how many (or few) discount chips render. */
+.amount-muted { flex: none; padding-right: 18px; border-right: 1px solid #e1e8e3; }
+.amount-muted strong { font-size: 17px; color: #65706b; }
 
 /* One little card per purchase-day still earning (today @10%, yesterday
    @5%) - together they visibly add up to the earn-back total on the right.
