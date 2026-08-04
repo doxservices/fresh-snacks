@@ -30,20 +30,28 @@
   const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
 
   // Explosion "pop" sound, synthesized (no audio file/licensing to manage) -
-  // a short filtered-noise crack layered with a low pitch-dropping thump,
-  // the same two-part shape a real firework pop has. Lazily created on the
-  // first pop so it's built inside a real user-gesture call chain (every
-  // caller of this module is a click handler), satisfying browsers'
-  // autoplay policy without needing a separate "enable sound" step.
+  // a short filtered-noise crack on top, a mid thump, and a deep sub-bass
+  // boom underneath - the same layered shape a real firework/fireworks-show
+  // PA system has. Lazily created on the first pop so it's built inside a
+  // real user-gesture call chain (every caller of this module is a click
+  // handler), satisfying browsers' autoplay policy without needing a
+  // separate "enable sound" step.
   let audioCtx = null;
   function playExplosionSound() {
     try {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
       const now = audioCtx.currentTime;
+      // A compressor on the master bus, not per-layer - several pops'
+      // tails can overlap when staggered close together, and the deeper
+      // bass below adds real energy that could otherwise clip.
+      const compressor = audioCtx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.ratio.value = 6;
+      compressor.connect(audioCtx.destination);
       const master = audioCtx.createGain();
       master.gain.value = 0.5;
-      master.connect(audioCtx.destination);
+      master.connect(compressor);
 
       // The crack: a short burst of filtered white noise.
       const noiseDuration = 0.35;
@@ -65,10 +73,10 @@
       noise.start(now);
       noise.stop(now + noiseDuration);
 
-      // The thump: a low oscillator with a quick downward pitch sweep.
+      // The thump: a mid-low oscillator with a quick downward pitch sweep.
       const thump = audioCtx.createOscillator();
       thump.type = "sine";
-      thump.frequency.setValueAtTime(randomBetween(120, 160), now);
+      thump.frequency.setValueAtTime(randomBetween(110, 150), now);
       thump.frequency.exponentialRampToValueAtTime(35, now + 0.3);
       const thumpGain = audioCtx.createGain();
       thumpGain.gain.setValueAtTime(0.8, now);
@@ -77,6 +85,27 @@
       thumpGain.connect(master);
       thump.start(now);
       thump.stop(now + 0.4);
+
+      // The boom: a deep, slower sub-bass layer underneath the thump - what
+      // actually gives the explosion physical weight rather than just a
+      // "pop". Lowpassed so it stays pure low end with no harshness, and
+      // sustains noticeably longer than the thump/crack above it.
+      const sub = audioCtx.createOscillator();
+      sub.type = "triangle";
+      sub.frequency.setValueAtTime(randomBetween(55, 75), now);
+      sub.frequency.exponentialRampToValueAtTime(22, now + 0.55);
+      const subFilter = audioCtx.createBiquadFilter();
+      subFilter.type = "lowpass";
+      subFilter.frequency.value = 120;
+      const subGain = audioCtx.createGain();
+      subGain.gain.setValueAtTime(0.0001, now);
+      subGain.gain.exponentialRampToValueAtTime(1.1, now + 0.03);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+      sub.connect(subFilter);
+      subFilter.connect(subGain);
+      subGain.connect(master);
+      sub.start(now);
+      sub.stop(now + 0.85);
     } catch (_) {
       // Web Audio unsupported/blocked - the visual celebration still runs fine without it.
     }
