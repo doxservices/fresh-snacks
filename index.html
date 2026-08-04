@@ -135,7 +135,7 @@
           <span class="round-icon"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"></span>
           <div>
             <h2>Clear my balance with PayPal</h2>
-            <p id="paypal-pay-card-body">Attracts a 5% fee.</p>
+            <p id="paypal-pay-card-body">5% processing fee applied.</p>
           </div>
         </div>
         <button type="button" id="paypal-pay-open" class="paypal-branded-button" aria-label="Clear my balance with PayPal">
@@ -998,7 +998,7 @@
       $id("cashback-card").classList.toggle("window-over", windowOver);
       if (windowOver) {
         $id("cashback-badge").textContent = "Bonus period ended";
-        $id("cashback-card-title").textContent = "Today's bonus period has expired";
+        $id("cashback-card-title").textContent = "Today's bonus period has ended";
         $id("cashback-card-body").textContent = "More cash back bonuses will be available tomorrow - the bonus period runs from 7am to 3pm daily.";
         $id("cashback-balance").textContent = FS.money(offer.balance, cur);
         renderCashbackDayBar();
