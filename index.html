@@ -460,12 +460,17 @@
       <h2 id="pay-options-title">How would you like to pay?</h2>
       <div class="pay-options-list">
         <button type="button" class="pay-option" id="pay-option-person">
-          <strong>Pay in person</strong>
-          <span>Hand your payment to Fresh Snacks and your balance will be updated once it's recorded.</span>
+          <span class="pay-option-icon-shell"><img src="assets/cashback-card-icon.svg" alt="" aria-hidden="true"></span>
+          <span class="pay-option-text">
+            <strong>Pay in person</strong>
+            <span class="pay-option-note">Hand your payment to Fresh Snacks directly.</span>
+          </span>
         </button>
-        <button type="button" class="pay-option hidden" id="pay-option-paypal">
-          <strong>Pay with PayPal</strong>
-          <span>Clear your balance online right now. Attracts a 5% fee.</span>
+        <button type="button" class="pay-option" id="pay-option-paypal">
+          <img class="pay-option-brand-mark" src="assets/paypal-wordmark.svg" alt="PayPal" aria-hidden="true">
+          <span class="pay-option-text">
+            <span class="pay-option-note" id="pay-option-paypal-note">Clear your balance online. 5% fee applies.</span>
+          </span>
         </button>
       </div>
     </div>
@@ -2001,14 +2006,23 @@
     $id("paypal-pay-open").onclick = () => openPaypalPayModal();
 
     // "Pay in full now" opens a payment chooser, not PayPal directly:
-    // in-person is always offered; PayPal appears only once the balance
-    // meets its J$3,000 minimum (the server enforces that independently -
-    // this just never dangles an option that would be rejected).
+    // in-person is always offered; PayPal is always shown too, but greyed
+    // out and disabled below its J$3,000 minimum rather than disappearing
+    // outright, so a customer can see it's an option they'll unlock rather
+    // than wonder why it's missing (the server enforces the minimum
+    // independently either way, so this is purely presentational).
     let payOptionsReturnFocus = null;
     function openPayOptionsModal() {
       payOptionsReturnFocus = document.activeElement;
       const balance = LAST_DATA ? FS.totals(LAST_DATA).balance : 0;
-      $id("pay-option-paypal").classList.toggle("hidden", balance < PAYPAL_MIN_BALANCE_JMD);
+      const paypalQualifies = balance >= PAYPAL_MIN_BALANCE_JMD;
+      const paypalOption = $id("pay-option-paypal");
+      paypalOption.classList.toggle("is-disabled", !paypalQualifies);
+      paypalOption.disabled = !paypalQualifies;
+      paypalOption.setAttribute("aria-disabled", String(!paypalQualifies));
+      $id("pay-option-paypal-note").textContent = paypalQualifies
+        ? "Clear your balance online. 5% fee applies."
+        : `Unlocks at ${esc(FS.money(PAYPAL_MIN_BALANCE_JMD, LAST_DATA?.profile?.currency))} balance.`;
       $id("pay-options-backdrop").classList.add("show");
       $id("pay-options-close").focus();
     }

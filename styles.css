@@ -787,13 +787,22 @@ a.stat-box:hover, a.stat-box:focus-visible {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
-/* "Pay in full now" chooser - in-person always, PayPal only at J$3,000+ */
-.pay-options-list { display: grid; gap: 10px; margin-top: 14px; }
+/* "Pay in full now" chooser - two square tiles side by side. In-person is
+   always enabled; PayPal stays visible below its J$3,000 minimum but greys
+   out and disables rather than disappearing, so the customer can see it's
+   something they'll unlock instead of wondering why it's missing. */
+.pay-options-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
 .pay-option {
-  display: grid;
-  gap: 3px;
-  padding: 13px 15px;
-  text-align: left;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 14px;
+  text-align: center;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: linear-gradient(180deg, #fff, #f7faf7);
@@ -801,7 +810,36 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 .pay-option:hover { border-color: var(--green); background: var(--green-soft); }
 .pay-option strong { font-size: 15px; color: var(--green-dark); }
-.pay-option span { font-size: 12.5px; color: var(--muted); }
+.pay-option-note { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.pay-option-text { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.pay-option-icon-shell {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--green-dark);
+  box-shadow: 0 3px 9px rgba(46, 75, 58, 0.10);
+}
+.pay-option-icon-shell img { width: 19px; }
+.pay-option-brand-mark { height: 22px; width: auto; flex-shrink: 0; }
+
+.pay-option.is-disabled {
+  cursor: not-allowed;
+  border-color: var(--line);
+  background: #f4f5f3;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.pay-option.is-disabled:hover { border-color: var(--line); background: #f4f5f3; }
+
+@media (max-width: 480px) {
+  .pay-options-list { grid-template-columns: 1fr; }
+  .pay-option { aspect-ratio: auto; flex-direction: row; justify-content: flex-start; text-align: left; padding: 12px 14px; }
+  .pay-option-text { flex: 1 1 auto; align-items: flex-start; }
+}
 
 .paypal-pay-breakdown {
   border-top: 1px solid var(--line);
