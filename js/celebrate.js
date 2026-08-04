@@ -32,7 +32,7 @@
     // Small circular sparks.
     for (let i = 0; i < 18; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = randomBetween(1.6, 3);
+      const speed = randomBetween(0.9, 1.7);
       particles.push({
         x, y,
         vx: Math.cos(angle) * speed,
@@ -50,7 +50,7 @@
     // Rectangular confetti pieces.
     for (let i = 0; i < 28; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = randomBetween(1.4, 4);
+      const speed = randomBetween(0.8, 2.2);
       particles.push({
         x, y,
         vx: Math.cos(angle) * speed,
@@ -72,7 +72,7 @@
     const count = 44;
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + randomBetween(-0.08, 0.08);
-      const speed = randomBetween(2, 4.8);
+      const speed = randomBetween(1.1, 2.6);
       particles.push({
         x, y,
         vx: Math.cos(angle) * speed,
@@ -131,12 +131,6 @@
     ctx.globalAlpha = 1;
   }
 
-  // Resolved whenever the canvas actually goes empty (every particle from
-  // every burst, however many are overlapping, has fully faded) - real
-  // completion, not a guessed duration. More concurrent particles mean more
-  // canvas work per frame, which slows the real frame rate and stretches
-  // wall-clock fade time in a way no fixed ms estimate can reliably predict.
-  let emptyCallbacks = [];
   function tick() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     particles = particles.filter((p) => p.life > 0);
@@ -156,9 +150,6 @@
       requestAnimationFrame(tick);
     } else {
       looping = false;
-      const callbacks = emptyCallbacks;
-      emptyCallbacks = [];
-      callbacks.forEach((cb) => cb());
     }
   }
   function ensureLoop() {
@@ -167,31 +158,22 @@
       requestAnimationFrame(tick);
     }
   }
-  function whenEmpty() {
-    return new Promise((resolve) => {
-      if (!looping && particles.length === 0) resolve();
-      else emptyCallbacks.push(resolve);
-    });
-  }
 
   function playHybridCelebrate(x, y) {
     createConfettiBurst(x, y);
     window.setTimeout(() => createNeonTrails(x, y), 60);
   }
 
-  // A real fireworks show, not one static burst: several pops staggered in
-  // time, each landing at its own random spot in the "sky" (upper-middle
-  // of the screen, inset from the edges so nothing launches off-screen).
-  // Returns a Promise that resolves once every pop has actually finished
-  // fading (via whenEmpty() above) - not a guessed ms duration, so an
-  // auto-close driven by it can never fire early no matter how long the
-  // real fade ends up taking on a given device.
+  // A real fireworks show, not one static burst: several pops staggered
+  // about a second apart, each landing at its own random spot in the
+  // "sky" (upper-middle of the screen, inset from the edges so nothing
+  // launches off-screen). Returns the ms delay until 5 seconds after the
+  // LAST pop launches, so a caller can auto-close a modal exactly then.
+  const MODAL_CLOSE_DELAY_AFTER_LAST_BURST_MS = 5000;
   function playFireworksShow(popCount) {
     const count = Math.max(5, popCount || Math.round(randomBetween(5, 7)));
     let delay = 0;
-    let lastLaunchDelay = 0;
     for (let i = 0; i < count; i++) {
-      lastLaunchDelay = delay;
       window.setTimeout(() => {
         const x = randomBetween(window.innerWidth * 0.15, window.innerWidth * 0.85);
         const y = randomBetween(window.innerHeight * 0.15, window.innerHeight * 0.55);
@@ -200,15 +182,9 @@
         // the public API (including verification tooling) sees every pop.
         window.Celebrate.playHybridCelebrate(x, y);
       }, delay);
-      delay += randomBetween(220, 420);
+      if (i < count - 1) delay += randomBetween(950, 1050);
     }
-    return new Promise((resolve) => {
-      // Wait for the LAST pop to actually launch (+60ms for its own neon
-      // stagger, +50ms safety margin) before starting to watch for empty -
-      // otherwise an earlier pop finishing its fade before the last one
-      // has even launched could resolve this prematurely.
-      window.setTimeout(() => whenEmpty().then(resolve), lastLaunchDelay + 60 + 50);
-    });
+    return delay + MODAL_CLOSE_DELAY_AFTER_LAST_BURST_MS;
   }
 
   window.Celebrate = { playHybridCelebrate, playFireworksShow };

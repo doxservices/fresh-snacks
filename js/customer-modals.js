@@ -55,12 +55,9 @@
       });
     },
 
-    // Promise<void> - resolves once dismissed, either by the user or
-    // automatically: opts.autoCloseMs for a fixed delay, or opts.autoCloseWhen
-    // (a Promise) to close exactly when something else finishes - e.g. a
-    // celebration animation, so the modal never vanishes mid-animation on a
-    // slow device, nor lingers long after a fast one's already done. A real
-    // click always wins and cancels either.
+    // Promise<void> - resolves once dismissed, either by the user or, if
+    // opts.autoCloseMs is set, automatically once that much time passes
+    // (whichever happens first - a real click always wins/cancels the timer).
     alert(title, message, opts = {}) {
       return new Promise((resolve) => {
         $("cm-alert-title").textContent = title;
@@ -83,7 +80,6 @@
         backdrop.classList.add("show");
         okBtn.focus();
         if (opts.autoCloseMs) autoCloseTimer = setTimeout(cleanup, opts.autoCloseMs);
-        if (opts.autoCloseWhen) opts.autoCloseWhen.then(cleanup);
       });
     },
   };
