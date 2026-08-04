@@ -2041,9 +2041,15 @@
     });
     $id("pay-option-person").onclick = async () => {
       closePayOptionsModal();
-      await AppModals.alert(
+      const confirmed = await AppModals.confirm(
         "Pay in person",
-        "Hand your payment to Fresh Snacks and your balance will be updated as soon as it's recorded."
+        "Once Fresh Snacks confirms your payment, any cash back you've earned will be added to your balance automatically. Please confirm you've already paid your full balance in person.",
+        { confirmText: "Yes, I've paid in full" }
+      );
+      if (!confirmed) return;
+      await AppModals.alert(
+        "Thanks!",
+        "Fresh Snacks will update your balance as soon as your payment is confirmed."
       );
     };
     $id("pay-option-paypal").onclick = () => {
