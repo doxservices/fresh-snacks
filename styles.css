@@ -3583,6 +3583,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   box-sizing: border-box;
 }
 
+/* Shown while an admin page checks whether the browser already has a
+   signed-in session, so the login form never flashes on screen first for
+   an admin who's already authenticated - see FS.admin.gateAuth. */
+.auth-loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 70px 20px; color: var(--muted); font-size: 14px; }
+.auth-loading .spinner { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--green); border-radius: 50%; animation: auth-spin .7s linear infinite; }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
 /* Native number-input spinner arrows eat into the visible text area, which
    in a narrow Price/Calories column clips the digits themselves. */
 .catalog-table input[type="number"] {

@@ -34,7 +34,9 @@
       </div>
     </header>
 
-    <section class="admin-login-shell" id="login-panel">
+    <div class="auth-loading" id="auth-loading"><span class="spinner" aria-hidden="true"></span>Checking your session...</div>
+
+    <section class="admin-login-shell hidden" id="login-panel">
       <div class="admin-login-card">
         <div class="admin-login-heading">
           <span class="admin-login-mark" aria-hidden="true">
@@ -396,11 +398,17 @@
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
       .then((admin) => {
-        if (!admin) return;
+        $("auth-loading").classList.add("hidden");
+        if (!admin) {
+          $("login-panel").classList.remove("hidden");
+          return;
+        }
         $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
         return refresh();
       })
       .catch((e) => {
+        $("auth-loading").classList.add("hidden");
+        $("login-panel").classList.remove("hidden");
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);
         } else {

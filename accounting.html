@@ -31,7 +31,10 @@
       </div>
     </header>
 
-    <section class="card section-card" id="login-panel">
+    <div class="auth-loading" id="auth-loading"><span class="spinner" aria-hidden="true"></span>Checking your session...</div>
+
+
+    <section class="card section-card hidden" id="login-panel">
       <h2>Admin login</h2>
       <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
       <div class="form-grid">
@@ -833,11 +836,17 @@
     FS.initFirebase()
       .then(() => FS.admin.currentAdmin())
       .then((admin) => {
-        if (!admin) return;
+        $("auth-loading").classList.add("hidden");
+        if (!admin) {
+          $("login-panel").classList.remove("hidden");
+          return;
+        }
         $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
         return refresh();
       })
       .catch((e) => {
+        $("auth-loading").classList.add("hidden");
+        $("login-panel").classList.remove("hidden");
         if (String(e.message).includes("Firebase is not configured")) {
           FS.showFirebaseSetupPrompt("login-panel", e.message);
         } else {
