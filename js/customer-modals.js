@@ -55,23 +55,35 @@
       });
     },
 
-    // Promise<void> - resolves once dismissed
-    alert(title, message) {
+    // Promise<void> - resolves once dismissed, either by the user or
+    // automatically: opts.autoCloseMs for a fixed delay, or opts.autoCloseWhen
+    // (a Promise) to close exactly when something else finishes - e.g. a
+    // celebration animation, so the modal never vanishes mid-animation on a
+    // slow device, nor lingers long after a fast one's already done. A real
+    // click always wins and cancels either.
+    alert(title, message, opts = {}) {
       return new Promise((resolve) => {
         $("cm-alert-title").textContent = title;
         $("cm-alert-message").textContent = message;
         const backdrop = $("cm-alert-backdrop");
         const okBtn = $("cm-alert-ok");
+        let autoCloseTimer = null;
+        let dismissed = false;
         const cleanup = () => {
+          if (dismissed) return;
+          dismissed = true;
           backdrop.classList.remove("show");
           okBtn.onclick = null;
           backdrop.onclick = null;
+          clearTimeout(autoCloseTimer);
           resolve();
         };
         okBtn.onclick = cleanup;
         backdrop.onclick = (ev) => { if (ev.target === backdrop) cleanup(); };
         backdrop.classList.add("show");
         okBtn.focus();
+        if (opts.autoCloseMs) autoCloseTimer = setTimeout(cleanup, opts.autoCloseMs);
+        if (opts.autoCloseWhen) opts.autoCloseWhen.then(cleanup);
       });
     },
   };

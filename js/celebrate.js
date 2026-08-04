@@ -131,6 +131,12 @@
     ctx.globalAlpha = 1;
   }
 
+  // Resolved whenever the canvas actually goes empty (every particle from
+  // every burst, however many are overlapping, has fully faded) - real
+  // completion, not a guessed duration. More concurrent particles mean more
+  // canvas work per frame, which slows the real frame rate and stretches
+  // wall-clock fade time in a way no fixed ms estimate can reliably predict.
+  let emptyCallbacks = [];
   function tick() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     particles = particles.filter((p) => p.life > 0);
@@ -150,6 +156,9 @@
       requestAnimationFrame(tick);
     } else {
       looping = false;
+      const callbacks = emptyCallbacks;
+      emptyCallbacks = [];
+      callbacks.forEach((cb) => cb());
     }
   }
   function ensureLoop() {
@@ -158,11 +167,49 @@
       requestAnimationFrame(tick);
     }
   }
+  function whenEmpty() {
+    return new Promise((resolve) => {
+      if (!looping && particles.length === 0) resolve();
+      else emptyCallbacks.push(resolve);
+    });
+  }
 
   function playHybridCelebrate(x, y) {
     createConfettiBurst(x, y);
     window.setTimeout(() => createNeonTrails(x, y), 60);
   }
 
-  window.Celebrate = { playHybridCelebrate };
+  // A real fireworks show, not one static burst: several pops staggered in
+  // time, each landing at its own random spot in the "sky" (upper-middle
+  // of the screen, inset from the edges so nothing launches off-screen).
+  // Returns a Promise that resolves once every pop has actually finished
+  // fading (via whenEmpty() above) - not a guessed ms duration, so an
+  // auto-close driven by it can never fire early no matter how long the
+  // real fade ends up taking on a given device.
+  function playFireworksShow(popCount) {
+    const count = Math.max(5, popCount || Math.round(randomBetween(5, 7)));
+    let delay = 0;
+    let lastLaunchDelay = 0;
+    for (let i = 0; i < count; i++) {
+      lastLaunchDelay = delay;
+      window.setTimeout(() => {
+        const x = randomBetween(window.innerWidth * 0.15, window.innerWidth * 0.85);
+        const y = randomBetween(window.innerHeight * 0.15, window.innerHeight * 0.55);
+        // Via window.Celebrate rather than the bare local function, so this
+        // stays the single real entry point for a pop - anything watching
+        // the public API (including verification tooling) sees every pop.
+        window.Celebrate.playHybridCelebrate(x, y);
+      }, delay);
+      delay += randomBetween(220, 420);
+    }
+    return new Promise((resolve) => {
+      // Wait for the LAST pop to actually launch (+60ms for its own neon
+      // stagger, +50ms safety margin) before starting to watch for empty -
+      // otherwise an earlier pop finishing its fade before the last one
+      // has even launched could resolve this prematurely.
+      window.setTimeout(() => whenEmpty().then(resolve), lastLaunchDelay + 60 + 50);
+    });
+  }
+
+  window.Celebrate = { playHybridCelebrate, playFireworksShow };
 })();

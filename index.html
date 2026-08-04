@@ -2027,11 +2027,19 @@
           try {
             await FS.captureTabPaypalOrder(data.orderID);
             setPaypalPayStatus("ok", "Payment successful! Your balance has been cleared.");
-            window.Celebrate?.playHybridCelebrate(window.innerWidth / 2, window.innerHeight / 3);
+            // A real fireworks show (several staggered pops, not one burst)
+            // - the returned promise resolves once every pop has actually
+            // finished fading (real completion, not a guessed delay, so a
+            // slow device never gets its modal yanked away mid-animation).
+            // Still checks .show first, in case the customer already closed
+            // the modal themselves before it finishes.
+            const showDone = window.Celebrate?.playFireworksShow() ?? Promise.resolve();
             LAST_DATA = await refreshTabData();
             CLAIM = LAST_DATA.claim || null;
             render(LAST_DATA);
-            setTimeout(closePaypalPayModal, 1800);
+            showDone.then(() => {
+              if ($id("paypal-pay-backdrop").classList.contains("show")) closePaypalPayModal();
+            });
           } catch (e) {
             setPaypalPayStatus("err", e.message || "Your payment didn't go through. Please try again.");
           }
@@ -2101,10 +2109,11 @@
         { confirmText: "Yes, I've paid in full" }
       );
       if (!confirmed) return;
-      window.Celebrate?.playHybridCelebrate(window.innerWidth / 2, window.innerHeight / 3);
+      const showDone = window.Celebrate?.playFireworksShow() ?? Promise.resolve();
       await AppModals.alert(
         "Thanks!",
-        "Fresh Snacks will update your balance as soon as your payment is confirmed."
+        "Fresh Snacks will update your balance as soon as your payment is confirmed.",
+        { autoCloseWhen: showDone }
       );
     };
     $id("pay-option-paypal").onclick = () => {
