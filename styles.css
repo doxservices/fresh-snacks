@@ -1,3 +1,7 @@
+/* Hybrid Celebrate (js/celebrate.js) - full-viewport, never intercepts a
+   click, sits above everything including open modals. */
+#celebrate-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 500; }
+
 :root {
   --green-dark: #184f2a;
   --green: #2f7a44;

@@ -632,6 +632,7 @@
   <script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
+  <script src="js/celebrate.js?v=20260804-hybrid-celebrate"></script>
   <script src="js/banner.js"></script>
   <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
@@ -2017,6 +2018,7 @@
           try {
             await FS.captureTabPaypalOrder(data.orderID);
             setPaypalPayStatus("ok", "Payment successful! Your balance has been cleared.");
+            window.Celebrate?.playHybridCelebrate(window.innerWidth / 2, window.innerHeight / 3);
             LAST_DATA = await refreshTabData();
             CLAIM = LAST_DATA.claim || null;
             render(LAST_DATA);
@@ -2090,6 +2092,7 @@
         { confirmText: "Yes, I've paid in full" }
       );
       if (!confirmed) return;
+      window.Celebrate?.playHybridCelebrate(window.innerWidth / 2, window.innerHeight / 3);
       await AppModals.alert(
         "Thanks!",
         "Fresh Snacks will update your balance as soon as your payment is confirmed."
