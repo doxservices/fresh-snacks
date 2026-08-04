@@ -1,8 +1,9 @@
 /* Hybrid Celebrate: a colorful confetti burst followed 60ms later by a
- * glowing neon trail burst. Fires from a fixed full-viewport canvas (never
- * intercepts clicks - pointer-events:none) so it can layer over anything,
- * including an open modal. Any page that wants it just includes this file
- * and calls Celebrate.playHybridCelebrate(x, y). */
+ * glowing neon trail burst, each with a synthesized explosion "pop" sound.
+ * Fires from a fixed full-viewport canvas (never intercepts clicks -
+ * pointer-events:none) so it can layer over anything, including an open
+ * modal. Any page that wants it just includes this file and calls
+ * Celebrate.playHybridCelebrate(x, y). */
 (function () {
   const canvas = document.createElement("canvas");
   canvas.id = "celebrate-canvas";
@@ -27,6 +28,59 @@
 
   const randomBetween = (min, max) => Math.random() * (max - min) + min;
   const randomItem = (items) => items[Math.floor(Math.random() * items.length)];
+
+  // Explosion "pop" sound, synthesized (no audio file/licensing to manage) -
+  // a short filtered-noise crack layered with a low pitch-dropping thump,
+  // the same two-part shape a real firework pop has. Lazily created on the
+  // first pop so it's built inside a real user-gesture call chain (every
+  // caller of this module is a click handler), satisfying browsers'
+  // autoplay policy without needing a separate "enable sound" step.
+  let audioCtx = null;
+  function playExplosionSound() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const master = audioCtx.createGain();
+      master.gain.value = 0.5;
+      master.connect(audioCtx.destination);
+
+      // The crack: a short burst of filtered white noise.
+      const noiseDuration = 0.35;
+      const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * noiseDuration, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.value = randomBetween(900, 1500);
+      noiseFilter.Q.value = 0.7;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.9, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + noiseDuration);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(master);
+      noise.start(now);
+      noise.stop(now + noiseDuration);
+
+      // The thump: a low oscillator with a quick downward pitch sweep.
+      const thump = audioCtx.createOscillator();
+      thump.type = "sine";
+      thump.frequency.setValueAtTime(randomBetween(120, 160), now);
+      thump.frequency.exponentialRampToValueAtTime(35, now + 0.3);
+      const thumpGain = audioCtx.createGain();
+      thumpGain.gain.setValueAtTime(0.8, now);
+      thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      thump.connect(thumpGain);
+      thumpGain.connect(master);
+      thump.start(now);
+      thump.stop(now + 0.4);
+    } catch (_) {
+      // Web Audio unsupported/blocked - the visual celebration still runs fine without it.
+    }
+  }
 
   function createConfettiBurst(x, y) {
     // Small circular sparks.
@@ -161,6 +215,7 @@
 
   function playHybridCelebrate(x, y) {
     createConfettiBurst(x, y);
+    playExplosionSound();
     window.setTimeout(() => createNeonTrails(x, y), 60);
   }
 

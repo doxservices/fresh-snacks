@@ -222,6 +222,10 @@ const toPayment = (p) => ({
   date: p.createdDate || null,
   amount: Number(p.amount || 0),
   note: p.note || "",
+  // "paypal" for a real online payment (see paypalTab.js), otherwise unset -
+  // index.html uses this to know which payments are safe to celebrate on
+  // page load (a real, verified charge), not e.g. an arbitrary admin edit.
+  source: p.source || null,
 });
 
 // Admin-entered corrections (functions/src/routes/admin.js's POST

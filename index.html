@@ -1091,6 +1091,41 @@
       $id("paypal-pay-card").classList.toggle("hidden", !show);
     }
 
+    // The live celebration in the PayPal checkout modal's onApprove only
+    // fires if the customer is still watching that exact tab when it
+    // completes - PayPal's SDK can fall back to a full top-level redirect
+    // to paypal.com and back on some browsers/funding sources, which drops
+    // that in-page JS state entirely, and a customer who closes the tab
+    // right after paying never sees it live either way. maybeCelebratePaypal
+    // Payment() runs on every render() (so: this load, right after
+    // returning from any such redirect, or simply "next visit") and catches
+    // up on any real PayPal payment (data.payments[].source === "paypal",
+    // set server-side in paypalTab.js - never any other payment kind) it
+    // hasn't already celebrated. Dedup is a plain localStorage id set; the
+    // live onApprove path (below) marks its own payment id celebrated
+    // immediately, right where it already fires the animation live, so
+    // this render-time check never fires a SECOND celebration for the very
+    // payment that was just live-celebrated a moment ago in the same tab.
+    const CELEBRATED_PAYMENTS_KEY = "fresh_snacks_celebrated_paypal_payments";
+    function getCelebratedPaypalPayments() {
+      try { return new Set(JSON.parse(localStorage.getItem(CELEBRATED_PAYMENTS_KEY) || "[]")); }
+      catch (_) { return new Set(); }
+    }
+    function markPaypalPaymentsCelebrated(ids) {
+      const set = getCelebratedPaypalPayments();
+      ids.forEach((id) => set.add(id));
+      localStorage.setItem(CELEBRATED_PAYMENTS_KEY, JSON.stringify([...set]));
+    }
+    function maybeCelebratePaypalPayment(data, isVisitor) {
+      if (isVisitor) return;
+      const paypalIds = (data.payments || []).filter((p) => p.source === "paypal").map((p) => p.id);
+      if (!paypalIds.length) return;
+      const celebrated = getCelebratedPaypalPayments();
+      const hasNew = paypalIds.some((id) => !celebrated.has(id));
+      if (hasNew) window.Celebrate?.playFireworksShow();
+      markPaypalPaymentsCelebrated(paypalIds);
+    }
+
     // Mirrors functions/src/lib/cashback.js's per-margin model (kept in
     // sync by hand, same as cashback-demo.js) purely for this display -
     // groups still-owed entries by the day they were added (same-day
@@ -1270,6 +1305,7 @@
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
       renderPaypalPayCard(t, isVisitor, cur);
+      maybeCelebratePaypalPayment(data, isVisitor);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
@@ -2025,13 +2061,18 @@
         onApprove: async (data) => {
           setPaypalPayStatus(null, "Confirming your payment…");
           try {
-            await FS.captureTabPaypalOrder(data.orderID);
+            const result = await FS.captureTabPaypalOrder(data.orderID);
             setPaypalPayStatus("ok", "Payment successful! Your balance has been cleared.");
             // A real fireworks show (several staggered pops, not one burst)
             // - the returned delay lands 5 seconds after the last pop
             // launches. Still checks .show first, in case the customer
             // already closed the modal themselves before then.
             const showMs = window.Celebrate?.playFireworksShow() ?? 1800;
+            // Mark this payment celebrated right away, before the render()
+            // below runs - otherwise maybeCelebratePaypalPayment would see
+            // this same brand-new payment as "not yet celebrated" and fire
+            // a second, redundant show on top of the one just started.
+            if (result?.paymentId) markPaypalPaymentsCelebrated([result.paymentId]);
             LAST_DATA = await refreshTabData();
             CLAIM = LAST_DATA.claim || null;
             render(LAST_DATA);
