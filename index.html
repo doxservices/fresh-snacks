@@ -2140,6 +2140,32 @@
     $id("pay-options-backdrop").addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") closePayOptionsModal();
     });
+    // A one-off cosmetic preview, not a real balance change: fades the
+    // Current Balance number down to what it'll look like once a just-
+    // reported payment is actually confirmed, holds there briefly, then
+    // fades back to the real (still-pending) figure render() just set -
+    // nothing is left factually wrong on screen once it settles.
+    function animateBalancePreview(previewAmountRaw, cur) {
+      const el = $id("stat-balance");
+      const realText = el.textContent;
+      const previewText = FS.money(Math.abs(previewAmountRaw), cur);
+      el.classList.add("balance-preview-fade");
+      const fadeTo = (text) => new Promise((resolve) => {
+        el.classList.add("is-faded");
+        setTimeout(() => {
+          el.textContent = text;
+          el.classList.remove("is-faded");
+          setTimeout(resolve, 350);
+        }, 350);
+      });
+      (async () => {
+        await fadeTo(previewText);
+        await new Promise((r) => setTimeout(r, 1400));
+        await fadeTo(realText);
+        el.classList.remove("balance-preview-fade");
+      })();
+    }
+
     $id("pay-option-person").onclick = async () => {
       closePayOptionsModal();
       const confirmed = await AppModals.confirm(
@@ -2155,11 +2181,10 @@
       // Still isBillable (counts toward the balance) until an admin
       // actually confirms it, matching this flow's own copy below; cash
       // back is only granted at that same confirmation step, never here.
-      const owedIds = (LAST_DATA?.entries || [])
-        .filter((e) => e.workflowStatus === FS.workflowStatus.CONFIRMED_UNPAID)
-        .map((e) => e.id);
+      const owedEntries = (LAST_DATA?.entries || [])
+        .filter((e) => e.workflowStatus === FS.workflowStatus.CONFIRMED_UNPAID);
       try {
-        await Promise.all(owedIds.map((id) => FS.markPaid(id)));
+        await Promise.all(owedEntries.map((e) => FS.markPaid(e.id)));
       } catch (e) {
         await AppModals.alert(
           "Something went wrong",
@@ -2167,10 +2192,13 @@
         );
         return;
       }
+      const previousBalance = FS.totals(LAST_DATA).balance;
+      const amountJustReported = owedEntries.reduce((sum, e) => sum + Number(e.value || 0), 0);
       const showMs = window.Celebrate?.playFireworksShow() ?? 0;
       LAST_DATA = await refreshTabData();
       CLAIM = LAST_DATA.claim || null;
       render(LAST_DATA);
+      animateBalancePreview(previousBalance - amountJustReported, LAST_DATA.profile.currency);
       await AppModals.alert(
         "Thanks!",
         "Fresh Snacks will update your balance as soon as your payment is confirmed.",

@@ -878,6 +878,13 @@ a.stat-box:hover, a.stat-box:focus-visible {
   letter-spacing: -0.02em;
 }
 
+/* Balance preview fade (see animateBalancePreview in index.html) - the
+   number cross-fades to what the balance will look like once a just-
+   reported payment is confirmed, then fades back to the real, still-
+   pending figure. Opacity only, so layout never shifts mid-animation. */
+#stat-balance.balance-preview-fade { transition: opacity 0.35s ease; }
+#stat-balance.balance-preview-fade.is-faded { opacity: 0; }
+
 .green { color: var(--green-dark); }
 .warm { color: var(--green); }
 .blue { color: var(--blue-dark); }
