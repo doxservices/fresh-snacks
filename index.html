@@ -1134,6 +1134,24 @@
       localStorage.setItem(CASHBACK_NOTIF_DISMISS_KEY, JSON.stringify([...set]));
     }
 
+    // A separate one-off notice - "your balance just qualified for cash
+    // back" - distinct from the per-instance rows above (which track each
+    // still-owed charge's own 10% -> 5% -> Expired countdown). Keyed by
+    // the balance's oldestDate (same "epoch" id used elsewhere, e.g. the
+    // expired-card dismissal) rather than a plain date/index, so it can
+    // never collide with the per-instance dismiss set above and naturally
+    // reappears if the tab clears to $0 and later reopens past $300 again.
+    const CASHBACK_AVAILABLE_DISMISS_KEY = "fresh_snacks_cashback_available_dismissed";
+    function getDismissedCashbackAvailable() {
+      try { return new Set(JSON.parse(localStorage.getItem(CASHBACK_AVAILABLE_DISMISS_KEY) || "[]")); }
+      catch (_) { return new Set(); }
+    }
+    function dismissCashbackAvailable(oldestDate) {
+      const set = getDismissedCashbackAvailable();
+      set.add(oldestDate);
+      localStorage.setItem(CASHBACK_AVAILABLE_DISMISS_KEY, JSON.stringify([...set]));
+    }
+
     function renderCashbackNotifications(data, isVisitor) {
       const bell = $id("cashback-notifications-bell");
       const cur = data.profile.currency;
@@ -1141,12 +1159,32 @@
       const dismissed = getDismissedCashbackNotifs();
       const visible = instances.filter((instance) => !dismissed.has(instance.date));
 
-      bell.classList.toggle("hidden", visible.length === 0);
-      bell.setAttribute("aria-label", `${visible.length} cash back notification${visible.length === 1 ? "" : "s"}`);
-      $id("cashback-notifications-count").textContent = String(visible.length);
+      // data.cashback (see functions/src/lib/cashback.js's projectedCashback)
+      // only exists once the whole balance is at least J$300 - that's
+      // exactly "cash back just became available" for this tab.
+      const offer = !isVisitor ? data.cashback : null;
+      const showAvailable = !!(offer && offer.oldestDate && !getDismissedCashbackAvailable().has(offer.oldestDate));
 
-      $id("cashback-notifications-empty").classList.toggle("hidden", visible.length > 0);
-      $id("cashback-notifications-list").innerHTML = visible.map((instance) => {
+      const total = visible.length + (showAvailable ? 1 : 0);
+      bell.classList.toggle("hidden", total === 0);
+      bell.setAttribute("aria-label", `${total} cash back notification${total === 1 ? "" : "s"}`);
+      $id("cashback-notifications-count").textContent = String(total);
+      $id("cashback-notifications-empty").classList.toggle("hidden", total > 0);
+
+      const availableHtml = showAvailable ? `
+        <div class="notif-item cashback-available-row" data-oldest-date="${esc(offer.oldestDate)}">
+          <div class="notif-item-photo tone-amber" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2.8 2.8 5.6 6.2.9-4.5 4.4 1.1 6.1L12 16.9l-5.6 3-1.1-6.1-4.5-4.4 6.2-.9Z"/></svg>
+          </div>
+          <div class="notif-item-body">
+            <div class="notif-item-title">Cash back is available!</div>
+            <div class="notif-item-subtitle">Your balance qualifies - clear it in full to earn cash back.</div>
+          </div>
+          <button type="button" class="notif-dismiss" data-notif-dismiss aria-label="Dismiss">&times;</button>
+        </div>
+      ` : "";
+
+      const instancesHtml = visible.map((instance) => {
         const stageIndex = Math.min(instance.daysSince, CASHBACK_TIER_RATES.length);
         const stages = ["10%", "5%", "Expired"];
         const stagesHtml = stages.map((label, index) => {
@@ -1169,6 +1207,8 @@
           </div>
         `;
       }).join("");
+
+      $id("cashback-notifications-list").innerHTML = availableHtml + instancesHtml;
     }
 
     $id("cashback-notifications-bell").addEventListener("click", () => {
@@ -1181,11 +1221,14 @@
       if (ev.target === $id("cashback-notifications-backdrop")) $id("cashback-notifications-backdrop").classList.remove("show");
     });
     $id("cashback-notifications-list").addEventListener("click", (ev) => {
-      const row = ev.target.closest(".cashback-instance-row");
+      const availableRow = ev.target.closest(".cashback-available-row");
+      const instanceRow = ev.target.closest(".cashback-instance-row");
+      const row = availableRow || instanceRow;
       if (!row) return;
-      dismissCashbackNotif(row.dataset.date);
+      if (availableRow) dismissCashbackAvailable(availableRow.dataset.oldestDate);
+      else dismissCashbackNotif(instanceRow.dataset.date);
       row.remove();
-      const remaining = $id("cashback-notifications-list").querySelectorAll(".cashback-instance-row").length;
+      const remaining = $id("cashback-notifications-list").querySelectorAll(".cashback-instance-row, .cashback-available-row").length;
       $id("cashback-notifications-bell").classList.toggle("hidden", remaining === 0);
       $id("cashback-notifications-count").textContent = String(remaining);
       $id("cashback-notifications-empty").classList.toggle("hidden", remaining > 0);

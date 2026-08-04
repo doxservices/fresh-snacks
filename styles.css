@@ -6047,6 +6047,13 @@ tr.disputed td {
   white-space: nowrap;
 }
 
+.notif-item-subtitle {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
 .notif-item-meta {
   align-items: flex-end;
   display: flex;
