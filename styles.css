@@ -1017,6 +1017,9 @@ a.stat-box:hover, a.stat-box:focus-visible {
    elapsed hours toward the one deadline that genuinely exists: midnight,
    when today's rate steps down. */
 .cashback-day-bar { display: flex; gap: 4px; margin: 8px 0 10px; }
+/* 60 minute-segments need a much tighter gap than the 8 hour-segments to
+   stay readable as a bar instead of mostly whitespace. */
+.cashback-day-bar.is-minutes { gap: 1.5px; }
 .cashback-day-segment {
   flex: 1;
   min-width: 0;
