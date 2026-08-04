@@ -1046,6 +1046,8 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .subtext { display: block; margin-top: 2px; color: #65706b; font-size: 11.5px; white-space: nowrap; }
 .flow-arrow { width: 18px; flex: 0 0 auto; }
 
+.cashback-learn-more { display: inline-block; margin-top: 6px; font-size: 11.5px; color: #a5690a; text-decoration: underline; }
+
 /* Balance + CTA, fenced off on the right - the balance keeps its slot
    and size no matter how many transaction cards render on the left. */
 .payment-zone { display: flex; align-items: center; gap: 18px; padding-left: 20px; border-left: 1px solid #e1e8e3; }

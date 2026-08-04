@@ -91,6 +91,7 @@
           <h2 id="cashback-card-title">Clear your balance today</h2>
           <div class="cashback-day-bar" id="cashback-day-bar" aria-hidden="true"></div>
           <p class="lead" id="cashback-card-body"></p>
+          <a class="cashback-learn-more" href="faq.html#cash-back">How cash back works</a>
         </div>
         <img class="wallet" src="assets/cashback-wallet.png" alt="" aria-hidden="true" loading="lazy" />
       </div>
@@ -993,8 +994,8 @@
         ? "Today's the best day to clear your balance"
         : "Don't miss today's cash back";
       $id("cashback-card-body").textContent = isBestTier
-        ? "Today's purchases are earning 10% cash back - not older charges already on your tab. Clear your whole balance in full right now to collect it; tomorrow the rate drops to 5%."
-        : "Yesterday's purchases still earn 5% cash back today - not older charges already on your tab. Clear your whole balance in full right now to collect it; after today, that's gone too.";
+        ? "Today's purchases are earning 10% cash back. Clear your whole balance in full to claim your cashback; tomorrow the rate drops to 5%."
+        : "Yesterday's purchases still earn 5% cash back today. Clear your whole balance in full to claim your cashback; after today, that's gone too.";
       // Every purchase-day still earning gets its own little card - the
       // values the discount is actually computed ON (today's at 10%,
       // yesterday's at 5%), each showing what it contributes, so the

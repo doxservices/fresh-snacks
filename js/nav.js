@@ -36,12 +36,14 @@
       { label: "Tell a friend", href: "index.html#tell-a-friend" },
     ] },
     { section: "Support", items: [
+      { label: "FAQ", href: "faq.html" },
       { label: "Feedback", href: "feedback.html" },
       { label: "Privacy Policy", href: "privacy.html" },
     ] },
   ];
   const guestGroups = [
     { section: "Support", items: [
+      { label: "FAQ", href: "faq.html" },
       { label: "Feedback", href: "feedback.html" },
       { label: "Privacy Policy", href: "privacy.html" },
     ] },
