@@ -2148,7 +2148,29 @@
         { confirmText: "Yes, I've paid in full" }
       );
       if (!confirmed) return;
+      // Same per-transaction "customer self-reports payment" action the
+      // Snack Log's own Mark as Paid button already uses (CONFIRMED_UNPAID
+      // -> PAYMENT_PENDING_ADMIN_CONFIRMATION for ROLE.USER) - just applied
+      // to every currently-owed item at once instead of one at a time.
+      // Still isBillable (counts toward the balance) until an admin
+      // actually confirms it, matching this flow's own copy below; cash
+      // back is only granted at that same confirmation step, never here.
+      const owedIds = (LAST_DATA?.entries || [])
+        .filter((e) => e.workflowStatus === FS.workflowStatus.CONFIRMED_UNPAID)
+        .map((e) => e.id);
+      try {
+        await Promise.all(owedIds.map((id) => FS.markPaid(id)));
+      } catch (e) {
+        await AppModals.alert(
+          "Something went wrong",
+          e.message || "We couldn't mark your items as paid. Please try again or reach out via Feedback."
+        );
+        return;
+      }
       const showMs = window.Celebrate?.playFireworksShow() ?? 0;
+      LAST_DATA = await refreshTabData();
+      CLAIM = LAST_DATA.claim || null;
+      render(LAST_DATA);
       await AppModals.alert(
         "Thanks!",
         "Fresh Snacks will update your balance as soon as your payment is confirmed.",
