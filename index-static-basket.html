@@ -12,11 +12,21 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805h-basket-float-dropdown" />
+  <link rel="stylesheet" href="styles.css?v=20260805i-basket-static-toggle" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
 <body class="auth-pending">
+  <!-- Evaluation-only control for this comparison page: lets you pin the
+       basket to its static, in-flow spot regardless of scroll position, so
+       you can inspect that placement without the float-on-scroll behavior
+       kicking in - see the wiring around #basket-static-toggle-input
+       further down. -->
+  <label class="basket-static-toggle" id="basket-static-toggle">
+    <input type="checkbox" id="basket-static-toggle-input" />
+    Keep basket static
+  </label>
+
   <main class="page page-wide">
     <header class="banner" id="site-banner"></header>
 
@@ -1888,14 +1898,29 @@
     // (#basket-dock-home) has scrolled out of view.
     const basketDockHome = $id("basket-dock-home");
     let basketFloating = false;
+    // Evaluation control, this page only: #basket-static-toggle lets you
+    // pin the basket to its static, in-flow position regardless of scroll,
+    // so you can inspect that placement without fighting the float-on-
+    // scroll behavior. Remembered across reloads (sessionStorage, not
+    // localStorage - a debug preference for this browsing session, not
+    // something that should quietly persist forever).
+    let forceStaticBasket = false;
+    try { forceStaticBasket = sessionStorage.getItem("fs_debug_basket_force_static") === "1"; } catch (_) {}
+    const basketStaticToggleInput = $id("basket-static-toggle-input");
+    basketStaticToggleInput.checked = forceStaticBasket;
+    basketStaticToggleInput.addEventListener("change", () => {
+      forceStaticBasket = basketStaticToggleInput.checked;
+      try { sessionStorage.setItem("fs_debug_basket_force_static", forceStaticBasket ? "1" : "0"); } catch (_) {}
+      updateBasketFloatState();
+    });
     function updateBasketFloatState() {
       const panel = $id("basket-panel");
-      if (window.innerWidth <= 900) {
+      if (forceStaticBasket || window.innerWidth <= 900) {
         if (basketFloating) {
           basketFloating = false;
           panel.classList.remove("is-floating");
           basketDockHome.appendChild(panel);
-          setBasketPanelOpen(false);
+          setBasketPanelOpen(window.innerWidth <= 900 && !forceStaticBasket ? false : true);
         }
         return;
       }

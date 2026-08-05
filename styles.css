@@ -4999,6 +4999,38 @@ body:has(#snack-shop-static) .bins-layout {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* index-static-basket.html only: the "Keep basket static" evaluation
+   toggle. Fixed regardless of scroll (so it's reachable at any point on
+   the page, including once the basket itself is floating over the same
+   top-left area of the screen) and given a very high z-index so it always
+   sits above the floating basket dropdown, not under it. */
+.basket-static-toggle {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(24, 79, 42, 0.14);
+  color: var(--green-dark);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 8px;
+  left: 12px;
+  padding: 9px 16px 9px 14px;
+  position: fixed;
+  top: 12px;
+  user-select: none;
+  z-index: 100;
+}
+
+.basket-static-toggle input {
+  accent-color: var(--green);
+  height: 15px;
+  margin: 0;
+  width: 15px;
+}
+
 /* index-static-basket.html only: places the basket at the end of the
    "Three snacks to consider" row instead of as a full-width block of its
    own - see the HTML comment above .recommendations-row for why the
