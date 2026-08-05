@@ -4999,6 +4999,42 @@ body:has(#snack-shop-static) .bins-layout {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* index-static-basket.html only: places the basket at the end of the
+   "Three snacks to consider" row instead of as a full-width block of its
+   own - see the HTML comment above .recommendations-row for why the
+   basket is a flex sibling of #recommendations-section rather than nested
+   inside it. align-items stays at its flex default (stretch is NOT used;
+   flex-start is) so .bins-cart-col is only as tall as its own content
+   (.bins-cart-sticky) - giving the inner position:sticky rule (unscoped,
+   shared with edit-tab.html) zero extra room to float within, so it reads
+   as fully static here too, matching the rest of this page. */
+.recommendations-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.recommendations-row #recommendations-section {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.recommendations-row #basket-panel {
+  flex: 0 0 320px;
+}
+
+@media (max-width: 900px) {
+  .recommendations-row {
+    flex-direction: column;
+  }
+
+  .recommendations-row #basket-panel {
+    flex-basis: auto;
+  }
+}
+
 /* index.html only (scoped via #snack-shop, an id unique to that page -
    edit-tab.html shares .bins-layout/.bins-cart-col but keeps the side-by-
    side grid above untouched). At desktop widths the basket docks

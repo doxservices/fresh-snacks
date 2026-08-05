@@ -8,7 +8,7 @@
        in-flow static element (no dock/undock/floating behavior) - see the
        differences noted around #basket-panel and #snack-shop below. Not
        linked from any nav; reach it directly by URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805f-static-basket-full-width-gallery" />
+  <link rel="stylesheet" href="styles.css?v=20260805g-basket-in-recommendations-row" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -174,50 +174,59 @@
       </article>
     </section>
 
-    <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
-      <div class="recommendations-heading">
-        <div>
-          <span class="snack-shop-kicker">Selected for you</span>
-          <h2 id="recommendations-title">Three snacks to consider</h2>
+    <!-- Static variant: #basket-panel sits inline at the end of the
+         "Three snacks to consider" row, via .recommendations-row (a flex
+         wrapper that only exists on this page). It's a sibling of
+         #recommendations-section rather than nested inside it, on purpose:
+         that section's own "hidden" class toggles with whether there's
+         anything left to recommend (and starts hidden before data loads at
+         all) - nesting the basket inside it would hide/flash the basket
+         along with it. Once placed, #basket-panel never moves for the rest
+         of the page's life, on any viewport width - no scroll-driven
+         reparenting, no position:fixed, no undocking. #basket-overlay is
+         kept next to it (unused without the JS that drives it, but
+         harmless) purely so the shared bins-cart-* markup/JS stays
+         identical to index.html. -->
+    <div class="recommendations-row">
+      <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
+        <div class="recommendations-heading">
+          <div>
+            <span class="snack-shop-kicker">Selected for you</span>
+            <h2 id="recommendations-title">Three snacks to consider</h2>
+          </div>
+          <p id="recommendations-note">Based on your current favourite and a little variety.</p>
         </div>
-        <p id="recommendations-note">Based on your current favourite and a little variety.</p>
-      </div>
-      <div class="recommendations-grid" id="recommendations-grid"></div>
-    </section>
+        <div class="recommendations-grid" id="recommendations-grid"></div>
+      </section>
 
-    <!-- Static variant: #basket-panel lives permanently right here, in
-         normal document flow - no scroll-driven reparenting, no
-         position:fixed, no undocking. It never moves for the rest of the
-         page's life, on any viewport width. #basket-overlay is kept next
-         to it (unused without the JS that drives it, but harmless) purely
-         so the shared bins-cart-* markup/JS stays identical to index.html. -->
-    <div class="basket-overlay" id="basket-overlay"></div>
-    <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
-      <div class="bins-cart-sticky">
-        <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
-          <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
-          <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="bins-cart-body" id="bins-cart-body">
-          <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
-            <div class="bins-cart-items" id="bins-cart-items">
-              <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+      <div class="basket-overlay" id="basket-overlay"></div>
+      <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
+        <div class="bins-cart-sticky">
+          <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
+            <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
+            <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="bins-cart-body" id="bins-cart-body">
+            <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+              <div class="bins-cart-items" id="bins-cart-items">
+                <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+              </div>
+              <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+              <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
             </div>
-            <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
-            <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
+            <div class="bins-cart-total">
+              <span>Total</span>
+              <span class="amount" id="bins-total">J$0</span>
+            </div>
+            <div class="bins-cart-actions">
+              <button id="bins-reset">Clear</button>
+              <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+            </div>
+            <div class="status" id="bins-status"></div>
           </div>
-          <div class="bins-cart-total">
-            <span>Total</span>
-            <span class="amount" id="bins-total">J$0</span>
-          </div>
-          <div class="bins-cart-actions">
-            <button id="bins-reset">Clear</button>
-            <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-          </div>
-          <div class="status" id="bins-status"></div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </div>
 
     <!-- id changed from "snack-shop" to "snack-shop-static" on purpose:
          styles.css's dock/undock rules for index.html are scoped via
