@@ -5044,10 +5044,13 @@ tr.healthy-account td {
     order: 1;
   }
 
+  /* Docked: full width, matching every other card on the page ("Selected
+     for you", the catalogue itself) instead of a narrow, right-aligned
+     box floating in its own lane - it only needs to be compact once it's
+     actually undocked and has to fit in a margin. */
   body:has(#snack-shop) .bins-cart-col {
     order: -1;
-    width: 360px;
-    margin: 0 0 20px auto;
+    margin: 0 0 20px 0;
   }
 
   body:has(#snack-shop) .bins-cart-col.is-undocked {
@@ -5055,6 +5058,7 @@ tr.healthy-account td {
     top: 12px;
     left: 50%;
     right: auto;
+    width: 360px;
     transform: translateX(-50%);
     margin: 0;
     z-index: 40;
@@ -5081,6 +5085,15 @@ tr.healthy-account td {
      a recommendation card) keeps it clear regardless of which of the
      two sections happens to be in view when the cart transitions. */
   body:has(#snack-shop) #recommendations-section {
+    max-width: calc(100% - 396px);
+  }
+
+  /* Match the docked (not undocked) cart's own width to that same
+     narrowed lane, so it lines up on BOTH edges with "Selected for you"
+     right above it instead of just the left one - and previews exactly
+     the boundary it'll drop into once it undocks, same as the gallery
+     already does. */
+  body:has(#snack-shop) .bins-cart-col:not(.is-undocked) {
     max-width: calc(100% - 396px);
   }
 
