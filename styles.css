@@ -4989,6 +4989,50 @@ tr.healthy-account td {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* index.html only (scoped via #snack-shop, an id unique to that page -
+   edit-tab.html shares .bins-layout/.bins-cart-col but keeps the side-by-
+   side grid above untouched). At desktop widths the basket now docks
+   ABOVE the catalogue instead of beside it as a sidebar column, reusing
+   the same flex-column + order:-1 approach the sub-900px layout below
+   already uses to put it above the gallery there - then, once the page
+   scrolls (see the scroll listener in index.html toggling .is-undocked),
+   it undocks into a compact card fixed to the right edge of the
+   viewport, in what would otherwise be empty margin on a wide screen.
+   .bins-cart-sticky's own position:sticky is switched off here since the
+   outer .bins-cart-col now handles "floats once scrolled" explicitly via
+   .is-undocked instead - both trying to manage that at once would fight
+   each other. */
+@media (min-width: 900px) {
+  #snack-shop .bins-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  #snack-shop .bins-gallery-col {
+    order: 1;
+  }
+
+  #snack-shop .bins-cart-col {
+    order: -1;
+    width: 360px;
+    margin: 0 0 0 auto;
+  }
+
+  #snack-shop .bins-cart-col.is-undocked {
+    position: fixed;
+    top: 20px;
+    right: 18px;
+    margin: 0;
+    z-index: 40;
+  }
+
+  #snack-shop .bins-cart-sticky {
+    position: static;
+    top: auto;
+  }
+}
+
 .visitor-intro p {
   margin: 8px 0 16px;
   max-width: 60ch;

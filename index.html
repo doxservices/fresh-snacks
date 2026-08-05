@@ -1833,6 +1833,24 @@
       setBasketPanelOpen(false);
     }, { passive: true });
 
+    // Desktop only (mirrors the >900 guard above, inverted): the basket
+    // docks above the catalogue by default (see #snack-shop .bins-layout
+    // in styles.css) and undocks into a small floating card in the right
+    // margin once the page has scrolled a bit - purely a CSS position
+    // swap (.is-undocked), so this never needs to know the panel's exact
+    // on-page offset, just how far the page itself has scrolled.
+    const BASKET_UNDOCK_SCROLL_THRESHOLD = 120;
+    function updateBasketDockState() {
+      if (window.innerWidth < 900) {
+        $id("basket-panel").classList.remove("is-undocked");
+        return;
+      }
+      $id("basket-panel").classList.toggle("is-undocked", window.scrollY > BASKET_UNDOCK_SCROLL_THRESHOLD);
+    }
+    window.addEventListener("scroll", updateBasketDockState, { passive: true });
+    window.addEventListener("resize", updateBasketDockState);
+    updateBasketDockState();
+
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
         setBasketPanelOpen(false);
