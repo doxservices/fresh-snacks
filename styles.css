@@ -4996,49 +4996,86 @@ tr.healthy-account td {
    the same flex-column + order:-1 approach the sub-900px layout below
    already uses to put it above the gallery there - then, once the page
    scrolls (see the scroll listener in index.html toggling .is-undocked),
-   it undocks into a compact card fixed to the right edge of the
-   viewport, in what would otherwise be empty margin on a wide screen.
-   .bins-cart-sticky's own position:sticky is switched off here since the
-   outer .bins-cart-col now handles "floats once scrolled" explicitly via
-   .is-undocked instead - both trying to manage that at once would fight
-   each other.
+   it undocks. Where it undocks TO depends on whether real margin exists
+   yet to receive it:
 
-   The gallery reserves that right-hand margin PERMANENTLY (not just once
-   undocked) - 378px is the undocked cart's own footprint (360px wide +
-   18px off the viewport edge), plus 18px of breathing room. Doing this
-   up front means undocking is a pure position swap with zero layout
-   shift in the gallery at the moment it happens, and the docked cart
-   above (right-aligned, same 360px width) lines up with the same lane
-   the floating one drops into. */
+   - 900-1307px ("medium"): .page-wide is still using the full viewport
+     (it hasn't hit its own 1280px cap), so there's no real side margin
+     to tuck into - the cart floats at top-center, over the gallery,
+     rather than pretending a lane exists. The gallery stays full width.
+   - >=1308px ("wide" - exactly where .page-wide stops growing and starts
+     centering with real empty space beside it): the gallery reserves
+     that right-hand lane PERMANENTLY (not just once undocked) - 378px is
+     the undocked cart's own footprint (360px wide + 18px off the
+     viewport edge), plus 18px of breathing room. Reserving it up front
+     means undocking is a pure position swap with zero layout shift at
+     the moment it happens, and the docked cart above (right-aligned,
+     same 360px width) lines up with the same lane the floating one
+     drops into.
+
+   .bins-cart-sticky's own position:sticky is switched off at both tiers
+   since the outer .bins-cart-col now handles "floats once scrolled"
+   explicitly via .is-undocked instead - both trying to manage that at
+   once would fight each other.
+
+   Scoped via body:has(#snack-shop) rather than a #snack-shop ancestor
+   selector on purpose: #snack-shop (.card/.section-card) has its own
+   backdrop-filter, which - like transform/filter/perspective - creates a
+   new containing block for position:fixed descendants, silently
+   breaking "top:12px" into "12px below #snack-shop's own box" instead of
+   the viewport (confirmed live: computed top read back "12px" correctly,
+   but the rendered box actually sat 179px down at a 900px-tall viewport,
+   and forcing top/position inline with !important still didn't move it -
+   the giveaway was getComputedStyle(...).bottom resolving to ~3300px,
+   only possible if the containing block were the whole page, not the
+   viewport). index.html's own scroll listener works around this by
+   re-parenting #basket-panel to <body> for as long as it's undocked
+   (see updateBasketDockState) - body:has() keeps matching it correctly
+   wherever it currently lives in the tree, unlike a #snack-shop ancestor
+   selector would once it's moved outside #snack-shop. */
 @media (min-width: 900px) {
-  #snack-shop .bins-layout {
+  body:has(#snack-shop) .bins-layout {
     display: flex;
     flex-direction: column;
     gap: 18px;
   }
 
-  #snack-shop .bins-gallery-col {
+  body:has(#snack-shop) .bins-gallery-col {
     order: 1;
-    max-width: calc(100% - 396px);
   }
 
-  #snack-shop .bins-cart-col {
+  body:has(#snack-shop) .bins-cart-col {
     order: -1;
     width: 360px;
     margin: 0 0 0 auto;
   }
 
-  #snack-shop .bins-cart-col.is-undocked {
+  body:has(#snack-shop) .bins-cart-col.is-undocked {
     position: fixed;
-    top: 20px;
-    right: 18px;
+    top: 12px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
     margin: 0;
     z-index: 40;
   }
 
-  #snack-shop .bins-cart-sticky {
+  body:has(#snack-shop) .bins-cart-sticky {
     position: static;
     top: auto;
+  }
+}
+
+@media (min-width: 1308px) {
+  body:has(#snack-shop) .bins-gallery-col {
+    max-width: calc(100% - 396px);
+  }
+
+  body:has(#snack-shop) .bins-cart-col.is-undocked {
+    top: 20px;
+    left: auto;
+    right: 18px;
+    transform: none;
   }
 }
 
