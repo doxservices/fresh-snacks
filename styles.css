@@ -4989,6 +4989,16 @@ tr.healthy-account td {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* index-static-basket.html only: #basket-panel isn't inside .bins-layout at
+   all on this page (it lives as a plain sibling under "Selected for you"),
+   so .bins-gallery-col is .bins-layout's only child - but without this
+   override the grid still reserves the second 360px track for a basket
+   column that's never there, leaving the gallery/cards stuck ~360px+gap
+   narrower than the section. */
+body:has(#snack-shop-static) .bins-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* index.html only (scoped via #snack-shop, an id unique to that page -
    edit-tab.html shares .bins-layout/.bins-cart-col but keeps the side-by-
    side grid above untouched). At desktop widths the basket docks
