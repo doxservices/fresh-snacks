@@ -4,11 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab — Static Basket</title>
-  <!-- Variant of index.html for comparison: the basket is a plain, always-
-       in-flow static element (no dock/undock/floating behavior) - see the
-       differences noted around #basket-panel and #snack-shop below. Not
-       linked from any nav; reach it directly by URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805g-basket-in-recommendations-row" />
+  <!-- Variant of index.html for comparison: the basket is a plain, in-flow
+       element at the end of the "Three snacks to consider" row (not a
+       sidebar column) - it only leaves that spot once you've scrolled
+       past it, at which point it floats at the top of the screen as a
+       collapsed dropdown (see updateBasketFloatState below) until you
+       scroll back up. See the differences noted around #basket-panel and
+       #snack-shop below. Not linked from any nav; reach it directly by
+       URL. -->
+  <link rel="stylesheet" href="styles.css?v=20260805h-basket-float-dropdown" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -181,12 +185,16 @@
          that section's own "hidden" class toggles with whether there's
          anything left to recommend (and starts hidden before data loads at
          all) - nesting the basket inside it would hide/flash the basket
-         along with it. Once placed, #basket-panel never moves for the rest
-         of the page's life, on any viewport width - no scroll-driven
-         reparenting, no position:fixed, no undocking. #basket-overlay is
-         kept next to it (unused without the JS that drives it, but
-         harmless) purely so the shared bins-cart-* markup/JS stays
-         identical to index.html. -->
+         along with it. #basket-dock-home is a fixed-width placeholder that
+         always stays put in this row - #basket-panel lives inside it while
+         in its normal static spot, and gets reparented to <body> (as a
+         fixed-position floating dropdown) once you scroll past this row,
+         then moved back once you scroll back up - see
+         updateBasketFloatState(). Keeping #basket-dock-home in the DOM
+         either way means the row's width never jumps when the basket
+         leaves/returns. #basket-overlay is kept next to it (unused without
+         the JS that drives it, but harmless) purely so the shared
+         bins-cart-* markup/JS stays identical to index.html. -->
     <div class="recommendations-row">
       <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
         <div class="recommendations-heading">
@@ -200,6 +208,7 @@
       </section>
 
       <div class="basket-overlay" id="basket-overlay"></div>
+      <div class="bins-cart-col-home" id="basket-dock-home">
       <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
         <div class="bins-cart-sticky">
           <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
@@ -226,6 +235,7 @@
           </div>
         </div>
       </aside>
+      </div>
     </div>
 
     <!-- id changed from "snack-shop" to "snack-shop-static" on purpose:
@@ -1328,6 +1338,15 @@
       $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
+      // #basket-dock-home has zero height for as long as #basket-panel is
+      // hidden (no active tab yet) or hasn't rendered into it yet, which
+      // updateBasketFloatState() (defined further down, but hoisted/called
+      // only after this whole script has finished its first synchronous
+      // pass) would otherwise misread as "already scrolled past" and float
+      // immediately regardless of real scroll position - re-run it now
+      // that #basket-panel's real visibility/layout for this render is
+      // settled.
+      updateBasketFloatState();
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
@@ -1842,7 +1861,8 @@
     }
 
     $id("mobile-basket-toggle").onclick = () => {
-      if (window.innerWidth > 900) return;
+      const isFloating = $id("basket-panel").classList.contains("is-floating");
+      if (window.innerWidth > 900 && !isFloating) return;
       mobileBasketAutoCollapseArmed = false;
       setBasketPanelOpen(!$id("basket-panel").classList.contains("is-open"));
     };
@@ -1860,11 +1880,46 @@
       setBasketPanelOpen(false);
     }, { passive: true });
 
-    // Static variant: no dock/undock JS at all. #basket-panel lives
-    // permanently where the markup puts it (right under "Selected for
-    // you") and never moves, never gets position:fixed, never reparents -
-    // see index.html's own updateBasketDockState() for the version of
-    // this page that does float/undock on scroll.
+    // Static variant: #basket-panel stays in normal flow, at the end of
+    // the "Three snacks to consider" row, right up until you scroll past
+    // it - unlike index.html's updateBasketDockState() there's no docking
+    // above the gallery and no undocking at a fixed scroll-distance
+    // threshold; this only cares whether the basket's own original spot
+    // (#basket-dock-home) has scrolled out of view.
+    const basketDockHome = $id("basket-dock-home");
+    let basketFloating = false;
+    function updateBasketFloatState() {
+      const panel = $id("basket-panel");
+      if (window.innerWidth <= 900) {
+        if (basketFloating) {
+          basketFloating = false;
+          panel.classList.remove("is-floating");
+          basketDockHome.appendChild(panel);
+          setBasketPanelOpen(false);
+        }
+        return;
+      }
+      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
+      if (scrolledPast && !basketFloating) {
+        basketFloating = true;
+        setBasketPanelOpen(false);
+        panel.classList.add("is-floating");
+        // Reparent to <body>, not just position:fixed in place - a
+        // backdrop-filter (or transform/filter) on any ancestor would
+        // otherwise silently make position:fixed resolve against that
+        // ancestor's box instead of the real viewport (the exact bug
+        // index.html's own dock/undock system hit and fixed the same way).
+        document.body.appendChild(panel);
+      } else if (!scrolledPast && basketFloating) {
+        basketFloating = false;
+        panel.classList.remove("is-floating");
+        basketDockHome.appendChild(panel);
+        setBasketPanelOpen(true);
+      }
+    }
+    window.addEventListener("scroll", updateBasketFloatState, { passive: true });
+    window.addEventListener("resize", updateBasketFloatState);
+    updateBasketFloatState();
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {

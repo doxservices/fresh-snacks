@@ -5007,7 +5007,7 @@ body:has(#snack-shop-static) .bins-layout {
    flex-start is) so .bins-cart-col is only as tall as its own content
    (.bins-cart-sticky) - giving the inner position:sticky rule (unscoped,
    shared with edit-tab.html) zero extra room to float within, so it reads
-   as fully static here too, matching the rest of this page. */
+   as fully static here too, matching the rest of this page, while docked. */
 .recommendations-row {
   align-items: flex-start;
   display: flex;
@@ -5021,7 +5021,11 @@ body:has(#snack-shop-static) .bins-layout {
   min-width: 0;
 }
 
-.recommendations-row #basket-panel {
+/* #basket-dock-home (not #basket-panel itself) carries the reserved width,
+   since #basket-panel gets reparented out to <body> while floating (see
+   updateBasketFloatState) - keeping the empty home slot at the same width
+   means the row never resizes at the moment it leaves or returns. */
+.recommendations-row #basket-dock-home {
   flex: 0 0 320px;
 }
 
@@ -5030,9 +5034,79 @@ body:has(#snack-shop-static) .bins-layout {
     flex-direction: column;
   }
 
-  .recommendations-row #basket-panel {
+  .recommendations-row #basket-dock-home {
     flex-basis: auto;
   }
+}
+
+/* index-static-basket.html only: once you scroll past the basket's home
+   spot in the recommendations row, updateBasketFloatState() adds
+   .is-floating and moves #basket-panel to <body> so it floats at the top
+   of the screen as a collapsed dropdown - reusing the exact same
+   header/chevron/body-collapse mechanic .bins-cart-col already uses on
+   mobile (see the max-width:900px block below) rather than inventing a
+   second one, just keyed off this class instead of viewport width. It
+   stays collapsed until clicked (setBasketPanelOpen), matching a dropdown
+   rather than reappearing as the full card. */
+body:has(#snack-shop-static) .bins-cart-col.is-floating {
+  left: 50%;
+  margin: 0;
+  position: fixed;
+  top: 12px;
+  transform: translateX(-50%);
+  width: 340px;
+  z-index: 40;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-sticky {
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 13px;
+  overflow: hidden;
+  padding: 0;
+  position: static;
+  top: auto;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-header {
+  border-bottom: 0;
+  cursor: pointer;
+  margin: 0;
+  min-height: 54px;
+  padding: 12px 15px;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating .mobile-basket-count {
+  display: inline-flex;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating .mobile-basket-chevron {
+  display: block;
+  transition: transform 180ms ease;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-header {
+  border-bottom: 1px solid var(--line);
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .mobile-basket-chevron {
+  transform: rotate(180deg);
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 15px;
+  pointer-events: none;
+  transition: max-height 260ms ease, opacity 180ms ease, padding 260ms ease;
+}
+
+body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-body {
+  max-height: min(68vh, 560px);
+  opacity: 1;
+  overflow: visible;
+  padding: 14px 15px 16px;
+  pointer-events: auto;
 }
 
 /* index.html only (scoped via #snack-shop, an id unique to that page -
