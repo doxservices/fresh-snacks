@@ -5071,10 +5071,22 @@ tr.healthy-account td {
     max-width: calc(100% - 396px);
   }
 
+  /* right:18px alone is relative to the raw browser window, not to
+     .page-wide's own (centered, capped at 1280px) content column - on
+     anything wider than ~1700px the two edges pull apart fast, leaving a
+     dead-looking gap between the gallery and the floating card that
+     grows without bound on an ultrawide/4K screen. (100vw - 1280px)/2
+     is exactly how much extra margin .page-wide has grown on each side
+     beyond its own cap; adding that to the base 18px keeps the card's
+     right edge pinned 18px inside .page-wide's actual edge (matching
+     .section-card's own 18px padding, so it lines up with the gallery's
+     visual edge too) at any viewport width. max() keeps it at a plain
+     18px below 1308px, where .page-wide still fills the viewport and
+     the two edges already coincide. */
   body:has(#snack-shop) .bins-cart-col.is-undocked {
     top: 20px;
     left: auto;
-    right: 18px;
+    right: max(18px, calc((100vw - 1280px) / 2 + 18px));
     transform: none;
   }
 }
