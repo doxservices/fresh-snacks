@@ -5001,7 +5001,15 @@ tr.healthy-account td {
    .bins-cart-sticky's own position:sticky is switched off here since the
    outer .bins-cart-col now handles "floats once scrolled" explicitly via
    .is-undocked instead - both trying to manage that at once would fight
-   each other. */
+   each other.
+
+   The gallery reserves that right-hand margin PERMANENTLY (not just once
+   undocked) - 378px is the undocked cart's own footprint (360px wide +
+   18px off the viewport edge), plus 18px of breathing room. Doing this
+   up front means undocking is a pure position swap with zero layout
+   shift in the gallery at the moment it happens, and the docked cart
+   above (right-aligned, same 360px width) lines up with the same lane
+   the floating one drops into. */
 @media (min-width: 900px) {
   #snack-shop .bins-layout {
     display: flex;
@@ -5011,6 +5019,7 @@ tr.healthy-account td {
 
   #snack-shop .bins-gallery-col {
     order: 1;
+    max-width: calc(100% - 396px);
   }
 
   #snack-shop .bins-cart-col {
