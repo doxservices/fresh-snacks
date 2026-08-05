@@ -4991,13 +4991,13 @@ tr.healthy-account td {
 
 /* index.html only (scoped via #snack-shop, an id unique to that page -
    edit-tab.html shares .bins-layout/.bins-cart-col but keeps the side-by-
-   side grid above untouched). At desktop widths the basket now docks
-   ABOVE the catalogue instead of beside it as a sidebar column, reusing
-   the same flex-column + order:-1 approach the sub-900px layout below
-   already uses to put it above the gallery there - then, once the page
-   scrolls (see the scroll listener in index.html toggling .is-undocked),
-   it undocks. Where it undocks TO depends on whether real margin exists
-   yet to receive it:
+   side grid above untouched). At desktop widths the basket docks
+   statically right under "Selected for you" (index.html's own JS moves
+   #basket-panel into #basket-dock-anchor there, ahead of #snack-shop
+   entirely - see updateBasketDockState) instead of living beside the
+   gallery as a sidebar column. Then, once the page scrolls (same
+   listener toggling .is-undocked), it undocks. Where it undocks TO
+   depends on whether real margin exists yet to receive it:
 
    - 900-1307px ("medium"): .page-wide is still using the full viewport
      (it hasn't hit its own 1280px cap), so there's no real side margin
@@ -5047,7 +5047,7 @@ tr.healthy-account td {
   body:has(#snack-shop) .bins-cart-col {
     order: -1;
     width: 360px;
-    margin: 0 0 0 auto;
+    margin: 0 0 20px auto;
   }
 
   body:has(#snack-shop) .bins-cart-col.is-undocked {
