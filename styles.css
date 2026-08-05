@@ -6485,6 +6485,16 @@ tr.disputed td {
     z-index: 30;
   }
 
+  /* index-static-basket.html renames #snack-shop to #snack-shop-static
+     specifically to opt out of every dock/undock rule above - but this
+     particular rule predates that system and is unscoped (edit-tab.html
+     also depends on it), so it still applies there by default. Override
+     it back to a plain static basket on mobile too, so the comparison
+     page is genuinely static at every width, not just desktop. */
+  body:has(#snack-shop-static) .bins-cart-col {
+    position: static;
+  }
+
   .favorite-card {
     grid-template-columns: 1fr;
   }

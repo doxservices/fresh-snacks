@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fresh Snacks Tab</title>
+  <title>Fresh Snacks Tab — Static Basket</title>
+  <!-- Variant of index.html for comparison: the basket is a plain, always-
+       in-flow static element (no dock/undock/floating behavior) - see the
+       differences noted around #basket-panel and #snack-shop below. Not
+       linked from any nav; reach it directly by URL. -->
   <link rel="stylesheet" href="styles.css?v=20260805e-static-basket-mobile-fix" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
@@ -181,15 +185,48 @@
       <div class="recommendations-grid" id="recommendations-grid"></div>
     </section>
 
-    <!-- Desktop-only docked home for #basket-panel (see updateBasketDockState
-         in this file's script) - the basket sits statically here, right under
-         "Selected for you", until the page scrolls far enough that it
-         undocks into a floating card instead. Stays empty on mobile, where
-         the basket never leaves its original spot inside #snack-shop's own
-         .bins-layout (see the sub-900px rules in styles.css). -->
-    <div id="basket-dock-anchor"></div>
+    <!-- Static variant: #basket-panel lives permanently right here, in
+         normal document flow - no scroll-driven reparenting, no
+         position:fixed, no undocking. It never moves for the rest of the
+         page's life, on any viewport width. #basket-overlay is kept next
+         to it (unused without the JS that drives it, but harmless) purely
+         so the shared bins-cart-* markup/JS stays identical to index.html. -->
+    <div class="basket-overlay" id="basket-overlay"></div>
+    <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
+      <div class="bins-cart-sticky">
+        <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
+          <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
+          <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="bins-cart-body" id="bins-cart-body">
+          <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+            <div class="bins-cart-items" id="bins-cart-items">
+              <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+            </div>
+            <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+            <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
+          </div>
+          <div class="bins-cart-total">
+            <span>Total</span>
+            <span class="amount" id="bins-total">J$0</span>
+          </div>
+          <div class="bins-cart-actions">
+            <button id="bins-reset">Clear</button>
+            <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+          </div>
+          <div class="status" id="bins-status"></div>
+        </div>
+      </div>
+    </aside>
 
-    <section class="card section-card snack-shop-section" id="snack-shop">
+    <!-- id changed from "snack-shop" to "snack-shop-static" on purpose:
+         styles.css's dock/undock rules for index.html are scoped via
+         body:has(#snack-shop) specifically so they never affect
+         edit-tab.html (which shares the same .bins-layout/.bins-cart-col
+         markup for its own admin basket) - renaming this section's id
+         exempts THIS page from those rules the same way, since
+         #basket-panel is no longer nested inside .bins-layout here at all. -->
+    <section class="card section-card snack-shop-section" id="snack-shop-static">
       <div class="snack-shop-heading" id="snack-shop-heading">
         <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
         <h2>Snack now, pay later</h2>
@@ -201,33 +238,6 @@
             <p>Loading snacks…</p>
           </div>
         </div>
-        <div class="basket-overlay" id="basket-overlay"></div>
-        <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
-          <div class="bins-cart-sticky">
-            <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
-              <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
-              <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="bins-cart-body" id="bins-cart-body">
-              <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
-                <div class="bins-cart-items" id="bins-cart-items">
-                  <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
-                </div>
-                <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
-                <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
-              </div>
-              <div class="bins-cart-total">
-                <span>Total</span>
-                <span class="amount" id="bins-total">J$0</span>
-              </div>
-              <div class="bins-cart-actions">
-                <button id="bins-reset">Clear</button>
-                <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-              </div>
-              <div class="status" id="bins-status"></div>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
 
@@ -1841,48 +1851,11 @@
       setBasketPanelOpen(false);
     }, { passive: true });
 
-    // Desktop only (mirrors the >900 guard above, inverted): the basket
-    // docks statically right under "Selected for you" (#basket-dock-anchor,
-    // placed there in the markup) and undocks into a floating card once
-    // the page has scrolled a bit (see the body:has(#snack-shop) rules in
-    // styles.css for both states' actual styling). Below 900px it never
-    // leaves its original spot inside #snack-shop's own .bins-layout,
-    // where the mobile order:-1 flex trick expects to find it - this
-    // whole function is a no-op there beyond making sure of that.
-    //
-    // #snack-shop (.card/.section-card) carries its own backdrop-filter,
-    // which - like transform/filter/perspective - creates a new
-    // containing block for position:fixed descendants. Left alone (e.g.
-    // if the desktop dock spot were still inside #snack-shop),
-    // #basket-panel's "fixed" position would resolve against #snack-shop's
-    // own (scrolled-away) box instead of the real viewport, landing it
-    // well below where top:12px/20px actually says (confirmed live via
-    // getComputedStyle - "top" read back correctly, but "bottom" resolved
-    // to ~3300px, only possible if the containing block were the whole
-    // page rather than a 900px viewport). Re-parenting to <body> for as
-    // long as it's undocked sidesteps that entirely regardless of where
-    // the docked home is.
-    const basketMobileHome = document.querySelector("#snack-shop .bins-layout");
-    const basketDesktopDockHome = $id("basket-dock-anchor");
-    const BASKET_UNDOCK_SCROLL_THRESHOLD = 120;
-    function updateBasketDockState() {
-      const panel = $id("basket-panel");
-      if (window.innerWidth < 900) {
-        panel.classList.remove("is-undocked");
-        if (basketMobileHome && panel.parentElement !== basketMobileHome) basketMobileHome.appendChild(panel);
-        return;
-      }
-      const shouldUndock = window.scrollY > BASKET_UNDOCK_SCROLL_THRESHOLD;
-      panel.classList.toggle("is-undocked", shouldUndock);
-      if (shouldUndock) {
-        if (panel.parentElement !== document.body) document.body.appendChild(panel);
-      } else if (basketDesktopDockHome && panel.parentElement !== basketDesktopDockHome) {
-        basketDesktopDockHome.appendChild(panel);
-      }
-    }
-    window.addEventListener("scroll", updateBasketDockState, { passive: true });
-    window.addEventListener("resize", updateBasketDockState);
-    updateBasketDockState();
+    // Static variant: no dock/undock JS at all. #basket-panel lives
+    // permanently where the markup puts it (right under "Selected for
+    // you") and never moves, never gets position:fixed, never reparents -
+    // see index.html's own updateBasketDockState() for the version of
+    // this page that does float/undock on scroll.
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
