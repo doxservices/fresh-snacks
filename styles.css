@@ -5071,6 +5071,19 @@ tr.healthy-account td {
     max-width: calc(100% - 396px);
   }
 
+  /* The floating cart hovers at a fixed spot near the top of the
+     viewport for as long as the page is scrolled - and since it undocks
+     after only 120px of scroll (see BASKET_UNDOCK_SCROLL_THRESHOLD in
+     index.html), "Selected for you" is very often still on screen right
+     when that happens, not just the catalogue below it. Reserving the
+     same 396px lane here too (confirmed needed live: at the exact width
+     this tier starts, scrolling 500px still showed the cart overlapping
+     a recommendation card) keeps it clear regardless of which of the
+     two sections happens to be in view when the cart transitions. */
+  body:has(#snack-shop) #recommendations-section {
+    max-width: calc(100% - 396px);
+  }
+
   /* right:18px alone is relative to the raw browser window, not to
      .page-wide's own (centered, capped at 1280px) content column - on
      anything wider than ~1700px the two edges pull apart fast, leaving a
