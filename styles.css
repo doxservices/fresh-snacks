@@ -5035,13 +5035,14 @@ body:has(#snack-shop-static) .bins-layout {
    "Three snacks to consider" row instead of as a full-width block of its
    own - see the HTML comment above .recommendations-row for why the
    basket is a flex sibling of #recommendations-section rather than nested
-   inside it. align-items stays at its flex default (stretch is NOT used;
-   flex-start is) so .bins-cart-col is only as tall as its own content
-   (.bins-cart-sticky) - giving the inner position:sticky rule (unscoped,
-   shared with edit-tab.html) zero extra room to float within, so it reads
-   as fully static here too, matching the rest of this page, while docked. */
+   inside it. align-items:stretch (below) makes #basket-dock-home exactly
+   as tall as #recommendations-section, its row sibling - which means
+   .bins-cart-sticky's own position:sticky (unscoped, shared with
+   edit-tab.html) now DOES have real slack to float within, unlike the
+   old flex-start layout - explicitly killed off in the height-matching
+   block below, since this page needs it fully static regardless. */
 .recommendations-row {
-  align-items: flex-start;
+  align-items: stretch;
   display: flex;
   gap: 18px;
   margin-bottom: 14px;
@@ -5076,17 +5077,38 @@ body:has(#snack-shop-static) .bins-layout {
   }
 }
 
-/* Same reasoning as the "fitting to the width of the surrounding elements"
-   comment above, for height: a recommendation card runs ~131px tall
-   (photo + name + one line of reasoning text), but the basket's own
-   content (header, empty-state line, total, Clear/Add-to-tab buttons) is
-   inherently more than that - compacting spacing here gets it much
-   closer without hiding anything a shopper actually needs to see or
-   click. Scoped to #basket-dock-home specifically (not .is-floating,
-   which already has its own separate compact dropdown treatment below)
-   so this only affects the basket while it's docked in this row. */
+/* Match the basket's default (docked) height to #recommendations-section's
+   own height exactly, per explicit request - rather than compacting
+   padding to only approximate a recommendation card's height. The stretch
+   above only sizes #basket-dock-home itself; height:100% carries that
+   down through the plain (non-flex) .bins-cart-col/.bins-cart-sticky
+   elements, which otherwise default to their own content height and
+   ignore a stretched parent. .bins-cart-sticky is then made a column flex
+   container so .bins-cart-body can flex:1 to fill whatever extra room
+   that leaves - the empty-state message/item list gets vertically
+   centered space instead of leaving dead blank area below the buttons.
+   position:static neutralizes .bins-cart-sticky's own position:sticky,
+   which would otherwise float within the real slack the match now gives
+   it - the opposite of what this "static regular element" page wants. */
+/* #basket-dock-home itself is NOT listed here on purpose - it's the
+   actual flex item align-items:stretch sizes, and giving it an explicit
+   height:100% (against .recommendations-row, whose own height is auto/
+   intrinsic - determined BY its stretched children, not the other way
+   round) resolves as an indefinite percentage and silently defeats
+   stretch instead of reinforcing it. Only its descendants need the
+   height:100% chain, since plain block elements don't inherit a
+   stretched ancestor's height on their own. */
+.recommendations-row #basket-dock-home .bins-cart-col,
 .recommendations-row #basket-dock-home .bins-cart-sticky {
+  height: 100%;
+}
+
+.recommendations-row #basket-dock-home .bins-cart-sticky {
+  display: flex;
+  flex-direction: column;
   padding: 12px 14px;
+  position: static;
+  top: auto;
 }
 
 .recommendations-row #basket-dock-home .bins-cart-header {
@@ -5095,8 +5117,17 @@ body:has(#snack-shop-static) .bins-layout {
   padding-bottom: 6px;
 }
 
+.recommendations-row #basket-dock-home .bins-cart-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .recommendations-row #basket-dock-home .bins-cart-items-wrap {
+  flex: 1;
   margin-bottom: 6px;
+  min-height: 0;
 }
 
 .recommendations-row #basket-dock-home .bins-cart-total {
