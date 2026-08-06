@@ -6398,30 +6398,20 @@ tr.disputed td {
 /* ---- customer-facing cash back notifications bell ---- */
 /* Same bell/panel design as .admin-notifications-bell/.notif-item above,
    reused for a customer-facing purpose - see renderCashbackNotifications()
-   in index.html. Only the position differs, since index.html already has
-   .basket-notification fixed in the same top-right spot.
+   in index.html. .basket-notification is display:none at its base rule
+   with nothing that ever un-hides it (effectively dead markup), so there's
+   no real risk of the two fixed badges overlapping in practice.
 
-   .admin-notifications-bell's position:fixed is right for the admin
-   pages it was designed for (injected straight into <body>, no
-   guaranteed header to anchor to - see that rule's own comment), but on
-   index.html it meant this bell stayed pinned to the viewport corner
-   through a scroll, floating on top of whatever page content happened
-   to be there - not just a mobile-only quirk, it did this at every
-   width. A permanent floating badge reads as an intentional mobile
-   pattern (a "floating action button"); on anything wider than an
-   actual phone it just looked like a stray overlapping element. Above
-   BELL_PHONE_BREAKPOINT (480px - comfortably covers real phones in
-   portrait, treats narrow desktop/tablet windows as NOT a phone) it's
-   absolutely positioned against .page-wide instead, so it scrolls away
-   with the header exactly like the profile chip beside it does. */
+   Pinned to the true top-right corner of the browser window itself
+   (position:fixed, not .page-wide/.banner-inner-relative like before) and
+   past the profile chip rather than beside it, at every width - so it
+   stays put through a scroll and never drifts back toward the centered
+   page content on a wide screen the way an absolutely-positioned version
+   tied to .page-wide's (capped, centered) box would. */
 .cashback-notifications-bell {
-  right: 84px;
-  position: absolute;
-}
-@media (max-width: 480px) {
-  .cashback-notifications-bell {
-    position: fixed;
-  }
+  position: fixed;
+  right: 10px;
+  top: 10px;
 }
 
 #cashback-notifications-list {
