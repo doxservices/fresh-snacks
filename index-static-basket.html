@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805m-basket-height-match-fix" />
+  <link rel="stylesheet" href="styles.css?v=20260805n-tab-redesign-and-modal-position" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -1894,8 +1894,10 @@
     // the "Three snacks to consider" row, right up until you scroll past
     // it - unlike index.html's updateBasketDockState() there's no docking
     // above the gallery and no undocking at a fixed scroll-distance
-    // threshold; this only cares whether the basket's own original spot
-    // (#basket-dock-home) has scrolled out of view.
+    // threshold; this cares whether the basket's own original spot
+    // (#basket-dock-home) has crossed the vertical middle of the screen,
+    // not whether it's fully scrolled out of view - see the threshold
+    // itself, below.
     const basketDockHome = $id("basket-dock-home");
     let basketFloating = false;
     // Evaluation control, this page only: #basket-static-toggle lets you
@@ -1918,13 +1920,18 @@
       if (forceStaticBasket || window.innerWidth <= 900) {
         if (basketFloating) {
           basketFloating = false;
-          panel.classList.remove("is-floating");
+          panel.classList.remove("is-floating", "is-floating-in");
           basketDockHome.appendChild(panel);
           setBasketPanelOpen(window.innerWidth <= 900 && !forceStaticBasket ? false : true);
         }
         return;
       }
-      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
+      // Triggers once the row's own top edge crosses the vertical middle
+      // of the screen, not only once it's fully scrolled out of view -
+      // the recommendation cards are still half-visible above the fold
+      // when the tab pops in, which reads as the row handing off to the
+      // floating tab rather than the tab appearing well after the fact.
+      const scrolledPast = basketDockHome.getBoundingClientRect().top <= window.innerHeight / 2;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
         setBasketPanelOpen(false);
@@ -1935,9 +1942,19 @@
         // ancestor's box instead of the real viewport (the exact bug
         // index.html's own dock/undock system hit and fixed the same way).
         document.body.appendChild(panel);
+        // .is-floating alone is the resting state (see its own CSS
+        // comment) - .is-floating-in is what the transition actually
+        // animates towards. Added a frame later (double rAF, since a
+        // single one can still land in the same paint as the class
+        // above in some browsers) so the "from" state genuinely paints
+        // first instead of both landing together and skipping the
+        // transition.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          panel.classList.add("is-floating-in");
+        }));
       } else if (!scrolledPast && basketFloating) {
         basketFloating = false;
-        panel.classList.remove("is-floating");
+        panel.classList.remove("is-floating", "is-floating-in");
         basketDockHome.appendChild(panel);
         setBasketPanelOpen(true);
       }
