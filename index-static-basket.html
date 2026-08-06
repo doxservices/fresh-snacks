@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805n-tab-redesign-and-modal-position" />
+  <link rel="stylesheet" href="styles.css?v=20260805o-docked-aggregate-summary" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -233,6 +233,7 @@
               <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
               <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
             </div>
+            <p class="bins-cart-summary-line muted-small" id="bins-cart-summary-line">Tap a snack to add it here.</p>
             <div class="bins-cart-total">
               <span>Total</span>
               <span class="amount" id="bins-total">J$0</span>
@@ -1531,6 +1532,17 @@
     }
 
     function renderCartItems(data) {
+      // #bins-cart-summary-line is the only thing shown while the basket is
+      // docked (see .recommendations-row #basket-dock-home's CSS) - a
+      // single line that stays the same height regardless of how many
+      // snacks are picked, rather than an itemized list that would grow
+      // the docked card taller with every addition and break its height
+      // match to #recommendations-section. It's kept in sync right here
+      // rather than as a separate render pass, since both need the same
+      // "how many snacks are picked" data at the same moments.
+      $id("bins-cart-summary-line").textContent = picked.size
+        ? `${picked.size} snack${picked.size === 1 ? "" : "s"} selected`
+        : "Tap a snack to add it here.";
       const container = $id("bins-cart-items");
       if (!picked.size) {
         container.innerHTML = `<p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>`;

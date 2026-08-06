@@ -5129,10 +5129,25 @@ body:has(#snack-shop-static) .bins-layout {
   min-height: 0;
 }
 
+/* Per explicit request: the docked basket shouldn't expand in place as
+   snacks are added (an itemized list grows taller with every addition,
+   which would either need internal scrolling in this already-small card
+   or break its height match to #recommendations-section) - so it shows
+   #bins-cart-summary-line's single aggregate line ("3 snacks selected")
+   instead of the full itemized #bins-cart-items-wrap list. Swapped back
+   once floating/expanded (.is-floating.is-open), where there's real room
+   for the full breakdown - see the .is-floating rules further down,
+   which don't touch either of these and so fall back to the shared base
+   rules above (item list shown, summary line hidden). */
 .recommendations-row #basket-dock-home .bins-cart-items-wrap {
+  display: none;
+}
+
+.recommendations-row #basket-dock-home .bins-cart-summary-line {
+  align-items: center;
+  display: flex;
   flex: 1;
   margin-bottom: 6px;
-  min-height: 0;
 }
 
 .recommendations-row #basket-dock-home .bins-cart-total {
@@ -5454,6 +5469,16 @@ body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-body 
 .bins-cart-items-wrap {
   margin-bottom: 12px;
   position: relative;
+}
+
+/* Hidden everywhere except index-static-basket.html's docked position
+   (see .recommendations-row #basket-dock-home below, which shows this
+   and hides .bins-cart-items-wrap instead) - the itemized list is what
+   every other context (index.html, edit-tab.html, and this page's own
+   floating/expanded tab) shows. */
+.bins-cart-summary-line {
+  display: none;
+  margin: 0 0 12px;
 }
 
 .bins-cart-items {
