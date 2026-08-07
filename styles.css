@@ -5134,11 +5134,12 @@ body:has(#snack-shop-static) .bins-layout {
    which would either need internal scrolling in this already-small card
    or break its height match to #recommendations-section) - so it shows
    #bins-cart-summary-line's single aggregate line ("3 snacks selected")
-   instead of the full itemized #bins-cart-items-wrap list. Swapped back
-   once floating/expanded (.is-floating.is-open), where there's real room
-   for the full breakdown - see the .is-floating rules further down,
-   which don't touch either of these and so fall back to the shared base
-   rules above (item list shown, summary line hidden). */
+   instead of the full itemized #bins-cart-items-wrap list. #basket-panel
+   lives inside #basket-dock-home permanently now (see its own HTML
+   comment - it no longer gets reparented anywhere), so this is simply
+   its one, permanent look; the full itemized breakdown still exists, but
+   only inside #basket-float-shell's tray - a wholly separate element,
+   see its own CSS/HTML comments further down. */
 .recommendations-row #basket-dock-home .bins-cart-items-wrap {
   display: none;
 }
@@ -5154,112 +5155,342 @@ body:has(#snack-shop-static) .bins-layout {
   margin-bottom: 8px;
 }
 
-/* index-static-basket.html only: once you scroll past the basket's home
-   spot in the recommendations row, updateBasketFloatState() adds
-   .is-floating and moves #basket-panel to <body> so it floats at the top
-   of the screen as a collapsed dropdown - reusing the exact same
-   header/chevron/body-collapse mechanic .bins-cart-col already uses on
-   mobile (see the max-width:900px block below) rather than inventing a
-   second one, just keyed off this class instead of viewport width. It
-   stays collapsed until clicked (setBasketPanelOpen), matching a dropdown
-   rather than reappearing as the full card.
+/* index-static-basket.html only: #basket-float-shell is the floating
+   "pull tab" shown once you scroll past the basket's docked spot
+   (#basket-dock-home above) - ported from a standalone design reference
+   (a decorative SVG-framed header with a notch/tab you click to pull a
+   tray open below it) into a live widget, wired to the same real
+   picked-items data as the docked basket via syncFloatShell(). It's a
+   wholly separate element from #basket-panel, not a repositioned copy of
+   it - the compact docked card and this decorative pull-tab diverge
+   enough visually that sharing one DOM node stopped making sense; see
+   the HTML comment above #basket-float-shell for the fuller history.
 
-   Deliberately flush against the true top edge (top:0, not top:12px) and
-   rounded only at the bottom - it reads as a tab hanging down off the top
-   of the screen for you to pull open, rather than a floating card. Wider
-   than a gallery card (.bin-card, ~400px at common desktop widths) so it
-   doesn't read as "just another card" among them; min(94vw, 460px) keeps
-   it from overflowing a narrow viewport instead of a flat px width.
-
-   .is-floating-in (added by JS one frame after .is-floating, via double
-   requestAnimationFrame - see updateBasketFloatState) is what actually
-   animates: .is-floating alone is the resting *target* state, so the
-   transform/opacity transition below has something to run FROM when
-   .is-floating-in lands a frame later, instead of both classes landing
-   in the same paint and skipping the transition entirely. */
-body:has(#snack-shop-static) .bins-cart-col.is-floating {
+   .visible is added the moment you scroll past the trigger point;
+   .is-floating-in is added a frame later (double requestAnimationFrame,
+   same reasoning as before) so the opacity/transform transition has a
+   real "from" state to animate away from instead of landing in the same
+   paint as .visible and skipping the transition. */
+.basket-float-shell {
+  color: var(--green);
   left: 50%;
-  margin: 0;
   opacity: 0;
+  pointer-events: none;
   position: fixed;
   top: 0;
   transform: translateX(-50%) translateY(-10px) scale(0.96);
   transition: transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 200ms ease;
-  width: min(94vw, 460px);
+  width: min(94vw, 640px);
   z-index: 40;
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating.is-floating-in {
+.basket-float-shell.visible {
+  pointer-events: auto;
+}
+
+.basket-float-shell.visible.is-floating-in {
   opacity: 1;
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
-/* Thin 1px line instead of a soft drop shadow "fade" into the page below
-   - reads as a crisp edge/lip you'd grab to pull the tab open, not a
-   card hovering above the content. */
-body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-sticky {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-top: 0;
-  border-radius: 0 0 10px 10px;
-  box-shadow: none;
-  overflow: hidden;
-  padding: 0;
-  position: static;
-  top: auto;
+.basket-float-header {
+  background: var(--white);
+  border-radius: 0 0 22px 22px;
+  box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
+  height: 96px;
+  overflow: visible;
+  position: relative;
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-header {
-  border-bottom: 0;
-  cursor: pointer;
-  font-size: 13px;
-  margin: 0;
-  min-height: 34px;
-  padding: 7px 16px;
-}
-
-body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-icon {
-  height: 15px;
-  width: 15px;
-}
-
-body:has(#snack-shop-static) .bins-cart-col.is-floating .mobile-basket-count {
-  display: inline-flex;
-  font-size: 10.5px;
-  height: 18px;
-  min-width: 18px;
-}
-
-body:has(#snack-shop-static) .bins-cart-col.is-floating .mobile-basket-chevron {
+/* Frame + tab notch, drawn in one stroke/fill color (currentColor, set by
+   .basket-float-shell's own color above) rather than as a plain
+   rectangle - the notch at bottom-center is a visual "handle" cue lining
+   up exactly with .basket-float-tab-hit, the actual click target. */
+.basket-float-frame {
   display: block;
-  height: 17px;
-  width: 17px;
-  transition: transform 180ms ease;
+  height: 116px;
+  inset: 0 0 auto 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+  z-index: 1;
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-header {
-  border-bottom: 1px solid var(--line);
+.basket-float-content {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr auto auto;
+  height: 100%;
+  padding: 0 22px 0 24px;
+  position: relative;
+  z-index: 2;
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .mobile-basket-chevron {
-  transform: rotate(180deg);
+.basket-float-summary {
+  align-items: center;
+  display: flex;
+  gap: 13px;
+  min-width: 0;
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating .bins-cart-body {
+.basket-float-icon {
+  color: var(--green-dark);
+  display: grid;
+  flex: 0 0 auto;
+  height: 42px;
+  place-items: center;
+  width: 42px;
+}
+
+.basket-float-icon svg {
+  display: block;
+  height: 32px;
+  overflow: visible;
+  width: 32px;
+}
+
+.basket-float-labels {
+  min-width: 0;
+}
+
+.basket-float-title {
+  color: var(--green-dark);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.basket-float-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 5px 0 0;
+  white-space: nowrap;
+}
+
+.basket-float-mini-total {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.basket-float-mini-total-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.basket-float-mini-total-value {
+  color: var(--green-dark);
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 4px 0 0;
+}
+
+.basket-float-action {
+  background: var(--green);
+  border: 0;
+  border-radius: 11px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  height: 38px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+.basket-float-tab-hit {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  height: 22px;
+  left: 50%;
+  padding: 0;
+  position: absolute;
+  top: 92px;
+  transform: translateX(-50%);
+  width: 150px;
+  z-index: 6;
+}
+
+.basket-float-tab-hit:focus-visible,
+.basket-float-action:focus-visible,
+.basket-float-btn:focus-visible {
+  outline: 3px solid rgba(47, 122, 68, 0.24);
+  outline-offset: 3px;
+}
+
+.basket-float-tray {
+  background: rgba(255, 255, 255, 0.99);
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 12px 24px rgba(18, 72, 29, 0.1);
+  margin: 6px auto 0;
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  padding: 0 15px;
   pointer-events: none;
-  transition: max-height 260ms ease, opacity 180ms ease, padding 260ms ease;
+  transform: translateY(-6px);
+  transition: max-height 240ms ease, opacity 180ms ease, transform 200ms ease;
+  width: min(100%, 560px);
 }
 
-body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-body {
-  max-height: min(68vh, 560px);
+.basket-float-shell.open .basket-float-tray {
+  max-height: 320px;
   opacity: 1;
-  overflow: visible;
-  padding: 14px 15px 16px;
   pointer-events: auto;
+  transform: translateY(0);
+}
+
+.basket-float-tray-inner {
+  background: #fff;
+  padding: 20px 22px 22px;
+}
+
+.basket-float-tray-top {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.basket-float-tray-top .basket-float-icon {
+  color: var(--green-dark);
+  height: 36px;
+  width: 36px;
+}
+
+.basket-float-tray-top .basket-float-icon svg {
+  height: 26px;
+  width: 26px;
+}
+
+.basket-float-tray-title {
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.basket-float-tray-count {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 3px 0 0;
+}
+
+.basket-float-tray-section {
+  padding-top: 16px;
+}
+
+.basket-float-tray-row {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.basket-float-tray-row h3 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.basket-float-tray-amount {
+  color: var(--green-dark);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.basket-float-tray-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 96px 1fr;
+  margin-top: 16px;
+}
+
+.basket-float-btn {
+  background: #f7faf7;
+  border: 1.5px solid #bfd1c0;
+  border-radius: 11px;
+  color: var(--green-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  height: 42px;
+}
+
+.basket-float-btn.primary {
+  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  border-color: var(--green-dark);
+  color: #fff;
+  font-weight: 700;
+}
+
+.basket-float-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 620px) {
+  .basket-float-header {
+    height: 78px;
+  }
+
+  .basket-float-frame {
+    height: 94px;
+  }
+
+  .basket-float-content {
+    grid-template-columns: 1fr auto;
+    padding: 0 16px;
+  }
+
+  .basket-float-action {
+    display: none;
+  }
+
+  .basket-float-icon {
+    height: 36px;
+    width: 36px;
+  }
+
+  .basket-float-icon svg {
+    height: 27px;
+    width: 27px;
+  }
+
+  .basket-float-title {
+    font-size: 18px;
+  }
+
+  .basket-float-sub {
+    font-size: 12px;
+  }
+
+  .basket-float-mini-total-value {
+    font-size: 16px;
+  }
+
+  .basket-float-tab-hit {
+    top: 74px;
+    width: 120px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .basket-float-shell,
+  .basket-float-tray {
+    transition: none;
+  }
 }
 
 /* index.html only (scoped via #snack-shop, an id unique to that page -
@@ -5905,9 +6136,14 @@ body:has(#snack-shop-static) .bins-cart-col.is-floating.is-open .bins-cart-body 
    opens anchored to the bottom-right corner here instead of centered -
    #snack-modal-backdrop specifically, not the shared .modal-backdrop
    class, so confirm-remove/transaction-review/etc. keep their normal
-   centered behavior, on this page and on index.html alike. */
+   centered behavior, on this page and on index.html alike.
+   padding-right overrides just that one side of the shared 20px padding -
+   #snack-modal-backdrop is itself position:fixed/inset:0 (real viewport
+   edges, not some ancestor's box), so this places the modal a true 3px
+   from the actual right edge of the screen at any width. */
 body:has(#snack-shop-static) #snack-modal-backdrop {
   place-items: end;
+  padding-right: 3px;
 }
 
 .snack-modal-photo {

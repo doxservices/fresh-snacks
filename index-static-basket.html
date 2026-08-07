@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805o-docked-aggregate-summary" />
+  <link rel="stylesheet" href="styles.css?v=20260805p-float-tab-redesign" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -196,15 +196,12 @@
          anything left to recommend (and starts hidden before data loads at
          all) - nesting the basket inside it would hide/flash the basket
          along with it. #basket-dock-home is a fixed-width placeholder that
-         always stays put in this row - #basket-panel lives inside it while
-         in its normal static spot, and gets reparented to <body> (as a
-         fixed-position floating dropdown) once you scroll past this row,
-         then moved back once you scroll back up - see
-         updateBasketFloatState(). Keeping #basket-dock-home in the DOM
-         either way means the row's width never jumps when the basket
-         leaves/returns. #basket-overlay is kept next to it (unused without
-         the JS that drives it, but harmless) purely so the shared
-         bins-cart-* markup/JS stays identical to index.html. -->
+         always stays put in this row - #basket-panel lives there
+         permanently now (it no longer gets reparented anywhere - see the
+         history note on #basket-float-shell below for why). #basket-
+         overlay is kept next to it (unused without the JS that drives it,
+         but harmless) purely so the shared bins-cart-* markup/JS stays
+         identical to index.html. -->
     <div class="recommendations-row">
       <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
         <div class="recommendations-heading">
@@ -361,6 +358,128 @@
     </footer>
     </div>
   </main>
+
+  <!-- index-static-basket.html only: the floating "pull tab" shown once
+       you scroll past the basket's docked spot (#basket-dock-home above).
+       Ported from a standalone design reference into a live widget wired
+       to the same real data as the docked basket - see updateBasketFloatState()
+       and syncFloatShell() in the script below. This replaced an earlier
+       approach that reparented #basket-panel itself to <body> and toggled
+       an .is-floating class on it directly - the two designs (compact
+       docked card vs. this decorative pull-tab) diverge enough visually
+       that sharing one DOM node between them stopped making sense. Now
+       #basket-panel never leaves #basket-dock-home; this is a wholly
+       separate element with its own mirrored count/total, and its own
+       Clear/Add-to-tab buttons that simply proxy-click the real
+       #bins-reset/#bins-submit so there's still only one place the actual
+       basket logic lives. -->
+  <div class="basket-float-shell" id="basket-float-shell">
+    <header class="basket-float-header">
+      <svg class="basket-float-frame" viewBox="0 0 1600 124" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="
+            M 24 1.5
+            H 1576
+            Q 1598.5 1.5 1598.5 24
+            V 80
+            Q 1598.5 102.5 1576 102.5
+            H 890
+            M 710 102.5
+            H 24
+            Q 1.5 102.5 1.5 80
+            V 24
+            Q 1.5 1.5 24 1.5
+          "
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"/>
+        <path
+          d="
+            M 710 102.5
+            C 721 102.5 730 105.5 737 112
+            C 744 118.5 753 121.5 766 121.5
+            H 834
+            C 847 121.5 856 118.5 863 112
+            C 870 105.5 879 102.5 890 102.5
+            Z
+          "
+          fill="currentColor"/>
+      </svg>
+
+      <div class="basket-float-content">
+        <div class="basket-float-summary">
+          <div class="basket-float-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+            </svg>
+          </div>
+          <div class="basket-float-labels">
+            <h2 class="basket-float-title">Your basket</h2>
+            <p class="basket-float-sub"><span id="basket-float-mini-count">0</span> snacks selected</p>
+          </div>
+        </div>
+
+        <div class="basket-float-mini-total">
+          <p class="basket-float-mini-total-label">Total</p>
+          <p class="basket-float-mini-total-value" id="basket-float-mini-total">J$0</p>
+        </div>
+
+        <button class="basket-float-action" type="button" id="basket-float-view-cart">View cart</button>
+      </div>
+
+      <button
+        class="basket-float-tab-hit"
+        id="basket-float-tab-hit"
+        type="button"
+        aria-label="Toggle basket details"
+        aria-expanded="false"
+        aria-controls="basket-float-tray">
+      </button>
+    </header>
+
+    <section class="basket-float-tray" id="basket-float-tray" aria-hidden="true">
+      <div class="basket-float-tray-inner">
+        <div class="basket-float-tray-top">
+          <div class="basket-float-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+            </svg>
+          </div>
+          <div>
+            <p class="basket-float-tray-title">Your basket</p>
+            <p class="basket-float-tray-count"><span id="basket-float-tray-count">0</span> snacks selected</p>
+          </div>
+        </div>
+
+        <div class="basket-float-tray-section">
+          <div class="basket-float-tray-row">
+            <h3>Total</h3>
+            <div class="basket-float-tray-amount" id="basket-float-tray-total">J$0</div>
+          </div>
+
+          <div class="basket-float-tray-actions">
+            <button class="basket-float-btn" type="button" id="basket-float-clear">Clear</button>
+            <button class="basket-float-btn primary" type="button" id="basket-float-add" disabled>Add to my tab</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <div class="drawer-backdrop" id="settings-backdrop"></div>
   <aside class="drawer right" id="settings-drawer" aria-label="User settings">
@@ -1631,6 +1750,20 @@
       });
     }
 
+    // Mirrors the docked basket's count/total into #basket-float-shell,
+    // the separate floating pull-tab widget - see the HTML comment above
+    // it for why it's a distinct element rather than a repositioned copy
+    // of #basket-panel. Called from syncBinsGallery so it never drifts
+    // out of sync with the real picked-items data.
+    function syncFloatShell(data) {
+      const cur = data.profile.currency;
+      $id("basket-float-mini-count").textContent = picked.size;
+      $id("basket-float-tray-count").textContent = picked.size;
+      $id("basket-float-mini-total").textContent = FS.money(binsTotal(data), cur);
+      $id("basket-float-tray-total").textContent = FS.money(binsTotal(data), cur);
+      $id("basket-float-add").disabled = binsTotal(data) === 0;
+    }
+
     function syncBinsGallery(data) {
       const cur = data.profile.currency;
       const unitCount = basketUnitCount();
@@ -1640,6 +1773,7 @@
       $id("mobile-basket-count").textContent = unitCount;
       $id("basket-notification").setAttribute("aria-label", `View basket, ${unitCount} item${unitCount === 1 ? "" : "s"} selected`);
       renderCartItems(data);
+      syncFloatShell(data);
       saveBasketDraft();
       if (previousBasketUnitCount > 0 && unitCount === 0) setBasketPanelOpen(false);
       previousBasketUnitCount = unitCount;
@@ -1883,8 +2017,7 @@
     }
 
     $id("mobile-basket-toggle").onclick = () => {
-      const isFloating = $id("basket-panel").classList.contains("is-floating");
-      if (window.innerWidth > 900 && !isFloating) return;
+      if (window.innerWidth > 900) return;
       mobileBasketAutoCollapseArmed = false;
       setBasketPanelOpen(!$id("basket-panel").classList.contains("is-open"));
     };
@@ -1927,14 +2060,31 @@
       try { sessionStorage.setItem("fs_debug_basket_force_static", forceStaticBasket ? "1" : "0"); } catch (_) {}
       updateBasketFloatState();
     });
+    // #basket-float-shell's own open/close state (its tray, dropped down
+    // from the pull tab) - entirely separate from setBasketPanelOpen,
+    // which now only ever concerns #basket-panel's mobile collapse.
+    const floatShell = $id("basket-float-shell");
+    const floatTabHit = $id("basket-float-tab-hit");
+    const floatTray = $id("basket-float-tray");
+    function setFloatTrayOpen(opening) {
+      floatShell.classList.toggle("open", opening);
+      floatTabHit.setAttribute("aria-expanded", String(opening));
+      floatTray.setAttribute("aria-hidden", String(!opening));
+    }
+    floatTabHit.addEventListener("click", () => setFloatTrayOpen(!floatShell.classList.contains("open")));
+    $id("basket-float-view-cart").addEventListener("click", () => setFloatTrayOpen(true));
+    // Both proxy-click the real docked buttons rather than duplicating
+    // the clear/submit logic - there's still only one place that actual
+    // basket behavior lives; this widget only ever mirrors it.
+    $id("basket-float-clear").addEventListener("click", () => $id("bins-reset").click());
+    $id("basket-float-add").addEventListener("click", () => $id("bins-submit").click());
+
     function updateBasketFloatState() {
-      const panel = $id("basket-panel");
       if (forceStaticBasket || window.innerWidth <= 900) {
         if (basketFloating) {
           basketFloating = false;
-          panel.classList.remove("is-floating", "is-floating-in");
-          basketDockHome.appendChild(panel);
-          setBasketPanelOpen(window.innerWidth <= 900 && !forceStaticBasket ? false : true);
+          floatShell.classList.remove("visible", "is-floating-in");
+          setFloatTrayOpen(false);
         }
         return;
       }
@@ -1946,15 +2096,9 @@
       const scrolledPast = basketDockHome.getBoundingClientRect().top <= window.innerHeight / 2;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
-        setBasketPanelOpen(false);
-        panel.classList.add("is-floating");
-        // Reparent to <body>, not just position:fixed in place - a
-        // backdrop-filter (or transform/filter) on any ancestor would
-        // otherwise silently make position:fixed resolve against that
-        // ancestor's box instead of the real viewport (the exact bug
-        // index.html's own dock/undock system hit and fixed the same way).
-        document.body.appendChild(panel);
-        // .is-floating alone is the resting state (see its own CSS
+        setFloatTrayOpen(false);
+        floatShell.classList.add("visible");
+        // .visible alone is the resting *target* state (see its own CSS
         // comment) - .is-floating-in is what the transition actually
         // animates towards. Added a frame later (double rAF, since a
         // single one can still land in the same paint as the class
@@ -1962,13 +2106,12 @@
         // first instead of both landing together and skipping the
         // transition.
         requestAnimationFrame(() => requestAnimationFrame(() => {
-          panel.classList.add("is-floating-in");
+          floatShell.classList.add("is-floating-in");
         }));
       } else if (!scrolledPast && basketFloating) {
         basketFloating = false;
-        panel.classList.remove("is-floating", "is-floating-in");
-        basketDockHome.appendChild(panel);
-        setBasketPanelOpen(true);
+        floatShell.classList.remove("visible", "is-floating-in");
+        setFloatTrayOpen(false);
       }
     }
     window.addEventListener("scroll", updateBasketFloatState, { passive: true });
@@ -1976,9 +2119,9 @@
     updateBasketFloatState();
 
     document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
-        setBasketPanelOpen(false);
-      }
+      if (ev.key !== "Escape") return;
+      if ($id("basket-panel").classList.contains("is-open")) setBasketPanelOpen(false);
+      if (floatShell.classList.contains("open")) setFloatTrayOpen(false);
     });
 
     $id("bins-submit").onclick = async () => {
