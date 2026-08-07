@@ -5177,7 +5177,7 @@ body:has(#snack-shop-static) .bins-layout {
   opacity: 0;
   pointer-events: none;
   position: fixed;
-  top: 0;
+  top: 10px;
   transform: translateX(-50%) translateY(-10px) scale(0.96);
   transition: transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 200ms ease;
   width: min(94vw, 640px);
@@ -5193,27 +5193,37 @@ body:has(#snack-shop-static) .bins-layout {
   transform: translateX(-50%) translateY(0) scale(1);
 }
 
+/* The rounded outline is a plain CSS border, not part of the SVG - see
+   the HTML comment above .basket-float-notch for why (the reference
+   file's stretched full-frame SVG distorted its corner arcs into
+   ellipses that could never sit flush against the white card). Solid
+   white background rather than the translucent var(--white): gallery
+   content scrolls directly beneath this, and card text ghosting through
+   read as smudge, not glass. */
 .basket-float-header {
-  background: var(--white);
-  border-radius: 0 0 22px 22px;
+  background: #fff;
+  border: 2px solid var(--green);
+  border-radius: 18px;
   box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
   height: 96px;
   overflow: visible;
   position: relative;
 }
 
-/* Frame + tab notch, drawn in one stroke/fill color (currentColor, set by
-   .basket-float-shell's own color above) rather than as a plain
-   rectangle - the notch at bottom-center is a visual "handle" cue lining
-   up exactly with .basket-float-tab-hit, the actual click target. */
-.basket-float-frame {
+/* The pull-tab notch, hanging below the header - its top edge overlaps
+   the header's 2px bottom border (green over green) so the two read as
+   one continuous shape. Kept at its natural 180x19 aspect at every
+   viewport width, and lined up exactly with .basket-float-tab-hit, the
+   actual click target. */
+.basket-float-notch {
   display: block;
-  height: 116px;
-  inset: 0 0 auto 0;
-  overflow: visible;
+  height: 19px;
+  left: 50%;
   pointer-events: none;
   position: absolute;
-  width: 100%;
+  top: calc(100% - 1px);
+  transform: translateX(-50%);
+  width: 180px;
   z-index: 1;
 }
 
@@ -5310,13 +5320,13 @@ body:has(#snack-shop-static) .bins-layout {
   background: transparent;
   border: 0;
   cursor: pointer;
-  height: 22px;
+  height: 24px;
   left: 50%;
   padding: 0;
   position: absolute;
-  top: 92px;
+  top: calc(100% - 2px);
   transform: translateX(-50%);
-  width: 150px;
+  width: 180px;
   z-index: 6;
 }
 
@@ -5327,11 +5337,17 @@ body:has(#snack-shop-static) .bins-layout {
   outline-offset: 3px;
 }
 
+/* margin-top clears the notch (19px tall, hanging off the header) so the
+   pull-tab stays fully visible in the gap between header and tray when
+   open, instead of half-buried under the tray's top edge. Rounded on all
+   corners + a hairline border: it floats free below the header, so
+   square top corners read as unfinished rather than attached. */
 .basket-float-tray {
-  background: rgba(255, 255, 255, 0.99);
-  border-radius: 0 0 18px 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   box-shadow: 0 12px 24px rgba(18, 72, 29, 0.1);
-  margin: 6px auto 0;
+  margin: 26px auto 0;
   max-height: 0;
   opacity: 0;
   overflow: hidden;
@@ -5445,10 +5461,6 @@ body:has(#snack-shop-static) .bins-layout {
     height: 78px;
   }
 
-  .basket-float-frame {
-    height: 94px;
-  }
-
   .basket-float-content {
     grid-template-columns: 1fr auto;
     padding: 0 16px;
@@ -5480,9 +5492,11 @@ body:has(#snack-shop-static) .bins-layout {
     font-size: 16px;
   }
 
+  /* top comes from the base rule's calc(100% - ...) either way now -
+     only the notch/hit width narrows on a small screen. */
+  .basket-float-notch,
   .basket-float-tab-hit {
-    top: 74px;
-    width: 120px;
+    width: 140px;
   }
 }
 

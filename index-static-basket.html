@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805p-float-tab-redesign" />
+  <link rel="stylesheet" href="styles.css?v=20260805q-float-tab-cleanup" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -375,35 +375,24 @@
        basket logic lives. -->
   <div class="basket-float-shell" id="basket-float-shell">
     <header class="basket-float-header">
-      <svg class="basket-float-frame" viewBox="0 0 1600 124" preserveAspectRatio="none" aria-hidden="true">
+      <!-- Notch only - the rounded outline itself is a plain CSS border on
+           .basket-float-header, not part of this SVG. The reference file
+           drew the whole frame as one stretched SVG (preserveAspectRatio=
+           "none"), but stretching 1600x124 into ~640x116 distorts the
+           corner arcs into ellipses that can never agree with the white
+           card behind them - a CSS border is crisp at any size, and this
+           small notch keeps its own true aspect. Its top edge overlaps
+           the border line (same green on green) so the two read as one
+           continuous shape. -->
+      <svg class="basket-float-notch" viewBox="0 0 180 19" preserveAspectRatio="none" aria-hidden="true">
         <path
           d="
-            M 24 1.5
-            H 1576
-            Q 1598.5 1.5 1598.5 24
-            V 80
-            Q 1598.5 102.5 1576 102.5
-            H 890
-            M 710 102.5
-            H 24
-            Q 1.5 102.5 1.5 80
-            V 24
-            Q 1.5 1.5 24 1.5
-          "
-          fill="none"
-          stroke="currentColor"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          vector-effect="non-scaling-stroke"/>
-        <path
-          d="
-            M 710 102.5
-            C 721 102.5 730 105.5 737 112
-            C 744 118.5 753 121.5 766 121.5
-            H 834
-            C 847 121.5 856 118.5 863 112
-            C 870 105.5 879 102.5 890 102.5
+            M 0 0
+            C 11 0 20 3 27 9.5
+            C 34 16 43 19 56 19
+            H 124
+            C 137 19 146 16 153 9.5
+            C 160 3 169 0 180 0
             Z
           "
           fill="currentColor"/>
