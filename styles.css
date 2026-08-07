@@ -3048,25 +3048,44 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: 100%;
 }
 
-.cart-toast .cart-toast-text {
+/* The ticker viewport: a hard clipping zone for the moving text, kept
+   strictly separate from the check icon on its left and the Undo action
+   on its right - the scrolling text lives entirely inside this box and
+   can never slide across its neighbors. The mask fades the text out at
+   both clip edges so it enters/exits softly like a real ticker strip. */
+.cart-toast .cart-toast-text-clip {
+  flex: 1;
+  mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
   min-width: 0;
   overflow: hidden;
+}
+
+.cart-toast .cart-toast-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: bottom;
   white-space: nowrap;
 }
 
-/* Long snack names scroll continuously inside the pill like a ticker-tape
-   ad instead of truncating - only applied (by JS) when the text actually
-   overflows, so short messages stay put. */
+/* Long snack names scroll back and forth inside the clip zone like a
+   ticker-tape ad instead of truncating - only applied (by JS) when the
+   text actually overflows, so short messages stay put. --ticker-shift is
+   set by JS to exactly (clip width - text width), so the far end of the
+   text lines up with the clip's edge at the turn-around point at any
+   pill width. */
 .cart-toast .cart-toast-text.ticker {
+  animation: cart-toast-ticker 6s linear infinite alternate;
+  max-width: none;
   overflow: visible;
   text-overflow: clip;
-  animation: cart-toast-ticker 7s linear infinite;
 }
 
 @keyframes cart-toast-ticker {
-  0%, 12% { transform: translateX(0); }
-  88%, 100% { transform: translateX(calc(-100% + 180px)); }
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--ticker-shift, -40%)); }
 }
 
 .cart-toast svg {

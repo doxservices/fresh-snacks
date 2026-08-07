@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260806d-mobile-fixes" />
+  <link rel="stylesheet" href="styles.css?v=20260806e-toast-ticker-zones" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -1702,12 +1702,21 @@
 
       const toast = document.createElement("div");
       toast.className = "cart-toast";
-      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cart-toast-text">${esc(message)}</span>${opts.onUndo ? `<button type="button" class="cart-toast-undo">Undo</button>` : ""}`;
+      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cart-toast-text-clip"><span class="cart-toast-text">${esc(message)}</span></span>${opts.onUndo ? `<button type="button" class="cart-toast-undo">Undo</button>` : ""}`;
       stack.appendChild(toast);
       const text = toast.querySelector(".cart-toast-text");
+      const textClip = toast.querySelector(".cart-toast-text-clip");
       requestAnimationFrame(() => {
         toast.classList.add("show");
-        if (text.scrollWidth > text.clientWidth + 2) text.classList.add("ticker");
+        // Ticker only when the text overflows its own clip zone - and the
+        // scroll distance is measured against the CLIP's width (the
+        // dedicated viewport between the icon and the Undo action), so
+        // the moving text turns around exactly at the clip edge instead
+        // of sliding across its neighbors.
+        if (text.scrollWidth > textClip.clientWidth + 2) {
+          text.style.setProperty("--ticker-shift", `${textClip.clientWidth - text.scrollWidth}px`);
+          text.classList.add("ticker");
+        }
       });
 
       const minRead = new Promise((resolve) => setTimeout(resolve, opts.onUndo ? 4200 : 2400));
