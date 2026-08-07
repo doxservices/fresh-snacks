@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260806j-flat-report-log" />
+  <link rel="stylesheet" href="styles.css?v=20260806k-expandall-flat" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -2585,10 +2585,20 @@
       if (ev.key === "Escape") closeDonateModal();
     });
 
-    document.getElementById("expand-all").onclick = () =>
+    // Expand all also enters "flat report" mode (.all-expanded on #log):
+    // with every group open, the per-day summary rows and repeated per-day
+    // table headers are pure clutter - each item row already carries its
+    // date - so CSS drops them and the log reads as month headers over
+    // continuous item rows under one set of general column headers.
+    // Collapse all leaves the mode and restores the modular per-day view.
+    document.getElementById("expand-all").onclick = () => {
       document.querySelectorAll("#log details").forEach((d) => d.setAttribute("open", ""));
-    document.getElementById("collapse-all").onclick = () =>
+      document.getElementById("log").classList.add("all-expanded");
+    };
+    document.getElementById("collapse-all").onclick = () => {
       document.querySelectorAll("#log details").forEach((d) => d.removeAttribute("open"));
+      document.getElementById("log").classList.remove("all-expanded");
+    };
 
     // Shared by the Snack Log table and the Open-a-Tab modal's pending
     // strip: confirm/review/mark-paid all resolve server-side (the

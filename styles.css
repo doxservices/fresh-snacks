@@ -1819,6 +1819,19 @@ details[open] > summary .month-note {
   border-top: 1px solid rgba(24, 79, 42, 0.07);
 }
 
+/* Expand all -> flat monthly report (.all-expanded is set by the Expand
+   all button, cleared by Collapse all): with everything open, the per-day
+   summary rows, per-day total lines, and repeated per-day table headers
+   are redundant - every item row already carries its date - so they drop
+   out and each month reads as a single continuous run of item rows under
+   ONE set of general column headers (the first day-table's header per
+   month stays as that general header). */
+#log.all-expanded .log-day-group > summary,
+#log.all-expanded .log-day-group .tracker-table .month-line,
+#log.all-expanded .log-day-group:not(:first-child) .tracker-table thead {
+  display: none;
+}
+
 #log .toggle,
 #txn-groups .toggle {
   background: transparent;
