@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260806c-tray-divider-timing" />
+  <link rel="stylesheet" href="styles.css?v=20260806d-mobile-fixes" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -2097,7 +2097,7 @@
     $id("basket-float-add").addEventListener("click", () => $id("bins-submit").click());
 
     function updateBasketFloatState() {
-      if (forceStaticBasket || window.innerWidth <= 900) {
+      if (forceStaticBasket) {
         if (basketFloating) {
           basketFloating = false;
           floatShell.classList.remove("visible", "is-floating-in");

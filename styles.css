@@ -227,6 +227,38 @@ header {
   justify-content: flex-end;
 }
 
+/* Narrow screens: side-by-side (title left, nav right) leaves the nav
+   buttons wrapping into a ragged jumble squeezed against the right edge.
+   Stack instead - lead full-width on top, then the nav as a tidy
+   two-column grid of equal buttons. The .hidden utility still wins on
+   individual buttons (sign-out, admin-users) since display:none on the
+   child is untouched by the parent's grid. */
+@media (max-width: 700px) {
+  .header-row {
+    flex-direction: column;
+  }
+
+  .header-actions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+
+  .header-actions .btn,
+  .header-actions button {
+    margin: 0;
+    text-align: center;
+  }
+
+  /* The fixed notifications bell (top:18/right:18) otherwise sits right
+     on top of the header's first row - keep the header's content clear
+     of that corner on pages that have the bell. */
+  body:has(.admin-notifications-bell) .header-row {
+    padding-right: 48px;
+  }
+}
+
 /* Shared across every admin page (js/admin-notifications.js injects this
    button into document.body directly, not into any page's own header), so
    it's fixed rather than relying on a .header-actions row existing.
@@ -5248,12 +5280,14 @@ body:has(#snack-shop-static) .bins-layout {
 /* The rounded outline is a plain CSS border, not part of the SVG - see
    the HTML comment above .basket-float-notch for why (the reference
    file's stretched full-frame SVG distorted its corner arcs into
-   ellipses that could never sit flush against the white card). Solid
-   white background rather than the translucent var(--white): gallery
-   content scrolls directly beneath this, and card text ghosting through
-   read as smudge, not glass. */
+   ellipses that could never sit flush against the white card).
+   Translucent frosted-glass background per request - the backdrop blur
+   is what keeps gallery content scrolling beneath it from reading as
+   smudged text (a plain alpha background without blur did). */
 .basket-float-header {
-  background: #fff;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  background: rgba(255, 255, 255, 0.86);
   border: 2px solid var(--green);
   border-radius: 14px;
   box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
@@ -5410,7 +5444,9 @@ body:has(#snack-shop-static) .bins-layout {
    notch/tab-hit sit flush under the header rather than a few px below
    it. */
 .basket-float-tray {
-  background: #fff;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  background: rgba(255, 255, 255, 0.93);
   border: 0 solid var(--green);
   border-radius: 0 0 14px 14px;
   border-top: 0;
@@ -5445,7 +5481,9 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 .basket-float-tray-inner {
-  background: #fff;
+  /* transparent - the tray's own frosted rgba background is the surface;
+     a solid fill here would defeat it */
+  background: transparent;
   padding: 16px 18px 18px;
 }
 
@@ -6664,6 +6702,56 @@ tr.disputed td {
 .notif-dismiss:focus-visible {
   background: rgba(0,0,0,0.08);
   color: var(--text);
+}
+
+/* Narrow screens: the desktop row layout (photo | body | meta column | x)
+   falls apart - .notif-item-meta is flex:none, so a long badge like
+   "Customer reported payment" refuses to shrink and crushes the body to
+   a sliver: names truncate after a few letters, one-line summaries wrap
+   into four, and body action buttons (wider than the crushed body)
+   overflow straight under the badge. Regroup into a grid: photo + text +
+   dismiss on top, and the meta (date + badge) as its own full-width row
+   underneath where nothing competes with it. Titles also wrap instead of
+   ellipsizing - there's no column to protect anymore. */
+@media (max-width: 620px) {
+  .notif-item {
+    align-items: start;
+    display: grid;
+    gap: 8px 10px;
+    grid-template-areas:
+      "photo body dismiss"
+      "meta meta meta";
+    grid-template-columns: 44px minmax(0, 1fr) 26px;
+    padding: 12px 14px;
+  }
+
+  .notif-item-photo {
+    grid-area: photo;
+    height: 44px;
+    width: 44px;
+  }
+
+  .notif-item-body {
+    grid-area: body;
+  }
+
+  .notif-dismiss {
+    grid-area: dismiss;
+    margin-left: 0;
+  }
+
+  .notif-item-meta {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    grid-area: meta;
+    justify-content: flex-start;
+  }
+
+  .notif-item-title {
+    white-space: normal;
+  }
 }
 
 /* ---- customer-facing cash back notifications bell ---- */
