@@ -5180,7 +5180,9 @@ body:has(#snack-shop-static) .bins-layout {
   top: 10px;
   transform: translateX(-50%) translateY(-10px) scale(0.96);
   transition: transform 240ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 200ms ease;
-  width: min(94vw, 640px);
+  /* ~20% wider than a gallery card (.bin-card runs ~400px at common
+     desktop widths), rather than dominating the screen. */
+  width: min(94vw, 480px);
   z-index: 40;
 }
 
@@ -5203,9 +5205,9 @@ body:has(#snack-shop-static) .bins-layout {
 .basket-float-header {
   background: #fff;
   border: 2px solid var(--green);
-  border-radius: 18px;
+  border-radius: 14px;
   box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
-  height: 96px;
+  height: 48px;
   overflow: visible;
   position: relative;
 }
@@ -5221,27 +5223,37 @@ body:has(#snack-shop-static) .bins-layout {
   left: 50%;
   pointer-events: none;
   position: absolute;
-  top: calc(100% - 1px);
+  /* top:100% resolves against the padding box - i.e. the INNER edge of
+     the 2px bottom border - so +1px here still overlaps the border's
+     lower half: attached with no hairline gap, without riding up over
+     the border line the way the old -1px did. */
+  top: calc(100% + 1px);
   transform: translateX(-50%);
   width: 180px;
   z-index: 1;
 }
 
+/* inset:0 (against the relative header's padding box) rather than
+   height:100% - measured live, the percentage was resolving to a
+   collapsed 8px box that pushed the text cluster down over the bottom
+   border; absolutely filling the header sidesteps percentage-height
+   resolution entirely and pins the grid to exactly the box it should
+   center within. */
 .basket-float-content {
   align-items: center;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   grid-template-columns: 1fr auto auto;
-  height: 100%;
-  padding: 0 22px 0 24px;
-  position: relative;
+  inset: 0;
+  padding: 0 12px 0 14px;
+  position: absolute;
   z-index: 2;
 }
 
 .basket-float-summary {
   align-items: center;
   display: flex;
-  gap: 13px;
+  gap: 9px;
   min-width: 0;
 }
 
@@ -5249,16 +5261,16 @@ body:has(#snack-shop-static) .bins-layout {
   color: var(--green-dark);
   display: grid;
   flex: 0 0 auto;
-  height: 42px;
+  height: 26px;
   place-items: center;
-  width: 42px;
+  width: 26px;
 }
 
 .basket-float-icon svg {
   display: block;
-  height: 32px;
+  height: 22px;
   overflow: visible;
-  width: 32px;
+  width: 22px;
 }
 
 .basket-float-labels {
@@ -5267,9 +5279,9 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-title {
   color: var(--green-dark);
-  font-size: 22px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   line-height: 1;
   margin: 0;
   white-space: nowrap;
@@ -5277,8 +5289,9 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-sub {
   color: var(--muted);
-  font-size: 13px;
-  margin: 5px 0 0;
+  font-size: 10.5px;
+  line-height: 1.1;
+  margin: 2px 0 0;
   white-space: nowrap;
 }
 
@@ -5289,30 +5302,30 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-mini-total-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 9.5px;
   margin: 0;
 }
 
 .basket-float-mini-total-value {
   color: var(--green-dark);
-  font-size: 19px;
+  font-size: 13.5px;
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1;
-  margin: 4px 0 0;
+  margin: 2px 0 0;
 }
 
 .basket-float-action {
   background: var(--green);
   border: 0;
-  border-radius: 11px;
+  border-radius: 8px;
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
-  height: 38px;
-  padding: 0 16px;
+  height: 28px;
+  padding: 0 11px;
   white-space: nowrap;
 }
 
@@ -5324,7 +5337,7 @@ body:has(#snack-shop-static) .bins-layout {
   left: 50%;
   padding: 0;
   position: absolute;
-  top: calc(100% - 2px);
+  top: calc(100% + 1px);
   transform: translateX(-50%);
   width: 180px;
   z-index: 6;
@@ -5358,7 +5371,7 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 .basket-float-shell.open .basket-float-tray {
-  max-height: 320px;
+  max-height: min(70vh, 520px);
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -5366,61 +5379,36 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-tray-inner {
   background: #fff;
-  padding: 20px 22px 22px;
+  padding: 16px 18px 18px;
 }
 
-.basket-float-tray-top {
-  align-items: center;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  gap: 12px;
-  padding-bottom: 14px;
-}
-
-.basket-float-tray-top .basket-float-icon {
-  color: var(--green-dark);
-  height: 36px;
-  width: 36px;
-}
-
-.basket-float-tray-top .basket-float-icon svg {
-  height: 26px;
-  width: 26px;
-}
-
-.basket-float-tray-title {
-  color: var(--green-dark);
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.basket-float-tray-count {
-  color: var(--muted);
-  font-size: 13px;
-  margin: 3px 0 0;
-}
-
+/* No duplicate "Your basket" header in here - the collapsed tab above
+   already says that, and repeating it read as two carts stacked on
+   screen. The tray holds the real itemized list (the actual
+   #bins-cart-items-wrap node, reparented in while open - see
+   setFloatTrayOpen), then the total and actions. */
 .basket-float-tray-section {
-  padding-top: 16px;
+  padding-top: 0;
 }
 
 .basket-float-tray-row {
   align-items: baseline;
+  border-top: 1px solid var(--line);
   display: flex;
   justify-content: space-between;
+  padding-top: 12px;
 }
 
 .basket-float-tray-row h3 {
   color: var(--text);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   margin: 0;
 }
 
 .basket-float-tray-amount {
   color: var(--green-dark);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -5429,7 +5417,7 @@ body:has(#snack-shop-static) .bins-layout {
   display: grid;
   gap: 10px;
   grid-template-columns: 96px 1fr;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
 .basket-float-btn {
@@ -5457,43 +5445,17 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 @media (max-width: 620px) {
-  .basket-float-header {
-    height: 78px;
-  }
-
   .basket-float-content {
     grid-template-columns: 1fr auto;
-    padding: 0 16px;
+    padding: 0 12px;
   }
 
   .basket-float-action {
     display: none;
   }
 
-  .basket-float-icon {
-    height: 36px;
-    width: 36px;
-  }
-
-  .basket-float-icon svg {
-    height: 27px;
-    width: 27px;
-  }
-
-  .basket-float-title {
-    font-size: 18px;
-  }
-
-  .basket-float-sub {
-    font-size: 12px;
-  }
-
-  .basket-float-mini-total-value {
-    font-size: 16px;
-  }
-
-  /* top comes from the base rule's calc(100% - ...) either way now -
-     only the notch/hit width narrows on a small screen. */
+  /* top comes from the base rule's calc(100% + 1px) either way - only
+     the notch/hit width narrows on a small screen. */
   .basket-float-notch,
   .basket-float-tab-hit {
     width: 140px;

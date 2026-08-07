@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805q-float-tab-cleanup" />
+  <link rel="stylesheet" href="styles.css?v=20260805u-mini-tab-abs-content" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -51,7 +51,7 @@
     </section>
 
     <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected" aria-controls="basket-panel" aria-expanded="false">
-      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <svg aria-hidden="true" viewBox="0 0 64 64" fill="none"><path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
 
@@ -219,7 +219,7 @@
       <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
         <div class="bins-cart-sticky">
           <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
-            <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
+            <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 64 64" fill="none"><path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
             <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <div class="bins-cart-body" id="bins-cart-body">
@@ -437,25 +437,15 @@
 
     <section class="basket-float-tray" id="basket-float-tray" aria-hidden="true">
       <div class="basket-float-tray-inner">
-        <div class="basket-float-tray-top">
-          <div class="basket-float-icon" aria-hidden="true">
-            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-              <path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
-              <path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
-              <path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
-              <path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-              <path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-              <path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-              <path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
-            </svg>
-          </div>
-          <div>
-            <p class="basket-float-tray-title">Your basket</p>
-            <p class="basket-float-tray-count"><span id="basket-float-tray-count">0</span> snacks selected</p>
-          </div>
-        </div>
-
         <div class="basket-float-tray-section">
+          <!-- The real #bins-cart-items-wrap (the same itemized list the
+               main index page's basket shows - names, steppers, remove
+               buttons, capped height with internal scroll) is reparented
+               into this slot while the tray is open, and returned to the
+               docked #bins-cart-body when it closes - see
+               setFloatTrayOpen(). One node, one set of listeners; never
+               two live copies to keep in sync. -->
+          <div id="basket-float-tray-items-slot"></div>
           <div class="basket-float-tray-row">
             <h3>Total</h3>
             <div class="basket-float-tray-amount" id="basket-float-tray-total">J$0</div>
@@ -1747,7 +1737,6 @@
     function syncFloatShell(data) {
       const cur = data.profile.currency;
       $id("basket-float-mini-count").textContent = picked.size;
-      $id("basket-float-tray-count").textContent = picked.size;
       $id("basket-float-mini-total").textContent = FS.money(binsTotal(data), cur);
       $id("basket-float-tray-total").textContent = FS.money(binsTotal(data), cur);
       $id("basket-float-add").disabled = binsTotal(data) === 0;
@@ -2028,10 +2017,9 @@
     // the "Three snacks to consider" row, right up until you scroll past
     // it - unlike index.html's updateBasketDockState() there's no docking
     // above the gallery and no undocking at a fixed scroll-distance
-    // threshold; this cares whether the basket's own original spot
-    // (#basket-dock-home) has crossed the vertical middle of the screen,
-    // not whether it's fully scrolled out of view - see the threshold
-    // itself, below.
+    // threshold; this cares only whether the basket's own original spot
+    // (#basket-dock-home) has fully scrolled out of view - see the
+    // threshold itself, below.
     const basketDockHome = $id("basket-dock-home");
     let basketFloating = false;
     // Evaluation control, this page only: #basket-static-toggle lets you
@@ -2059,6 +2047,19 @@
       floatShell.classList.toggle("open", opening);
       floatTabHit.setAttribute("aria-expanded", String(opening));
       floatTray.setAttribute("aria-hidden", String(!opening));
+      // The tray shows the REAL itemized list - the same
+      // #bins-cart-items-wrap node the docked basket owns (hidden there
+      // in favor of the aggregate line), moved in while open and moved
+      // back when closed. Reparenting the one node keeps its delegated
+      // stepper/remove listeners and scroll-fade behavior intact, with
+      // no second copy to keep in sync.
+      const itemsWrap = $id("bins-cart-items-wrap");
+      if (opening) {
+        $id("basket-float-tray-items-slot").appendChild(itemsWrap);
+        updateCartFade();
+      } else if (itemsWrap.parentElement !== $id("bins-cart-body")) {
+        $id("bins-cart-body").insertBefore(itemsWrap, $id("bins-cart-summary-line"));
+      }
     }
     floatTabHit.addEventListener("click", () => setFloatTrayOpen(!floatShell.classList.contains("open")));
     $id("basket-float-view-cart").addEventListener("click", () => setFloatTrayOpen(true));
@@ -2077,12 +2078,11 @@
         }
         return;
       }
-      // Triggers once the row's own top edge crosses the vertical middle
-      // of the screen, not only once it's fully scrolled out of view -
-      // the recommendation cards are still half-visible above the fold
-      // when the tab pops in, which reads as the row handing off to the
-      // floating tab rather than the tab appearing well after the fact.
-      const scrolledPast = basketDockHome.getBoundingClientRect().top <= window.innerHeight / 2;
+      // Only once the docked cart is genuinely off-screen (its bottom
+      // edge above the viewport top) - the earlier mid-screen trigger
+      // meant the floating tab and the still-visible docked cart were
+      // briefly on screen together, which read as a duplicate.
+      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
         setFloatTrayOpen(false);
