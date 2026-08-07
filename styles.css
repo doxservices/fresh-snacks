@@ -6790,6 +6790,19 @@ tr.disputed td {
   position: fixed;
   right: 10px;
   top: 10px;
+  transition: opacity 240ms ease;
+}
+
+/* While the floating basket tab is on screen it owns the top edge -
+   especially on a phone, where the tab spans nearly the full width and
+   the bell would sit right on top of it. The bell fades out of the way
+   for as long as the tab is visible and returns once the user scrolls
+   back up (.visible is managed by updateBasketFloatState; :has keys off
+   it directly, so no extra JS is involved). pointer-events restores the
+   taps that would otherwise land on an invisible button. */
+body:has(.basket-float-shell.visible) .cashback-notifications-bell {
+  opacity: 0;
+  pointer-events: none;
 }
 
 #cashback-notifications-list {
