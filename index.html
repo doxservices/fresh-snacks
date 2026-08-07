@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260805u-mini-tab-abs-content" />
+  <link rel="stylesheet" href="styles.css?v=20260806b-header-margin-fix" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -33,7 +33,7 @@
     </section>
 
     <button type="button" class="basket-notification hidden" id="basket-notification" aria-label="View basket, 0 different snacks selected" aria-controls="basket-panel" aria-expanded="false">
-      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <svg aria-hidden="true" viewBox="0 0 64 64" fill="none"><path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/></svg>
       <span id="basket-notification-count" aria-hidden="true">0</span>
     </button>
 
@@ -170,25 +170,71 @@
       </article>
     </section>
 
-    <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
-      <div class="recommendations-heading">
-        <div>
-          <span class="snack-shop-kicker">Selected for you</span>
-          <h2 id="recommendations-title">Three snacks to consider</h2>
+    <!-- #basket-panel sits inline at the end of the
+         "Three snacks to consider" row, via .recommendations-row (a flex
+         wrapper that only exists on this page). It's a sibling of
+         #recommendations-section rather than nested inside it, on purpose:
+         that section's own "hidden" class toggles with whether there's
+         anything left to recommend (and starts hidden before data loads at
+         all) - nesting the basket inside it would hide/flash the basket
+         along with it. #basket-dock-home is a fixed-width placeholder that
+         always stays put in this row - #basket-panel lives there
+         permanently now (it no longer gets reparented anywhere - see the
+         history note on #basket-float-shell below for why). #basket-
+         overlay is kept next to it (unused without the JS that drives it,
+         but harmless) purely so the shared bins-cart-* markup/JS stays
+         identical to index.html. -->
+    <div class="recommendations-row">
+      <section class="recommendations-section hidden" id="recommendations-section" aria-labelledby="recommendations-title">
+        <div class="recommendations-heading">
+          <div>
+            <span class="snack-shop-kicker">Selected for you</span>
+            <h2 id="recommendations-title">Three snacks to consider</h2>
+          </div>
+          <p id="recommendations-note">Based on your current favourite and a little variety.</p>
         </div>
-        <p id="recommendations-note">Based on your current favourite and a little variety.</p>
+        <div class="recommendations-grid" id="recommendations-grid"></div>
+      </section>
+
+      <div class="basket-overlay" id="basket-overlay"></div>
+      <div class="bins-cart-col-home" id="basket-dock-home">
+      <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
+        <div class="bins-cart-sticky">
+          <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
+            <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 64 64" fill="none"><path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
+            <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="bins-cart-body" id="bins-cart-body">
+            <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
+              <div class="bins-cart-items" id="bins-cart-items">
+                <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
+              </div>
+              <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
+              <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
+            </div>
+            <p class="bins-cart-summary-line muted-small" id="bins-cart-summary-line">Tap a snack to add it here.</p>
+            <div class="bins-cart-total">
+              <span>Total</span>
+              <span class="amount" id="bins-total">J$0</span>
+            </div>
+            <div class="bins-cart-actions">
+              <button id="bins-reset">Clear</button>
+              <button class="primary" id="bins-submit" disabled>Add to my tab</button>
+            </div>
+            <div class="status" id="bins-status"></div>
+          </div>
+        </div>
+      </aside>
       </div>
-      <div class="recommendations-grid" id="recommendations-grid"></div>
-    </section>
+    </div>
 
-    <!-- Desktop-only docked home for #basket-panel (see updateBasketDockState
-         in this file's script) - the basket sits statically here, right under
-         "Selected for you", until the page scrolls far enough that it
-         undocks into a floating card instead. Stays empty on mobile, where
-         the basket never leaves its original spot inside #snack-shop's own
-         .bins-layout (see the sub-900px rules in styles.css). -->
-    <div id="basket-dock-anchor"></div>
-
+    <!-- #basket-panel is NOT inside .bins-layout on this page (it lives up
+         in .recommendations-row) - styles.css's single-column .bins-layout
+         override is scoped via body:has(#snack-shop)/body:has(#snack-shop-
+         static) so it applies here and on the static comparison page but
+         never on edit-tab.html, which shares the same .bins-layout/.bins-
+         cart-col markup for its own admin basket and keeps the two-column
+         grid. -->
     <section class="card section-card snack-shop-section" id="snack-shop">
       <div class="snack-shop-heading" id="snack-shop-heading">
         <span class="snack-shop-kicker">Fresh Snacks catalogue</span>
@@ -201,33 +247,6 @@
             <p>Loading snacks…</p>
           </div>
         </div>
-        <div class="basket-overlay" id="basket-overlay"></div>
-        <aside class="bins-cart-col is-open" id="basket-panel" aria-label="Your basket">
-          <div class="bins-cart-sticky">
-            <button type="button" class="bins-cart-header" id="mobile-basket-toggle" aria-expanded="true" aria-controls="bins-cart-body">
-              <span><svg class="bins-cart-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 9V6.3a5 5 0 0 1 10 0V9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M4.5 9h15l-1.4 9.3a2 2 0 0 1-2 1.7H7.9a2 2 0 0 1-2 -1.7L4.5 9Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/><path d="M9 12.5v5M12 12.4v5.6M15 12.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Your basket <span class="mobile-basket-count" id="mobile-basket-count">0</span></span>
-              <svg class="mobile-basket-chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="bins-cart-body" id="bins-cart-body">
-              <div class="bins-cart-items-wrap" id="bins-cart-items-wrap">
-                <div class="bins-cart-items" id="bins-cart-items">
-                  <p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>
-                </div>
-                <div class="bins-cart-fade bins-cart-fade-top" aria-hidden="true"></div>
-                <div class="bins-cart-fade bins-cart-fade-bottom" aria-hidden="true"></div>
-              </div>
-              <div class="bins-cart-total">
-                <span>Total</span>
-                <span class="amount" id="bins-total">J$0</span>
-              </div>
-              <div class="bins-cart-actions">
-                <button id="bins-reset">Clear</button>
-                <button class="primary" id="bins-submit" disabled>Add to my tab</button>
-              </div>
-              <div class="status" id="bins-status"></div>
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
 
@@ -321,6 +340,108 @@
     </footer>
     </div>
   </main>
+
+  <!-- The floating "pull tab" shown once
+       you scroll past the basket's docked spot (#basket-dock-home above).
+       Ported from a standalone design reference into a live widget wired
+       to the same real data as the docked basket - see updateBasketFloatState()
+       and syncFloatShell() in the script below. This replaced an earlier
+       approach that reparented #basket-panel itself to <body> and toggled
+       an .is-floating class on it directly - the two designs (compact
+       docked card vs. this decorative pull-tab) diverge enough visually
+       that sharing one DOM node between them stopped making sense. Now
+       #basket-panel never leaves #basket-dock-home; this is a wholly
+       separate element with its own mirrored count/total, and its own
+       Clear/Add-to-tab buttons that simply proxy-click the real
+       #bins-reset/#bins-submit so there's still only one place the actual
+       basket logic lives. -->
+  <div class="basket-float-shell" id="basket-float-shell">
+    <header class="basket-float-header">
+      <div class="basket-float-content">
+        <div class="basket-float-summary">
+          <div class="basket-float-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M18.5 27.5C19.4 17.2 24.4 11 32 11C39.6 11 44.6 17.2 45.5 27.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M14.5 27.5H49.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>
+              <path d="M17.5 28.5L20.1 48.4C20.5 51.4 23 53.5 26 53.5H38C41 53.5 43.5 51.4 43.9 48.4L46.5 28.5" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M26 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M32 34V48" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M38 35V47" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M24 49.2H40" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+            </svg>
+          </div>
+          <div class="basket-float-labels">
+            <h2 class="basket-float-title">Your basket</h2>
+            <p class="basket-float-sub"><span id="basket-float-mini-count">0</span> snacks selected</p>
+          </div>
+        </div>
+
+        <div class="basket-float-mini-total">
+          <p class="basket-float-mini-total-label">Total</p>
+          <p class="basket-float-mini-total-value" id="basket-float-mini-total">J$0</p>
+        </div>
+
+        <button class="basket-float-action" type="button" id="basket-float-view-cart">View cart</button>
+      </div>
+
+    </header>
+
+    <section class="basket-float-tray" id="basket-float-tray" aria-hidden="true">
+      <div class="basket-float-tray-inner">
+        <div class="basket-float-tray-section">
+          <!-- The real #bins-cart-items-wrap (the same itemized list the
+               main index page's basket shows - names, steppers, remove
+               buttons, capped height with internal scroll) is reparented
+               into this slot while the tray is open, and returned to the
+               docked #bins-cart-body when it closes - see
+               setFloatTrayOpen(). One node, one set of listeners; never
+               two live copies to keep in sync. -->
+          <div id="basket-float-tray-items-slot"></div>
+          <div class="basket-float-tray-row">
+            <h3>Total</h3>
+            <div class="basket-float-tray-amount" id="basket-float-tray-total">J$0</div>
+          </div>
+
+          <div class="basket-float-tray-actions">
+            <button class="basket-float-btn" type="button" id="basket-float-clear">Clear</button>
+            <button class="basket-float-btn primary" type="button" id="basket-float-add" disabled>Add to my tab</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The pull-tab notch + its click target hang off the BOTTOM of the
+         whole shell (direct children of it, not of the header): with the
+         tray closed the shell is just the header, so they sit under the
+         mini tab; with the tray open the shell grows and they ride down
+         to the bottom of the extended basket - the "grab handle" always
+         marks where to pull/collapse. The notch is drawn as its own
+         small SVG (not part of a stretched full-frame drawing) so its
+         curve keeps a true aspect at any width; its top edge overlaps
+         the green border line (same green on green) so the two read as
+         one continuous shape. -->
+    <svg class="basket-float-notch" viewBox="0 0 180 19" preserveAspectRatio="none" aria-hidden="true">
+      <path
+        d="
+          M 0 0
+          C 11 0 20 3 27 9.5
+          C 34 16 43 19 56 19
+          H 124
+          C 137 19 146 16 153 9.5
+          C 160 3 169 0 180 0
+          Z
+        "
+        fill="currentColor"/>
+    </svg>
+    <button
+      class="basket-float-tab-hit"
+      id="basket-float-tab-hit"
+      type="button"
+      aria-label="Toggle basket details"
+      aria-expanded="false"
+      aria-controls="basket-float-tray">
+    </button>
+  </div>
 
   <div class="drawer-backdrop" id="settings-backdrop"></div>
   <aside class="drawer right" id="settings-drawer" aria-label="User settings">
@@ -1309,6 +1430,15 @@
       $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
+      // #basket-dock-home has zero height for as long as #basket-panel is
+      // hidden (no active tab yet) or hasn't rendered into it yet, which
+      // updateBasketFloatState() (defined further down, but hoisted/called
+      // only after this whole script has finished its first synchronous
+      // pass) would otherwise misread as "already scrolled past" and float
+      // immediately regardless of real scroll position - re-run it now
+      // that #basket-panel's real visibility/layout for this render is
+      // settled.
+      updateBasketFloatState();
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
@@ -1483,6 +1613,17 @@
     }
 
     function renderCartItems(data) {
+      // #bins-cart-summary-line is the only thing shown while the basket is
+      // docked (see .recommendations-row #basket-dock-home's CSS) - a
+      // single line that stays the same height regardless of how many
+      // snacks are picked, rather than an itemized list that would grow
+      // the docked card taller with every addition and break its height
+      // match to #recommendations-section. It's kept in sync right here
+      // rather than as a separate render pass, since both need the same
+      // "how many snacks are picked" data at the same moments.
+      $id("bins-cart-summary-line").textContent = picked.size
+        ? `${picked.size} snack${picked.size === 1 ? "" : "s"} selected`
+        : "Tap a snack to add it here.";
       const container = $id("bins-cart-items");
       if (!picked.size) {
         container.innerHTML = `<p class="muted-small bins-cart-empty">Tap a snack to add it here.</p>`;
@@ -1519,56 +1660,76 @@
       cartFlashTimer = setTimeout(() => sticky.classList.remove("basket-attention"), 2000);
     }
 
-    // Mobile skips the flying toast entirely (the well is already locked in
-    // view above the gallery there, so a notification traveling to it would
-    // be redundant) - just flash the well directly. Desktop toasts stack at
-    // the bottom of the viewport, aligned under the well's own column
-    // (left/width tracked to the well's current on-screen position, since
-    // it sits somewhere different depending on breakpoint - including out
-    // in the right margin on very wide screens) rather than centered on
-    // the page. Several in a row stack instead of replacing one another.
-    // Each toast still gets its own ~2.4s minimum read time, but a toast
-    // never starts flying until 1s after the PREVIOUS one finished flying
-    // and was removed - so a burst of additions vanishes one at a time in
-    // order, instead of each racing off on its own click-based timer.
+    // Toasts stack at the bottom-right corner of the screen and behave
+    // like ticker/ad strips: they slide in from the right, text too long
+    // for the pill scrolls marquee-style inside it, and they leave by
+    // sliding off the RIGHT edge of the screen (.cart-toast.leave) - not
+    // by flying upward to the basket as before. Several in a row stack
+    // instead of replacing one another; each gets a minimum read time and
+    // never starts leaving until 1s after the previous one finished, so a
+    // burst vanishes one at a time in order. Removal toasts carry an
+    // underlined Undo action (options.onUndo) and get extra read time so
+    // the undo is actually reachable; on mobile, additions keep the plain
+    // well-flash (the basket is already in view there) but removal toasts
+    // still show, since Undo has no other home on a phone.
     let toastVanishChain = Promise.resolve();
-    function showCartToast(message) {
-      if (window.innerWidth <= 900) {
+    function showCartToast(message, options) {
+      const opts = options || {};
+      if (window.innerWidth <= 900 && !opts.onUndo) {
         flashCartWell();
         return;
       }
       const stack = $id("cart-toast-stack");
-      const sticky = document.querySelector(".bins-cart-sticky");
-      if (!stack || !sticky) return;
-      const cartRect = sticky.getBoundingClientRect();
-      stack.style.left = `${Math.round(cartRect.left)}px`;
-      stack.style.width = `${Math.round(cartRect.width)}px`;
+      if (!stack) return;
 
       const toast = document.createElement("div");
       toast.className = "cart-toast";
-      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
+      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cart-toast-text">${esc(message)}</span>${opts.onUndo ? `<button type="button" class="cart-toast-undo">Undo</button>` : ""}`;
       stack.appendChild(toast);
-      requestAnimationFrame(() => toast.classList.add("show"));
+      const text = toast.querySelector(".cart-toast-text");
+      requestAnimationFrame(() => {
+        toast.classList.add("show");
+        if (text.scrollWidth > text.clientWidth + 2) text.classList.add("ticker");
+      });
 
-      const minRead = new Promise((resolve) => setTimeout(resolve, 2400));
+      const minRead = new Promise((resolve) => setTimeout(resolve, opts.onUndo ? 4200 : 2400));
       const afterPrevGone = toastVanishChain.then(() => new Promise((resolve) => setTimeout(resolve, 1000)));
       let resolveThisGone;
       toastVanishChain = new Promise((resolve) => { resolveThisGone = resolve; });
 
-      Promise.all([minRead, afterPrevGone]).then(() => {
-        const toastRect = toast.getBoundingClientRect();
-        const targetRect = sticky.getBoundingClientRect();
-        const dx = (targetRect.left + targetRect.width / 2) - (toastRect.left + toastRect.width / 2);
-        const dy = (targetRect.top + targetRect.height / 2) - (toastRect.top + toastRect.height / 2);
-        toast.style.transition = "transform 900ms cubic-bezier(0.4, 0, 0.2, 1), opacity 900ms ease";
-        toast.style.transform = `translate(${dx}px, ${dy}px) scale(0.35)`;
-        toast.style.opacity = "0";
+      let leaveStarted = false;
+      const leave = () => {
+        if (leaveStarted) return;
+        leaveStarted = true;
+        toast.classList.add("leave");
         toast.addEventListener("transitionend", () => {
           toast.remove();
           flashCartWell();
           resolveThisGone();
         }, { once: true });
-      });
+      };
+
+      if (opts.onUndo) {
+        toast.querySelector(".cart-toast-undo").addEventListener("click", () => {
+          opts.onUndo();
+          leave();
+        }, { once: true });
+      }
+
+      Promise.all([minRead, afterPrevGone]).then(leave);
+    }
+
+    // Mirrors the docked basket's count/total into #basket-float-shell,
+    // the separate floating pull-tab widget - see the HTML comment above
+    // it for why it's a distinct element rather than a repositioned copy
+    // of #basket-panel. Called from syncBinsGallery so it never drifts
+    // out of sync with the real picked-items data.
+    function syncFloatShell(data) {
+      const cur = data.profile.currency;
+      $id("basket-float-mini-count").textContent = picked.size;
+      $id("basket-float-mini-total").textContent = FS.money(binsTotal(data), cur);
+      $id("basket-float-tray-total").textContent = FS.money(binsTotal(data), cur);
+      $id("basket-float-add").disabled = binsTotal(data) === 0;
     }
 
     function syncBinsGallery(data) {
@@ -1580,6 +1741,7 @@
       $id("mobile-basket-count").textContent = unitCount;
       $id("basket-notification").setAttribute("aria-label", `View basket, ${unitCount} item${unitCount === 1 ? "" : "s"} selected`);
       renderCartItems(data);
+      syncFloatShell(data);
       saveBasketDraft();
       if (previousBasketUnitCount > 0 && unitCount === 0) setBasketPanelOpen(false);
       previousBasketUnitCount = unitCount;
@@ -1762,12 +1924,20 @@
       if (step) {
         const id = step.dataset.id;
         const delta = Number(step.dataset.d);
-        const next = Math.max(0, (picked.get(id) || 0) + delta);
+        const prevQty = picked.get(id) || 0;
+        const next = Math.max(0, prevQty + delta);
         if (next === 0) picked.delete(id); else picked.set(id, next);
         syncBinsGallery(LAST_DATA);
+        const s = FS.snackById(LAST_DATA, id);
         if (delta > 0) {
-          const s = FS.snackById(LAST_DATA, id);
           if (s) showCartToast(`Added ${s.name} to your basket`);
+        } else if (next === 0 && prevQty > 0 && s) {
+          showCartToast(`Removed ${s.name} from your basket`, {
+            onUndo: () => {
+              picked.set(id, prevQty);
+              syncBinsGallery(LAST_DATA);
+            },
+          });
         }
         return;
       }
@@ -1798,9 +1968,20 @@
 
     $id("confirm-remove-ok").onclick = () => {
       if (!confirmRemoveId) return;
-      picked.delete(confirmRemoveId);
+      const removedId = confirmRemoveId;
+      const removedQty = picked.get(removedId) || 0;
+      picked.delete(removedId);
       syncBinsGallery(LAST_DATA);
       closeConfirmRemove();
+      const removedSnack = FS.snackById(LAST_DATA, removedId);
+      if (removedSnack && removedQty > 0) {
+        showCartToast(`Removed ${removedSnack.name} from your basket`, {
+          onUndo: () => {
+            picked.set(removedId, removedQty);
+            syncBinsGallery(LAST_DATA);
+          },
+        });
+      }
     };
     $id("confirm-remove-cancel").onclick = closeConfirmRemove;
     $id("confirm-remove-close").onclick = closeConfirmRemove;
@@ -1841,53 +2022,88 @@
       setBasketPanelOpen(false);
     }, { passive: true });
 
-    // Desktop only (mirrors the >900 guard above, inverted): the basket
-    // docks statically right under "Selected for you" (#basket-dock-anchor,
-    // placed there in the markup) and undocks into a floating card once
-    // the page has scrolled a bit (see the body:has(#snack-shop) rules in
-    // styles.css for both states' actual styling). Below 900px it never
-    // leaves its original spot inside #snack-shop's own .bins-layout,
-    // where the mobile order:-1 flex trick expects to find it - this
-    // whole function is a no-op there beyond making sure of that.
-    //
-    // #snack-shop (.card/.section-card) carries its own backdrop-filter,
-    // which - like transform/filter/perspective - creates a new
-    // containing block for position:fixed descendants. Left alone (e.g.
-    // if the desktop dock spot were still inside #snack-shop),
-    // #basket-panel's "fixed" position would resolve against #snack-shop's
-    // own (scrolled-away) box instead of the real viewport, landing it
-    // well below where top:12px/20px actually says (confirmed live via
-    // getComputedStyle - "top" read back correctly, but "bottom" resolved
-    // to ~3300px, only possible if the containing block were the whole
-    // page rather than a 900px viewport). Re-parenting to <body> for as
-    // long as it's undocked sidesteps that entirely regardless of where
-    // the docked home is.
-    const basketMobileHome = document.querySelector("#snack-shop .bins-layout");
-    const basketDesktopDockHome = $id("basket-dock-anchor");
-    const BASKET_UNDOCK_SCROLL_THRESHOLD = 120;
-    function updateBasketDockState() {
-      const panel = $id("basket-panel");
-      if (window.innerWidth < 900) {
-        panel.classList.remove("is-undocked");
-        if (basketMobileHome && panel.parentElement !== basketMobileHome) basketMobileHome.appendChild(panel);
-        return;
-      }
-      const shouldUndock = window.scrollY > BASKET_UNDOCK_SCROLL_THRESHOLD;
-      panel.classList.toggle("is-undocked", shouldUndock);
-      if (shouldUndock) {
-        if (panel.parentElement !== document.body) document.body.appendChild(panel);
-      } else if (basketDesktopDockHome && panel.parentElement !== basketDesktopDockHome) {
-        basketDesktopDockHome.appendChild(panel);
+    // #basket-panel stays in normal flow, at the end of the "Three snacks
+    // to consider" row, right up until you scroll past it - no docking
+    // above the gallery and no undocking at a fixed scroll-distance
+    // threshold; this cares only whether the basket's own original spot
+    // (#basket-dock-home) has fully scrolled out of view - see the
+    // threshold itself, below.
+    const basketDockHome = $id("basket-dock-home");
+    let basketFloating = false;
+    // #basket-float-shell's own open/close state (its tray, dropped down
+    // from the pull tab) - entirely separate from setBasketPanelOpen,
+    // which now only ever concerns #basket-panel's mobile collapse.
+    const floatShell = $id("basket-float-shell");
+    const floatTabHit = $id("basket-float-tab-hit");
+    const floatTray = $id("basket-float-tray");
+    function setFloatTrayOpen(opening) {
+      floatShell.classList.toggle("open", opening);
+      floatTabHit.setAttribute("aria-expanded", String(opening));
+      floatTray.setAttribute("aria-hidden", String(!opening));
+      // The tray shows the REAL itemized list - the same
+      // #bins-cart-items-wrap node the docked basket owns (hidden there
+      // in favor of the aggregate line), moved in while open and moved
+      // back when closed. Reparenting the one node keeps its delegated
+      // stepper/remove listeners and scroll-fade behavior intact, with
+      // no second copy to keep in sync.
+      const itemsWrap = $id("bins-cart-items-wrap");
+      if (opening) {
+        $id("basket-float-tray-items-slot").appendChild(itemsWrap);
+        updateCartFade();
+      } else if (itemsWrap.parentElement !== $id("bins-cart-body")) {
+        $id("bins-cart-body").insertBefore(itemsWrap, $id("bins-cart-summary-line"));
       }
     }
-    window.addEventListener("scroll", updateBasketDockState, { passive: true });
-    window.addEventListener("resize", updateBasketDockState);
-    updateBasketDockState();
+    floatTabHit.addEventListener("click", () => setFloatTrayOpen(!floatShell.classList.contains("open")));
+    $id("basket-float-view-cart").addEventListener("click", () => setFloatTrayOpen(true));
+    // Both proxy-click the real docked buttons rather than duplicating
+    // the clear/submit logic - there's still only one place that actual
+    // basket behavior lives; this widget only ever mirrors it.
+    $id("basket-float-clear").addEventListener("click", () => $id("bins-reset").click());
+    $id("basket-float-add").addEventListener("click", () => $id("bins-submit").click());
+
+    function updateBasketFloatState() {
+      if (window.innerWidth <= 900) {
+        if (basketFloating) {
+          basketFloating = false;
+          floatShell.classList.remove("visible", "is-floating-in");
+          setFloatTrayOpen(false);
+        }
+        return;
+      }
+      // Only once the docked cart is genuinely off-screen (its bottom
+      // edge above the viewport top) - the earlier mid-screen trigger
+      // meant the floating tab and the still-visible docked cart were
+      // briefly on screen together, which read as a duplicate.
+      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
+      if (scrolledPast && !basketFloating) {
+        basketFloating = true;
+        setFloatTrayOpen(false);
+        floatShell.classList.add("visible");
+        // .visible alone is the resting *target* state (see its own CSS
+        // comment) - .is-floating-in is what the transition actually
+        // animates towards. Added a frame later (double rAF, since a
+        // single one can still land in the same paint as the class
+        // above in some browsers) so the "from" state genuinely paints
+        // first instead of both landing together and skipping the
+        // transition.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          floatShell.classList.add("is-floating-in");
+        }));
+      } else if (!scrolledPast && basketFloating) {
+        basketFloating = false;
+        floatShell.classList.remove("visible", "is-floating-in");
+        setFloatTrayOpen(false);
+      }
+    }
+    window.addEventListener("scroll", updateBasketFloatState, { passive: true });
+    window.addEventListener("resize", updateBasketFloatState);
+    updateBasketFloatState();
 
     document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && $id("basket-panel").classList.contains("is-open")) {
-        setBasketPanelOpen(false);
-      }
+      if (ev.key !== "Escape") return;
+      if ($id("basket-panel").classList.contains("is-open")) setBasketPanelOpen(false);
+      if (floatShell.classList.contains("open")) setFloatTrayOpen(false);
     });
 
     $id("bins-submit").onclick = async () => {

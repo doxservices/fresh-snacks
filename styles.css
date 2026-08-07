@@ -2981,6 +2981,10 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
    arrives. Every toast is a fixed size (matching the well's width) with
    the message itself truncated with an ellipsis rather than the toast
    growing to fit longer text. */
+/* Anchored to the bottom-RIGHT corner of the viewport (no longer
+   JS-positioned under the basket column): each toast slides in from the
+   right like a ticker/ad strip and, when done, slides back off the right
+   edge of the screen - see .leave below and showCartToast(). */
 .cart-toast-stack {
   bottom: 28px;
   display: flex;
@@ -2988,6 +2992,8 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   gap: 8px;
   pointer-events: none;
   position: fixed;
+  right: 18px;
+  width: min(340px, calc(100vw - 36px));
   z-index: 80;
 }
 
@@ -3005,16 +3011,30 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 0;
   overflow: hidden;
   padding: 14px 22px;
-  transform: translateY(32px) scale(0.94);
-  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 180ms ease;
+  transform: translateX(60vw);
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 220ms ease;
   width: 100%;
 }
 
-.cart-toast span {
+.cart-toast .cart-toast-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Long snack names scroll continuously inside the pill like a ticker-tape
+   ad instead of truncating - only applied (by JS) when the text actually
+   overflows, so short messages stay put. */
+.cart-toast .cart-toast-text.ticker {
+  overflow: visible;
+  text-overflow: clip;
+  animation: cart-toast-ticker 7s linear infinite;
+}
+
+@keyframes cart-toast-ticker {
+  0%, 12% { transform: translateX(0); }
+  88%, 100% { transform: translateX(calc(-100% + 180px)); }
 }
 
 .cart-toast svg {
@@ -3023,9 +3043,37 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: 20px;
 }
 
+.cart-toast .cart-toast-undo {
+  background: none;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-weight: 600;
+  margin-left: auto;
+  padding: 0 2px;
+  pointer-events: auto;
+  text-decoration: underline;
+}
+
 .cart-toast.show {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateX(0);
+}
+
+/* Exit: straight off the right edge of the screen, ad-strip style - no
+   upward fly-away. */
+.cart-toast.leave {
+  opacity: 0;
+  transform: translateX(110vw);
+  transition: transform 650ms ease-in, opacity 600ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cart-toast .cart-toast-text.ticker {
+    animation: none;
+  }
 }
 
 @media (max-width: 620px) {
@@ -4989,12 +5037,14 @@ tr.healthy-account td {
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* index-static-basket.html only: #basket-panel isn't inside .bins-layout at
-   all on this page (it lives as a plain sibling under "Selected for you"),
-   so .bins-gallery-col is .bins-layout's only child - but without this
+/* index.html and index-static-basket.html: #basket-panel isn't inside
+   .bins-layout on these pages (it lives up in .recommendations-row), so
+   .bins-gallery-col is .bins-layout's only child - but without this
    override the grid still reserves the second 360px track for a basket
    column that's never there, leaving the gallery/cards stuck ~360px+gap
-   narrower than the section. */
+   narrower than the section. edit-tab.html (no #snack-shop id) keeps the
+   two-column grid for its own side-by-side admin basket. */
+body:has(#snack-shop) .bins-layout,
 body:has(#snack-shop-static) .bins-layout {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -5208,26 +5258,28 @@ body:has(#snack-shop-static) .bins-layout {
   border-radius: 14px;
   box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
   height: 48px;
+  /* the site's generic `header` element rule adds margin-bottom:14px and
+     padding - both would wedge a gap between this and the joined tray */
+  margin: 0;
   overflow: visible;
+  padding: 0;
   position: relative;
 }
 
-/* The pull-tab notch, hanging below the header - its top edge overlaps
-   the header's 2px bottom border (green over green) so the two read as
-   one continuous shape. Kept at its natural 180x19 aspect at every
-   viewport width, and lined up exactly with .basket-float-tab-hit, the
-   actual click target. */
+/* The pull-tab notch - anchored to the bottom of the whole SHELL (it's a
+   direct child of .basket-float-shell, not of the header), so it hangs
+   under the mini tab while closed and rides down to the bottom of the
+   extended basket while the tray is open. bottom:-18px with a 19px-tall
+   notch leaves its top edge overlapping the shell's last border line
+   (green over green) by 1px - attached with no hairline gap. Lined up
+   exactly with .basket-float-tab-hit, the actual click target. */
 .basket-float-notch {
+  bottom: -18px;
   display: block;
   height: 19px;
   left: 50%;
   pointer-events: none;
   position: absolute;
-  /* top:100% resolves against the padding box - i.e. the INNER edge of
-     the 2px bottom border - so +1px here still overlaps the border's
-     lower half: attached with no hairline gap, without riding up over
-     the border line the way the old -1px did. */
-  top: calc(100% + 1px);
   transform: translateX(-50%);
   width: 180px;
   z-index: 1;
@@ -5332,12 +5384,12 @@ body:has(#snack-shop-static) .bins-layout {
 .basket-float-tab-hit {
   background: transparent;
   border: 0;
+  bottom: -21px;
   cursor: pointer;
-  height: 24px;
+  height: 26px;
   left: 50%;
   padding: 0;
   position: absolute;
-  top: calc(100% + 1px);
   transform: translateX(-50%);
   width: 180px;
   z-index: 6;
@@ -5350,31 +5402,42 @@ body:has(#snack-shop-static) .bins-layout {
   outline-offset: 3px;
 }
 
-/* margin-top clears the notch (19px tall, hanging off the header) so the
-   pull-tab stays fully visible in the gap between header and tray when
-   open, instead of half-buried under the tray's top edge. Rounded on all
-   corners + a hairline border: it floats free below the header, so
-   square top corners read as unfinished rather than attached. */
+/* Joined directly to the mini tab when open - same width, no gap, green
+   border continuing straight down from the header's (whose bottom border
+   stays put as the divider between them), rounded only at the bottom.
+   Closed, it must contribute exactly ZERO height to the shell (margin 0
+   AND border-width 0, not just max-height 0) so the bottom-anchored
+   notch/tab-hit sit flush under the header rather than a few px below
+   it. */
 .basket-float-tray {
   background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  border: 0 solid var(--green);
+  border-radius: 0 0 14px 14px;
+  border-top: 0;
   box-shadow: 0 12px 24px rgba(18, 72, 29, 0.1);
-  margin: 26px auto 0;
+  margin: 0 auto;
   max-height: 0;
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
   transform: translateY(-6px);
   transition: max-height 240ms ease, opacity 180ms ease, transform 200ms ease;
-  width: min(100%, 560px);
+  width: 100%;
 }
 
 .basket-float-shell.open .basket-float-tray {
+  border-width: 2px;
+  border-top: 0;
   max-height: min(70vh, 520px);
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+/* While open the header is the top half of one continuous panel - square
+   off its bottom corners so the tray continues it seamlessly. */
+.basket-float-shell.open .basket-float-header {
+  border-radius: 14px 14px 0 0;
 }
 
 .basket-float-tray-inner {
@@ -5469,133 +5532,6 @@ body:has(#snack-shop-static) .bins-layout {
   }
 }
 
-/* index.html only (scoped via #snack-shop, an id unique to that page -
-   edit-tab.html shares .bins-layout/.bins-cart-col but keeps the side-by-
-   side grid above untouched). At desktop widths the basket docks
-   statically right under "Selected for you" (index.html's own JS moves
-   #basket-panel into #basket-dock-anchor there, ahead of #snack-shop
-   entirely - see updateBasketDockState) instead of living beside the
-   gallery as a sidebar column. Then, once the page scrolls (same
-   listener toggling .is-undocked), it undocks. Where it undocks TO
-   depends on whether real margin exists yet to receive it:
-
-   - 900-1307px ("medium"): .page-wide is still using the full viewport
-     (it hasn't hit its own 1280px cap), so there's no real side margin
-     to tuck into - the cart floats at top-center, over the gallery,
-     rather than pretending a lane exists. The gallery stays full width.
-   - >=1308px ("wide" - exactly where .page-wide stops growing and starts
-     centering with real empty space beside it): the gallery reserves
-     that right-hand lane PERMANENTLY (not just once undocked) - 378px is
-     the undocked cart's own footprint (360px wide + 18px off the
-     viewport edge), plus 18px of breathing room. Reserving it up front
-     means undocking is a pure position swap with zero layout shift at
-     the moment it happens, and the docked cart above (right-aligned,
-     same 360px width) lines up with the same lane the floating one
-     drops into.
-
-   .bins-cart-sticky's own position:sticky is switched off at both tiers
-   since the outer .bins-cart-col now handles "floats once scrolled"
-   explicitly via .is-undocked instead - both trying to manage that at
-   once would fight each other.
-
-   Scoped via body:has(#snack-shop) rather than a #snack-shop ancestor
-   selector on purpose: #snack-shop (.card/.section-card) has its own
-   backdrop-filter, which - like transform/filter/perspective - creates a
-   new containing block for position:fixed descendants, silently
-   breaking "top:12px" into "12px below #snack-shop's own box" instead of
-   the viewport (confirmed live: computed top read back "12px" correctly,
-   but the rendered box actually sat 179px down at a 900px-tall viewport,
-   and forcing top/position inline with !important still didn't move it -
-   the giveaway was getComputedStyle(...).bottom resolving to ~3300px,
-   only possible if the containing block were the whole page, not the
-   viewport). index.html's own scroll listener works around this by
-   re-parenting #basket-panel to <body> for as long as it's undocked
-   (see updateBasketDockState) - body:has() keeps matching it correctly
-   wherever it currently lives in the tree, unlike a #snack-shop ancestor
-   selector would once it's moved outside #snack-shop. */
-@media (min-width: 900px) {
-  body:has(#snack-shop) .bins-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  body:has(#snack-shop) .bins-gallery-col {
-    order: 1;
-  }
-
-  /* Docked: full width, matching every other card on the page ("Selected
-     for you", the catalogue itself) instead of a narrow, right-aligned
-     box floating in its own lane - it only needs to be compact once it's
-     actually undocked and has to fit in a margin. */
-  body:has(#snack-shop) .bins-cart-col {
-    order: -1;
-    margin: 0 0 20px 0;
-  }
-
-  body:has(#snack-shop) .bins-cart-col.is-undocked {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    right: auto;
-    width: 360px;
-    transform: translateX(-50%);
-    margin: 0;
-    z-index: 40;
-  }
-
-  body:has(#snack-shop) .bins-cart-sticky {
-    position: static;
-    top: auto;
-  }
-}
-
-@media (min-width: 1308px) {
-  body:has(#snack-shop) .bins-gallery-col {
-    max-width: calc(100% - 396px);
-  }
-
-  /* The floating cart hovers at a fixed spot near the top of the
-     viewport for as long as the page is scrolled - and since it undocks
-     after only 120px of scroll (see BASKET_UNDOCK_SCROLL_THRESHOLD in
-     index.html), "Selected for you" is very often still on screen right
-     when that happens, not just the catalogue below it. Reserving the
-     same 396px lane here too (confirmed needed live: at the exact width
-     this tier starts, scrolling 500px still showed the cart overlapping
-     a recommendation card) keeps it clear regardless of which of the
-     two sections happens to be in view when the cart transitions. */
-  body:has(#snack-shop) #recommendations-section {
-    max-width: calc(100% - 396px);
-  }
-
-  /* Match the docked (not undocked) cart's own width to that same
-     narrowed lane, so it lines up on BOTH edges with "Selected for you"
-     right above it instead of just the left one - and previews exactly
-     the boundary it'll drop into once it undocks, same as the gallery
-     already does. */
-  body:has(#snack-shop) .bins-cart-col:not(.is-undocked) {
-    max-width: calc(100% - 396px);
-  }
-
-  /* right:18px alone is relative to the raw browser window, not to
-     .page-wide's own (centered, capped at 1280px) content column - on
-     anything wider than ~1700px the two edges pull apart fast, leaving a
-     dead-looking gap between the gallery and the floating card that
-     grows without bound on an ultrawide/4K screen. (100vw - 1280px)/2
-     is exactly how much extra margin .page-wide has grown on each side
-     beyond its own cap; adding that to the base 18px keeps the card's
-     right edge pinned 18px inside .page-wide's actual edge (matching
-     .section-card's own 18px padding, so it lines up with the gallery's
-     visual edge too) at any viewport width. max() keeps it at a plain
-     18px below 1308px, where .page-wide still fills the viewport and
-     the two edges already coincide. */
-  body:has(#snack-shop) .bins-cart-col.is-undocked {
-    top: 20px;
-    left: auto;
-    right: max(18px, calc((100vw - 1280px) / 2 + 18px));
-    transform: none;
-  }
-}
 
 .visitor-intro p {
   margin: 8px 0 16px;
@@ -5807,28 +5743,6 @@ body:has(#snack-shop-static) .bins-layout {
   flex: 1;
 }
 
-/* On very wide screens .page-wide stops growing at 1280px, leaving real
-   empty margin on either side - past that point the well shifts out of the
-   gallery's column entirely and floats centered in that right margin
-   instead of taking up width from the content column. The breakpoint
-   isn't just "whenever a margin exists" - it's set to where the margin is
-   actually wide enough (2 * 340px well + a small buffer) to center a
-   340px card inside it without the card's own edge spilling back past the
-   viewport's right edge. Below this the grid+sticky-well layout (the base
-   rules above) stays in place.
-   Kept as a transform on the same sticky element (.bins-cart-sticky), not
-   a separate fixed-position element: a paint-time horizontal offset like
-   this doesn't disturb the vertical sticky mechanics at all, and it
-   sidesteps .card's backdrop-filter (the glassy blur) promoting itself to
-   a new containing block for fixed/absolute descendants, which would
-   otherwise fight any attempt to position this well relative to the
-   viewport directly. */
-@media (min-width: 2000px) {
-  .bins-cart-sticky {
-    transform: translateX(calc((100vw - 1280px) / 4 + 170px));
-    z-index: 20;
-  }
-}
 
 .bin-card {
   background: rgba(255,255,255,0.88);
@@ -6108,15 +6022,16 @@ body:has(#snack-shop-static) .bins-layout {
   width: min(420px, 100%);
 }
 
-/* index-static-basket.html only: the add-to-basket (snack quantity) modal
-   opens anchored to the bottom-right corner here instead of centered -
-   #snack-modal-backdrop specifically, not the shared .modal-backdrop
-   class, so confirm-remove/transaction-review/etc. keep their normal
-   centered behavior, on this page and on index.html alike.
+/* index.html and index-static-basket.html: the add-to-basket (snack
+   quantity) modal opens anchored to the bottom-right corner instead of
+   centered - #snack-modal-backdrop specifically, not the shared
+   .modal-backdrop class, so confirm-remove/transaction-review/etc. keep
+   their normal centered behavior.
    padding-right overrides just that one side of the shared 20px padding -
    #snack-modal-backdrop is itself position:fixed/inset:0 (real viewport
    edges, not some ancestor's box), so this places the modal a true 3px
    from the actual right edge of the screen at any width. */
+body:has(#snack-shop) #snack-modal-backdrop,
 body:has(#snack-shop-static) #snack-modal-backdrop {
   place-items: end;
   padding-right: 3px;
@@ -6979,12 +6894,12 @@ tr.disputed td {
     z-index: 30;
   }
 
-  /* index-static-basket.html renames #snack-shop to #snack-shop-static
-     specifically to opt out of every dock/undock rule above - but this
-     particular rule predates that system and is unscoped (edit-tab.html
-     also depends on it), so it still applies there by default. Override
-     it back to a plain static basket on mobile too, so the comparison
-     page is genuinely static at every width, not just desktop. */
+  /* The sticky rule above predates the recommendations-row basket design
+     and is unscoped because edit-tab.html still depends on it. On
+     index.html and the static comparison page the basket lives in
+     .recommendations-row and should stay plainly static on mobile too -
+     the floating pull tab handles "keep the basket reachable" there. */
+  body:has(#snack-shop) .bins-cart-col,
   body:has(#snack-shop-static) .bins-cart-col {
     position: static;
   }

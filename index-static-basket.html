@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260805u-mini-tab-abs-content" />
+  <link rel="stylesheet" href="styles.css?v=20260806b-header-margin-fix" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -375,29 +375,6 @@
        basket logic lives. -->
   <div class="basket-float-shell" id="basket-float-shell">
     <header class="basket-float-header">
-      <!-- Notch only - the rounded outline itself is a plain CSS border on
-           .basket-float-header, not part of this SVG. The reference file
-           drew the whole frame as one stretched SVG (preserveAspectRatio=
-           "none"), but stretching 1600x124 into ~640x116 distorts the
-           corner arcs into ellipses that can never agree with the white
-           card behind them - a CSS border is crisp at any size, and this
-           small notch keeps its own true aspect. Its top edge overlaps
-           the border line (same green on green) so the two read as one
-           continuous shape. -->
-      <svg class="basket-float-notch" viewBox="0 0 180 19" preserveAspectRatio="none" aria-hidden="true">
-        <path
-          d="
-            M 0 0
-            C 11 0 20 3 27 9.5
-            C 34 16 43 19 56 19
-            H 124
-            C 137 19 146 16 153 9.5
-            C 160 3 169 0 180 0
-            Z
-          "
-          fill="currentColor"/>
-      </svg>
-
       <div class="basket-float-content">
         <div class="basket-float-summary">
           <div class="basket-float-icon" aria-hidden="true">
@@ -425,14 +402,6 @@
         <button class="basket-float-action" type="button" id="basket-float-view-cart">View cart</button>
       </div>
 
-      <button
-        class="basket-float-tab-hit"
-        id="basket-float-tab-hit"
-        type="button"
-        aria-label="Toggle basket details"
-        aria-expanded="false"
-        aria-controls="basket-float-tray">
-      </button>
     </header>
 
     <section class="basket-float-tray" id="basket-float-tray" aria-hidden="true">
@@ -458,6 +427,38 @@
         </div>
       </div>
     </section>
+
+    <!-- The pull-tab notch + its click target hang off the BOTTOM of the
+         whole shell (direct children of it, not of the header): with the
+         tray closed the shell is just the header, so they sit under the
+         mini tab; with the tray open the shell grows and they ride down
+         to the bottom of the extended basket - the "grab handle" always
+         marks where to pull/collapse. The notch is drawn as its own
+         small SVG (not part of a stretched full-frame drawing) so its
+         curve keeps a true aspect at any width; its top edge overlaps
+         the green border line (same green on green) so the two read as
+         one continuous shape. -->
+    <svg class="basket-float-notch" viewBox="0 0 180 19" preserveAspectRatio="none" aria-hidden="true">
+      <path
+        d="
+          M 0 0
+          C 11 0 20 3 27 9.5
+          C 34 16 43 19 56 19
+          H 124
+          C 137 19 146 16 153 9.5
+          C 160 3 169 0 180 0
+          Z
+        "
+        fill="currentColor"/>
+    </svg>
+    <button
+      class="basket-float-tab-hit"
+      id="basket-float-tab-hit"
+      type="button"
+      aria-label="Toggle basket details"
+      aria-expanded="false"
+      aria-controls="basket-float-tray">
+    </button>
   </div>
 
   <div class="drawer-backdrop" id="settings-backdrop"></div>
@@ -1677,56 +1678,63 @@
       cartFlashTimer = setTimeout(() => sticky.classList.remove("basket-attention"), 2000);
     }
 
-    // Mobile skips the flying toast entirely (the well is already locked in
-    // view above the gallery there, so a notification traveling to it would
-    // be redundant) - just flash the well directly. Desktop toasts stack at
-    // the bottom of the viewport, aligned under the well's own column
-    // (left/width tracked to the well's current on-screen position, since
-    // it sits somewhere different depending on breakpoint - including out
-    // in the right margin on very wide screens) rather than centered on
-    // the page. Several in a row stack instead of replacing one another.
-    // Each toast still gets its own ~2.4s minimum read time, but a toast
-    // never starts flying until 1s after the PREVIOUS one finished flying
-    // and was removed - so a burst of additions vanishes one at a time in
-    // order, instead of each racing off on its own click-based timer.
+    // Toasts stack at the bottom-right corner of the screen and behave
+    // like ticker/ad strips: they slide in from the right, text too long
+    // for the pill scrolls marquee-style inside it, and they leave by
+    // sliding off the RIGHT edge of the screen (.cart-toast.leave) - not
+    // by flying upward to the basket as before. Several in a row stack
+    // instead of replacing one another; each gets a minimum read time and
+    // never starts leaving until 1s after the previous one finished, so a
+    // burst vanishes one at a time in order. Removal toasts carry an
+    // underlined Undo action (options.onUndo) and get extra read time so
+    // the undo is actually reachable; on mobile, additions keep the plain
+    // well-flash (the basket is already in view there) but removal toasts
+    // still show, since Undo has no other home on a phone.
     let toastVanishChain = Promise.resolve();
-    function showCartToast(message) {
-      if (window.innerWidth <= 900) {
+    function showCartToast(message, options) {
+      const opts = options || {};
+      if (window.innerWidth <= 900 && !opts.onUndo) {
         flashCartWell();
         return;
       }
       const stack = $id("cart-toast-stack");
-      const sticky = document.querySelector(".bins-cart-sticky");
-      if (!stack || !sticky) return;
-      const cartRect = sticky.getBoundingClientRect();
-      stack.style.left = `${Math.round(cartRect.left)}px`;
-      stack.style.width = `${Math.round(cartRect.width)}px`;
+      if (!stack) return;
 
       const toast = document.createElement("div");
       toast.className = "cart-toast";
-      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${esc(message)}</span>`;
+      toast.innerHTML = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="cart-toast-text">${esc(message)}</span>${opts.onUndo ? `<button type="button" class="cart-toast-undo">Undo</button>` : ""}`;
       stack.appendChild(toast);
-      requestAnimationFrame(() => toast.classList.add("show"));
+      const text = toast.querySelector(".cart-toast-text");
+      requestAnimationFrame(() => {
+        toast.classList.add("show");
+        if (text.scrollWidth > text.clientWidth + 2) text.classList.add("ticker");
+      });
 
-      const minRead = new Promise((resolve) => setTimeout(resolve, 2400));
+      const minRead = new Promise((resolve) => setTimeout(resolve, opts.onUndo ? 4200 : 2400));
       const afterPrevGone = toastVanishChain.then(() => new Promise((resolve) => setTimeout(resolve, 1000)));
       let resolveThisGone;
       toastVanishChain = new Promise((resolve) => { resolveThisGone = resolve; });
 
-      Promise.all([minRead, afterPrevGone]).then(() => {
-        const toastRect = toast.getBoundingClientRect();
-        const targetRect = sticky.getBoundingClientRect();
-        const dx = (targetRect.left + targetRect.width / 2) - (toastRect.left + toastRect.width / 2);
-        const dy = (targetRect.top + targetRect.height / 2) - (toastRect.top + toastRect.height / 2);
-        toast.style.transition = "transform 900ms cubic-bezier(0.4, 0, 0.2, 1), opacity 900ms ease";
-        toast.style.transform = `translate(${dx}px, ${dy}px) scale(0.35)`;
-        toast.style.opacity = "0";
+      let leaveStarted = false;
+      const leave = () => {
+        if (leaveStarted) return;
+        leaveStarted = true;
+        toast.classList.add("leave");
         toast.addEventListener("transitionend", () => {
           toast.remove();
           flashCartWell();
           resolveThisGone();
         }, { once: true });
-      });
+      };
+
+      if (opts.onUndo) {
+        toast.querySelector(".cart-toast-undo").addEventListener("click", () => {
+          opts.onUndo();
+          leave();
+        }, { once: true });
+      }
+
+      Promise.all([minRead, afterPrevGone]).then(leave);
     }
 
     // Mirrors the docked basket's count/total into #basket-float-shell,
@@ -1934,12 +1942,20 @@
       if (step) {
         const id = step.dataset.id;
         const delta = Number(step.dataset.d);
-        const next = Math.max(0, (picked.get(id) || 0) + delta);
+        const prevQty = picked.get(id) || 0;
+        const next = Math.max(0, prevQty + delta);
         if (next === 0) picked.delete(id); else picked.set(id, next);
         syncBinsGallery(LAST_DATA);
+        const s = FS.snackById(LAST_DATA, id);
         if (delta > 0) {
-          const s = FS.snackById(LAST_DATA, id);
           if (s) showCartToast(`Added ${s.name} to your basket`);
+        } else if (next === 0 && prevQty > 0 && s) {
+          showCartToast(`Removed ${s.name} from your basket`, {
+            onUndo: () => {
+              picked.set(id, prevQty);
+              syncBinsGallery(LAST_DATA);
+            },
+          });
         }
         return;
       }
@@ -1970,9 +1986,20 @@
 
     $id("confirm-remove-ok").onclick = () => {
       if (!confirmRemoveId) return;
-      picked.delete(confirmRemoveId);
+      const removedId = confirmRemoveId;
+      const removedQty = picked.get(removedId) || 0;
+      picked.delete(removedId);
       syncBinsGallery(LAST_DATA);
       closeConfirmRemove();
+      const removedSnack = FS.snackById(LAST_DATA, removedId);
+      if (removedSnack && removedQty > 0) {
+        showCartToast(`Removed ${removedSnack.name} from your basket`, {
+          onUndo: () => {
+            picked.set(removedId, removedQty);
+            syncBinsGallery(LAST_DATA);
+          },
+        });
+      }
     };
     $id("confirm-remove-cancel").onclick = closeConfirmRemove;
     $id("confirm-remove-close").onclick = closeConfirmRemove;
