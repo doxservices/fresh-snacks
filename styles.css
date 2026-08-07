@@ -6697,6 +6697,13 @@ tr.disputed td {
   margin-top: 6px;
 }
 
+/* Inside the meta row (transaction cards put the Confirm/Approve button
+   there, beside the date) the actions block is a plain flex sibling -
+   no top nudge. */
+.notif-item-meta .notif-item-actions {
+  margin-top: 0;
+}
+
 .notif-item-actions button {
   font-size: 12.5px;
   padding: 4px 9px;

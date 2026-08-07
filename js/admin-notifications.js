@@ -518,10 +518,14 @@
           <div class="notif-item-title">${esc(it.name)}</div>
           <div class="muted-small">${esc(itemName)}</div>
           <!-- The status badge IS the notification's message ("Customer
-               reported payment" etc.), so it reads before the action that
-               answers it - badge above, Confirm/Approve button last. The
-               meta column keeps only the date. -->
+               reported payment" etc.), so it reads with the content -
+               while the Confirm/Approve action sits in the meta row next
+               to the date, filling the slot the badge used to occupy
+               instead of leaving empty space beside the time. -->
           <div class="notif-item-status">${statusBadge(it.workflowStatus)}</div>
+        </div>
+        <div class="notif-item-meta">
+          <span class="muted-small">${esc(it.date)}</span>
           <div class="notif-item-actions">
             ${(() => {
               const perms = FS.admin.profile?.permissions;
@@ -534,9 +538,6 @@
                 ? `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>` : "";
             })()}
           </div>
-        </div>
-        <div class="notif-item-meta">
-          <span class="muted-small">${esc(it.date)}</span>
         </div>
         ${dismissBtn(it.key)}
       </div>`;
