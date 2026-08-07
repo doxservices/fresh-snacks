@@ -7643,19 +7643,28 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   font-weight: 800;
 }
 
+/* Fixed-width columns instead of flex:1 - fourteen stretching columns
+   spread the chart across the entire card on a wide screen (huge dead
+   gaps between skinny bars) and crush unusably on a phone. Columns hold
+   a steady 44px each (~700px total), the chart itself caps at 720px, and
+   anything narrower scrolls horizontally instead of squeezing. */
 .stats-chart {
   align-items: flex-end;
   display: flex;
   gap: 6px;
-  height: 170px;
+  height: 178px;
   margin-top: 16px;
-  padding: 0 4px;
+  max-width: 720px;
+  overflow-x: auto;
+  padding: 0 4px 6px;
+  scrollbar-color: var(--green) transparent;
+  scrollbar-width: thin;
 }
 
 .stats-bar-group {
   align-items: center;
   display: flex;
-  flex: 1;
+  flex: 0 0 44px;
   flex-direction: column;
   gap: 6px;
   height: 100%;
