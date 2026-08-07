@@ -6687,6 +6687,10 @@ tr.disputed td {
   gap: 6px;
 }
 
+.notif-item-status {
+  margin-top: 6px;
+}
+
 .notif-item-actions {
   display: flex;
   gap: 6px;
