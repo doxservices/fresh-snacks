@@ -1572,7 +1572,11 @@ summary::-webkit-details-marker { display: none; }
 }
 
 .toggle::before { content: "+"; }
-details[open] .toggle::before { content: "\2013"; }
+/* > summary child scoping matters: with a bare descendant selector, a
+   COLLAPSED day group nested inside an open month still matched
+   details[open] (the month) and kept showing the collapse "-" instead
+   of reverting to "+". */
+details[open] > summary .toggle::before { content: "\2013"; }
 
 .month-name { font-weight: 600; color: var(--green-dark); }
 
@@ -1683,7 +1687,9 @@ details[open] .toggle::before { content: "\2013"; }
   display: none;
 }
 
-details[open] .month-note {
+/* > summary child scoping for the same reason as the toggle icon above -
+   a collapsed nested day group must not inherit its open parent's state */
+details[open] > summary .month-note {
   display: inline;
 }
 
@@ -1779,6 +1785,57 @@ details[open] .month-note {
 
 .log-day-group:last-child {
   margin-bottom: 0;
+}
+
+/* ---- flat report presentation for the transaction logs ---- */
+/* #log (the customer Snack Log) and #txn-groups (the admin transactions
+   page): the collapsible groups read as one continuous, minimalist
+   report - no card border/shadow/blur wrapped around every group, no
+   gradient header strips, no pill-box row borders. Hairline separators
+   carry the structure instead, and the modular expand/collapse (+/- per
+   group, Expand all/Collapse all) keeps working on top of the flat
+   view. Scoped to these two containers so FAQ accordions and other
+   <details> around the site keep their card look. */
+#log details,
+#txn-groups details {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+#log summary,
+#txn-groups summary {
+  background: transparent;
+  border-top: 1px solid var(--line);
+}
+
+/* nested day rows inside a month get a fainter separator than the
+   month-level ones, so the hierarchy still reads at a glance */
+#log .log-day-group > summary {
+  border-top: 1px solid rgba(24, 79, 42, 0.07);
+}
+
+#log .toggle,
+#txn-groups .toggle {
+  background: transparent;
+  border: 0;
+}
+
+#log .tracker-table,
+#txn-groups .admin-table {
+  border-spacing: 0;
+}
+
+#log .tracker-table td,
+#txn-groups .admin-table td {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(24, 79, 42, 0.08);
+  border-radius: 0;
 }
 
 .bottom-summary {
