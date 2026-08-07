@@ -5421,7 +5421,7 @@ body:has(#snack-shop-static) .bins-layout {
   overflow: hidden;
   pointer-events: none;
   transform: translateY(-6px);
-  transition: max-height 240ms ease, opacity 180ms ease, transform 200ms ease;
+  transition: max-height 380ms ease, opacity 320ms ease, transform 340ms ease;
   width: 100%;
 }
 
@@ -5435,8 +5435,12 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 /* While open the header is the top half of one continuous panel - square
-   off its bottom corners so the tray continues it seamlessly. */
+   off its bottom corners so the tray continues it seamlessly, and thin
+   the divider between them down to a hairline: keeping the full 2px
+   green border there still read as two stacked carts rather than one
+   panel with a separator. */
 .basket-float-shell.open .basket-float-header {
+  border-bottom: 1px solid var(--line);
   border-radius: 14px 14px 0 0;
 }
 
