@@ -3,6 +3,7 @@
  * (see router.use at the bottom of the requires). */
 const express = require("express");
 const admin = require("firebase-admin");
+const sharp = require("sharp");
 const { requireAuth, requireAdmin, requirePermission, asyncRoute } = require("../middleware");
 const {
   uid: genId, todayISO, dateFromRecord, accounting,
@@ -964,8 +965,36 @@ router.post("/snacks/sync-bundled-artwork", asyncRoute(async (req, res) => {
 
 /* Image upload: the client already downscales/re-encodes to WebP
  * (FS.admin.prepareImageForUpload stays client-side - it's pure canvas
- * work, no network) and posts the result here as base64 JSON rather than
- * uploading straight to Storage itself, so this goes through the API too. */
+ * work, no network) purely to shrink what has to travel over the upload
+ * itself, and posts the result here as base64 JSON rather than uploading
+ * straight to Storage, so this goes through the API too. That client pass
+ * is best-effort, not a guarantee, though: it silently falls back to the
+ * ORIGINAL file whenever the re-encode comes out larger (common for
+ * already-compressed JPEGs) or canvas WebP encoding isn't available at
+ * all (older Safari), so whatever arrives here could still be an
+ * unprocessed multi-MB photo straight off a phone. reduceToWebp() is the
+ * authoritative pass every image goes through regardless of what the
+ * client managed to do - every stored snack image ends up WebP, capped to
+ * a sane display size, at a consistent quality, no matter the source. */
+const IMAGE_MAX_DIMENSION = 1600;
+const IMAGE_WEBP_QUALITY = 82;
+async function reduceToWebp(buffer) {
+  try {
+    return await sharp(buffer, { failOn: "none" })
+      .rotate() // bakes in EXIF orientation before resizing, then drops the EXIF block entirely
+      .resize({
+        width: IMAGE_MAX_DIMENSION,
+        height: IMAGE_MAX_DIMENSION,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: IMAGE_WEBP_QUALITY })
+      .toBuffer();
+  } catch (error) {
+    throw bad("That file couldn't be read as an image. Try a different photo (JPEG, PNG, or WebP).");
+  }
+}
+
 router.post("/snacks/:id/image", asyncRoute(async (req, res) => {
   const snackId = req.params.id;
   const { kind = "photo", contentType, base64, filename } = req.body;
@@ -973,22 +1002,26 @@ router.post("/snacks/:id/image", asyncRoute(async (req, res) => {
   if (!base64) throw bad("Choose an image to upload.");
   if (!String(contentType || "").startsWith("image/")) throw bad("Only image files can be uploaded.");
   if (!["photo", "favoritePhoto"].includes(kind)) throw bad("Unknown artwork type.");
-  const buffer = Buffer.from(base64, "base64");
-  if (buffer.length > 10 * 1024 * 1024) throw bad("Images must be 10 MB or smaller.");
+  const rawBuffer = Buffer.from(base64, "base64");
+  if (rawBuffer.length > 10 * 1024 * 1024) throw bad("Images must be 10 MB or smaller.");
+  const buffer = await reduceToWebp(rawBuffer);
 
   const docRef = db().collection("snacks").doc(snackId);
   const currentSnap = await docRef.get();
   if (!currentSnap.exists) throw bad("Snack record not found.", 404);
   const current = currentSnap.data();
   const pathField = kind === "photo" ? "photoStoragePath" : "favoritePhotoStoragePath";
-  const extension = (contentType.split("/")[1] || "jpg").toLowerCase();
+  // Every stored image is WebP now regardless of what was uploaded -
+  // reduceToWebp() above already normalized it, so the object's own
+  // extension/content-type follow that rather than the client's
+  // originally-reported contentType/filename.
   const safeName = String(filename || "image")
     .toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "image";
-  const objectPath = `snacks/${snackId}/${kind}-${Date.now()}-${safeName}.${extension}`;
+  const objectPath = `snacks/${snackId}/${kind}-${Date.now()}-${safeName}.webp`;
   const bucket = admin.storage().bucket();
   const file = bucket.file(objectPath);
   await file.save(buffer, {
-    contentType,
+    contentType: "image/webp",
     metadata: { cacheControl: "public,max-age=31536000,immutable", metadata: { snackId, artworkKind: kind } },
   });
   await file.makePublic();
