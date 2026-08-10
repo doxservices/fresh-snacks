@@ -1851,6 +1851,37 @@ details[open] > summary .month-note {
   border-radius: 0;
 }
 
+/* User accounting carries the same flat-report table treatment, per
+   request - it isn't wrapped in <details> (one continuous table, no
+   per-customer collapsing), so only the table-level rules apply; the
+   details/summary rules above are irrelevant here. */
+#accounting-list .admin-table {
+  border-spacing: 0;
+}
+
+#accounting-list .admin-table td {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(24, 79, 42, 0.08);
+  border-radius: 0;
+}
+
+/* Both flat overrides above are ID-scoped, so they beat tr.disputed/
+   tr.healthy-account's plain background rules regardless of source
+   order (an id always outranks a class, however the two selectors are
+   arranged) - caught live: transactions.html's disputed-row red tint was
+   silently rendering as fully transparent. Restored here at matching
+   specificity so the semantic "this needs attention" / "this account is
+   settled" row tints survive the flat table style instead of being
+   erased by it. */
+#txn-groups .admin-table tr.disputed td {
+  background: rgba(250, 240, 239, 0.9);
+}
+
+#accounting-list .admin-table tr.healthy-account td {
+  background: var(--green-light);
+}
+
 .bottom-summary {
   /* match the horizontal inset of tables inside <details>
      (1px border + 10px table padding) so columns line up */

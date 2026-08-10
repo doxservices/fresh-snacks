@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260806k-expandall-flat" />
+  <link rel="stylesheet" href="styles.css?v=20260806l-accounting-flat-report" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -55,7 +55,12 @@
 
     <section id="accounting-app" class="hidden">
       <section class="card section-card">
-        <h2>User accounting</h2>
+        <div class="section-head">
+          <h2>User accounting</h2>
+          <div>
+            <button class="primary" id="create-tab-btn">Create new tab</button>
+          </div>
+        </div>
         <p class="muted-small" style="margin-bottom:10px;">
           View opens that user's listings on the <a href="transactions.html">Transactions</a> page.
           Edit tab opens <a href="edit-tab.html">Edit Tab</a>, where you can add snacks
@@ -63,7 +68,6 @@
           build out before sharing its invite. Delete permanently removes the customer's tab and
           account history. Use it only for test guests or accounts that should no longer be retained.
         </p>
-        <button class="primary" id="create-tab-btn" style="margin-bottom:12px;">Create new tab</button>
         <div id="accounting-list"></div>
         <div class="status" id="acct-status"></div>
       </section>
