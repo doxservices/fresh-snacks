@@ -59,6 +59,10 @@ async function getSettingsData() {
     favoriteSnackId: settings.favoriteSnackId || null,
     favoriteName: settings.favoriteName || "Favorite snack",
     favoriteDescription: settings.favoriteDescription || "",
+    // How long (seconds) a basket toast's ticker takes to scroll a long
+    // snack name fully into view before the toast is allowed to leave -
+    // admin-tunable from the UI settings panel (admin.html).
+    toastTickerSeconds: Number(settings.toastTickerSeconds) || 1,
   };
 }
 

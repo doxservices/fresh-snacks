@@ -106,6 +106,23 @@ router.patch("/admins/:uid", requirePermission(PERMISSION.MANAGE_ADMINS), asyncR
   res.json({ ok: true });
 }));
 
+// Backs admin.html's "UI settings" panel - a small, generic merge into the
+// same settings/app doc getSettingsData() (store.js) reads with defaults,
+// so new levers can be added here later without a new route each time.
+router.patch("/settings", asyncRoute(async (req, res) => {
+  const { toastTickerSeconds } = req.body;
+  const payload = { updatedBy: req.uid, updatedAt: FieldValue.serverTimestamp() };
+  if (toastTickerSeconds !== undefined) {
+    const seconds = Number(toastTickerSeconds);
+    if (!Number.isFinite(seconds) || seconds < 0.3 || seconds > 5) {
+      throw bad("Toast scroll time must be between 0.3 and 5 seconds.");
+    }
+    payload.toastTickerSeconds = seconds;
+  }
+  await db().collection("settings").doc("app").set(payload, { merge: true });
+  res.json({ ok: true });
+}));
+
 router.get("/snapshot", asyncRoute(async (req, res) => {
   const [settings, snacksSnap, users, devices, transactions, payments, adjustments, feedback] = await Promise.all([
     db().collection("settings").doc("app").get(),

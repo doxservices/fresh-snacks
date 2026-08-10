@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
+  <link rel="stylesheet" href="styles.css?v=20260810c-toast-ticker" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -1706,20 +1706,45 @@
       stack.appendChild(toast);
       const text = toast.querySelector(".cart-toast-text");
       const textClip = toast.querySelector(".cart-toast-text-clip");
+
+      // Measured synchronously (appendChild above already gave the toast
+      // layout, even pre-paint) so minRead below can factor the ticker's
+      // own duration in before the toast is allowed to start leaving - the
+      // actual .show/.ticker class toggle is still deferred to the next
+      // frame so the CSS transition/animation actually plays instead of
+      // starting from an already-applied state.
+      let tickerMs = 0;
+      let tickerSeconds = 0;
+      let tickerShift = "";
+      // Scroll distance is measured against the CLIP's own content width
+      // (its client width minus its own left/right padding), so the
+      // moving text finishes exactly at the clip edge instead of sliding
+      // across its neighbors or falling short of it.
+      const clipStyle = getComputedStyle(textClip);
+      const clipContentWidth = textClip.clientWidth
+        - parseFloat(clipStyle.paddingLeft) - parseFloat(clipStyle.paddingRight);
+      if (text.scrollWidth > clipContentWidth + 2) {
+        // Admin-tunable (UI settings panel) - defaults to 1s so the full
+        // name always finishes scrolling well within the toast's minimum
+        // on-screen time, however long the name is.
+        tickerSeconds = Number(LAST_DATA?.profile?.toastTickerSeconds) || 1;
+        tickerShift = `${clipContentWidth - text.scrollWidth}px`;
+        // The toast must not start leaving mid-scroll - hold it past the
+        // scroll's own finish (plus a brief pause to actually read the
+        // fully-revealed end) before the normal exit timing applies.
+        tickerMs = tickerSeconds * 1000 + 400;
+      }
+
       requestAnimationFrame(() => {
         toast.classList.add("show");
-        // Ticker only when the text overflows its own clip zone - and the
-        // scroll distance is measured against the CLIP's width (the
-        // dedicated viewport between the icon and the Undo action), so
-        // the moving text turns around exactly at the clip edge instead
-        // of sliding across its neighbors.
-        if (text.scrollWidth > textClip.clientWidth + 2) {
-          text.style.setProperty("--ticker-shift", `${textClip.clientWidth - text.scrollWidth}px`);
+        if (tickerMs > 0) {
+          text.style.setProperty("--ticker-shift", tickerShift);
+          text.style.setProperty("--ticker-duration", `${tickerSeconds}s`);
           text.classList.add("ticker");
         }
       });
 
-      const minRead = new Promise((resolve) => setTimeout(resolve, opts.onUndo ? 4200 : 2400));
+      const minRead = new Promise((resolve) => setTimeout(resolve, Math.max(opts.onUndo ? 4200 : 2400, tickerMs)));
       const afterPrevGone = toastVanishChain.then(() => new Promise((resolve) => setTimeout(resolve, 1000)));
       let resolveThisGone;
       toastVanishChain = new Promise((resolve) => { resolveThisGone = resolve; });

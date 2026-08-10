@@ -93,6 +93,12 @@ FS.admin.currentAdmin = async () => {
 FS.admin.getSnapshot = async () => FS._apiFetch("/admin/snapshot");
 FS.admin.getStats = async () => FS._apiFetch("/admin/stats");
 
+// Backs the "UI settings" panel on admin.html - fields merge into the same
+// settings/app doc the storefront reads (see store.js's getSettingsData).
+FS.admin.updateSettings = async (fields) => {
+  await FS._apiFetch("/admin/settings", { method: "PATCH", body: fields });
+};
+
 FS.admin.setFeedbackStatus = async (id, status) => {
   await FS._apiFetch(`/admin/feedback/${encodeURIComponent(id)}/status`, { method: "PATCH", body: { status } });
 };

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
+  <link rel="stylesheet" href="styles.css?v=20260810c-toast-ticker" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -156,6 +156,20 @@
       </section>
 
       <section class="card section-card">
+        <h2>UI settings</h2>
+        <p class="muted-small">Tune small interface behaviors customers see.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="ui-toast-ticker-seconds">Basket toast scroll time (seconds)</label>
+            <input id="ui-toast-ticker-seconds" type="number" min="0.3" max="5" step="0.1" />
+          </div>
+          <button class="primary" id="ui-settings-save">Save</button>
+        </div>
+        <p class="muted-small">How long a long snack name takes to scroll fully into view inside the "Added to basket" toast before it slides off screen. 0.3-5 seconds.</p>
+        <div class="status" id="ui-settings-status"></div>
+      </section>
+
+      <section class="card section-card">
         <h2>Customer Feedback</h2>
         <div id="feedback-list"></div>
       </section>
@@ -170,7 +184,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260727-mark-paid-supersede"></script>
+  <script src="js/firebase-admin.js?v=20260810b-ui-settings"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script src="js/admin-notifications.js?v=20260806b-action-beside-date"></script>
   <script>
@@ -282,6 +296,7 @@
       renderFeedback();
       $("adjust-user").innerHTML = userOptions();
       populateTestProfileSelect();
+      $("ui-toast-ticker-seconds").value = SNAPSHOT.settings.toastTickerSeconds ?? 1;
     }
 
     $("google-login").onclick = async () => {
@@ -374,6 +389,21 @@
         status("adjust-status", "Adjustment added.", true);
       } catch (e) {
         status("adjust-status", e.message, false);
+      }
+    };
+
+    $("ui-settings-save").onclick = async () => {
+      try {
+        const seconds = Number($("ui-toast-ticker-seconds").value);
+        if (!Number.isFinite(seconds) || seconds < 0.3 || seconds > 5) {
+          status("ui-settings-status", "Enter a value between 0.3 and 5 seconds.", false);
+          return;
+        }
+        await FS.admin.updateSettings({ toastTickerSeconds: seconds });
+        await refresh();
+        status("ui-settings-status", "Saved.", true);
+      } catch (e) {
+        status("ui-settings-status", e.message, false);
       }
     };
 
