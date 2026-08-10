@@ -6,9 +6,12 @@
  *    customer has disputed). These normally resolve themselves once the
  *    underlying Firestore state changes (approved, read, etc.), but the
  *    admin can also close one out manually with its x button without
- *    acting on it - that's a local dismiss only (see DISMISS_STORAGE_KEY),
- *    it doesn't touch Firestore, so it stays gone from the panel even
- *    though the underlying record is still unresolved.
+ *    acting on it - that's a dismiss that doesn't touch the underlying
+ *    record. It's saved server-side against the signed-in admin's own uid
+ *    (adminNotificationDismissals/{uid}, see functions/src/routes/admin.js),
+ *    not to this device's localStorage, so it follows that admin to every
+ *    browser they sign into and stays independent of every other admin's
+ *    own dismissals. admin-users.html has a dev table to reset it per-admin.
  *
  * 2. Activity notices - a customer added their name, or logged a purchase
  *    themselves via the basket's "Add to tab" button. These don't have a
@@ -33,19 +36,24 @@
   // load after shipping this feature would flood the panel with every
   // customer who was ever named and every purchase ever self-logged.
   const ACTIVITY_CUTOFF_MS = Date.parse("2026-07-21T00:00:00Z");
-  const DISMISS_STORAGE_KEY = "fresh_snacks_admin_dismissed_notifications";
   const esc = (s) => FS.escapeHtml(s);
   let snapshot = null;
+  // Synced from the server in refreshSnapshot(); mutated optimistically by
+  // dismissKey() below so the panel reacts instantly without waiting on the
+  // round-trip.
+  let dismissedSet = new Set();
 
   function getDismissed() {
-    try { return new Set(JSON.parse(localStorage.getItem(DISMISS_STORAGE_KEY) || "[]")); }
-    catch { return new Set(); }
+    return dismissedSet;
   }
 
-  function dismissKey(key) {
-    const set = getDismissed();
-    set.add(key);
-    localStorage.setItem(DISMISS_STORAGE_KEY, JSON.stringify([...set]));
+  async function dismissKey(key) {
+    dismissedSet.add(key);
+    try {
+      await FS.admin.dismissNotification(key);
+    } catch (e) {
+      console.error("Failed to save notification dismissal", e);
+    }
   }
 
   function timestampMs(record, field) {
@@ -546,7 +554,15 @@
 
   async function refreshSnapshot() {
     try {
-      snapshot = await FS.admin.getSnapshot();
+      const [snap, dismissals] = await Promise.all([
+        FS.admin.getSnapshot(),
+        // A fresh admin whose dismissals doc doesn't exist yet, or a
+        // mid-flight auth hiccup, should just mean "nothing dismissed" -
+        // not fail the whole refresh over a non-essential fetch.
+        FS.admin.getMyNotificationDismissals().catch(() => ({ keys: [] })),
+      ]);
+      snapshot = snap;
+      dismissedSet = new Set(dismissals.keys || []);
       renderBadge();
     } catch {
       // not actually an active admin (e.g. requireAdmin rejected mid-flight) - stay hidden

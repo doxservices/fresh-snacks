@@ -228,6 +228,21 @@ FS.admin.updateAdmin = async (uid, { displayName, role, permissions, active }) =
     method: "PATCH", body: { displayName, role, permissions, active },
   });
 
+// Server-side per-admin-user notification dismissals (not per-device) - see
+// js/admin-notifications.js for how these back the bell panel, and
+// admin-users.html's "Notification dismissals" table for the dev reset tool.
+FS.admin.getMyNotificationDismissals = async () => FS._apiFetch("/admin/notification-dismissals");
+
+FS.admin.dismissNotification = async (key) => {
+  await FS._apiFetch("/admin/notification-dismissals", { method: "POST", body: { key } });
+};
+
+FS.admin.listNotificationDismissals = async () => FS._apiFetch("/admin/notification-dismissals/all");
+
+FS.admin.resetNotificationDismissals = async (uid) => {
+  await FS._apiFetch(`/admin/notification-dismissals/${encodeURIComponent(uid)}`, { method: "DELETE" });
+};
+
 FS.admin.deleteUserData = async (userId) => {
   const { count } = await FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/data`, { method: "DELETE" });
   return count;

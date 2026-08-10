@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin Users</title>
-  <link rel="stylesheet" href="styles.css?v=20260810c-toast-ticker" />
+  <link rel="stylesheet" href="styles.css?v=20260810d-mute-actions" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -86,6 +86,18 @@
         <div id="admins-list"></div>
         <div class="status" id="admins-status"></div>
       </section>
+
+      <section class="card section-card">
+        <h2>Notification dismissals</h2>
+        <p class="muted-small">
+          Each admin's dismissed notifications are saved against their own account, not their
+          browser, so they follow that admin everywhere they sign in and never affect any other
+          admin's panel. While in development, use Reset to bring back an admin's unattended
+          notifications without waiting on the underlying record to change.
+        </p>
+        <div id="notif-dismissals-list"></div>
+        <div class="status" id="notif-dismissals-status"></div>
+      </section>
     </section>
 
     <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
@@ -121,7 +133,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260810b-ui-settings"></script>
+  <script src="js/firebase-admin.js?v=20260810c-notif-dismissals"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script>
     const $ = (id) => document.getElementById(id);
@@ -217,6 +229,34 @@
         : `<p class="muted-small">No admin users found.</p>`;
     }
 
+    // Keyed by admin USER (uid), not device - see FS.admin.*NotificationDismissals
+    // and functions/src/routes/admin.js's adminNotificationDismissals collection.
+    let NOTIF_DISMISSALS = [];
+    function renderNotifDismissalsList() {
+      const counts = new Map(NOTIF_DISMISSALS.map((d) => [d.uid, d.count]));
+      $("notif-dismissals-list").innerHTML = SNAPSHOT_ADMINS.length
+        ? `<table class="admin-table">
+            <thead><tr><th>Admin</th><th class="num">Dismissed</th><th></th></tr></thead>
+            <tbody>${SNAPSHOT_ADMINS.map((a) => {
+              const count = counts.get(a.uid) || 0;
+              return `<tr data-uid="${esc(a.uid)}">
+                <td>${esc(a.displayName || a.email || a.uid)}</td>
+                <td class="num">${count}</td>
+                <td class="nowrap"><button type="button" class="danger" data-act="reset-notif-dismissals" data-uid="${esc(a.uid)}"${count ? "" : " disabled"}>Reset</button></td>
+              </tr>`;
+            }).join("")}</tbody>
+          </table>`
+        : `<p class="muted-small">No admin users found.</p>`;
+    }
+    async function refreshNotifDismissals() {
+      try {
+        NOTIF_DISMISSALS = await FS.admin.listNotificationDismissals();
+      } catch {
+        NOTIF_DISMISSALS = [];
+      }
+      renderNotifDismissalsList();
+    }
+
     async function refresh() {
       const me = await FS.admin.currentAdmin();
       currentAdminUid = me?.uid || null;
@@ -233,6 +273,7 @@
       $("admin-sign-out").classList.remove("hidden");
       SNAPSHOT_ADMINS = await FS.admin.listAdmins();
       renderAdminsList();
+      await refreshNotifDismissals();
     }
 
     $("google-login").onclick = async () => {
@@ -355,6 +396,28 @@
     document.body.addEventListener("click", (ev) => {
       const btn = ev.target.closest("[data-act='edit-admin']");
       if (btn) openEditAdmin(btn.dataset.uid);
+    });
+
+    document.body.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("[data-act='reset-notif-dismissals']");
+      if (!btn) return;
+      const uid = btn.dataset.uid;
+      const admin = SNAPSHOT_ADMINS.find((a) => a.uid === uid);
+      const ok = await AdminModals.confirm(
+        "Reset this admin's notifications?",
+        `${admin?.displayName || admin?.email || uid} will see every notification they've dismissed again next time they open the panel.`,
+        { confirmText: "Reset" }
+      );
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await FS.admin.resetNotificationDismissals(uid);
+        await refreshNotifDismissals();
+        status("notif-dismissals-status", "Reset.", true);
+      } catch (e) {
+        status("notif-dismissals-status", e.message, false);
+        btn.disabled = false;
+      }
     });
 
     FS.initFirebase()

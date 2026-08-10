@@ -106,6 +106,39 @@ router.patch("/admins/:uid", requirePermission(PERMISSION.MANAGE_ADMINS), asyncR
   res.json({ ok: true });
 }));
 
+// Notification dismissals are keyed by the admin's own uid (adminNotification
+// Dismissals/{uid}, a {key: true} map) - not by device/localStorage - so a
+// dismissed notification stays dismissed for that admin on every browser
+// they sign into, and reappears for every OTHER admin who hasn't dismissed
+// it themselves.
+router.get("/notification-dismissals", asyncRoute(async (req, res) => {
+  const snap = await db().collection("adminNotificationDismissals").doc(req.uid).get();
+  res.json({ keys: snap.exists ? Object.keys(snap.data().keys || {}) : [] });
+}));
+
+router.post("/notification-dismissals", asyncRoute(async (req, res) => {
+  const { key } = req.body;
+  if (!key) throw bad("A notification key is required.");
+  await db().collection("adminNotificationDismissals").doc(req.uid).set({
+    keys: { [key]: true },
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  res.json({ ok: true });
+}));
+
+// Dev tool (admin-users.html's "Notification dismissals" table): lists every
+// admin's dismissed count so an unattended notification can be brought back
+// for a specific admin without waiting on the underlying record to change.
+router.get("/notification-dismissals/all", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
+  const snap = await db().collection("adminNotificationDismissals").get();
+  res.json(snap.docs.map((doc) => ({ uid: doc.id, count: Object.keys(doc.data().keys || {}).length })));
+}));
+
+router.delete("/notification-dismissals/:uid", requirePermission(PERMISSION.MANAGE_ADMINS), asyncRoute(async (req, res) => {
+  await db().collection("adminNotificationDismissals").doc(req.params.uid).delete();
+  res.json({ ok: true });
+}));
+
 // Backs admin.html's "UI settings" panel - a small, generic merge into the
 // same settings/app doc getSettingsData() (store.js) reads with defaults,
 // so new levers can be added here later without a new route each time.

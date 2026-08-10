@@ -1913,6 +1913,25 @@ details[open] > summary .month-note {
   background: var(--green-light);
 }
 
+/* Flat/spreadsheet read for the transaction ledger: row actions (the "..."
+   menu and Mark paid) stay muted until the row is actually being looked
+   at - hover, keyboard focus inside it, or its menu is open - so the table
+   reads as plain data first and "editable" only on demand. Gated to
+   hover-capable/pointer-fine devices only: touch has no hover state, so
+   the controls must stay visible there or they'd be unreachable. */
+@media (hover: hover) and (pointer: fine) {
+  #txn-groups .admin-table td.ledger-actions {
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  #txn-groups .admin-table tr:hover td.ledger-actions,
+  #txn-groups .admin-table tr:focus-within td.ledger-actions,
+  #txn-groups .admin-table td.ledger-actions:has(.row-menu.open) {
+    opacity: 1;
+  }
+}
+
 .bottom-summary {
   /* match the horizontal inset of tables inside <details>
      (1px border + 10px table padding) so columns line up */
