@@ -459,31 +459,62 @@ p {
   font-size: 14px;
 }
 
+/* Sitewide button system, redesigned ghost/outline-minimal per request:
+   transparent by default (just a clean colored border + text) and fills
+   in solid on hover, instead of the old thin-translucent-border +
+   subtle-gradient-fill look. .primary stays solid-filled at rest -
+   removing ALL fill distinction between primary and secondary buttons
+   would erase the visual hierarchy that tells an admin which action is
+   the main one on a row/modal (Confirm payment vs. Cancel, etc.) - so
+   primary leads with color, everything else leads with an outline and
+   only fills to confirm on hover. Deliberately NOT applied to bespoke
+   compact controls with their own established look (.basket-float-btn,
+   .stepper button, .modal-close, .notif-dismiss, .row-menu-toggle,
+   .toggle) - those aren't general-purpose CTA buttons. */
 button,
 .btn {
-  border: 1px solid rgba(24, 79, 42, 0.18);
-  background: linear-gradient(180deg, #ffffff, #eff7ee);
-  color: var(--green-dark);
-  padding: 9px 12px;
+  background: transparent;
+  border: 1.5px solid var(--green);
   border-radius: var(--radius-sm);
+  color: var(--green-dark);
   cursor: pointer;
+  display: inline-block;
   font-size: 14px;
   font-weight: 500;
-  white-space: nowrap;
+  padding: 8.5px 12px;
   text-decoration: none;
-  display: inline-block;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  white-space: nowrap;
+}
+
+button:not(:disabled):hover,
+.btn:hover {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
 }
 
 button.primary {
-  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  background: var(--green);
+  border-color: var(--green);
   color: #fff;
+}
+
+button.primary:not(:disabled):hover {
+  background: var(--green-dark);
   border-color: var(--green-dark);
 }
 
 button.danger {
+  background: transparent;
+  border-color: #b9504f;
   color: #8a2f2f;
-  border-color: rgba(138, 47, 47, 0.3);
-  background: linear-gradient(180deg, #ffffff, #faf0ef);
+}
+
+button.danger:not(:disabled):hover {
+  background: #8a2f2f;
+  border-color: #8a2f2f;
+  color: #fff;
 }
 
 button:disabled {
