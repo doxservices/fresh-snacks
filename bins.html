@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Log My Snacks</title>
-  <link rel="stylesheet" href="styles.css?v=20260806m-ghost-buttons" />
+  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -53,7 +53,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260729-date-level-log"></script>
+  <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
   <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
   <script>
@@ -102,9 +102,7 @@
         const unavailable = s.stock === 0;
         return `
         <div class="bin-card${unavailable ? " sold-out" : ""}">
-          <div class="bin-photo">${s.photo
-            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${unavailable ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
+          <div class="bin-photo"><img src="${esc(s.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(s.name)}" loading="lazy" />${unavailable ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, DATA.profile.currency)} each</div>

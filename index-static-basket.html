@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260806m-ghost-buttons" />
+  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -166,7 +166,7 @@
     <section class="favorite-section hidden" id="favorite-section" aria-label="Favorite snack">
       <article class="snack-card favorite-card">
         <div class="snack-image">
-          <img id="fav-photo" src="assets/chewy-background.webp" alt="Favorite snack" />
+          <img id="fav-photo" src="assets/default-snack-background.webp" alt="Favorite snack" />
           <div class="facts-door" id="facts-door" aria-hidden="true" title="Close nutrition facts"></div>
         </div>
         <div class="snack-body">
@@ -763,7 +763,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260731-paypal-tab-payment"></script>
+  <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <!-- Live PayPal app's client-id (must match functions/src/lib/
        paypalClientLive.js's server-side credentials, or checkout breaks) -
        components=buttons so the amount can be set per checkout
@@ -1027,7 +1027,7 @@
       grid.innerHTML = options.map((snack, index) => `
         <article class="recommendation-card" data-recommendation="${esc(snack.id)}">
           <button type="button" class="recommendation-dismiss" data-dismiss-recommendation="${esc(snack.id)}" aria-label="Dismiss ${esc(snack.name)} recommendation">&times;</button>
-          <div class="recommendation-photo">${snack.photo ? `<img src="${esc(snack.photo)}" alt="${esc(snack.name)}" loading="lazy" />` : `<span aria-hidden="true">&#127850;</span>`}</div>
+          <div class="recommendation-photo"><img src="${esc(snack.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(snack.name)}" loading="lazy" /></div>
           <div>
             <h3>${esc(snack.name)}</h3>
             <p>${esc(recommendationReason(snack, favorite, index))}</p>
@@ -1488,7 +1488,7 @@
         : "Your top snack by total spend.");
 
       const favPhoto = document.getElementById("fav-photo");
-      const regularFavPhoto = (fav && fav.photo) || "assets/chewy.jpg";
+      const regularFavPhoto = (fav && fav.photo) || FS.DEFAULT_FAVORITE_BACKGROUND;
       favPhoto.onerror = () => {
         favPhoto.onerror = null;
         favPhoto.src = regularFavPhoto;
@@ -1806,9 +1806,7 @@
             : "";
         return `
         <div class="bin-card${unavailable ? " sold-out" : ""}" data-id="${esc(s.id)}">
-          <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details">${s.photo
-            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${unavailable ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
+          <div class="bin-photo" data-id="${esc(s.id)}" role="button" tabindex="0" aria-label="View ${esc(s.name)} details"><img src="${esc(s.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(s.name)}" loading="lazy" />${unavailable ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, data.profile.currency)}</div>
@@ -1871,9 +1869,7 @@
       if (!s) return;
       snackModalReturnFocus = document.activeElement;
       modalSnackId = id;
-      $id("snack-modal-photo-inner").innerHTML = s.photo
-        ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" />`
-        : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`;
+      $id("snack-modal-photo-inner").innerHTML = `<img src="${esc(s.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(s.name)}" />`;
       $id("snack-modal-title").textContent = s.name;
       $id("snack-modal-price").textContent = `${FS.money(s.price, LAST_DATA.profile.currency)} each`;
       const unavailable = s.stock === 0;
@@ -2942,9 +2938,7 @@
         const s = e.snackId ? FS.snackById(data, e.snackId) : null;
         const name = FS.entryName(data, e);
         return `<div class="ncm-card" data-id="${esc(e.id)}">
-          <div class="ncm-card-photo">${s && s.photo
-            ? `<img src="${esc(s.photo)}" alt="${esc(name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}</div>
+          <div class="ncm-card-photo"><img src="${esc((s && s.photo) || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(name)}" loading="lazy" /></div>
           <div class="ncm-card-body">
             <div class="ncm-card-name">${esc(name)}</div>
             <div class="ncm-card-meta">${esc(e.count ?? "")}&times; ${FS.money(e.value, data.profile.currency)}</div>

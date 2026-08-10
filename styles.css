@@ -3944,6 +3944,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
    and favorite background alike) a real square that grows with the
    column, so uploads are actually easy to inspect. */
 .artwork-preview {
+  position: relative;
   aspect-ratio: 1 / 1;
   height: auto;
   display: grid;
@@ -3955,15 +3956,63 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   color: #68756b;
 }
 
-/* cover (not contain) so the photo actually fills the square box edge to
-   edge instead of letterboxing with empty space around it, and centered
-   (object-position's own default, restated for clarity) so a non-square
-   upload crops evenly from both sides rather than anchoring to a corner. */
-.artwork-preview img {
+/* grid-area 1/1 on both stacks them in the same cell (instead of the
+   default one-per-row auto-placement now that the box holds an empty-state
+   span AND an img at once) so whichever isn't [hidden] fills the box on
+   its own. */
+.artwork-preview-empty,
+.artwork-preview-img {
+  grid-area: 1 / 1;
+}
+
+/* contain (not cover) so the whole photo is always visible at rest instead
+   of being cropped to fill the square - js/admin-modals.js then layers
+   drag-to-pan and scroll/pinch-to-zoom (via transform) on top so admins can
+   inspect any part of a non-square upload at full resolution. */
+.artwork-preview-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  transform-origin: center center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.artwork-preview-img[hidden] {
+  display: none;
+}
+
+.artwork-preview-empty {
+  font-size: 0.9rem;
+}
+
+/* Only shown once zoomed past 1x (toggled in JS) - lets an admin snap back
+   to the full-image view without hunting for the right scroll/drag amount. */
+.artwork-preview-reset {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(24, 79, 42, 0.75);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+}
+
+.artwork-preview-reset .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.artwork-preview-reset:hover {
+  background: rgba(24, 79, 42, 0.92);
 }
 
 .catalog-upload-harness input[type="file"] {

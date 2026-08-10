@@ -4,6 +4,9 @@
  * of mixing in browser-chrome dialogs. Injects its markup into <body> once;
  * safe to include on any admin page regardless of what else is on it. */
 (function () {
+  const ARTWORK_RESET_ICON = `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>`;
+  const artworkPreviewInner = `<span class="artwork-preview-empty">No image</span><img class="artwork-preview-img" alt="" hidden /><button type="button" class="artwork-preview-reset hidden" title="Reset zoom" aria-label="Reset zoom">${ARTWORK_RESET_ICON}</button>`;
+
   const mount = document.createElement("div");
   mount.innerHTML = `
     <div class="modal-backdrop" id="am-confirm-backdrop">
@@ -62,14 +65,14 @@
         <h2 id="am-artwork-title">Update photos</h2>
         <div class="artwork-upload-grid">
           <div class="artwork-upload-item">
-            <div class="artwork-preview" id="am-artwork-photo-preview"></div>
+            <div class="artwork-preview" id="am-artwork-photo-preview">${artworkPreviewInner}</div>
             <div class="field">
               <label for="am-artwork-photo-input">Catalog image</label>
               <input id="am-artwork-photo-input" type="file" accept="image/*" />
             </div>
           </div>
           <div class="artwork-upload-item">
-            <div class="artwork-preview" id="am-artwork-favorite-preview"></div>
+            <div class="artwork-preview" id="am-artwork-favorite-preview">${artworkPreviewInner}</div>
             <div class="field">
               <label for="am-artwork-favorite-input">Favorite background</label>
               <input id="am-artwork-favorite-input" type="file" accept="image/*" />
@@ -85,10 +88,171 @@
   document.body.append(...mount.children);
 
   const $ = (id) => document.getElementById(id);
-  const escArtwork = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // Drag-to-pan + scroll/pinch-to-zoom for the artwork preview boxes. The
+  // image sits at object-fit:contain (whole photo visible, nothing cropped)
+  // and this only ever adds a transform on top of that, so a fresh/never-
+  // touched preview is always the untouched full-image view.
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 4;
+  const artworkZoomState = new WeakMap();
+
+  const getPreviewImg = (container) => container.querySelector(".artwork-preview-img");
+  const getPreviewResetBtn = (container) => container.querySelector(".artwork-preview-reset");
+
+  function applyArtworkTransform(container) {
+    const state = artworkZoomState.get(container);
+    const img = getPreviewImg(container);
+    if (!state || !img) return;
+    img.style.transform = `translate(${state.tx}px, ${state.ty}px) scale(${state.scale})`;
+    img.style.cursor = state.scale > MIN_ZOOM ? "grab" : "";
+    const resetBtn = getPreviewResetBtn(container);
+    if (resetBtn) resetBtn.classList.toggle("hidden", state.scale <= MIN_ZOOM + 0.01);
+  }
+
+  // Keeps the image from being panned so far that empty space shows inside
+  // the box - computed from the image's natural size rather than its
+  // current (already-transformed) rect, so it's correct at any tx/ty.
+  function clampArtworkPan(container) {
+    const state = artworkZoomState.get(container);
+    const img = getPreviewImg(container);
+    if (!state || !img || !img.naturalWidth || !container.clientWidth) return;
+    const boxW = container.clientWidth;
+    const boxH = container.clientHeight;
+    const containScale = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight);
+    const curW = img.naturalWidth * containScale * state.scale;
+    const curH = img.naturalHeight * containScale * state.scale;
+    const maxX = Math.max(0, (curW - boxW) / 2);
+    const maxY = Math.max(0, (curH - boxH) / 2);
+    state.tx = Math.max(-maxX, Math.min(maxX, state.tx));
+    state.ty = Math.max(-maxY, Math.min(maxY, state.ty));
+  }
+
+  function resetArtworkZoom(container) {
+    artworkZoomState.set(container, { scale: MIN_ZOOM, tx: 0, ty: 0 });
+    applyArtworkTransform(container);
+  }
+
+  // Idempotent - safe to call every time a preview container is (re)used,
+  // even though the <img> inside it gets a new src repeatedly.
+  function wireArtworkPreview(container) {
+    if (!container || container.dataset.zoomWired) return;
+    container.dataset.zoomWired = "1";
+    container.title = "Scroll or pinch to zoom - drag to move";
+    resetArtworkZoom(container);
+
+    const pointers = new Map();
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let pinchStartDist = 0;
+    let pinchStartScale = MIN_ZOOM;
+
+    container.addEventListener("wheel", (ev) => {
+      const img = getPreviewImg(container);
+      if (!img || img.hidden) return;
+      ev.preventDefault();
+      const state = artworkZoomState.get(container);
+      state.scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.scale - ev.deltaY * 0.0015 * state.scale));
+      if (state.scale <= MIN_ZOOM + 0.001) { state.scale = MIN_ZOOM; state.tx = 0; state.ty = 0; }
+      clampArtworkPan(container);
+      applyArtworkTransform(container);
+    }, { passive: false });
+
+    container.addEventListener("pointerdown", (ev) => {
+      const img = getPreviewImg(container);
+      if (!img || img.hidden) return;
+      // Chrome retargets the click that follows a captured pointer to the
+      // capturing element - skip capture for the reset button itself, or
+      // its own click handler would never see the click.
+      if (ev.target.closest(".artwork-preview-reset")) return;
+      container.setPointerCapture(ev.pointerId);
+      pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pointers.size === 1) {
+        dragging = true;
+        lastX = ev.clientX;
+        lastY = ev.clientY;
+      } else if (pointers.size === 2) {
+        dragging = false;
+        const pts = [...pointers.values()];
+        pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        pinchStartScale = artworkZoomState.get(container).scale;
+      }
+    });
+
+    container.addEventListener("pointermove", (ev) => {
+      if (!pointers.has(ev.pointerId)) return;
+      pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      const state = artworkZoomState.get(container);
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+        state.scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchStartScale * (dist / pinchStartDist)));
+        clampArtworkPan(container);
+        applyArtworkTransform(container);
+      } else if (dragging && state.scale > MIN_ZOOM) {
+        state.tx += ev.clientX - lastX;
+        state.ty += ev.clientY - lastY;
+        lastX = ev.clientX;
+        lastY = ev.clientY;
+        clampArtworkPan(container);
+        applyArtworkTransform(container);
+      }
+    });
+
+    const endPointer = (ev) => {
+      pointers.delete(ev.pointerId);
+      dragging = pointers.size === 1;
+      if (dragging) {
+        const [pt] = pointers.values();
+        lastX = pt.x;
+        lastY = pt.y;
+      }
+    };
+    container.addEventListener("pointerup", endPointer);
+    container.addEventListener("pointercancel", endPointer);
+    container.addEventListener("pointerleave", (ev) => { if (pointers.size <= 1) endPointer(ev); });
+
+    container.addEventListener("dblclick", () => {
+      const state = artworkZoomState.get(container);
+      if (state.scale > MIN_ZOOM) {
+        resetArtworkZoom(container);
+      } else {
+        state.scale = 2;
+        clampArtworkPan(container);
+        applyArtworkTransform(container);
+      }
+    });
+
+    const resetBtn = getPreviewResetBtn(container);
+    if (resetBtn) resetBtn.onclick = (ev) => { ev.stopPropagation(); resetArtworkZoom(container); };
+  }
+
+  // Sets (or clears) the photo shown in a wired preview box and resets any
+  // zoom/pan left over from whatever was previously shown there.
+  function setArtworkPreview(container, src, alt) {
+    if (!container) return;
+    wireArtworkPreview(container);
+    const img = getPreviewImg(container);
+    const empty = container.querySelector(".artwork-preview-empty");
+    if (src) {
+      img.src = src;
+      img.alt = alt || "";
+      img.hidden = false;
+      if (empty) empty.hidden = true;
+    } else {
+      img.removeAttribute("src");
+      img.hidden = true;
+      if (empty) empty.hidden = false;
+    }
+    resetArtworkZoom(container);
+  }
 
   window.AdminModals = {
+    // Wires drag-to-pan + scroll/pinch-to-zoom onto a .artwork-preview
+    // element (see the markup in catalog.html) and sets its photo. Safe to
+    // call repeatedly - wiring only happens once per element.
+    setArtworkPreview,
     // Promise<boolean> - true if confirmed, false if cancelled/dismissed
     confirm(title, message, opts = {}) {
       return new Promise((resolve) => {
@@ -200,11 +364,7 @@
     uploadArtwork(snack, { onUpload }) {
       return new Promise((resolve) => {
         $("am-artwork-title").textContent = `Update photos - ${snack.name}`;
-        const setPreview = (id, src, alt) => {
-          $(id).innerHTML = src
-            ? `<img src="${escArtwork(src)}" alt="${escArtwork(alt)}" />`
-            : `<span>No image</span>`;
-        };
+        const setPreview = (id, src, alt) => setArtworkPreview($(id), src, alt);
         setPreview("am-artwork-photo-preview", snack.photo, `${snack.name} catalog artwork`);
         setPreview("am-artwork-favorite-preview", snack.favoritePhoto, `${snack.name} favorite artwork`);
         const photoInput = $("am-artwork-photo-input");

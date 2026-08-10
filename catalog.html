@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Snack Catalog</title>
-  <link rel="stylesheet" href="styles.css?v=20260806m-ghost-buttons" />
+  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -103,7 +103,11 @@
             <select id="artwork-snack"></select>
           </div>
           <div class="artwork-upload-item">
-            <div class="artwork-preview" id="photo-preview"></div>
+            <div class="artwork-preview" id="photo-preview">
+              <span class="artwork-preview-empty">No image</span>
+              <img class="artwork-preview-img" alt="" hidden />
+              <button type="button" class="artwork-preview-reset hidden" title="Reset zoom" aria-label="Reset zoom"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg></button>
+            </div>
             <div class="field">
               <label for="photo-upload">Catalog image</label>
               <input id="photo-upload" type="file" accept="image/*" />
@@ -111,7 +115,11 @@
             <button type="button" id="photo-upload-button">Upload catalog image</button>
           </div>
           <div class="artwork-upload-item">
-            <div class="artwork-preview" id="favorite-photo-preview"></div>
+            <div class="artwork-preview" id="favorite-photo-preview">
+              <span class="artwork-preview-empty">No image</span>
+              <img class="artwork-preview-img" alt="" hidden />
+              <button type="button" class="artwork-preview-reset hidden" title="Reset zoom" aria-label="Reset zoom"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg></button>
+            </div>
             <div class="field">
               <label for="favorite-photo-upload">Favorite background</label>
               <input id="favorite-photo-upload" type="file" accept="image/*" />
@@ -155,10 +163,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260729-date-level-log"></script>
+  <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/firebase-admin.js?v=20260727-mark-paid-supersede"></script>
-  <script src="js/admin-modals.js?v=20260727-vertical-uploads"></script>
+  <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script src="js/admin-notifications.js?v=20260806b-action-beside-date"></script>
   <script>
     let SNAPSHOT = null;
@@ -201,9 +209,8 @@
         $("catalog-list").innerHTML = `<div class="catalog-gallery">${SNAPSHOT.snacks.map((s) => `
           <article class="catalog-card" data-id="${esc(s.id)}" draggable="true">
             <div class="catalog-drag-handle" title="Drag to reorder" aria-label="Drag ${esc(s.name)} to reorder">&#8942;&#8942;</div>
-            <div class="catalog-card-photo">${s.photo
-              ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-              : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}
+            <div class="catalog-card-photo">
+              <img src="${esc(s.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(s.name)}" loading="lazy" />
               <button type="button" class="icon-button catalog-photo-upload" data-act="snack-artwork" title="Upload photos for ${esc(s.name)}" aria-label="Upload photos for ${esc(s.name)}">${CAMERA_ICON}</button>
             </div>
             <div class="catalog-card-body">
@@ -257,11 +264,7 @@
         `<option value="${esc(s.id)}"${s.id === selected ? " selected" : ""}>${esc(s.name)}</option>`
       ).join("");
       const snack = SNAPSHOT.snacks.find((s) => s.id === select.value);
-      const preview = (id, src, alt) => {
-        $(id).innerHTML = src
-          ? `<img src="${esc(src)}" alt="${esc(alt)}" />`
-          : `<span>No image</span>`;
-      };
+      const preview = (id, src, alt) => AdminModals.setArtworkPreview($(id), src, alt);
       preview("photo-preview", snack?.photo, snack ? `${snack.name} catalog artwork` : "Catalog artwork");
       preview("favorite-photo-preview", snack?.favoritePhoto, snack ? `${snack.name} favorite artwork` : "Favorite artwork");
     }

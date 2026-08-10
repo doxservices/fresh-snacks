@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260806m-ghost-buttons" />
+  <link rel="stylesheet" href="styles.css?v=20260810a-artwork-defaults" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -275,11 +275,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260729-date-level-log"></script>
+  <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
   <script src="js/firebase-admin.js?v=20260727-mark-paid-supersede"></script>
   <script src="js/admin-notifications.js?v=20260806b-action-beside-date"></script>
-  <script src="js/admin-modals.js?v=20260727-vertical-uploads"></script>
+  <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script>
     let SNAPSHOT = null;
     const picked = new Map();
@@ -798,9 +798,7 @@
         const soldOut = s.stock === 0;
         return `
         <div class="bin-card${soldOut ? " sold-out" : ""}" data-id="${esc(s.id)}">
-          <div class="bin-photo">${s.photo
-            ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy" />`
-            : `<span class="bin-placeholder" aria-hidden="true">&#127850;</span>`}${soldOut ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
+          <div class="bin-photo"><img src="${esc(s.photo || FS.DEFAULT_SNACK_IMAGE)}" alt="${esc(s.name)}" loading="lazy" />${soldOut ? `<span class="sold-out-ribbon" aria-hidden="true">Sold out</span>` : ""}</div>
           <div class="bin-body">
             <div class="bin-name">${esc(s.name)}</div>
             <div class="bin-price">${FS.money(s.price, SNAPSHOT.settings.currency)}</div>

@@ -20,6 +20,11 @@ FS.currentUser = null;
 FS.currentDevice = null;
 FS.firebaseConfigStorageKey = "fresh_snacks_firebase_config";
 
+// Shown in place of a snack's own photo/favoritePhoto wherever one hasn't
+// been uploaded yet, so customers never see a bare "no image" placeholder.
+FS.DEFAULT_SNACK_IMAGE = "assets/default-snack.webp";
+FS.DEFAULT_FAVORITE_BACKGROUND = "assets/default-snack-background.webp";
+
 // Local dev serves the site itself over http://127.0.0.1:8800 (see this
 // repo's established test pattern) and points at the local API test
 // server; everywhere else (GitHub Pages) talks to the real deployed API.
