@@ -5541,7 +5541,7 @@ body:has(#snack-shop-static) .bins-layout {
   pointer-events: none;
   position: absolute;
   transform: translateX(-50%);
-  width: 180px;
+  width: 90px;
   z-index: 1;
 }
 
@@ -5651,7 +5651,7 @@ body:has(#snack-shop-static) .bins-layout {
   padding: 0;
   position: absolute;
   transform: translateX(-50%);
-  width: 180px;
+  width: 90px;
   z-index: 6;
 }
 
@@ -5816,7 +5816,7 @@ button.basket-float-btn.primary:hover {
      the notch/hit width narrows on a small screen. */
   .basket-float-notch,
   .basket-float-tab-hit {
-    width: 140px;
+    width: 70px;
   }
 }
 
