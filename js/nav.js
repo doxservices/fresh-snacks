@@ -61,16 +61,13 @@
   brand.textContent = "Fresh Snacks";
   drawer.appendChild(brand);
 
-  // aria-expanded also drives the hamburger icon's bar-to-X morph (styles.css).
   const close = () => {
     drawer.classList.remove("open");
     backdrop.classList.remove("show");
-    toggle?.setAttribute("aria-expanded", "false");
   };
   const open = () => {
     drawer.classList.add("open");
     backdrop.classList.add("show");
-    toggle?.setAttribute("aria-expanded", "true");
   };
 
   const renderItems = (activeProfile, activeAdmin = activeAdminState) => {

@@ -641,13 +641,17 @@ header.banner {
 }
 
 /* the banner's icon buttons/badges hold inline SVGs (crisp at any zoom,
-   no emoji-rendering variance across OS/browser) instead of glyphs -
-   .banner-menu itself now shares the bar-icon .hamburger markup instead
-   of its own svg, so only .banner-profile still needs this. */
+   no emoji-rendering variance across OS/browser) instead of glyphs */
 .banner-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.banner-menu svg {
+  width: 19px;
+  height: 19px;
+  color: var(--green-dark);
 }
 
 .banner-track .ico svg {
@@ -1907,25 +1911,6 @@ details[open] > summary .month-note {
 
 #accounting-list .admin-table tr.healthy-account td {
   background: var(--green-light);
-}
-
-/* Flat/spreadsheet read for the transaction ledger: row actions (the "..."
-   menu and Mark paid) stay muted until the row is actually being looked
-   at - hover, keyboard focus inside it, or its menu is open - so the table
-   reads as plain data first and "editable" only on demand. Gated to
-   hover-capable/pointer-fine devices only: touch has no hover state, so
-   the controls must stay visible there or they'd be unreachable. */
-@media (hover: hover) and (pointer: fine) {
-  #txn-groups .admin-table td.ledger-actions {
-    opacity: 0;
-    transition: opacity 150ms ease;
-  }
-
-  #txn-groups .admin-table tr:hover td.ledger-actions,
-  #txn-groups .admin-table tr:focus-within td.ledger-actions,
-  #txn-groups .admin-table td.ledger-actions:has(.row-menu.open) {
-    opacity: 1;
-  }
 }
 
 .bottom-summary {
@@ -6472,41 +6457,10 @@ body:has(#snack-shop-static) #snack-modal-backdrop {
   align-items: flex-start;
 }
 
-/* Three-bar icon (currentColor, so it follows the button's own color
-   through the generic ghost-button hover fill for free - green at rest,
-   white on hover, no extra rule needed) that morphs into an X via
-   [aria-expanded="true"] (set by js/nav.js) instead of the old static
-   Unicode "☰" glyph. */
 .hamburger {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  height: 40px;
-  justify-content: center;
-  padding: 0;
-  width: 40px;
-}
-
-.hamburger-bar {
-  background: currentColor;
-  border-radius: 2px;
-  display: block;
-  height: 2px;
-  transition: transform 220ms ease, opacity 150ms ease;
-  width: 18px;
-}
-
-.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-
-.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
+  font-size: 18px;
+  line-height: 1;
+  padding: 9px 12px;
 }
 
 .profile-btn {
@@ -7456,8 +7410,7 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   }
 
   .hamburger {
-    height: 36px;
-    width: 36px;
+    padding: 8px 10px;
   }
 
   .brand-card {
