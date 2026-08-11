@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Log My Snacks</title>
-  <link rel="stylesheet" href="styles.css?v=20260810f-tab-half-width" />
+  <link rel="stylesheet" href="styles.css?v=20260810g-modern-cart-hamburger" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -13,7 +13,11 @@
     <header>
       <div class="header-row">
         <div class="header-lead">
-          <button class="hamburger" id="nav-toggle" aria-label="Open menu">&#9776;</button>
+          <button class="hamburger" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+            <span class="hamburger-bar"></span>
+          </button>
           <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
             <h1>Snack now, pay later</h1>
@@ -55,7 +59,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-store.js?v=20260810-default-images"></script>
   <script src="js/customer-modals.js?v=20260726-modals"></script>
-  <script src="js/nav.js?v=20260726-admin-nav-sections"></script>
+  <script src="js/nav.js?v=20260810-hamburger-morph"></script>
   <script>
     let DATA = null;
     const picked = new Map();

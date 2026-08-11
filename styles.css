@@ -641,17 +641,13 @@ header.banner {
 }
 
 /* the banner's icon buttons/badges hold inline SVGs (crisp at any zoom,
-   no emoji-rendering variance across OS/browser) instead of glyphs */
+   no emoji-rendering variance across OS/browser) instead of glyphs -
+   .banner-menu itself now shares the bar-icon .hamburger markup instead
+   of its own svg, so only .banner-profile still needs this. */
 .banner-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.banner-menu svg {
-  width: 19px;
-  height: 19px;
-  color: var(--green-dark);
 }
 
 .banner-track .ico svg {
@@ -5511,13 +5507,13 @@ body:has(#snack-shop-static) .bins-layout {
    is what keeps gallery content scrolling beneath it from reading as
    smudged text (a plain alpha background without blur did). */
 .basket-float-header {
-  backdrop-filter: blur(9px);
-  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   background: rgba(255, 255, 255, 0.86);
   border: 2px solid var(--green);
-  border-radius: 14px;
-  box-shadow: 0 10px 22px rgba(21, 68, 31, 0.12);
-  height: 48px;
+  border-radius: 18px;
+  box-shadow: 0 16px 36px rgba(21, 68, 31, 0.16), 0 2px 8px rgba(21, 68, 31, 0.07);
+  height: 72px;
   /* the site's generic `header` element rule adds margin-bottom:14px and
      padding - both would wedge a gap between this and the joined tray */
   margin: 0;
@@ -5554,10 +5550,10 @@ body:has(#snack-shop-static) .bins-layout {
 .basket-float-content {
   align-items: center;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: 1fr auto auto;
   inset: 0;
-  padding: 0 12px 0 14px;
+  padding: 0 16px 0 18px;
   position: absolute;
   z-index: 2;
 }
@@ -5565,7 +5561,7 @@ body:has(#snack-shop-static) .bins-layout {
 .basket-float-summary {
   align-items: center;
   display: flex;
-  gap: 9px;
+  gap: 11px;
   min-width: 0;
 }
 
@@ -5573,16 +5569,16 @@ body:has(#snack-shop-static) .bins-layout {
   color: var(--green-dark);
   display: grid;
   flex: 0 0 auto;
-  height: 26px;
+  height: 34px;
   place-items: center;
-  width: 26px;
+  width: 34px;
 }
 
 .basket-float-icon svg {
   display: block;
-  height: 22px;
+  height: 28px;
   overflow: visible;
-  width: 22px;
+  width: 28px;
 }
 
 .basket-float-labels {
@@ -5591,7 +5587,7 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-title {
   color: var(--green-dark);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1;
@@ -5601,9 +5597,9 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-sub {
   color: var(--muted);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.1;
-  margin: 2px 0 0;
+  margin: 3px 0 0;
   white-space: nowrap;
 }
 
@@ -5614,30 +5610,30 @@ body:has(#snack-shop-static) .bins-layout {
 
 .basket-float-mini-total-label {
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 11px;
   margin: 0;
 }
 
 .basket-float-mini-total-value {
   color: var(--green-dark);
-  font-size: 13.5px;
+  font-size: 17px;
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1;
-  margin: 2px 0 0;
+  margin: 3px 0 0;
 }
 
 .basket-float-action {
   background: var(--green);
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  height: 28px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 14px;
   white-space: nowrap;
 }
 
@@ -5670,13 +5666,13 @@ body:has(#snack-shop-static) .bins-layout {
    notch/tab-hit sit flush under the header rather than a few px below
    it. */
 .basket-float-tray {
-  backdrop-filter: blur(9px);
-  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   background: rgba(255, 255, 255, 0.93);
   border: 0 solid var(--green);
-  border-radius: 0 0 14px 14px;
+  border-radius: 0 0 18px 18px;
   border-top: 0;
-  box-shadow: 0 12px 24px rgba(18, 72, 29, 0.1);
+  box-shadow: 0 16px 32px rgba(18, 72, 29, 0.13);
   margin: 0 auto;
   max-height: 0;
   opacity: 0;
@@ -5703,7 +5699,7 @@ body:has(#snack-shop-static) .bins-layout {
    panel with a separator. */
 .basket-float-shell.open .basket-float-header {
   border-bottom: 1px solid var(--line);
-  border-radius: 14px 14px 0 0;
+  border-radius: 18px 18px 0 0;
 }
 
 .basket-float-tray-inner {
@@ -6476,10 +6472,41 @@ body:has(#snack-shop-static) #snack-modal-backdrop {
   align-items: flex-start;
 }
 
+/* Three-bar icon (currentColor, so it follows the button's own color
+   through the generic ghost-button hover fill for free - green at rest,
+   white on hover, no extra rule needed) that morphs into an X via
+   [aria-expanded="true"] (set by js/nav.js) instead of the old static
+   Unicode "☰" glyph. */
 .hamburger {
-  font-size: 18px;
-  line-height: 1;
-  padding: 9px 12px;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.hamburger-bar {
+  background: currentColor;
+  border-radius: 2px;
+  display: block;
+  height: 2px;
+  transition: transform 220ms ease, opacity 150ms ease;
+  width: 18px;
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger[aria-expanded="true"] .hamburger-bar:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 .profile-btn {
@@ -7429,7 +7456,8 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   }
 
   .hamburger {
-    padding: 8px 10px;
+    height: 36px;
+    width: 36px;
   }
 
   .brand-card {
