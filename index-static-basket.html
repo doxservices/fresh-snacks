@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260810h-revert-hamburger-static-actions" />
+  <link rel="stylesheet" href="styles.css?v=20260810i-flat-cart-btn" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -1448,15 +1448,6 @@
       $id("basket-panel").classList.toggle("hidden", !hasOwnTab);
       $id("basket-overlay").classList.toggle("hidden", !hasOwnTab);
       $id("basket-notification").classList.toggle("hidden", !hasOwnTab);
-      // #basket-dock-home has zero height for as long as #basket-panel is
-      // hidden (no active tab yet) or hasn't rendered into it yet, which
-      // updateBasketFloatState() (defined further down, but hoisted/called
-      // only after this whole script has finished its first synchronous
-      // pass) would otherwise misread as "already scrolled past" and float
-      // immediately regardless of real scroll position - re-run it now
-      // that #basket-panel's real visibility/layout for this render is
-      // settled.
-      updateBasketFloatState();
       renderCashbackCard(data, isVisitor);
       renderExpiredCashbackCard(data, isVisitor);
       renderCashbackNotifications(data, isVisitor);
@@ -2126,6 +2117,10 @@
     $id("basket-float-clear").addEventListener("click", () => $id("bins-reset").click());
     $id("basket-float-add").addEventListener("click", () => $id("bins-submit").click());
 
+    // Only once the docked cart is genuinely off-screen (its bottom edge
+    // above the viewport top) - the earlier mid-screen trigger meant the
+    // floating tab and the still-visible docked cart were briefly on
+    // screen together, which read as a duplicate.
     function updateBasketFloatState() {
       if (forceStaticBasket) {
         if (basketFloating) {
@@ -2135,10 +2130,6 @@
         }
         return;
       }
-      // Only once the docked cart is genuinely off-screen (its bottom
-      // edge above the viewport top) - the earlier mid-screen trigger
-      // meant the floating tab and the still-visible docked cart were
-      // briefly on screen together, which read as a duplicate.
       const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
@@ -2160,9 +2151,19 @@
         setFloatTrayOpen(false);
       }
     }
-    window.addEventListener("scroll", updateBasketFloatState, { passive: true });
+    // IntersectionObserver instead of a plain scroll listener: it defers
+    // its first callback until the browser has real, settled layout to
+    // report and automatically re-fires whenever #basket-dock-home's
+    // on-screen position changes for ANY reason - scrolling, resizing, or
+    // the surrounding layout shifting as data/images finish loading -
+    // not just on discrete scroll events read off one synchronous
+    // measurement. That single up-front measurement used to be able to
+    // run before #basket-panel's real visibility/height for this visitor
+    // was settled (e.g. still hidden pre-data-load), misread that as
+    // "already scrolled past", and float immediately at the top of the
+    // page with nothing to correct it until the next scroll/resize.
+    new IntersectionObserver(updateBasketFloatState).observe(basketDockHome);
     window.addEventListener("resize", updateBasketFloatState);
-    updateBasketFloatState();
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;

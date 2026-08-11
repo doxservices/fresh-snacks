@@ -5745,7 +5745,7 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 .basket-float-btn.primary {
-  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  background: var(--green);
   border-color: var(--green-dark);
   color: #fff;
   font-weight: 700;
@@ -5778,7 +5778,7 @@ button.basket-float-btn:hover {
 }
 
 button.basket-float-btn.primary:hover {
-  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  background: var(--green-dark);
   border-color: var(--green-dark);
   color: #fff;
 }
