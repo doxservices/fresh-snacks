@@ -5775,6 +5775,33 @@ body:has(#snack-shop-static) .bins-layout {
   opacity: 0.55;
 }
 
+/* These three are meant to hold their own established look on hover -
+   unchanged, per the comment at the top of the sitewide button system -
+   but the generic ghost-button hover fill (button:not(:disabled):hover)
+   turns out to have just enough specificity (a plain type+2-pseudo-class
+   selector) to beat their own plain-class rest styles anyway, so without
+   this they were silently flashing solid green on hover: the tab-hit's
+   invisible curved hit-area turning into a visible green rectangle (the
+   "square" shape-shift), and both tray buttons losing their own
+   background/gradient. button.<class>:hover matches that same
+   specificity and wins on source order (this block comes later). */
+button.basket-float-tab-hit:hover {
+  background: transparent;
+  border-color: transparent;
+}
+
+button.basket-float-btn:hover {
+  background: #f7faf7;
+  border-color: #bfd1c0;
+  color: var(--green-dark);
+}
+
+button.basket-float-btn.primary:hover {
+  background: linear-gradient(180deg, var(--green), var(--green-dark));
+  border-color: var(--green-dark);
+  color: #fff;
+}
+
 @media (max-width: 620px) {
   .basket-float-content {
     grid-template-columns: 1fr auto;
