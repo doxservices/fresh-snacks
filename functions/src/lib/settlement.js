@@ -22,8 +22,18 @@ const AUTO_SETTLE_ACTOR = "auto-settlement";
  * every payment already on file for this customer and finalizes whatever
  * their existing credit covers. `actorUid` is who to credit in the audit
  * trail - pass a real admin uid for an admin-triggered call; defaults to
- * AUTO_SETTLE_ACTOR for the automatic customer-triggered path. */
-async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR) {
+ * AUTO_SETTLE_ACTOR for the automatic customer-triggered path.
+ *
+ * `freshPaymentIds` - id(s) of a payment doc a caller just wrote to
+ * Firestore, immediately before calling this (e.g. POST /payments/permanent,
+ * a PayPal capture) - excluded from evaluateCashback's view of "money
+ * already on file" so that money isn't double-counted as pre-existing
+ * cashback credit on top of being the fresh payment that's actually
+ * funding this exact clearance. Every OTHER caller here (the reconcile
+ * sweep, and both store.js call sites, which only ever re-check EXISTING
+ * credit against a transaction with no payment of their own involved)
+ * correctly leaves this empty. */
+async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR, freshPaymentIds = []) {
   const [transactionSnap, paymentSnap] = await Promise.all([
     db().collection("transactions").where("userId", "==", userId).get(),
     db().collection("payments").where("userId", "==", userId).get(),
@@ -34,6 +44,8 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
   const payments = paymentSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
+  const freshIds = new Set(freshPaymentIds);
+  const paymentsBeforeThisAction = payments.filter((p) => !freshIds.has(p.id));
   const paidTotal = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
   const plan = paymentAllocationPlan(transactions, paidTotal);
   const byId = new Map(transactions.map((record) => [record.id, record]));
@@ -72,7 +84,7 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
   // This sweep might be exactly what brings the customer's WHOLE balance to
   // $0 (not just what this specific payment happened to cover) - evaluated
   // against the pre-sweep `transactions` snapshot, same as everything above.
-  const cashback = evaluateCashback(transactions, plan.settledIds, new Date());
+  const cashback = evaluateCashback(transactions, paymentsBeforeThisAction, plan.settledIds, new Date());
   if (cashback) {
     const paymentId = genId("fs_pay");
     batch.set(db().collection("payments").doc(paymentId), {

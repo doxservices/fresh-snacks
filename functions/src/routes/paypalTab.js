@@ -158,7 +158,7 @@ router.post("/capture-order", requireAuth, asyncRoute(async (req, res) => {
     createdDate: todayISO(),
     status: "active",
   });
-  const allocation = await allocateApprovedTransactions(effectiveUid);
+  const allocation = await allocateApprovedTransactions(effectiveUid, undefined, [paymentId]);
   await orderRef.update({
     status: "settled",
     paymentId,

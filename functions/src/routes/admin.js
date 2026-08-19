@@ -629,7 +629,7 @@ router.post("/payments/permanent", requirePermission(PERMISSION.MARK_PAID), asyn
     source: "admin", permanent: true, createdBy: req.uid,
     createdAt: FieldValue.serverTimestamp(), createdDate, status: "active",
   });
-  const allocation = await allocateApprovedTransactions(userId, req.uid);
+  const allocation = await allocateApprovedTransactions(userId, req.uid, [paymentId]);
   res.json({ paymentId, ...allocation });
 }));
 
@@ -654,15 +654,21 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
     const next = assertTransition(current, ROLE.ADMIN, action);
 
     // A second read (still before any writes below, as Firestore
-    // transactions require) of every other transaction this customer has,
-    // so evaluateCashback (../lib/cashback) can tell whether finalizing
-    // this one also brings their WHOLE balance to $0.
+    // transactions require) of every other transaction AND payment this
+    // customer has, so evaluateCashback (../lib/cashback) can tell whether
+    // finalizing this one also brings their WHOLE balance to $0, and
+    // whether any of what's being cleared is really a pre-existing
+    // cashback credit rather than fresh money.
     let cashback = null;
     if (next === STATUS.PAID_FINALIZED) {
       const userId = record.userId || record.uid;
+      // Sequential, not Promise.all - concurrent reads on the same
+      // Firestore Transaction object aren't reliably supported.
       const allSnap = await transaction.get(db().collection("transactions").where("userId", "==", userId));
+      const paySnap = await transaction.get(db().collection("payments").where("userId", "==", userId));
       const allTransactions = allSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      cashback = evaluateCashback(allTransactions, [id], new Date());
+      const allPayments = paySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      cashback = evaluateCashback(allTransactions, allPayments, [id], new Date());
     }
 
     transaction.update(ref, {

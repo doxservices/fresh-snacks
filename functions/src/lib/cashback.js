@@ -88,43 +88,82 @@ function daysSinceBalanceOpened(oldestDate, now = new Date()) {
 
 const round4 = (n) => Math.round(n * 10000) / 10000;
 
+/* How much of what's about to be cleared is really a PRE-EXISTING credit
+ * left over from an earlier cashback payout, not fresh money paid this
+ * time - reused to help close out this round, it shouldn't also earn a
+ * fresh reward on top of itself (that's paying cashback on cashback).
+ * Approximated as: everything ever paid onto this account (any source,
+ * including a past cashback payout) minus everything that's actually been
+ * finalized as owed-and-settled so far. Any gap is credit sitting unspent
+ * - and in this app a credit balance is only ever deliberately created by
+ * a cashback payout (nothing else intentionally overpays), so treating
+ * the whole gap as cashback-sourced is accurate for the normal case and,
+ * worst case (a stray admin overpayment), errs conservative rather than
+ * double-paying. */
+function priorCashbackCredit(transactions, payments) {
+  const finalizedTotal = (transactions || [])
+    .filter((t) => t.status !== "void" && deriveWorkflowStatus(t) === STATUS.PAID_FINALIZED)
+    .reduce((sum, t) => sum + Number(t.total || t.value || 0), 0);
+  const paidTotal = (payments || [])
+    .filter((p) => p.status !== "void")
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  return Math.max(0, round2(paidTotal - finalizedTotal));
+}
+
 /* The per-margin breakdown itself: every still-owed transaction judged on
  * its own createdDate, summed into one total and one blended earned
  * amount. `oldestDate` is still the earliest owed transaction's date -
- * kept for audit/history, not for deciding anyone's rate anymore. */
-function marginCashback(transactions, now = new Date()) {
-  const owed = (transactions || []).filter((t) => t.status !== "void" && isOwed(t));
+ * kept for audit/history, not for deciding anyone's rate anymore.
+ * `creditToExclude` (see priorCashbackCredit above) is consumed
+ * oldest-margin-first, matching the rest of the app's oldest-first
+ * settlement order (paymentAllocationPlan) - so a reused credit is
+ * treated as if it paid off the oldest charges in this batch first.
+ * `total` stays the full gross value of every margin (used for the
+ * $300-floor check and the customer-facing balance display); `eligibleTotal`
+ * is what's left after excluding the reused credit, and is what the
+ * reward is actually based on. */
+function marginCashback(transactions, now = new Date(), creditToExclude = 0) {
+  const owed = (transactions || []).filter((t) => t.status !== "void" && isOwed(t))
+    .sort((a, b) => String(a.createdDate || "").localeCompare(String(b.createdDate || "")));
+  let remainingCredit = creditToExclude;
   let total = 0;
+  let eligibleTotal = 0;
   let amount = 0;
   let oldestDate = null;
   for (const t of owed) {
     const value = Number(t.total || t.value || 0);
     total += value;
     if (t.createdDate && (!oldestDate || t.createdDate < oldestDate)) oldestDate = t.createdDate;
+    const covered = Math.min(value, remainingCredit);
+    remainingCredit -= covered;
+    const eligibleValue = value - covered;
+    eligibleTotal += eligibleValue;
     const daysSince = daysSinceBalanceOpened(t.createdDate, now);
     if (daysSince == null) continue; // this margin itself is pre-launch or dateless - earns nothing
-    amount += value * cashbackTierForDaysSince(daysSince).rate;
+    amount += eligibleValue * cashbackTierForDaysSince(daysSince).rate;
   }
-  return { total: round2(total), amount: round2(amount), oldestDate };
+  return { total: round2(total), eligibleTotal: round2(eligibleTotal), amount: round2(amount), oldestDate };
 }
 
-/* Given the FULL pre-action list of a customer's transactions and the ids
- * about to be finalized (marked paid) by whatever settlement action is
- * running right now, decides whether this brings their WHOLE balance to
- * $0 and, if so, what cashback (if any) that earns. Returns null when no
- * cashback should be granted - either this action doesn't fully clear the
- * balance, or every margin in it has aged past its own tier. `now` is the
- * moment this settlement action is happening. */
-function evaluateCashback(transactionsBefore, settledIds, now = new Date()) {
+/* Given the FULL pre-action list of a customer's transactions and payments
+ * and the ids about to be finalized (marked paid) by whatever settlement
+ * action is running right now, decides whether this brings their WHOLE
+ * balance to $0 and, if so, what cashback (if any) that earns. Returns
+ * null when no cashback should be granted - either this action doesn't
+ * fully clear the balance, every margin in it has aged past its own tier,
+ * or a pre-existing cashback credit already covers all of it. `now` is
+ * the moment this settlement action is happening. */
+function evaluateCashback(transactionsBefore, paymentsBefore, settledIds, now = new Date()) {
   const before = accountSnapshot(transactionsBefore);
   if (before.total < MIN_BALANCE_FOR_CASHBACK_JMD || !before.oldestDate) return null; // nothing owed, or below the floor
   const settled = new Set(settledIds);
   const stillOwed = (transactionsBefore || []).some((t) => t.status !== "void" && isOwed(t) && !settled.has(t.id));
   if (stillOwed) return null; // this action doesn't clear everything
 
-  const { total, amount, oldestDate } = marginCashback(transactionsBefore, now);
-  if (amount <= 0) return null;
-  return { amount, rate: round4(amount / total), clearedTotal: total, oldestDate };
+  const credit = priorCashbackCredit(transactionsBefore, paymentsBefore);
+  const { eligibleTotal, amount, oldestDate } = marginCashback(transactionsBefore, now, credit);
+  if (amount <= 0 || eligibleTotal <= 0) return null;
+  return { amount, rate: round4(amount / eligibleTotal), clearedTotal: eligibleTotal, oldestDate };
 }
 
 /* The customer-facing projection - "if you clear your whole balance right
@@ -136,12 +175,16 @@ function evaluateCashback(transactionsBefore, settledIds, now = new Date()) {
  * only (1 = every margin here is still fresh as of today, 2 = at least
  * one already stepped down or expired) - it doesn't drive the dollar
  * amount, which is the true per-margin sum. */
-function projectedCashback(transactions, now = new Date()) {
-  const { total, amount, oldestDate } = marginCashback(transactions, now);
-  if (total < MIN_BALANCE_FOR_CASHBACK_JMD || amount <= 0) return null;
+function projectedCashback(transactions, payments, now = new Date()) {
+  const credit = priorCashbackCredit(transactions, payments);
+  const { total, eligibleTotal, amount, oldestDate } = marginCashback(transactions, now, credit);
+  if (total < MIN_BALANCE_FOR_CASHBACK_JMD || amount <= 0 || eligibleTotal <= 0) return null;
   const oldestAge = daysSinceBalanceOpened(oldestDate, now);
   const tier = oldestAge === 0 ? 1 : 2;
-  return { rate: round4(amount / total), tier, balance: total, cashbackAmount: amount, oldestDate };
+  // balance stays the full amount owed (what the customer sees as "your
+  // balance") even though the reward itself is based on eligibleTotal -
+  // those are different things: the debt vs. the cashback-eligible slice of it.
+  return { rate: round4(amount / eligibleTotal), tier, balance: total, cashbackAmount: amount, oldestDate };
 }
 
 /* Purely informational - "here's what you missed" on whichever margins
@@ -178,5 +221,5 @@ function expiredCashbackAmounts(transactions, now = new Date()) {
 module.exports = {
   BUSINESS_UTC_OFFSET_HOURS, TIER_RATES, LAUNCH_DATE, MIN_BALANCE_FOR_CASHBACK_JMD,
   isOwed, accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
-  marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
+  priorCashbackCredit, marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
 };

@@ -324,7 +324,7 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     // The early-payment cashback projection (see ../lib/cashback) - what
     // clearing the whole balance right now would earn back, or null when
     // there's no balance or the timing no longer qualifies for any tier.
-    cashback: projectedCashback(rawTransactions),
+    cashback: projectedCashback(rawTransactions, pays),
     // Informational only - the 10%/5% amounts that were on the table and
     // went unclaimed, once a balance has sat unpaid past every tier. Null
     // while a tier is still live (cashback above covers that case).
