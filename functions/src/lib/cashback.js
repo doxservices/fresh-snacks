@@ -16,12 +16,29 @@
  * balance to $0 is still what triggers a payout at all; only the rate
  * applied to each dollar within it now depends on that dollar's own age.
  *
- * Only the calendar business-local day matters here, not the hour - no
- * intra-day deadline the way the (now-replaced) per-purchase discount had. */
+ * The tier itself (10% vs 5% vs nothing) is still decided purely by
+ * calendar business-local day, same as always. On TOP of that, the actual
+ * payout is also gated to a daily bonus WINDOW - 7am to 3pm business-local,
+ * matching the urgency bar shown on index.html's cashback card - so a
+ * settlement that happens after hours on an otherwise-qualifying day earns
+ * nothing, exactly as the page itself already tells the customer ("Bonus
+ * period ended... more cash back bonuses will be available tomorrow"). This
+ * was the original intent; a prior revision briefly made the bar purely
+ * cosmetic while the backend judged same-day/next-day with no regard for
+ * the hour at all - that gap let at least one payment earn a same-day
+ * reward hours after the page had already told the customer the window
+ * was closed, and is what isWithinDailyBonusWindow below closes for good. */
 const { STATUS, deriveWorkflowStatus } = require("./transactionStatus");
 
 const BUSINESS_UTC_OFFSET_HOURS = -5;
 const TIER_RATES = { 0: 0.10, 1: 0.05 }; // daysSince 0 (same day) -> 10%, daysSince 1 (next day) -> 5%
+
+// The daily bonus window itself - 7am up to (not including) 3pm
+// business-local, mirrored from index.html's CASHBACK_BUSINESS_START_HOUR/
+// CASHBACK_DAY_SEGMENTS (the same 8-hour bar the customer sees draining).
+// Keep these two in sync if the on-page window ever changes.
+const CASHBACK_WINDOW_START_HOUR = 7;
+const CASHBACK_WINDOW_HOURS = 8;
 
 // A pre-existing balance was never given a fair chance to act on an
 // incentive that didn't exist yet - only a balance that opened (went from
@@ -39,6 +56,16 @@ function businessDateOnlyUTC(date) {
   return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
 }
 
+// Whether `now` falls inside today's 7am-3pm business-local bonus window -
+// the actual gate on whether a settlement happening RIGHT NOW can earn a
+// reward at all, independent of which calendar-day tier it would otherwise
+// qualify for. Same math as index.html's currentBusinessHour().
+function isWithinDailyBonusWindow(now = new Date()) {
+  const local = new Date(now.getTime() + BUSINESS_UTC_OFFSET_HOURS * 3600 * 1000);
+  const hour = local.getUTCHours();
+  return hour >= CASHBACK_WINDOW_START_HOUR && hour < CASHBACK_WINDOW_START_HOUR + CASHBACK_WINDOW_HOURS;
+}
+
 /* createdDate is already a plain "YYYY-MM-DD" calendar-date string with no
  * time component (see todayISO()) - parsed as a UTC midnight so the day-
  * difference math below isn't sensitive to the server's own timezone. */
@@ -49,6 +76,7 @@ function parseCreatedDateUTC(createdDate) {
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;
+const round4 = (n) => Math.round(n * 10000) / 10000;
 
 /* A transaction still counts against the balance unless it's cancelled,
  * disputed (ITEM_UNDER_REVIEW - a live question over whether it's owed at
@@ -86,105 +114,113 @@ function daysSinceBalanceOpened(oldestDate, now = new Date()) {
   return Math.round((businessDateOnlyUTC(now) - opened) / 86400000);
 }
 
-const round4 = (n) => Math.round(n * 10000) / 10000;
-
-/* How much of what's about to be cleared is really a PRE-EXISTING credit
- * left over from an earlier cashback payout, not fresh money paid this
- * time - reused to help close out this round, it shouldn't also earn a
- * fresh reward on top of itself (that's paying cashback on cashback).
- * Approximated as: everything ever paid onto this account (any source,
- * including a past cashback payout) minus everything that's actually been
- * finalized as owed-and-settled so far. Any gap is credit sitting unspent
- * - and in this app a credit balance is only ever deliberately created by
- * a cashback payout (nothing else intentionally overpays), so treating
- * the whole gap as cashback-sourced is accurate for the normal case and,
- * worst case (a stray admin overpayment), errs conservative rather than
- * double-paying. */
-function priorCashbackCredit(transactions, payments) {
-  const finalizedTotal = (transactions || [])
-    .filter((t) => t.status !== "void" && deriveWorkflowStatus(t) === STATUS.PAID_FINALIZED)
-    .reduce((sum, t) => sum + Number(t.total || t.value || 0), 0);
-  const paidTotal = (payments || [])
-    .filter((p) => p.status !== "void")
+/* A customer's current unspent cashback credit - a genuinely separate
+ * bucket from "money just paid this round", tracked explicitly rather than
+ * inferred: every cashback payout (payments/{id} with source:"cashback")
+ * is an EARN, and every creditConsumptions/{id} doc (see evaluateCashback
+ * below) is a deliberate, recorded draw-down against a later settlement.
+ * Only cashback-sourced credit is ever counted here - an ordinary
+ * overpayment (an admin recording more than was owed, say) is real money
+ * on the account too, but it isn't a REWARD, so it was never meant to
+ * gate whether a future reward double-dips; that's a different bucket. */
+function creditBalance(payments, consumptions) {
+  const earned = (payments || [])
+    .filter((p) => p.status !== "void" && p.source === "cashback")
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  return Math.max(0, round2(paidTotal - finalizedTotal));
+  const consumed = (consumptions || [])
+    .filter((c) => c.status !== "void")
+    .reduce((sum, c) => sum + Number(c.amount || 0), 0);
+  return Math.max(0, round2(earned - consumed));
 }
 
-/* The per-margin breakdown itself: every still-owed transaction judged on
- * its own createdDate, summed into one total and one blended earned
- * amount. `oldestDate` is still the earliest owed transaction's date -
- * kept for audit/history, not for deciding anyone's rate anymore.
- * `creditToExclude` (see priorCashbackCredit above) is consumed
- * oldest-margin-first, matching the rest of the app's oldest-first
- * settlement order (paymentAllocationPlan) - so a reused credit is
- * treated as if it paid off the oldest charges in this batch first.
- * `total` stays the full gross value of every margin (used for the
- * $300-floor check and the customer-facing balance display); `eligibleTotal`
- * is what's left after excluding the reused credit, and is what the
- * reward is actually based on. */
-function marginCashback(transactions, now = new Date(), creditToExclude = 0) {
-  const owed = (transactions || []).filter((t) => t.status !== "void" && isOwed(t))
-    .sort((a, b) => String(a.createdDate || "").localeCompare(String(b.createdDate || "")));
-  let remainingCredit = creditToExclude;
+/* The per-margin breakdown: every still-owed transaction judged on its own
+ * createdDate, summed into one gross total and one blended earned amount -
+ * with no credit exclusion baked in here anymore (see evaluateCashback for
+ * why: whether existing credit disqualifies this round from a NEW reward
+ * is now an all-or-nothing gate applied on top of this, not a per-dollar
+ * proration). `oldestDate` is the earliest owed transaction's date, kept
+ * for audit/history and for picking the projection's headline tier. */
+function marginCashback(transactions, now = new Date()) {
+  const owed = (transactions || []).filter((t) => t.status !== "void" && isOwed(t));
   let total = 0;
-  let eligibleTotal = 0;
   let amount = 0;
   let oldestDate = null;
   for (const t of owed) {
     const value = Number(t.total || t.value || 0);
     total += value;
     if (t.createdDate && (!oldestDate || t.createdDate < oldestDate)) oldestDate = t.createdDate;
-    const covered = Math.min(value, remainingCredit);
-    remainingCredit -= covered;
-    const eligibleValue = value - covered;
-    eligibleTotal += eligibleValue;
     const daysSince = daysSinceBalanceOpened(t.createdDate, now);
     if (daysSince == null) continue; // this margin itself is pre-launch or dateless - earns nothing
-    amount += eligibleValue * cashbackTierForDaysSince(daysSince).rate;
+    amount += value * cashbackTierForDaysSince(daysSince).rate;
   }
-  return { total: round2(total), eligibleTotal: round2(eligibleTotal), amount: round2(amount), oldestDate };
+  return { total: round2(total), amount: round2(amount), oldestDate };
 }
 
-/* Given the FULL pre-action list of a customer's transactions and payments
- * and the ids about to be finalized (marked paid) by whatever settlement
- * action is running right now, decides whether this brings their WHOLE
- * balance to $0 and, if so, what cashback (if any) that earns. Returns
- * null when no cashback should be granted - either this action doesn't
- * fully clear the balance, every margin in it has aged past its own tier,
- * or a pre-existing cashback credit already covers all of it. `now` is
- * the moment this settlement action is happening. */
-function evaluateCashback(transactionsBefore, paymentsBefore, settledIds, now = new Date()) {
+/* Given the FULL pre-action list of a customer's transactions, payments and
+ * credit-consumption history, and the ids about to be finalized (marked
+ * paid) by whatever settlement action is running right now, decides
+ * whether this brings their WHOLE balance to $0 and, if so, what happens
+ * to cashback. Returns null when there's nothing at all to record - either
+ * this action doesn't fully clear the balance, the balance never reached
+ * the reward floor, or there's no pre-existing credit AND no reward earned.
+ *
+ * Otherwise returns { bonus, creditConsumed, clearedTotal }:
+ *   - `creditConsumed` is how much of the customer's existing cashback
+ *     credit this round draws on (0 if none) - capped at whatever's being
+ *     cleared, since credit can't be consumed past what it's paying for.
+ *   - `bonus` is null WHENEVER creditConsumed > 0 - a round that's even
+ *     partly funded by a past reward earns no NEW reward on top of it
+ *     (that's cashback on cashback, the exact bug this replaced). Only a
+ *     round funded entirely by fresh money can earn one, and when it does
+ *     it's calculated on the FULL cleared total (no proration needed, since
+ *     by definition none of it came from existing credit).
+ *   - `bonus` is also null whenever `now` falls outside today's 7am-3pm
+ *     bonus window (see isWithinDailyBonusWindow) - a settlement after
+ *     hours earns nothing, same-day tier or not, matching what the page
+ *     itself already tells the customer once the bar's run out.
+ *   - `clearedTotal` is the gross total settled this round either way, for
+ *     the creditConsumptions record and/or the bonus payment's own note. */
+function evaluateCashback(transactionsBefore, paymentsBefore, consumptionsBefore, settledIds, now = new Date()) {
   const before = accountSnapshot(transactionsBefore);
   if (before.total < MIN_BALANCE_FOR_CASHBACK_JMD || !before.oldestDate) return null; // nothing owed, or below the floor
   const settled = new Set(settledIds);
   const stillOwed = (transactionsBefore || []).some((t) => t.status !== "void" && isOwed(t) && !settled.has(t.id));
   if (stillOwed) return null; // this action doesn't clear everything
 
-  const credit = priorCashbackCredit(transactionsBefore, paymentsBefore);
-  const { eligibleTotal, amount, oldestDate } = marginCashback(transactionsBefore, now, credit);
-  if (amount <= 0 || eligibleTotal <= 0) return null;
-  return { amount, rate: round4(amount / eligibleTotal), clearedTotal: eligibleTotal, oldestDate };
+  const credit = creditBalance(paymentsBefore, consumptionsBefore);
+  const { total, amount, oldestDate } = marginCashback(transactionsBefore, now);
+  const creditConsumed = round2(Math.min(credit, total));
+  const bonus = creditConsumed <= 0 && amount > 0 && isWithinDailyBonusWindow(now)
+    ? { amount, rate: round4(amount / total), clearedTotal: total, oldestDate }
+    : null;
+  if (!bonus && creditConsumed <= 0) return null; // nothing earned, nothing to draw down
+  return { bonus, creditConsumed, clearedTotal: total };
 }
 
 /* The customer-facing projection - "if you clear your whole balance right
  * now, here's what you'd earn back" - shown on index.html's Current
- * Balance card before any payment happens. Earns whenever ANY margin in
- * the balance still qualifies, even if the oldest item in it has already
- * fully expired - a fresher charge stacked on top of an old, unpaid one
- * still gets its own shot. `tier` is a framing hint for the headline copy
- * only (1 = every margin here is still fresh as of today, 2 = at least
- * one already stepped down or expired) - it doesn't drive the dollar
- * amount, which is the true per-margin sum. */
-function projectedCashback(transactions, payments, now = new Date()) {
-  const credit = priorCashbackCredit(transactions, payments);
-  const { total, eligibleTotal, amount, oldestDate } = marginCashback(transactions, now, credit);
-  if (total < MIN_BALANCE_FOR_CASHBACK_JMD || amount <= 0 || eligibleTotal <= 0) return null;
+ * Balance card before any payment happens. Suppressed (null) the same way
+ * evaluateCashback suppresses a real payout: if existing credit would
+ * cover any part of clearing this balance, this round earns nothing new,
+ * so there's nothing honest to project. `tier` is a framing hint for the
+ * headline copy only (1 = every margin here is still fresh as of today,
+ * 2 = at least one already stepped down or expired) - it doesn't drive the
+ * dollar amount, which is the true per-margin sum.
+ *
+ * Deliberately NOT gated by isWithinDailyBonusWindow the way evaluateCashback
+ * is - index.html already runs its own live, minute-by-minute business-hour
+ * clock (renderCashbackDayBar/windowOver) to swap this same card into its
+ * "Bonus period ended" state the instant the window closes, without needing
+ * a fresh server round-trip. Gating here too would just make the card
+ * vanish outright once the window closes instead of showing that message. */
+function projectedCashback(transactions, payments, consumptions, now = new Date()) {
+  const { total, amount, oldestDate } = marginCashback(transactions, now);
+  if (total < MIN_BALANCE_FOR_CASHBACK_JMD || amount <= 0) return null;
+  const credit = creditBalance(payments, consumptions);
+  if (credit > 0) return null; // existing credit would fund part of this round - no new reward to project
   const oldestAge = daysSinceBalanceOpened(oldestDate, now);
   const tier = oldestAge === 0 ? 1 : 2;
-  // balance stays the full amount owed (what the customer sees as "your
-  // balance") even though the reward itself is based on eligibleTotal -
-  // those are different things: the debt vs. the cashback-eligible slice of it.
-  return { rate: round4(amount / eligibleTotal), tier, balance: total, cashbackAmount: amount, oldestDate };
+  return { rate: round4(amount / total), tier, balance: total, cashbackAmount: amount, oldestDate };
 }
 
 /* Purely informational - "here's what you missed" on whichever margins
@@ -220,6 +256,7 @@ function expiredCashbackAmounts(transactions, now = new Date()) {
 
 module.exports = {
   BUSINESS_UTC_OFFSET_HOURS, TIER_RATES, LAUNCH_DATE, MIN_BALANCE_FOR_CASHBACK_JMD,
-  isOwed, accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened,
-  priorCashbackCredit, marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
+  CASHBACK_WINDOW_START_HOUR, CASHBACK_WINDOW_HOURS,
+  isOwed, accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened, isWithinDailyBonusWindow,
+  creditBalance, marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
 };

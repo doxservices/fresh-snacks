@@ -176,9 +176,16 @@
     }
   }
 
-  function openPanel() {
+  async function openPanel() {
+    // Render whatever's cached immediately (no blank flash while the
+    // request is in flight), then refresh against live data - the panel
+    // can otherwise sit open showing an action (e.g. "Confirm payment")
+    // for a transaction another admin, or this same admin from elsewhere
+    // on the page, already resolved since the last fetch.
     renderList();
     document.getElementById("admin-notifications-backdrop").classList.add("show");
+    await refreshSnapshot();
+    renderList();
   }
 
   function closePanel() {
@@ -265,6 +272,18 @@
         renderList();
       }
     } catch (e) {
+      // The transaction moved on since this panel last fetched (someone
+      // else confirmed/rejected/paid it, or a new payment auto-settled it)
+      // - the server correctly refuses the now-stale action rather than
+      // silently misapplying it. Rather than dead-ending on a raw error for
+      // a button that was only ever correct at render time, pull the
+      // current truth and let the row show whatever's actually true now
+      // (a different action, or nothing left to do at all).
+      if (e.code === "TRANSACTION_STATE_CHANGED") {
+        await refreshSnapshot();
+        renderList();
+        return;
+      }
       await AdminModals.alert("Action failed", e.message);
       buttons.forEach((b) => (b.disabled = false));
     }
@@ -339,6 +358,12 @@
             snackId: t.snackId,
             snackName: t.snackName,
             workflowStatus: t.workflowStatus,
+            // Server-computed (GET /admin/snapshot's enrichTransaction),
+            // same source of truth transactions.html's own row actions
+            // trust - the render below picks its one primary button from
+            // this instead of assuming a fixed action per status, so it
+            // can never offer something the backend would now reject.
+            availableActions: t.availableActions || [],
             disputed: t.workflowStatus === "ITEM_UNDER_REVIEW",
           });
         }
@@ -538,12 +563,22 @@
             ${(() => {
               const perms = FS.admin.profile?.permissions;
               const allowed = (key) => !perms || perms[key] !== false;
-              if (it.workflowStatus === "ITEM_UNDER_REVIEW") {
+              // Picks its one primary action from the transaction's actual
+              // current availableActions (see above) rather than assuming
+              // one fixed action per status - if the panel is showing
+              // slightly stale data, this at least never claims an action
+              // is available that the transaction's real current state
+              // doesn't actually offer.
+              const actions = it.availableActions || [];
+              if (actions.includes("APPROVE_ITEM")) {
                 return allowed("approveItem")
                   ? `<button type="button" class="primary" data-notif-act="txn-approve-item" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Approve</button>` : "";
               }
-              return allowed("confirmPayment")
-                ? `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>` : "";
+              if (actions.includes("CONFIRM_PAYMENT")) {
+                return allowed("confirmPayment")
+                  ? `<button type="button" class="primary" data-notif-act="txn-confirm-payment" data-id="${esc(it.id)}" data-user="${esc(it.userId)}">Confirm payment</button>` : "";
+              }
+              return "";
             })()}
           </div>
         </div>
@@ -587,11 +622,29 @@
     await refreshSnapshot();
   }
 
+  // Light background poll (not a live push) so the badge count - and an
+  // open panel's actions - don't go stale purely from sitting on the page
+  // a while, e.g. a second admin confirming the same payment from another
+  // device/tab. Cheap enough to run on every admin page unconditionally:
+  // one GET /admin/snapshot a minute, skipped entirely once the bell is
+  // hidden (no recognized admin signed in yet).
+  const REFRESH_INTERVAL_MS = 60 * 1000;
+  function startBackgroundRefresh() {
+    setInterval(async () => {
+      const bell = document.getElementById("admin-notifications-bell");
+      if (!bell || bell.classList.contains("hidden")) return;
+      await refreshSnapshot();
+      const panelOpen = document.getElementById("admin-notifications-backdrop")?.classList.contains("show");
+      if (panelOpen) renderList();
+    }, REFRESH_INTERVAL_MS);
+  }
+
   async function init() {
     await FS.initFirebase().catch(() => null);
     if (!FS._auth) return; // Firebase not configured on this page load - nothing to show
     ensureMarkup();
     FS._auth.onAuthStateChanged(checkAndLoad);
+    startBackgroundRefresh();
   }
 
   if (document.readyState === "loading") {

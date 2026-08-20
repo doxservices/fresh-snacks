@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260810i-flat-cart-btn" />
+  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -745,7 +745,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260810-default-images"></script>
+  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
   <!-- Live PayPal app's client-id (must match functions/src/lib/
        paypalClientLive.js's server-side credentials, or checkout breaks) -
        components=buttons so the amount can be set per checkout
@@ -798,6 +798,32 @@
       return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
     }
 
+    // Promotional QR landing (see sitemap.html's "Promotions" section) -
+    // ?promo=<code>&qr=<placement> is read once here, stripped from the URL
+    // right away (so a reload/back-nav never re-sends it), and passed to
+    // FS.loadData() on the FIRST refreshTabData() call only (PROMO_SEND_*
+    // are cleared right after) so the server records exactly one scan per
+    // landing. PROMO_LANDING_ACTIVE stays true for the rest of this page
+    // session - it's what tells maybeOpenNameCaptureModal (below) this
+    // visit came in from a promo and should be offered the name-capture
+    // modal unprompted, same as following a device-link invite does.
+    let PROMO_LANDING_ACTIVE = false;
+    let promoModalOffered = false;
+    let PROMO_SEND_CODE = null;
+    let PROMO_SEND_QR = null;
+    (function capturePromoLanding() {
+      const params = new URLSearchParams(location.search);
+      const promo = params.get("promo");
+      if (!promo) return;
+      PROMO_LANDING_ACTIVE = true;
+      PROMO_SEND_CODE = promo;
+      PROMO_SEND_QR = params.get("qr");
+      const url = new URL(location.href);
+      url.searchParams.delete("promo");
+      url.searchParams.delete("qr");
+      history.replaceState(null, "", url);
+    })();
+
     // FS.loadData()'s own "profile" field is actually app-wide settings
     // (brand/currency/etc) - NOT this visitor's own Firestore user doc. The
     // real profile (nameSet, displayName, hasTab...) only ever comes from
@@ -808,8 +834,10 @@
     // notification bell hidden until the next full page load - "the cart
     // goes away" right after adding to it or resolving a Snack Log item.
     async function refreshTabData() {
-      const [data, me] = await Promise.all([FS.loadData(), FS.getMyProfile()]);
+      const [data, me] = await Promise.all([FS.loadData(PROMO_SEND_CODE, PROMO_SEND_QR), FS.getMyProfile()]);
       data.myProfile = me;
+      PROMO_SEND_CODE = null;
+      PROMO_SEND_QR = null;
       return data;
     }
     window.addEventListener("error", (event) => showAppFailure(event.error || event.message));
@@ -2997,10 +3025,13 @@
       ncmReturnFocus = null;
     }
 
-    // Only auto-opens for an in-progress device-link invite (an explicit
-    // action the visitor already took by following that link) - a plain
-    // incomplete/anonymous visitor is never force-interrupted with this
-    // modal on a calm page load. They get an explicit "Open a tab" button
+    // Auto-opens for two cases: an in-progress device-link invite (an
+    // explicit action the visitor already took by following that link),
+    // and a promotional QR landing (PROMO_LANDING_ACTIVE, set above - the
+    // visitor scanned a promo code specifically inviting them to open a
+    // tab, so the ask isn't a surprise). A plain incomplete/anonymous
+    // visitor arriving with neither is never force-interrupted with this
+    // modal on a calm page load - they get an explicit "Open a tab" button
     // on the visitor gallery instead (see the isVisitor branch in render()).
     function maybeOpenNameCaptureModal(me, needsName) {
       // Re-read the pending code instead of trusting the page-load snapshot:
@@ -3009,7 +3040,16 @@
       linkCode = FS.getLinkCode();
       // A followed invite must always be actionable, including on a browser
       // that already has a complete profile of its own.
-      if (!linkCode) return;
+      if (linkCode) {
+        if (!$id("name-capture-backdrop").classList.contains("show")) openNameCaptureModal(me);
+        return;
+      }
+      // A promo landing only gets ONE unprompted offer per page session,
+      // unlike a link invite's every-render reopen - closing it once
+      // should stick closed rather than nag the visitor for the rest of
+      // this visit.
+      if (!PROMO_LANDING_ACTIVE || !needsName || promoModalOffered) return;
+      promoModalOffered = true;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       openNameCaptureModal(me);
     }

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Docs</title>
+  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div><h1>Docs</h1><p>How the app's backend mechanisms actually work, for admins.</p></div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Dashboard</a>
+          <a class="btn" href="inventory.html">Baskets</a>
+          <a class="btn" href="catalog.html">Catalog</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="stats.html">Stats</a>
+          <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn" href="docs.html" aria-current="page">Docs</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="auth-loading" id="auth-loading"><span class="spinner" aria-hidden="true"></span>Checking your session...</div>
+
+    <section class="card section-card hidden" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" /></div>
+        <div class="field"><label for="admin-password">Password</label><input id="admin-password" type="password" autocomplete="current-password" /></div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="docs-app" class="hidden docs-layout">
+      <nav class="docs-sidebar" id="docs-sidebar" aria-label="Documentation sections">
+        <div class="docs-sidebar-title">Reference</div>
+        <a href="#overview">Overview</a>
+        <div class="docs-sidebar-group">Money &amp; settlement</div>
+        <a href="#cashback">Early-payment cashback</a>
+        <a href="#settlement">Settlement &amp; payment allocation</a>
+        <a href="#accounting">Balance &amp; accounting</a>
+        <a href="#paypal">PayPal tab clearing</a>
+        <div class="docs-sidebar-group">Transactions</div>
+        <a href="#workflow">Transaction workflow</a>
+        <div class="docs-sidebar-group">Marketing &amp; access</div>
+        <a href="#promo">Promotional QR tracking</a>
+        <a href="#linking">Device linking &amp; tab codes</a>
+        <div class="docs-sidebar-group">Admin tools</div>
+        <a href="#permissions">Admin roles &amp; permissions</a>
+        <a href="#notifications">Admin notifications</a>
+        <a href="#settings">Catalogue &amp; UI settings</a>
+      </nav>
+
+      <div class="docs-content">
+
+        <section id="overview" class="docs-section">
+          <h2>Overview</h2>
+          <p>Fresh Snacks is a Firebase-backed snack tab app: customers log purchases and clear their balance, admins manage the catalog, payments, and promotions. Firebase Auth handles identity (anonymous guests for customers, Google/Microsoft/email for admins); all reads/writes go through a Cloud Functions Express API (<code>functions/src/routes/</code>) rather than the client talking to Firestore directly - the client-side <code>js/firebase-store.js</code> / <code>js/firebase-admin.js</code> are thin <code>fetch()</code> wrappers around it.</p>
+          <div class="docs-callout docs-callout-info">
+            This page documents <strong>how things work</strong>, not just what's in the UI - the parts an admin can't see just by clicking around (rules, thresholds, edge cases). It's meant to grow - ask for more sections any time a mechanism isn't covered yet.
+          </div>
+        </section>
+
+        <section id="cashback" class="docs-section">
+          <h2>Early-payment cashback</h2>
+          <p><code>functions/src/lib/cashback.js</code> - a customer who clears their <strong>entire</strong> balance to $0 earns a percentage of what just cleared, credited back as a new payment they can spend on future snacks.</p>
+          <h3>The per-margin tier rule</h3>
+          <p>Every still-owed purchase is judged on its <strong>own</strong> <code>createdDate</code>, not the balance as a whole - a fresh charge added on top of an old, already-expired one still earns its own rate:</p>
+          <table class="admin-table">
+            <thead><tr><th>Days since that charge was added</th><th>Rate</th></tr></thead>
+            <tbody>
+              <tr><td>0 (same calendar day)</td><td><span class="docs-pill docs-pill-green">10%</span></td></tr>
+              <tr><td>1 (next day)</td><td><span class="docs-pill docs-pill-amber">5%</span></td></tr>
+              <tr><td>2+ days</td><td><span class="docs-pill docs-pill-red">0% - permanently missed</span></td></tr>
+            </tbody>
+          </table>
+          <h3>Gates that must all pass</h3>
+          <ul>
+            <li><strong>Whole-balance clearance</strong> - the action must bring every still-owed charge to $0, not just the one it directly touches.</li>
+            <li><strong>$300 floor</strong> (<code>MIN_BALANCE_FOR_CASHBACK_JMD</code>) - a trivial balance never triggers a payout.</li>
+            <li><strong>Launch date</strong> (<code>LAUNCH_DATE = "2026-07-29"</code>) - a balance that opened before this date is never eligible, no matter the math.</li>
+            <li><strong>Daily bonus window</strong> - <span class="docs-pill docs-pill-blue">7am-3pm business-local (UTC-5)</span>. The settlement itself (the moment the balance actually hits $0) must land inside this window, or the reward is $0 even on an otherwise same-day balance. This mirrors index.html's own "draining bar" countdown, which had been purely cosmetic before 2026-08-19 - see the code comment at the top of <code>cashback.js</code> for the history.</li>
+            <li><strong>No pre-existing credit involved</strong> - see below.</li>
+          </ul>
+          <h3>The credit ledger (no discount on a discount)</h3>
+          <p>A customer's unspent cashback reward is tracked explicitly, not just inferred from totals:</p>
+          <ul>
+            <li>Every payout is a <code>payments</code> doc with <code>source: "cashback"</code> - an <em>earn</em> event.</li>
+            <li>Every time a later settlement draws on that unspent reward to help clear a balance, a <code>creditConsumptions/{id}</code> doc is written - a <em>consume</em> event.</li>
+            <li><code>creditBalance(payments, consumptions)</code> = sum(earned) - sum(consumed). This is what's shown as <code>creditBalance</code> in <code>/admin/snapshot</code>'s per-customer accounting row and in the customer's own <code>/store/data</code> response.</li>
+          </ul>
+          <div class="docs-callout docs-callout-warn">
+            <strong>All-or-nothing, not prorated.</strong> If a settlement round draws on <em>any</em> existing credit at all, that round earns <strong>zero</strong> new bonus - even if most of the money was fresh. This replaced an earlier prorated version after a real incident (a customer's second payment round re-earned cashback on money that was actually her own already-earned credit, not new money).
+          </div>
+          <p>Key functions: <code>marginCashback()</code> (the gross per-margin tier math, no credit awareness), <code>evaluateCashback()</code> (the real payout decision - transactions/payments/consumptions before the action, plus which ids just settled), <code>projectedCashback()</code> (the customer-facing "if you paid right now" card - deliberately NOT gated on the daily window, since index.html runs its own live countdown for that).</p>
+        </section>
+
+        <section id="settlement" class="docs-section">
+          <h2>Settlement &amp; payment allocation</h2>
+          <p><code>functions/src/lib/shared.js</code>'s <code>paymentAllocationPlan(transactions, paidTotal)</code> is the oldest-first settlement engine every payment path shares. Eligible statuses (<code>SETTLEMENT_ELIGIBLE</code>): <code>PENDING_USER_CONFIRMATION</code>, <code>CONFIRMED_UNPAID</code>, <code>PAYMENT_PENDING_ADMIN_CONFIRMATION</code> - sorted oldest <code>createdDate</code> first, each fully settled in turn until the money runs out. Whatever's left over becomes the customer's spendable credit.</p>
+          <p><code>functions/src/lib/settlement.js</code>'s <code>allocateApprovedTransactions(userId, actorUid, freshPaymentIds)</code> runs that plan for real: finalizes every settled id (via the correct workflow action - <code>CONFIRM_PAYMENT</code> if it was already a reported payment claim, <code>MARK_AS_PAID</code> otherwise), then checks <code>evaluateCashback</code> against the pre-sweep snapshot.</p>
+          <p>Called from five places: the two admin payment routes (<code>POST /admin/payments/permanent</code>, PayPal capture), the reconcile sweep (<code>POST /admin/payments/reconcile</code>), and two auto-settle triggers in <code>store.js</code> (right after a customer adds a purchase, and right after a payment claim is marked paid) - a customer who already has enough credit on file never has to separately wait for "mark as paid."</p>
+          <div class="docs-callout docs-callout-info">
+            <code>freshPaymentIds</code> exists so a payment written immediately before calling this (the two routes above) doesn't get double-counted as "pre-existing credit" against its own settlement round - only those two call sites ever pass it.
+          </div>
+        </section>
+
+        <section id="accounting" class="docs-section">
+          <h2>Balance &amp; accounting</h2>
+          <p><code>accounting(users, devices, transactions, payments, adjustments)</code> in <code>shared.js</code> rolls every customer into one row: <code>balance = snackTotal + adjustmentTotal - paidTotal</code>. <code>ITEM_UNDER_REVIEW</code> transactions are excluded from <code>snackTotal</code> (a live dispute isn't counted as owed until an admin resolves it) - every other non-final status counts, including one still awaiting the customer's own confirmation.</p>
+          <p>This is a flat sum, not a per-transaction ledger - it's why a stray old credit (e.g. unspent cashback) automatically nets against a brand-new unpaid balance the moment both exist, with no extra step needed to "apply" it.</p>
+        </section>
+
+        <section id="paypal" class="docs-section">
+          <h2>PayPal tab clearing</h2>
+          <p><code>functions/src/routes/paypalTab.js</code> - the real, authenticated "clear my tab with PayPal" flow (separate from <code>paypal.js</code>, which only backs the standalone unauthenticated demo page). The amount charged is always the caller's own real balance computed server-side, never a number the client sends.</p>
+          <p><code>paypalOrders/{orderId}</code> anchors the whole flow so a payment can never settle twice: status moves <code>created &rarr; capturing &rarr; captured &rarr; settled</code>, and every step is safe to retry from wherever it left off - a repeated capture call just returns the already-settled result instead of charging again.</p>
+          <table class="admin-table">
+            <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td><code>GET /paypal/tab/quote</code></td><td>Real balance + today's exchange rate + the 5% processing fee breakdown.</td></tr>
+              <tr><td><code>POST /paypal/tab/create-order</code></td><td>Creates the PayPal order, writes <code>paypalOrders</code> at <code>status: "created"</code>.</td></tr>
+              <tr><td><code>POST /paypal/tab/capture-order</code></td><td>Captures the charge, writes the <code>payments</code> doc (JMD, <code>source: "paypal"</code>), calls <code>allocateApprovedTransactions</code>, marks the order <code>settled</code>.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="workflow" class="docs-section">
+          <h2>Transaction workflow</h2>
+          <p><code>functions/src/lib/transactionStatus.js</code> is the single authority on what status follows what - every route calls <code>assertTransition()</code> instead of hand-rolling status checks.</p>
+          <table class="admin-table">
+            <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>PENDING_USER_CONFIRMATION</code></td><td>Admin-added, waiting on the customer to confirm it's theirs.</td></tr>
+              <tr><td><code>ITEM_UNDER_REVIEW</code></td><td>Live dispute - excluded from balance until an admin resolves it.</td></tr>
+              <tr><td><code>CONFIRMED_UNPAID</code></td><td>Owed, confirmed, not yet paid.</td></tr>
+              <tr><td><code>PAYMENT_PENDING_ADMIN_CONFIRMATION</code></td><td>Customer reported paying; needs an admin to confirm.</td></tr>
+              <tr><td><code>PAYMENT_UNDER_REVIEW</code></td><td>An admin put a reported payment claim under active scrutiny.</td></tr>
+              <tr><td><code>PAID_FINALIZED</code></td><td><strong>Terminal.</strong> No transition out, for any role or action - audit-trail integrity by design.</td></tr>
+              <tr><td><code>CANCELLED</code></td><td><strong>Terminal.</strong> Also sets the legacy <code>status: "void"</code> field.</td></tr>
+            </tbody>
+          </table>
+          <div class="docs-callout docs-callout-warn">
+            <strong>There is no "un-finalize" action.</strong> Correcting a wrongly-paid transaction means voiding the payment(s) involved (<code>POST /admin/payments/:id/void</code>) and, if the underlying purchase itself needs to be reopened, deleting and re-adding the transaction record - not trying to force it backward through the state machine.
+          </div>
+          <p><code>availableActions(workflowStatus, role)</code> is what every "what buttons show here" UI (transactions.html's row actions, the notification panel's primary action) is supposed to read from, rather than assuming a fixed action per status.</p>
+        </section>
+
+        <section id="promo" class="docs-section">
+          <h2>Promotional QR tracking</h2>
+          <p><code>functions/src/lib/promoScans.js</code> + sitemap.html's "Promotions" section. A promo QR lands on an <strong>existing</strong> page (currently always index.html) with two query params, no dedicated landing page:</p>
+          <div class="docs-code"><button class="docs-copy" type="button" aria-label="Copy">Copy</button><pre>index.html?promo=hydrate&amp;qr=D8SFN8</pre></div>
+          <ul>
+            <li><code>promo</code> - the campaign code (e.g. <code>hydrate</code>). Shared across every physical placement of that campaign.</li>
+            <li><code>qr</code> - a short unique id minted per generated QR code (<code>POST /admin/promo-links</code>), so different printed placements of the <em>same</em> campaign stay distinguishable in the data even though they land on the same page.</li>
+          </ul>
+          <p>Two Firestore collections: <code>promoLinks/{qrId}</code> (one doc per generated/printed code - promoCode, label, url) and <code>promoScans/{scanId}</code> (one doc per landing that arrived carrying a code). <code>GET /admin/promo-links</code> joins them to show a live scan count per code on the Sitemap page.</p>
+          <p>On the client: <code>index.html</code> reads <code>?promo</code>/<code>?qr</code> once at boot, strips them from the URL immediately via <code>history.replaceState</code> (so a reload never double-counts), and passes them through <code>FS.loadData(promo, qr)</code> to <code>GET /store/data</code>, which fires the scan record best-effort. A promo landing also auto-opens the name-capture modal once per visit (closing it doesn't reopen it) - the same modal a followed device-link invite auto-opens, just gated on a different condition.</p>
+          <div class="docs-callout docs-callout-info">
+            <strong>Scaffolding for a future in-app scanner:</strong> <code>recordPromoScan()</code> takes a <code>scannedVia</code> field, always <code>"url"</code> today (a browser just following a link). A future scanner built <em>into</em> the app (an already-signed-in customer scanning a code from inside Fresh Snacks itself, not landing fresh) is expected to call the same function with <code>scannedVia: "in-app"</code> and the real, already-known uid doing the scanning - no schema change needed when that ships, just a second call site.
+          </div>
+        </section>
+
+        <section id="linking" class="docs-section">
+          <h2>Device linking &amp; tab codes</h2>
+          <p>Every share code lives in <code>codes/{CODE}</code> with a <code>type</code>: <code>"view"</code> (a read-mostly capability code, e.g. a customer sharing their tab) or <code>"link"</code> (a device-linking invite). A customer's own claim on a code lives in <code>claims/{uid}</code>.</p>
+          <table class="admin-table">
+            <thead><tr><th>Route</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td><code>POST /store/claim/resolve</code></td><td>Resolve a view code - lets this browser see (not necessarily edit) another tab.</td></tr>
+              <tr><td><code>POST /store/link/invite</code></td><td>Self-service: whoever already has full access to a tab can fetch/create its link invite code.</td></tr>
+              <tr><td><code>POST /store/link/accept</code></td><td>Permanently link this device (<code>linkedUids</code>) - capped at <strong>3 devices</strong> per tab, checked and updated in one Firestore transaction so a failed switch can't strand a device on neither tab.</td></tr>
+              <tr><td><code>POST /store/link/session</code></td><td>A 4th+ device falls back to a temporary session claim (<code>accessMode: "session"</code>) instead of a permanent slot, once the 3-device cap is hit.</td></tr>
+              <tr><td><code>POST /store/link/unlink</code></td><td>Removes this device from <code>linkedUids</code>. The claim doc itself is kept (as de-link history), not deleted.</td></tr>
+            </tbody>
+          </table>
+          <p><code>functions/src/lib/authz.js</code> re-implements every access check <code>firestore.rules</code> used to enforce (the Admin SDK bypasses rules entirely, so this is the real gate now). <code>canAccessTab(uid, ownerId)</code> is the one function almost everything else calls: true for the owner, an admin, a view-code claim, a linked device, or an active invite session - checked in that order.</p>
+        </section>
+
+        <section id="permissions" class="docs-section">
+          <h2>Admin roles &amp; permissions</h2>
+          <p><code>functions/src/lib/permissions.js</code>. Every sensitive action is gated by one of ten <code>PERMISSION</code> keys, checked against the calling admin's own <code>admins/{uid}.permissions</code> map.</p>
+          <div class="docs-callout docs-callout-info">
+            <strong>Grandfathering:</strong> an admin doc with <em>no</em> <code>permissions</code> map at all gets full access - only admins created through the admin-management screen get an explicit map, and only a key explicitly set to <code>false</code> in it is ever denied. A permission added in a later release doesn't retroactively lock out anyone.
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Preset</th><th>Can't do</th></tr></thead>
+            <tbody>
+              <tr><td><span class="docs-pill docs-pill-green">admin</span></td><td>Everything, including managing other admins.</td></tr>
+              <tr><td><span class="docs-pill docs-pill-blue">accounting</span></td><td>Delete a transaction; manage other admins. Everything else, including cancel/void.</td></tr>
+              <tr><td><span class="docs-pill docs-pill-amber">cashier</span></td><td>Anything that edits, disputes, cancels, or deletes. Can mark paid and confirm payment only.</td></tr>
+            </tbody>
+          </table>
+          <p>Presets are just starting points for the toggle table in admin-users.html - the individual toggles on an admin's own doc are what's actually enforced.</p>
+        </section>
+
+        <section id="notifications" class="docs-section">
+          <h2>Admin notifications</h2>
+          <p><code>js/admin-notifications.js</code> - the bell on every admin page. Two kinds of item: <strong>actionable backlog</strong> (feedback, disputed items, payment claims - resolves itself once the underlying record changes, or dismissible without acting) and <strong>activity notices</strong> (a name added, a self-checkout - no natural "resolved" state, stays until dismissed). Both count toward the bell's badge number.</p>
+          <p>The action button on a transaction row is driven by that transaction's real, server-computed <code>availableActions</code> (same source of truth as transactions.html's own buttons), not a hardcoded guess per status - it can never offer an action the backend would actually reject.</p>
+          <p>Freshness, three layers, no webhooks or live listeners needed for this:</p>
+          <ul>
+            <li>Opening the panel refetches before rendering.</li>
+            <li>A 409 <code>TRANSACTION_STATE_CHANGED</code> from a stale click (someone else already resolved it) silently refreshes and re-renders instead of showing a dead-end error.</li>
+            <li>A 60-second background poll while any admin page is open, plus an explicit refresh call from transactions.html right after its own actions succeed.</li>
+          </ul>
+        </section>
+
+        <section id="settings" class="docs-section">
+          <h2>Catalogue &amp; UI settings</h2>
+          <p>Site-wide levers live in one doc, <code>settings/app</code>, updated via <code>PATCH /admin/settings</code> (admin.html's "UI settings" card) and merged in without a new route per field.</p>
+          <table class="admin-table">
+            <thead><tr><th>Field</th><th>What it controls</th></tr></thead>
+            <tbody>
+              <tr><td><code>toastTickerSeconds</code></td><td>How long a long snack name takes to scroll into view in the "Added to basket" toast. Customer-facing. 0.3-5s.</td></tr>
+              <tr><td><code>priceStepJmd</code></td><td>How much catalog.html's Price field moves per click of its up/down arrows or an arrow key. Admin-tool only. Whole J$, 1-1000, defaults to 10.</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+      </div>
+    </section>
+
+    <footer>Docs are restricted to authorized Fresh Snacks administrators.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-admin.js?v=20260819l-promo-qr"></script>
+  <script src="js/admin-notifications.js?v=20260819k-status-aware-actions"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    // Copy buttons on the code blocks.
+    document.querySelectorAll(".docs-copy").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.nextElementSibling.textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          const original = btn.textContent;
+          btn.textContent = "Copied";
+          setTimeout(() => { btn.textContent = original; }, 1500);
+        } catch (e) { /* clipboard unavailable - silently ignore */ }
+      });
+    });
+
+    // Highlights the sidebar link matching whichever section is currently
+    // most in view, so a long scroll through the reference stays orientated.
+    const sections = [...document.querySelectorAll(".docs-section")];
+    const sidebarLinks = new Map(
+      [...document.querySelectorAll(".docs-sidebar a")].map((a) => [a.getAttribute("href").slice(1), a])
+    );
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const link = sidebarLinks.get(entry.target.id);
+        if (!link) continue;
+        link.classList.toggle("active", entry.isIntersecting);
+      }
+    }, { rootMargin: "-15% 0px -70% 0px" });
+    sections.forEach((s) => observer.observe(s));
+
+    async function login(method) {
+      try { await method(); await boot(); }
+      catch (error) { $("login-status").textContent = error.message; $("login-status").className = "status err"; }
+    }
+    $("google-login").onclick = () => login(() => FS.admin.signInWithGoogle());
+    $("microsoft-login").onclick = () => login(() => FS.admin.signInWithMicrosoft());
+    $("email-login").onclick = () => login(() => FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value));
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("docs-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    async function boot() {
+      $("login-panel").classList.add("hidden");
+      $("docs-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+    }
+
+    FS.initFirebase().then(() => FS.admin.currentAdmin()).then((admin) => {
+      $("auth-loading").classList.add("hidden");
+      if (!admin) {
+        $("login-panel").classList.remove("hidden");
+        return;
+      }
+      $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+      return boot();
+    }).catch((error) => {
+      $("auth-loading").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+      $("login-status").textContent = error.message;
+      $("login-status").className = "status err";
+    });
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260810i-flat-cart-btn" />
+  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -25,6 +25,7 @@
           <a class="btn" href="accounting.html">User accounting</a>
           <a class="btn" href="stats.html">Stats</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn" href="docs.html">Docs</a>
           <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
@@ -100,10 +101,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260810-default-images"></script>
+  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260810c-notif-dismissals"></script>
-  <script src="js/admin-notifications.js?v=20260810-notif-dismissals"></script>
+  <script src="js/firebase-admin.js?v=20260819l-promo-qr"></script>
+  <script src="js/admin-notifications.js?v=20260819k-status-aware-actions"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script>
     let SNAPSHOT = null;
@@ -196,18 +197,24 @@
           <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
           <div class="row-menu-dropdown">${menuItems.join("")}</div>
         </div>` : "";
-      return `${markPaidBtn}${menu}`;
+      // Wrapped and right-justified (see .ledger-actions-row in styles.css)
+      // so the ⋮ menu always sits in the same spot whether or not a row
+      // also has a Mark paid button pushing in from the left - otherwise a
+      // row with no Mark paid button (already paid, or a payment row) left
+      // its ⋮ sitting flush against the left edge of the wider column
+      // instead of lining up with every other row's.
+      return `<div class="ledger-actions-row">${markPaidBtn}${menu}</div>`;
     }
 
     function renderPaymentActions() {
       const menuItems = [];
       if (hasPerm("cancelTransaction")) menuItems.push(`<button data-act="payment-void">Void</button>`);
       if (hasPerm("deleteTransaction")) menuItems.push(`<button class="danger" data-act="payment-delete">Delete</button>`);
-      if (!menuItems.length) return "";
-      return `<div class="row-menu">
+      const menu = menuItems.length ? `<div class="row-menu">
         <button type="button" class="row-menu-toggle" data-menu-toggle aria-label="More actions" aria-haspopup="true">&#8942;</button>
         <div class="row-menu-dropdown">${menuItems.join("")}</div>
-      </div>`;
+      </div>` : "";
+      return `<div class="ledger-actions-row">${menu}</div>`;
     }
 
     function renderTransactions() {
@@ -450,6 +457,11 @@
       $("transactions-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
       renderTransactions();
+      // A payment recorded here can finalize (or otherwise change the
+      // status of) transactions the notification bell has a stale row
+      // open for - update it right away instead of waiting on its own
+      // background poll.
+      window.AdminNotifications?.refresh();
     }
 
     $("google-login").onclick = async () => {
@@ -624,6 +636,11 @@
         renderTransactions();
         document.querySelectorAll("#txn-groups details").forEach((d) =>
           d.toggleAttribute("open", openKeys.includes(d.dataset.user)));
+        // Same reasoning as refresh() above - this row action itself may
+        // have just resolved (or changed the status of) the exact
+        // transaction a stale notification row is still offering an
+        // action for.
+        window.AdminNotifications?.refresh();
       } catch (e) {
         await AdminModals.alert("Something went wrong", e.message);
       }

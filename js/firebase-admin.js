@@ -290,6 +290,14 @@ FS.admin.templateBinItems = (templateId, snacks) => {
 FS.admin.getBinsSnapshot = async (options = {}) =>
   FS._apiFetch("/admin/bins-snapshot", { query: options.source ? { source: options.source } : undefined });
 
+// Promotional QR tracking (see functions/src/lib/promoScans.js) - backs
+// sitemap.html's "Promotions" section.
+FS.admin.getPromoLinks = async () => FS._apiFetch("/admin/promo-links");
+FS.admin.createPromoLink = async ({ promoCode, label }) =>
+  FS._apiFetch("/admin/promo-links", { method: "POST", body: { promoCode, label } });
+FS.admin.deletePromoLink = async (qrId) =>
+  FS._apiFetch(`/admin/promo-links/${encodeURIComponent(qrId)}`, { method: "DELETE" });
+
 FS.admin.saveBin = async (bin) => {
   const path = bin.id ? `/admin/bins/${encodeURIComponent(bin.id)}` : "/admin/bins";
   const { id } = await FS._apiFetch(path, { method: "PUT", body: bin });

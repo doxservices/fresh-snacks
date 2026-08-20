@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260810i-flat-cart-btn" />
+  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -28,6 +28,7 @@
           <a class="btn" href="transactions.html">Transactions</a>
           <a class="btn" href="stats.html">Stats</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn" href="docs.html">Docs</a>
           <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
           <button id="admin-sign-out" class="hidden">Sign out</button>
         </div>
@@ -157,15 +158,22 @@
 
       <section class="card section-card">
         <h2>UI settings</h2>
-        <p class="muted-small">Tune small interface behaviors customers see.</p>
+        <p class="muted-small">Tune small interface behaviors - some customer-facing, some admin-tool only.</p>
         <div class="form-grid">
           <div class="field">
             <label for="ui-toast-ticker-seconds">Basket toast scroll time (seconds)</label>
             <input id="ui-toast-ticker-seconds" type="number" min="0.3" max="5" step="0.1" />
           </div>
+          <div class="field">
+            <label for="catalog-price-step">Catalog price field step (J$)</label>
+            <input id="catalog-price-step" type="number" min="1" max="1000" step="1" />
+          </div>
           <button class="primary" id="ui-settings-save">Save</button>
         </div>
-        <p class="muted-small">How long a long snack name takes to scroll fully into view inside the "Added to basket" toast before it slides off screen. 0.3-5 seconds.</p>
+        <p class="muted-small">
+          Toast scroll time: how long a long snack name takes to scroll fully into view inside the "Added to basket" toast before it slides off screen (0.3-5 seconds, customer-facing).
+          Catalog price field step: how much the Catalog page's Price field moves per click of its up/down arrows or an arrow key press (whole J$, 1-1000, admin-tool only - customers never see this).
+        </p>
         <div class="status" id="ui-settings-status"></div>
       </section>
 
@@ -182,11 +190,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260810-default-images"></script>
+  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260810c-notif-dismissals"></script>
+  <script src="js/firebase-admin.js?v=20260819l-promo-qr"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
-  <script src="js/admin-notifications.js?v=20260810-notif-dismissals"></script>
+  <script src="js/admin-notifications.js?v=20260819k-status-aware-actions"></script>
   <script>
     let SNAPSHOT = null;
     const $ = (id) => document.getElementById(id);
@@ -297,6 +305,7 @@
       $("adjust-user").innerHTML = userOptions();
       populateTestProfileSelect();
       $("ui-toast-ticker-seconds").value = SNAPSHOT.settings.toastTickerSeconds ?? 1;
+      $("catalog-price-step").value = SNAPSHOT.settings.priceStepJmd ?? 10;
     }
 
     $("google-login").onclick = async () => {
@@ -396,10 +405,15 @@
       try {
         const seconds = Number($("ui-toast-ticker-seconds").value);
         if (!Number.isFinite(seconds) || seconds < 0.3 || seconds > 5) {
-          status("ui-settings-status", "Enter a value between 0.3 and 5 seconds.", false);
+          status("ui-settings-status", "Toast scroll time must be between 0.3 and 5 seconds.", false);
           return;
         }
-        await FS.admin.updateSettings({ toastTickerSeconds: seconds });
+        const step = Number($("catalog-price-step").value);
+        if (!Number.isInteger(step) || step < 1 || step > 1000) {
+          status("ui-settings-status", "Catalog price field step must be a whole number between 1 and 1000.", false);
+          return;
+        }
+        await FS.admin.updateSettings({ toastTickerSeconds: seconds, priceStepJmd: step });
         await refresh();
         status("ui-settings-status", "Saved.", true);
       } catch (e) {

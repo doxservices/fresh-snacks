@@ -8,9 +8,9 @@
 const assert = require("node:assert/strict");
 const { STATUS } = require("../src/lib/transactionStatus");
 const {
-  accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened, priorCashbackCredit,
-  marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts,
-  LAUNCH_DATE, TIER_RATES, MIN_BALANCE_FOR_CASHBACK_JMD,
+  accountSnapshot, cashbackTierForDaysSince, daysSinceBalanceOpened, creditBalance,
+  marginCashback, evaluateCashback, projectedCashback, expiredCashbackAmounts, isWithinDailyBonusWindow,
+  LAUNCH_DATE, TIER_RATES, MIN_BALANCE_FOR_CASHBACK_JMD, CASHBACK_WINDOW_START_HOUR, CASHBACK_WINDOW_HOURS,
 } = require("../src/lib/cashback");
 
 assert.equal(LAUNCH_DATE, "2026-07-29");
@@ -41,32 +41,72 @@ assert.equal(snap.total, 150, "only the two genuinely-owed records count (100 + 
 assert.equal(snap.oldestDate, "2026-07-30", "the earlier of the two owed records' dates");
 assert.deepEqual(accountSnapshot([]), { total: 0, oldestDate: null });
 
-// --- priorCashbackCredit: pre-existing credit that shouldn't earn again ---
-// Nothing paid, nothing finalized - no credit either way.
-assert.equal(priorCashbackCredit([], []), 0);
-// $300 finalized, exactly $300 paid (any source) - fully accounted for, no leftover credit.
-assert.equal(priorCashbackCredit(
-  [{ total: 300, status: "active", workflowStatus: STATUS.PAID_FINALIZED }],
-  [{ amount: 300, status: "active" }],
-), 0, "paid == finalized - nothing left over");
-// $300 finalized, $330 paid (the extra $30 being a past cashback payout) -
-// that $30 is unspent credit.
-assert.equal(priorCashbackCredit(
-  [{ total: 300, status: "active", workflowStatus: STATUS.PAID_FINALIZED }],
-  [{ amount: 300, status: "active", source: "admin" }, { amount: 30, status: "active", source: "cashback" }],
-), 30, "the $30 cashback payout is still sitting unspent");
-// Never negative - a shortfall in payments isn't "negative credit".
-assert.equal(priorCashbackCredit(
-  [{ total: 300, status: "active", workflowStatus: STATUS.PAID_FINALIZED }],
-  [{ amount: 100, status: "active" }],
-), 0, "underpaid, not overpaid - floors at 0, not -200");
+// --- isWithinDailyBonusWindow: the 7am-3pm business-local bonus window ---
+assert.equal(CASHBACK_WINDOW_START_HOUR, 7);
+assert.equal(CASHBACK_WINDOW_HOURS, 8);
+// 15:00Z minus the -5 business offset = 10am local - inside the window.
+assert.equal(isWithinDailyBonusWindow(new Date("2026-08-01T15:00:00Z")), true, "10am local - well inside 7am-3pm");
+// Exactly 7am local (12:00Z) - the window's opening edge, inclusive.
+assert.equal(isWithinDailyBonusWindow(new Date("2026-08-01T12:00:00Z")), true, "7am local exactly - window just opened");
+// Exactly 3pm local (20:00Z) - the window's closing edge, exclusive.
+assert.equal(isWithinDailyBonusWindow(new Date("2026-08-01T20:00:00Z")), false, "3pm local exactly - window just closed");
+// Before 7am local (10:00Z = 5am local).
+assert.equal(isWithinDailyBonusWindow(new Date("2026-08-01T10:00:00Z")), false, "5am local - too early, window hasn't opened");
+// Kaceanne's actual case: 4:07pm local (21:07Z) - well after the window closed.
+assert.equal(isWithinDailyBonusWindow(new Date("2026-08-17T21:07:45Z")), false, "4:07pm local - hours after the window closed");
+
+// --- creditBalance: explicit, intentional credit tracking ---
+// Nothing earned, nothing consumed - no credit either way.
+assert.equal(creditBalance([], []), 0);
+// A cashback payout sitting unspent, nothing has drawn on it yet.
+assert.equal(
+  creditBalance([{ amount: 30, status: "active", source: "cashback" }], []),
+  30, "an earned cashback payout is credit until something consumes it"
+);
+// An ordinary (non-cashback) overpayment is real money, but a different
+// bucket - it never counts as "credit" for this gate.
+assert.equal(
+  creditBalance([{ amount: 30, status: "active", source: "admin" }], []),
+  0, "an admin overpayment isn't a cashback reward - different bucket, not counted here"
+);
+// A recorded consumption draws the balance down.
+assert.equal(
+  creditBalance(
+    [{ amount: 30, status: "active", source: "cashback" }],
+    [{ amount: 30, status: "active" }],
+  ),
+  0, "fully consumed - no credit left"
+);
+assert.equal(
+  creditBalance(
+    [{ amount: 30, status: "active", source: "cashback" }],
+    [{ amount: 12, status: "active" }],
+  ),
+  18, "partially consumed - the remainder is still credit"
+);
+// Never negative.
+assert.equal(
+  creditBalance(
+    [{ amount: 30, status: "active", source: "cashback" }],
+    [{ amount: 1000, status: "active" }],
+  ),
+  0, "floors at 0, never negative"
+);
+// Voided entries on either side don't count.
+assert.equal(
+  creditBalance(
+    [{ amount: 30, status: "active", source: "cashback" }, { amount: 15, status: "void", source: "cashback" }],
+    [{ amount: 100, status: "void" }],
+  ),
+  30, "voided cashback payments and voided consumptions are both ignored"
+);
 
 // --- marginCashback: every still-owed transaction judged on its OWN date ---
 const sameDayTxns = [{ id: "t1", total: 300, createdDate: "2026-08-01", workflowStatus: STATUS.CONFIRMED_UNPAID }];
 assert.deepEqual(
   marginCashback(sameDayTxns, new Date("2026-08-01T15:00:00Z")),
-  { total: 300, eligibleTotal: 300, amount: 30, oldestDate: "2026-08-01" },
-  "a single fresh margin earns its own 10%, no prior credit to exclude"
+  { total: 300, amount: 30, oldestDate: "2026-08-01" },
+  "a single fresh margin earns its own 10%"
 );
 
 const twoTxns = [
@@ -75,7 +115,7 @@ const twoTxns = [
 ];
 assert.deepEqual(
   marginCashback(twoTxns, new Date("2026-08-01T15:00:00Z")),
-  { total: 300, eligibleTotal: 300, amount: 30, oldestDate: "2026-08-01" },
+  { total: 300, amount: 30, oldestDate: "2026-08-01" },
   "two margins opened the same day both earn 10% - same as treating them as one lump sum"
 );
 
@@ -89,72 +129,87 @@ const mixedMargins = [
 ];
 assert.deepEqual(
   marginCashback(mixedMargins, new Date("2026-08-03T15:00:00Z")),
-  { total: 300, eligibleTotal: 300, amount: 10, oldestDate: "2026-08-01" },
+  { total: 300, amount: 10, oldestDate: "2026-08-01" },
   "old margin (2 days old) earns 0, new margin (fresh today) earns 10% of its own $100 -> $10 total"
 );
 
-// A pre-existing credit is consumed OLDEST-margin-first (matches the
-// rest of the app's FIFO settlement order), reducing what's eligible for
-// a fresh reward without touching the gross `total`.
-assert.deepEqual(
-  marginCashback(twoTxns, new Date("2026-08-01T15:00:00Z"), 50),
-  { total: 300, eligibleTotal: 250, amount: 25, oldestDate: "2026-08-01" },
-  "$50 of pre-existing credit excluded before computing the 10% reward (10% of $250, not $300)"
-);
-assert.deepEqual(
-  marginCashback(twoTxns, new Date("2026-08-01T15:00:00Z"), 1000),
-  { total: 300, eligibleTotal: 0, amount: 0, oldestDate: "2026-08-01" },
-  "credit bigger than the whole balance - fully absorbed, nothing left to earn"
-);
-
 // --- evaluateCashback: the whole-balance-clearing trigger ---
-// Same-day clearing -> 10%. No prior payments at all - full eligibility.
+// Same-day clearing -> 10%. No prior payments/credit at all - full eligibility.
 assert.deepEqual(
-  evaluateCashback(sameDayTxns, [], ["t1"], new Date("2026-08-01T15:00:00Z")),
-  { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-01" }
+  evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-01T15:00:00Z")),
+  { bonus: { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-01" }, creditConsumed: 0, clearedTotal: 300 }
 );
 // Next-day clearing -> 5%.
 assert.deepEqual(
-  evaluateCashback(sameDayTxns, [], ["t1"], new Date("2026-08-02T15:00:00Z")),
-  { amount: 15, rate: 0.05, clearedTotal: 300, oldestDate: "2026-08-01" }
+  evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-02T15:00:00Z")),
+  { bonus: { amount: 15, rate: 0.05, clearedTotal: 300, oldestDate: "2026-08-01" }, creditConsumed: 0, clearedTotal: 300 }
 );
-// Third-day (or later) clearing -> nothing, even though it's paid in full.
-assert.equal(evaluateCashback(sameDayTxns, [], ["t1"], new Date("2026-08-03T15:00:00Z")), null);
-assert.equal(evaluateCashback(sameDayTxns, [], ["t1"], new Date("2026-09-01T15:00:00Z")), null);
+// Third-day (or later) clearing -> no bonus, and nothing was drawn from credit either - null.
+assert.equal(evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-03T15:00:00Z")), null);
+assert.equal(evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-09-01T15:00:00Z")), null);
 
 // Clearing only PART of the balance earns nothing - the rule is "clear it
 // in full," not "clear whatever this one payment happened to cover."
-assert.equal(evaluateCashback(twoTxns, [], ["t1"], new Date("2026-08-01T15:00:00Z")), null, "one of two items still owed - no cashback yet");
+assert.equal(evaluateCashback(twoTxns, [], [], ["t1"], new Date("2026-08-01T15:00:00Z")), null, "one of two items still owed - no cashback yet");
 assert.deepEqual(
-  evaluateCashback(twoTxns, [], ["t1", "t2"], new Date("2026-08-01T15:00:00Z")),
-  { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-01" },
+  evaluateCashback(twoTxns, [], [], ["t1", "t2"], new Date("2026-08-01T15:00:00Z")),
+  { bonus: { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-01" }, creditConsumed: 0, clearedTotal: 300 },
   "clearing both together earns 10% of the combined total, since both margins are fresh"
 );
 
 // The mixed-margin case, cleared in full: earns a BLENDED rate (the old
-// margin's 0% and the new margin's 10%, weighted by size), not the 0%
-// the whole-balance-keyed-off-oldest rule would have given before, and
-// not the 10% a naive "any new charge resets everything" rule would give.
+// margin's 0% and the new margin's 10%, weighted by size).
 assert.deepEqual(
-  evaluateCashback(mixedMargins, [], ["old", "new"], new Date("2026-08-03T15:00:00Z")),
-  { amount: 10, rate: 0.0333, clearedTotal: 300, oldestDate: "2026-08-01" }
+  evaluateCashback(mixedMargins, [], [], ["old", "new"], new Date("2026-08-03T15:00:00Z")),
+  { bonus: { amount: 10, rate: 0.0333, clearedTotal: 300, oldestDate: "2026-08-01" }, creditConsumed: 0, clearedTotal: 300 }
+);
+
+// --- evaluateCashback + isWithinDailyBonusWindow: the real Kaceanne bug ---
+// Same-day clearing, but the settlement itself happens well after the
+// 7am-3pm window (4:07pm local, same shape as Kaceanne's actual case) -
+// earns nothing, even though the tier math alone would call this "same
+// day, 10%". No credit involved either, so there's nothing at all to
+// record - null, not a zeroed-out object.
+assert.equal(
+  evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-01T21:07:00Z")),
+  null,
+  "settled at 4:07pm local - after the daily window closed, no bonus despite same-day tier"
+);
+// The same round, settled earlier the same day while the window is still
+// open, earns the full 10% as normal - proves the suppression above is
+// really about the hour, not something else about this fixture.
+assert.deepEqual(
+  evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-01T15:00:00Z")),
+  { bonus: { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-01" }, creditConsumed: 0, clearedTotal: 300 },
+  "same round, settled at 10am local instead - window's open, full 10% earned"
+);
+// Right at the boundary (3pm local exactly) - already closed (exclusive).
+assert.equal(
+  evaluateCashback(sameDayTxns, [], [], ["t1"], new Date("2026-08-01T20:00:00Z")),
+  null,
+  "settled at exactly 3pm local - the window has already closed by this instant"
 );
 
 // Nothing was owed to begin with - no cashback, regardless of what's "settled".
-assert.equal(evaluateCashback([], [], [], new Date()), null);
+assert.equal(evaluateCashback([], [], [], [], new Date()), null);
 
-// A pre-launch balance is never eligible, even when fully cleared same-day.
+// A pre-launch balance is never eligible, even when fully cleared same-day -
+// and since nothing was earned and no credit exists, there's nothing to
+// record at all (null, not a zeroed-out object).
 const preLaunch = [{ id: "old", total: 300, createdDate: "2026-07-20", workflowStatus: STATUS.CONFIRMED_UNPAID }];
-assert.equal(evaluateCashback(preLaunch, [], ["old"], new Date("2026-07-20T15:00:00Z")), null);
+assert.equal(evaluateCashback(preLaunch, [], [], ["old"], new Date("2026-07-20T15:00:00Z")), null);
 
-// --- evaluateCashback + priorCashbackCredit: no discount on a discount ---
+// --- evaluateCashback + creditBalance: no discount on a discount ---
 // Andreanna's actual case, reproduced: a $300 balance was cleared once
 // already, earning a $30 cashback (now sitting as unspent credit on the
 // books). $300 of brand-new same-day purchases come in; the account is
 // fully cleared again, this time with $270 of fresh payment plus that
-// $30 of leftover credit. Cashback should be 10% of the $270 that was
-// actually fresh money ($27), NOT 10% of the full $300 being cleared
-// ($30) - the $30 credit already earned its reward once.
+// $30 of leftover credit. Under the new all-or-nothing rule, ANY existing
+// credit involved in a settlement round means NO new bonus for that round
+// (not a prorated one) - the $30 already earned its reward once, and the
+// two buckets (fresh money vs. reused credit) are never blended into one
+// reward calculation again. The $30 is instead recorded as a deliberate
+// creditConsumed draw-down.
 //
 // `paymentsBefore` here deliberately excludes the fresh $270 payment that
 // actually funds this round's clearance - that's what allocateApprovedTransactions
@@ -171,42 +226,49 @@ const newRoundTxns = [
 ];
 const priorPaymentsOnly = [priorRealPayment, priorCashbackPayment];
 assert.deepEqual(
-  evaluateCashback(newRoundTxns, priorPaymentsOnly, ["new1", "new2"], new Date("2026-08-02T15:00:00Z")),
-  { amount: 27, rate: 0.10, clearedTotal: 270, oldestDate: "2026-08-02" },
-  "10% of the $270 actually fresh, not the full $300 - the other $30 already earned its reward once"
+  evaluateCashback(newRoundTxns, priorPaymentsOnly, [], ["new1", "new2"], new Date("2026-08-02T15:00:00Z")),
+  { bonus: null, creditConsumed: 30, clearedTotal: 300 },
+  "existing $30 credit funds part of this round - no new bonus, $30 recorded as consumed instead"
 );
 // Without the prior cashback credit in the picture (a plain first-time
 // clearance of the same $300), the reward is the full 10% of $300 - proves
-// the reduction above really is coming from the prior credit, not some
+// the suppression above really is coming from the prior credit, not some
 // other side effect of the fixture shape.
 assert.deepEqual(
-  evaluateCashback(newRoundTxns, [priorRealPayment], ["new1", "new2"], new Date("2026-08-02T15:00:00Z")),
-  { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-02" },
-  "no cashback payment in the history - full $300 is eligible"
+  evaluateCashback(newRoundTxns, [priorRealPayment], [], ["new1", "new2"], new Date("2026-08-02T15:00:00Z")),
+  { bonus: { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-02" }, creditConsumed: 0, clearedTotal: 300 },
+  "no cashback payment in the history - full $300 is eligible, full bonus"
+);
+// Once that $30 has already been recorded as consumed (a creditConsumptions
+// entry from a PRIOR round), it no longer counts as available credit - a
+// later, fully-fresh-money round earns its bonus normally again.
+assert.deepEqual(
+  evaluateCashback(newRoundTxns, priorPaymentsOnly, [{ amount: 30, status: "active" }], ["new1", "new2"], new Date("2026-08-02T15:00:00Z")),
+  { bonus: { amount: 30, rate: 0.10, clearedTotal: 300, oldestDate: "2026-08-02" }, creditConsumed: 0, clearedTotal: 300 },
+  "the $30 credit was already spent in an earlier round - nothing left to gate this one"
 );
 
 // --- projectedCashback: what the customer-facing card shows before paying ---
-const projection = projectedCashback(sameDayTxns, [], new Date("2026-08-01T15:00:00Z"));
+const projection = projectedCashback(sameDayTxns, [], [], new Date("2026-08-01T15:00:00Z"));
 assert.deepEqual(projection, { rate: 0.10, tier: 1, balance: 300, cashbackAmount: 30, oldestDate: "2026-08-01" });
-assert.equal(projectedCashback(sameDayTxns, [], new Date("2026-08-05T15:00:00Z")), null, "the only margin present has expired - no projection shown");
-assert.equal(projectedCashback([], [], new Date()), null, "no balance at all - no projection");
+assert.equal(projectedCashback(sameDayTxns, [], [], new Date("2026-08-05T15:00:00Z")), null, "the only margin present has expired - no projection shown");
+assert.equal(projectedCashback([], [], [], new Date()), null, "no balance at all - no projection");
 
 // The key behavioral change from the original flat model: a fresh margin
 // stacked on an already-expired one still produces a (blended) projection.
 assert.deepEqual(
-  projectedCashback(mixedMargins, [], new Date("2026-08-03T15:00:00Z")),
+  projectedCashback(mixedMargins, [], [], new Date("2026-08-03T15:00:00Z")),
   { rate: 0.0333, tier: 2, balance: 300, cashbackAmount: 10, oldestDate: "2026-08-01" }
 );
 
-// The projection also reflects prior cashback credit, so what's shown
-// before paying matches what's actually paid out afterward - same setup
-// as the evaluateCashback case above (before the fresh $270 payment
-// exists at all - projectedCashback runs on the account's current, as-is
-// state), viewed as a pre-payment projection.
-assert.deepEqual(
-  projectedCashback(newRoundTxns, priorPaymentsOnly, new Date("2026-08-02T15:00:00Z")),
-  { rate: 0.10, tier: 1, balance: 300, cashbackAmount: 27, oldestDate: "2026-08-02" },
-  "balance still shows the full $300 owed, but the projected reward already excludes the $30 already-rewarded credit"
+// The projection is suppressed entirely once existing credit would fund
+// part of clearing the balance - matches evaluateCashback's all-or-nothing
+// rule, so what's shown before paying never promises a reward that won't
+// actually be paid out.
+assert.equal(
+  projectedCashback(newRoundTxns, priorPaymentsOnly, [], new Date("2026-08-02T15:00:00Z")),
+  null,
+  "existing $30 credit would fund part of this round - no reward projected"
 );
 
 // --- expiredCashbackAmounts: the "here's what you missed" coupon display ---

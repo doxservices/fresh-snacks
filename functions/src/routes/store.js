@@ -15,6 +15,7 @@ const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { allocateApprovedTransactions } = require("../lib/settlement");
 const { projectedCashback, expiredCashbackAmounts } = require("../lib/cashback");
 const { fetchCustomerLedger } = require("../lib/ledger");
+const { recordPromoScan } = require("../lib/promoScans");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -273,6 +274,20 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
 
   const effectiveUid = await resolveEffectiveUid(req);
 
+  // A promo-tagged landing (see sitemap.html's "Promotions" QR generator) -
+  // recorded once, best-effort, against whichever uid this request already
+  // resolved. The client strips ?promo/?qr from the URL right after this
+  // fires, so a reload of the same page never double-counts the same scan.
+  if (req.query.promo) {
+    recordPromoScan({
+      userId: effectiveUid,
+      promoCode: req.query.promo,
+      qrId: req.query.qr,
+      landingPage: "index.html",
+      userAgentBrief: String(req.headers["user-agent"] || "").slice(0, 160),
+    });
+  }
+
   let claim = null;
   if (tabCode) {
     const codeSnap = await db().collection("codes").doc(tabCode).get();
@@ -302,12 +317,18 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
   let entries = own.entries;
   let pays = own.payments;
   let rawTransactions = own.rawTransactions;
+  let rawPayments = own.rawPayments;
+  let consumptions = own.consumptions;
+  let creditBalanceTotal = own.creditBalance;
 
   if (claim) {
     const claimed = await fetchCustomerLedger(claim.userId);
     entries = entries.concat(claimed.entries);
     pays = pays.concat(claimed.payments);
     rawTransactions = rawTransactions.concat(claimed.rawTransactions);
+    rawPayments = rawPayments.concat(claimed.rawPayments);
+    consumptions = consumptions.concat(claimed.consumptions);
+    creditBalanceTotal += claimed.creditBalance;
   }
 
   // An item under review stays visible with its own status message rather
@@ -323,12 +344,17 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
     payments: pays.sort(byDate),
     // The early-payment cashback projection (see ../lib/cashback) - what
     // clearing the whole balance right now would earn back, or null when
-    // there's no balance or the timing no longer qualifies for any tier.
-    cashback: projectedCashback(rawTransactions, pays),
+    // there's no balance, the timing no longer qualifies for any tier, or
+    // existing credit (see creditBalance below) would fund part of it.
+    cashback: projectedCashback(rawTransactions, pays, consumptions),
     // Informational only - the 10%/5% amounts that were on the table and
     // went unclaimed, once a balance has sat unpaid past every tier. Null
     // while a tier is still live (cashback above covers that case).
     expiredCashback: expiredCashbackAmounts(rawTransactions),
+    // Unspent cashback-reward credit already on the account (see
+    // ../lib/cashback's creditBalance) - a distinct number from the snack
+    // log balance above; shown separately rather than silently netted in.
+    creditBalance: creditBalanceTotal,
   });
 }));
 

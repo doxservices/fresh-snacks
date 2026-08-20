@@ -34,14 +34,18 @@ const AUTO_SETTLE_ACTOR = "auto-settlement";
  * credit against a transaction with no payment of their own involved)
  * correctly leaves this empty. */
 async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR, freshPaymentIds = []) {
-  const [transactionSnap, paymentSnap] = await Promise.all([
+  const [transactionSnap, paymentSnap, consumptionSnap] = await Promise.all([
     db().collection("transactions").where("userId", "==", userId).get(),
     db().collection("payments").where("userId", "==", userId).get(),
+    db().collection("creditConsumptions").where("userId", "==", userId).get(),
   ]);
   const transactions = transactionSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
   const payments = paymentSnap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((record) => record.status !== "void");
+  const consumptions = consumptionSnap.docs
     .map((doc) => ({ id: doc.id, ...doc.data() }))
     .filter((record) => record.status !== "void");
   const freshIds = new Set(freshPaymentIds);
@@ -84,16 +88,28 @@ async function allocateApprovedTransactions(userId, actorUid = AUTO_SETTLE_ACTOR
   // This sweep might be exactly what brings the customer's WHOLE balance to
   // $0 (not just what this specific payment happened to cover) - evaluated
   // against the pre-sweep `transactions` snapshot, same as everything above.
-  const cashback = evaluateCashback(transactions, paymentsBeforeThisAction, plan.settledIds, new Date());
-  if (cashback) {
+  const cashback = evaluateCashback(transactions, paymentsBeforeThisAction, consumptions, plan.settledIds, new Date());
+  if (cashback?.bonus) {
     const paymentId = genId("fs_pay");
     batch.set(db().collection("payments").doc(paymentId), {
-      paymentId, userId, amount: cashback.amount,
-      note: `${Math.round(cashback.rate * 100)}% early-payment cashback`,
+      paymentId, userId, amount: cashback.bonus.amount,
+      note: `${Math.round(cashback.bonus.rate * 100)}% early-payment cashback`,
       source: "cashback",
-      cashbackRate: cashback.rate,
-      clearedTotal: cashback.clearedTotal,
+      cashbackRate: cashback.bonus.rate,
+      clearedTotal: cashback.bonus.clearedTotal,
       createdBy: "cashback-system",
+      createdAt: FieldValue.serverTimestamp(),
+      createdDate: todayISO(),
+      status: "active",
+    });
+  }
+  if (cashback?.creditConsumed > 0) {
+    const consumptionId = genId("fs_credituse");
+    batch.set(db().collection("creditConsumptions").doc(consumptionId), {
+      consumptionId, userId, amount: cashback.creditConsumed,
+      note: "Existing cashback credit applied toward this settlement",
+      settledTransactionIds: plan.settledIds,
+      createdBy: actorUid,
       createdAt: FieldValue.serverTimestamp(),
       createdDate: todayISO(),
       status: "active",

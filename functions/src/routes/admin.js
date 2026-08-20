@@ -16,7 +16,7 @@ const {
 const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { PERMISSION, ROLE_PRESETS } = require("../lib/permissions");
 const { allocateApprovedTransactions } = require("../lib/settlement");
-const { evaluateCashback } = require("../lib/cashback");
+const { evaluateCashback, creditBalance } = require("../lib/cashback");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -143,7 +143,7 @@ router.delete("/notification-dismissals/:uid", requirePermission(PERMISSION.MANA
 // same settings/app doc getSettingsData() (store.js) reads with defaults,
 // so new levers can be added here later without a new route each time.
 router.patch("/settings", asyncRoute(async (req, res) => {
-  const { toastTickerSeconds } = req.body;
+  const { toastTickerSeconds, priceStepJmd } = req.body;
   const payload = { updatedBy: req.uid, updatedAt: FieldValue.serverTimestamp() };
   if (toastTickerSeconds !== undefined) {
     const seconds = Number(toastTickerSeconds);
@@ -152,12 +152,23 @@ router.patch("/settings", asyncRoute(async (req, res) => {
     }
     payload.toastTickerSeconds = seconds;
   }
+  // How much catalog.html's Price fields move by per up/down click - a
+  // pure admin-tool convenience (customers never see this), so it lives
+  // here rather than gating anything a customer-facing price computation
+  // depends on.
+  if (priceStepJmd !== undefined) {
+    const step = Number(priceStepJmd);
+    if (!Number.isInteger(step) || step < 1 || step > 1000) {
+      throw bad("Price adjustment step must be a whole number between 1 and 1000.");
+    }
+    payload.priceStepJmd = step;
+  }
   await db().collection("settings").doc("app").set(payload, { merge: true });
   res.json({ ok: true });
 }));
 
 router.get("/snapshot", asyncRoute(async (req, res) => {
-  const [settings, snacksSnap, users, devices, transactions, payments, adjustments, feedback] = await Promise.all([
+  const [settings, snacksSnap, users, devices, transactions, payments, adjustments, feedback, creditConsumptions] = await Promise.all([
     db().collection("settings").doc("app").get(),
     db().collection("snacks").get(),
     getCollection("users"),
@@ -166,6 +177,7 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
     getCollection("payments"),
     getCollection("adjustments"),
     getCollection("feedback"),
+    getCollection("creditConsumptions"),
   ]);
   const settingsData = settings.exists ? settings.data() : {};
   // Same displayOrder-based sort the customer-facing catalog already uses
@@ -194,6 +206,27 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
   const voidedTransactions = transactions.filter((x) => x.status === "void").map(enrichTransaction);
   const activePayments = payments.filter((x) => x.status !== "void");
   const activeAdjustments = adjustments.filter((x) => x.status !== "void");
+  const activeCreditConsumptions = creditConsumptions.filter((x) => x.status !== "void");
+  // Unspent cashback-reward credit per customer (see creditBalance in
+  // ../lib/cashback) - a distinct number from the balance/paidTotal columns
+  // accounting() already computes, so it's attached here rather than
+  // folded into either of those.
+  const paymentsByUser = new Map();
+  for (const p of activePayments) {
+    const key = p.userId || p.uid;
+    if (!paymentsByUser.has(key)) paymentsByUser.set(key, []);
+    paymentsByUser.get(key).push(p);
+  }
+  const consumptionsByUser = new Map();
+  for (const c of activeCreditConsumptions) {
+    const key = c.userId || c.uid;
+    if (!consumptionsByUser.has(key)) consumptionsByUser.set(key, []);
+    consumptionsByUser.get(key).push(c);
+  }
+  const accountingRows = accounting(users, devices, activeTransactions, activePayments, activeAdjustments).map((row) => ({
+    ...row,
+    creditBalance: creditBalance(paymentsByUser.get(row.userId) || [], consumptionsByUser.get(row.userId) || []),
+  }));
   res.json({
     settings: {
       brand: settingsData.brand || "Fresh Snacks",
@@ -207,8 +240,9 @@ router.get("/snapshot", asyncRoute(async (req, res) => {
     voidedTransactions,
     payments: activePayments,
     adjustments: activeAdjustments,
+    creditConsumptions: activeCreditConsumptions,
     feedback: feedback.sort((a, b) => dateFromRecord(b, "createdAt").localeCompare(dateFromRecord(a, "createdAt"))),
-    accounting: accounting(users, devices, activeTransactions, activePayments, activeAdjustments),
+    accounting: accountingRows,
   });
 }));
 
@@ -666,9 +700,11 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
       // Firestore Transaction object aren't reliably supported.
       const allSnap = await transaction.get(db().collection("transactions").where("userId", "==", userId));
       const paySnap = await transaction.get(db().collection("payments").where("userId", "==", userId));
+      const consumptionSnap = await transaction.get(db().collection("creditConsumptions").where("userId", "==", userId));
       const allTransactions = allSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const allPayments = paySnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      cashback = evaluateCashback(allTransactions, allPayments, [id], new Date());
+      const allConsumptions = consumptionSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      cashback = evaluateCashback(allTransactions, allPayments, allConsumptions, [id], new Date());
     }
 
     transaction.update(ref, {
@@ -687,26 +723,47 @@ async function applyAdminAction(req, res, { action, eventType, extraFields = () 
     transaction.set(event.ref, event.data);
     extraWrites(transaction, record);
 
-    if (cashback) cashbackPaymentWrite(transaction, record.userId || record.uid, cashback);
+    const settleUserId = record.userId || record.uid;
+    if (cashback?.bonus) cashbackPaymentWrite(transaction, settleUserId, cashback.bonus);
+    if (cashback?.creditConsumed > 0) creditConsumptionWrite(transaction, settleUserId, cashback.creditConsumed, [id], req.uid);
   });
   res.json({ ok: true });
 }
 
 // The cashback reward for clearing a whole balance in full - a NEW credit
 // line, separate from (and in addition to) whatever payment(s) actually
-// settled the balance, worth cashback.rate (blended across every margin
+// settled the balance, worth bonus.rate (blended across every margin
 // that earned something) of the total that just got cleared. Not tied to
 // any one transaction, since it rewards the account reaching $0 overall,
-// not any single purchase.
-function cashbackPaymentWrite(transaction, userId, cashback) {
+// not any single purchase. Only ever passed when evaluateCashback (../lib/
+// cashback) found zero pre-existing credit involved in this round - see
+// creditConsumptionWrite below for the case where credit funded it instead.
+function cashbackPaymentWrite(transaction, userId, bonus) {
   const paymentId = genId("fs_pay");
   transaction.set(db().collection("payments").doc(paymentId), {
-    paymentId, userId, amount: cashback.amount,
-    note: `${Math.round(cashback.rate * 100)}% early-payment cashback`,
+    paymentId, userId, amount: bonus.amount,
+    note: `${Math.round(bonus.rate * 100)}% early-payment cashback`,
     source: "cashback",
-    cashbackRate: cashback.rate,
-    clearedTotal: cashback.clearedTotal,
+    cashbackRate: bonus.rate,
+    clearedTotal: bonus.clearedTotal,
     createdBy: "cashback-system",
+    createdAt: FieldValue.serverTimestamp(),
+    createdDate: todayISO(),
+    status: "active",
+  });
+}
+
+// A deliberate, recorded draw-down of a customer's existing cashback
+// credit (see creditBalance in ../lib/cashback) toward THIS settlement -
+// written instead of a new cashback payout, never alongside one, so credit
+// already earned is never compounded into a fresh reward on top of itself.
+function creditConsumptionWrite(transaction, userId, amount, settledTransactionIds, actorUid) {
+  const consumptionId = genId("fs_credituse");
+  transaction.set(db().collection("creditConsumptions").doc(consumptionId), {
+    consumptionId, userId, amount,
+    note: "Existing cashback credit applied toward this settlement",
+    settledTransactionIds,
+    createdBy: actorUid,
     createdAt: FieldValue.serverTimestamp(),
     createdDate: todayISO(),
     status: "active",
@@ -1149,6 +1206,47 @@ router.get("/bins-snapshot", asyncRoute(async (req, res) => {
     || String(a.floor || "").localeCompare(String(b.floor || ""))
     || String(a.name || "").localeCompare(String(b.name || "")));
   res.json({ settings: settingsData, snacks, bins });
+}));
+
+// Promotional QR tracking (see ../lib/promoScans.js) - a promoLinks/{qrId}
+// doc is one printed/displayed QR code; sitemap.html's "Promotions" section
+// mints one here per physical placement so scans from different locations
+// (or different campaigns) stay distinguishable even though they can all
+// land on the same page. targetPage is currently only ever "index.html" -
+// kept as its own field rather than hardcoded in the URL builder so a
+// second promo-landing-capable page can be added later without a schema
+// change.
+router.post("/promo-links", asyncRoute(async (req, res) => {
+  const promoCode = String(req.body.promoCode || "").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!promoCode) throw bad("Enter a promo code.");
+  const label = String(req.body.label || "").trim().slice(0, 80);
+  const targetPage = "index.html";
+  const qrId = randomCode(6);
+  const doc = {
+    qrId, promoCode, label, targetPage,
+    url: `${targetPage}?promo=${encodeURIComponent(promoCode)}&qr=${encodeURIComponent(qrId)}`,
+    createdBy: req.uid, createdAt: FieldValue.serverTimestamp(), status: "active",
+  };
+  await db().collection("promoLinks").doc(qrId).set(doc);
+  res.json(doc);
+}));
+
+router.get("/promo-links", asyncRoute(async (req, res) => {
+  const [links, scans] = await Promise.all([getCollection("promoLinks"), getCollection("promoScans")]);
+  const scanCountByQrId = new Map();
+  for (const scan of scans) {
+    if (!scan.qrId) continue;
+    scanCountByQrId.set(scan.qrId, (scanCountByQrId.get(scan.qrId) || 0) + 1);
+  }
+  res.json(links
+    .filter((link) => link.status !== "void")
+    .map((link) => ({ ...link, scanCount: scanCountByQrId.get(link.qrId) || 0 }))
+    .sort((a, b) => dateFromRecord(b, "createdAt").localeCompare(dateFromRecord(a, "createdAt"))));
+}));
+
+router.delete("/promo-links/:id", asyncRoute(async (req, res) => {
+  await db().collection("promoLinks").doc(req.params.id).update({ status: "void" });
+  res.json({ ok: true });
 }));
 
 router.put("/bins/:id?", asyncRoute(async (req, res) => {

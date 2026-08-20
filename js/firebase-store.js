@@ -668,14 +668,21 @@ FS.toPayment = (p) => ({
   note: p.note || "",
 });
 
-FS.loadData = async () => {
+// `promo`/`qr` are a promotional QR landing (see sitemap.html's
+// "Promotions" section) - read once from the URL by the caller BEFORE it
+// strips them via history.replaceState (so a reload never re-sends them),
+// then passed straight through here rather than re-read from location.search
+// internally, same reasoning as FS.getTabCode() but one-shot instead of
+// persisted to localStorage - a promo landing is a single event, not an
+// ongoing claim that needs to survive across the session.
+FS.loadData = async (promo, qr) => {
   const user = await FS.restoreSession();
   const tabCode = FS.getTabCode();
-  if (!user && !tabCode) {
+  if (!user && !tabCode && !promo) {
     const [profile, catalog] = await Promise.all([FS.getSettings(), FS.getCatalog()]);
     return { profile, catalog, claim: null, entries: [], payments: [] };
   }
-  if (tabCode) await FS.signInAnonymous();
+  if (tabCode || promo) await FS.signInAnonymous();
   const linkedTo = localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
     || localStorage.getItem(FS.appConfig.storageKeys.sessionTo);
   // Note: unlike FS.getMyProfile, this response doesn't echo back which uid
@@ -683,7 +690,7 @@ FS.loadData = async () => {
   // healed from here - startTabFlow() always calls FS.getMyProfile() too
   // on every page load, and that's where the self-heal actually happens.
   return FS._apiFetch("/store/data", {
-    query: { tabCode: tabCode || undefined, effectiveUid: linkedTo || undefined },
+    query: { tabCode: tabCode || undefined, effectiveUid: linkedTo || undefined, promo: promo || undefined, qr: qr || undefined },
   });
 };
 

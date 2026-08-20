@@ -4867,6 +4867,13 @@ tr.healthy-account td {
 .payment-value { color: #087a46; }
 .ledger-actions { white-space: nowrap; }
 .ledger-actions button + button { margin-left: 4px; }
+/* Right-justified so the ⋮ menu lands in the same spot whether or not a
+   Mark paid button also occupies this cell (see renderTxnActions/
+   renderPaymentActions in transactions.html). */
+.ledger-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ledger-actions-row button + button,
+.ledger-actions-row .row-menu + button,
+.ledger-actions-row button + .row-menu { margin-left: 0; }
 .permanent-note { color: var(--muted); font-size: .78rem; }
 
 .payment-modal { width: min(540px, calc(100vw - 28px)); }
@@ -7789,6 +7796,9 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
 .sitemap-label a:hover { color: var(--green); text-decoration: underline; }
 .sitemap-label span { color: var(--muted); font-size: .78rem; }
 .sitemap-qr { justify-self: end; }
+/* Promo rows carry a delete button alongside the QR button - one extra
+   fixed-width grid column, same 42px as the QR slot. */
+.sitemap-row.promo-row { grid-template-columns: 20px minmax(0, 1fr) 42px 42px; }
 .sitemap-floor + .sitemap-floor { border-top: 8px solid #f3f7f4; }
 .qr-target-highlight { outline: 3px solid rgba(0, 135, 81, .3); outline-offset: 4px; animation: qr-target-pulse 1.5s ease-out 2; }
 @keyframes qr-target-pulse { 0%, 100% { outline-color: rgba(0, 135, 81, .22); } 50% { outline-color: rgba(0, 135, 81, .7); } }
@@ -7939,4 +7949,104 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   color: var(--muted);
   font-size: 11.5px;
   line-height: 1.3;
+}
+
+/* Docs page (docs.html) - sticky sidebar + a column of reference cards,
+   reusing the site's existing card/table/badge language rather than
+   inventing a separate visual style for one page. */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.docs-sidebar {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+.docs-sidebar-title { font-weight: 700; color: var(--green-dark); margin-bottom: 6px; }
+.docs-sidebar-group {
+  margin-top: 14px;
+  margin-bottom: 2px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.docs-sidebar a { padding: 6px 8px; border-radius: var(--radius-sm); color: var(--text); text-decoration: none; font-size: .92rem; }
+.docs-sidebar a:hover { background: var(--green-soft); }
+.docs-sidebar a.active { background: var(--green-light); color: var(--green-dark); font-weight: 600; }
+
+.docs-content { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.docs-section {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px 24px;
+  scroll-margin-top: 16px;
+}
+.docs-section h2 { margin-top: 0; color: var(--green-dark); }
+.docs-section h3 { margin-bottom: 6px; }
+.docs-section p { line-height: 1.55; }
+.docs-section ul { line-height: 1.55; padding-left: 20px; }
+.docs-section code { background: var(--green-soft); border-radius: 4px; padding: 1px 5px; font-size: .9em; }
+
+.docs-callout {
+  border-left: 3px solid var(--green);
+  background: var(--green-soft);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin: 12px 0;
+  font-size: .92rem;
+  line-height: 1.5;
+}
+.docs-callout-info { border-left-color: #2c5a8a; background: #eaf1fb; }
+.docs-callout-warn { border-left-color: #8a6412; background: #fdf3e2; }
+.docs-callout-danger { border-left-color: #8a2f2f; background: #faf0ef; }
+
+.docs-pill { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: .8rem; font-weight: 600; }
+.docs-pill-green { background: var(--green-light); color: var(--green-dark); }
+.docs-pill-amber { background: #fdf3e2; color: #8a6412; }
+.docs-pill-red { background: #faf0ef; color: #8a2f2f; }
+.docs-pill-blue { background: #eaf1fb; color: #2c5a8a; }
+
+.docs-code { position: relative; margin: 10px 0; }
+.docs-code pre {
+  background: #1e2433;
+  color: #e6ebf5;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: .88rem;
+  margin: 0;
+}
+.docs-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, .12);
+  color: #e6ebf5;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  font-size: .75rem;
+  cursor: pointer;
+}
+.docs-copy:hover { background: rgba(255, 255, 255, .2); }
+
+@media (max-width: 860px) {
+  .docs-layout { grid-template-columns: 1fr; }
+  .docs-sidebar { position: static; max-height: none; }
 }
