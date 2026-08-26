@@ -167,18 +167,53 @@ FS.uid = (prefix) =>
 FS.randomCode = (len = 4) =>
   Math.random().toString(36).slice(2, 2 + len).toUpperCase();
 
-// A profile counts as "opened" once it was explicitly marked complete,
-// created by an admin, or already contains the real name/contact fields the
-// Open-a-Tab flow collects. The field-based fallback keeps older profiles
-// from being treated as brand-new merely because they predate `nameSet`.
-// POST /store/transactions mirrors this exact compatibility rule.
-FS.profileComplete = (profile) => !!(profile && (
-  profile.nameSet === true
-  || profile.createdByAdmin
-  || ((profile.displayName || `${profile.firstName || ""} ${profile.lastName || ""}`.trim())
-    && profile.email
-    && profile.phone)
-));
+// Labels this app itself writes onto a still-unnamed tab - the Generate
+// Invite auto-promotion ("VIP Customer") and the anonymous-tab default
+// ("Guest ABCD" / "New Guest"). Mirrors ../functions/src/lib/shared.js's
+// server copy (kept in sync by hand) - none of these count as a real
+// identity, no matter how complete-looking the rest of the profile is.
+const NAME_PLACEHOLDER_WORDS = new Set(["vip", "customer", "guest"]);
+FS.isPlaceholderNamePart = (word) => {
+  const w = (word || "").trim().toLowerCase();
+  return !w || NAME_PLACEHOLDER_WORDS.has(w);
+};
+FS.isPlaceholderDisplayName = (name) => {
+  const n = (name || "").trim();
+  if (!n) return true;
+  if (/^guest\s+[a-z0-9]{4}$/i.test(n)) return true;
+  if (n.toLowerCase() === "new guest") return true;
+  if (n.toLowerCase() === "vip customer") return true;
+  return false;
+};
+
+// "Has a real name" is judged fresh from the actual name fields every
+// time, never from a historical flag - a name that arrived through ANY
+// path (self-entry, an invitee filling in a shared tab's name, or an
+// admin typing it directly into accounting.html/edit-tab.html) counts the
+// same way, and a placeholder never does, no matter which of those wrote
+// it.
+FS.hasRealName = (profile) => {
+  if (!profile) return false;
+  const first = (profile.firstName || "").trim();
+  const last = (profile.lastName || "").trim();
+  if (first.length >= 3 && last.length >= 1 && !FS.isPlaceholderNamePart(first) && !FS.isPlaceholderNamePart(last)) {
+    return true;
+  }
+  // Legacy fallback for profiles that predate firstName/lastName being
+  // split out of displayName - still a real name as long as it isn't one
+  // of this app's own placeholder labels, and still backed by real contact
+  // info (the same bar the self-service Open-a-Tab flow has always set).
+  const displayName = (profile.displayName || "").trim();
+  return !!(displayName && !FS.isPlaceholderDisplayName(displayName) && profile.email && profile.phone);
+};
+
+// A profile counts as "opened" once it was explicitly marked complete, or
+// already has a real first+last name on file. createdByAdmin used to be an
+// automatic pass here (an admin having set up the tab in person was
+// treated as "already vetted"), but that let a tab sit indefinitely on the
+// Generate Invite placeholder while still working like a normal tab -
+// POST /store/transactions mirrors this exact rule server-side.
+FS.profileComplete = (profile) => !!(profile && (profile.nameSet === true || FS.hasRealName(profile)));
 
 // One source of truth for visitor versus active-tab presentation. The API
 // also marks older profiles with recorded activity as active tabs even when
@@ -289,6 +324,24 @@ FS.getTabCode = () => {
 
 FS.clearTabCode = () => localStorage.removeItem(FS.tabCodeKey);
 
+/* ---------- promo-scan browser token (see sitemap.html's "Promotions") ---------- */
+
+// A random id generated once per browser and kept in localStorage
+// indefinitely - independent of Firebase Auth (it exists before any
+// sign-in) and independent of qrId (which identifies the physical QR
+// code/placement, not the visitor). Lets a promo scan be traced back to
+// "this same browser" across visits/campaigns even if the visitor never
+// completes a tab, or their anonymous auth session later gets replaced.
+FS.browserTokenKey = "fresh_snacks_browser_token";
+FS.getBrowserToken = () => {
+  let token = localStorage.getItem(FS.browserTokenKey);
+  if (!token) {
+    token = (self.crypto?.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`);
+    localStorage.setItem(FS.browserTokenKey, token);
+  }
+  return token;
+};
+
 FS.resolveClaim = async () => {
   const code = FS.getTabCode();
   if (!code) return null;
@@ -323,8 +376,25 @@ FS.getLinkCode = () => {
   const fromUrl = new URLSearchParams(location.search).get("link");
   if (fromUrl && fromUrl.trim()) {
     const code = fromUrl.trim().toUpperCase();
-    localStorage.setItem(FS.linkCodeKey, code);
-    FS.setInviteCookie(code);
+    const isLinkedOrSessioned = !!(
+      localStorage.getItem(FS.appConfig.storageKeys.linkedTo)
+      || localStorage.getItem(FS.appConfig.storageKeys.sessionTo)
+    );
+    const remembered = FS.getRememberedInviteCode();
+    // Once this browser is actually linked (or has a session) somewhere,
+    // its remembered invite keeps priority for good - a different `?link=`
+    // code found in a later URL (a stale bookmark, a re-shared QR, someone
+    // else's invite) must never silently overwrite it, or the browser loses
+    // its only way back to its real tab. This is exactly what happened to a
+    // real customer: a stray invite URL silently replaced her saved code,
+    // and nothing was left pointing back at her real tab. Deliberately
+    // linking a different tab is still possible - it just has to go
+    // through an explicit customer action (the "Link a different device"
+    // flow), never just loading a page.
+    if (!(isLinkedOrSessioned && remembered && code !== remembered)) {
+      localStorage.setItem(FS.linkCodeKey, code);
+      FS.setInviteCookie(code);
+    }
   }
   return localStorage.getItem(FS.linkCodeKey) || null;
 };
@@ -690,7 +760,13 @@ FS.loadData = async (promo, qr) => {
   // healed from here - startTabFlow() always calls FS.getMyProfile() too
   // on every page load, and that's where the self-heal actually happens.
   return FS._apiFetch("/store/data", {
-    query: { tabCode: tabCode || undefined, effectiveUid: linkedTo || undefined, promo: promo || undefined, qr: qr || undefined },
+    query: {
+      tabCode: tabCode || undefined, effectiveUid: linkedTo || undefined,
+      promo: promo || undefined, qr: qr || undefined,
+      // Only sent alongside an actual promo landing - no reason to create/
+      // send a browser token on an ordinary visit that isn't being tracked.
+      browserToken: promo ? FS.getBrowserToken() : undefined,
+    },
   });
 };
 

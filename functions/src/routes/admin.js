@@ -6,8 +6,9 @@ const admin = require("firebase-admin");
 const sharp = require("sharp");
 const { requireAuth, requireAdmin, requirePermission, asyncRoute } = require("../middleware");
 const {
-  uid: genId, todayISO, dateFromRecord, accounting,
+  uid: genId, todayISO, dateFromRecord, accounting, dailySales,
   binTemplates, seasonalSnackIds, templateBinItems, randomCode, clean, compareSnackOrder,
+  hasRealName, splitDisplayName,
 } = require("../lib/shared");
 const {
   STATUS, ROLE, ACTION, EVENT_TYPE, assertTransition, deriveWorkflowStatus, deriveCreatedByRole,
@@ -17,6 +18,7 @@ const { buildTransactionEvent } = require("../lib/transactionEvents");
 const { PERMISSION, ROLE_PRESETS } = require("../lib/permissions");
 const { allocateApprovedTransactions } = require("../lib/settlement");
 const { evaluateCashback, creditBalance } = require("../lib/cashback");
+const { expireInvite, reactivateInvite } = require("../lib/inviteCleanup");
 
 const router = express.Router();
 const db = () => admin.firestore();
@@ -300,6 +302,23 @@ router.patch("/users/:userId/link-invite", asyncRoute(async (req, res) => {
       : { deactivatedBy: req.uid, deactivatedAt: FieldValue.serverTimestamp() }),
   }, { merge: true });
   res.json({ code, active });
+}));
+
+// On-demand version of the hourly sweep (see ../lib/inviteCleanup.js) for
+// one specific tab - accounting.html's "Pending invites" section calls
+// this from its "Expire now" button rather than waiting for the cron.
+// Deliberately does NOT re-check isCleanupCandidate's 24h age gate - an
+// admin looking at this exact row has already decided it's dead, and
+// making them wait out the clock to confirm what they can already see
+// would just be friction.
+router.post("/invites/:userId/expire-now", asyncRoute(async (req, res) => {
+  const result = await expireInvite(req.params.userId, { actor: req.uid });
+  res.json({ ok: true, ...result });
+}));
+
+router.post("/invites/:userId/reactivate", asyncRoute(async (req, res) => {
+  const result = await reactivateInvite(req.params.userId);
+  res.json({ ok: true, ...result });
 }));
 
 router.get("/users/:userId/linked-devices", asyncRoute(async (req, res) => {
@@ -979,6 +998,21 @@ router.get("/inventory-snapshot", asyncRoute(async (req, res) => {
   });
 }));
 
+// Backing data for daily-sales.html - see dailySales() in ../lib/shared
+// for the actual rollup. Returns every day with activity, not windowed -
+// the client trims to whatever date range the viewer has selected.
+router.get("/daily-sales", asyncRoute(async (req, res) => {
+  const [snacksSnap, transactions, payments] = await Promise.all([
+    db().collection("snacks").get(),
+    getCollection("transactions"),
+    getCollection("payments"),
+  ]);
+  const snacks = snacksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const activeTxns = transactions.filter((t) => t.status !== "void");
+  const activePayments = payments.filter((p) => p.status !== "void");
+  res.json({ days: dailySales(activeTxns, activePayments, snacks) });
+}));
+
 router.put("/snacks/:id", asyncRoute(async (req, res) => {
   const snack = { ...req.body, id: req.params.id || req.body.id };
   const id = snack.id || String(snack.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -1234,13 +1268,26 @@ router.post("/promo-links", asyncRoute(async (req, res) => {
 router.get("/promo-links", asyncRoute(async (req, res) => {
   const [links, scans] = await Promise.all([getCollection("promoLinks"), getCollection("promoScans")]);
   const scanCountByQrId = new Map();
+  // Distinct browsers per qrId (see FS.getBrowserToken) - a repeat scan
+  // from the same browser still counts toward scanCount, but not toward
+  // this, so an admin can tell "42 scans" apart from "42 different people."
+  // Scans with no browserToken (recorded before this field existed) simply
+  // don't contribute here - scanCount alone still reflects them.
+  const uniqueVisitorsByQrId = new Map();
   for (const scan of scans) {
     if (!scan.qrId) continue;
     scanCountByQrId.set(scan.qrId, (scanCountByQrId.get(scan.qrId) || 0) + 1);
+    if (!scan.browserToken) continue;
+    if (!uniqueVisitorsByQrId.has(scan.qrId)) uniqueVisitorsByQrId.set(scan.qrId, new Set());
+    uniqueVisitorsByQrId.get(scan.qrId).add(scan.browserToken);
   }
   res.json(links
     .filter((link) => link.status !== "void")
-    .map((link) => ({ ...link, scanCount: scanCountByQrId.get(link.qrId) || 0 }))
+    .map((link) => ({
+      ...link,
+      scanCount: scanCountByQrId.get(link.qrId) || 0,
+      uniqueVisitors: uniqueVisitorsByQrId.get(link.qrId)?.size || 0,
+    }))
     .sort((a, b) => dateFromRecord(b, "createdAt").localeCompare(dateFromRecord(a, "createdAt"))));
 }));
 
@@ -1367,11 +1414,39 @@ router.post("/bins/:id/duplicate", asyncRoute(async (req, res) => {
 }));
 
 router.patch("/users/:userId", asyncRoute(async (req, res) => {
-  const { displayName, vipStatus } = req.body;
-  await db().collection("users").doc(req.params.userId).set({
-    displayName, vipStatus, updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  res.json({ ok: true });
+  // Explicit firstName/lastName (accounting.html's row editor and edit-
+  // tab.html's profile form both send these now - the real "who is this
+  // person" entry point, same fields the customer-facing name-capture
+  // forms have always used) always win. Falling back to splitting a
+  // submitted plain displayName is ONLY for the Generate Invite
+  // auto-promotion, which deliberately sets a placeholder ("VIP Customer")
+  // and never sends firstName/lastName at all.
+  const firstNameInput = clean(req.body.firstName);
+  const lastNameInput = clean(req.body.lastName);
+  const { firstName, lastName } = firstNameInput || lastNameInput
+    ? { firstName: firstNameInput || "", lastName: lastNameInput || "" }
+    : splitDisplayName(req.body.displayName);
+  const displayName = clean(`${firstName} ${lastName}`) || clean(req.body.displayName);
+  const payload = { displayName, vipStatus: req.body.vipStatus, updatedAt: FieldValue.serverTimestamp() };
+  // A real name always wins over whatever vipStatus was submitted - once a
+  // tab has a genuine first+last name, it can never be re-flagged "vip"
+  // (the Generate Invite placeholder marker) or drift back out of sync
+  // just because a stale dropdown value got resubmitted alongside an
+  // unrelated rename.
+  if (hasRealName({ firstName, lastName })) {
+    payload.vipStatus = "named";
+    payload.firstName = firstName;
+    payload.lastName = lastName;
+  }
+  await db().collection("users").doc(req.params.userId).set(payload, { merge: true });
+  // vipStatus/displayName in the response may differ from what was
+  // submitted (see above) - callers should treat this as the source of
+  // truth for their own local state rather than assuming the request body
+  // round-tripped unchanged.
+  res.json({
+    ok: true, displayName: payload.displayName, vipStatus: payload.vipStatus,
+    firstName: payload.firstName ?? firstName, lastName: payload.lastName ?? lastName,
+  });
 }));
 
 router.get("/users/:userId", asyncRoute(async (req, res) => {

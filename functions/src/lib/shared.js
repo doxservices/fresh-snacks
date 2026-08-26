@@ -52,6 +52,8 @@ function accounting(users, devices, transactions, payments, adjustments) {
   for (const user of users) {
     const row = ensure(user.userId || user.uid || user.id);
     row.displayName = user.displayName || row.displayName;
+    row.firstName = user.firstName || "";
+    row.lastName = user.lastName || "";
     row.vipStatus = user.vipStatus || row.vipStatus;
     row.email = user.email || "";
     row.linkedUids = user.linkedUids || [];
@@ -97,13 +99,139 @@ function accounting(users, devices, transactions, payments, adjustments) {
     balance: row.snackTotal + row.adjustmentTotal - row.paidTotal,
     activityDays: row.snackActivityDates.length,
     averagePurchasePerDay: row.snackActivityDates.length ? Math.round(row.datedSnackTotal / row.snackActivityDates.length) : 0,
-  })).filter((row) =>
-    row.snackTotal !== 0
-    || row.paidTotal !== 0
-    || row.adjustmentTotal !== 0
-    || row.vipStatus !== "anonymous"
-    || !!row.createdByAdmin
-  ).sort((a, b) => b.balance - a.balance || String(a.displayName).localeCompare(String(b.displayName)));
+  })).filter((row) => {
+    const hasActivity = row.snackTotal !== 0 || row.paidTotal !== 0 || row.adjustmentTotal !== 0;
+    if (hasActivity) return true;
+    // A tab still sitting on the Generate Invite placeholder ("VIP
+    // Customer"/vipStatus "vip") with zero activity is a pending invite,
+    // not a real customer yet - it belongs in accounting.html's own
+    // "Pending invites" section, not the main list. createdByAdmin doesn't
+    // rescue it here the way it does below - every admin-created tab has
+    // that field set the moment it's created, before anyone has actually
+    // been invited or named, so it can't be used to distinguish "a real
+    // vetted customer" from "an invite nobody has answered yet."
+    if (row.vipStatus === "vip") return false;
+    return row.vipStatus !== "anonymous" || !!row.createdByAdmin;
+  }).sort((a, b) => b.balance - a.balance || String(a.displayName).localeCompare(String(b.displayName)));
+}
+
+// First name needs a real minimum so a stray initial or keyboard-mash
+// can't pass as a name; last name deliberately allows a single initial.
+const MIN_FIRST_NAME_LENGTH = 3;
+const MIN_LAST_NAME_LENGTH = 1;
+
+// Labels this app itself writes onto a still-unnamed tab - the Generate
+// Invite auto-promotion ("VIP Customer") and the anonymous-tab default
+// ("Guest ABCD" / "New Guest"). None of these are a real identity, no
+// matter how complete-looking the rest of the profile is.
+const NAME_PLACEHOLDER_WORDS = new Set(["vip", "customer", "guest"]);
+
+const isPlaceholderNamePart = (word) => {
+  const w = (word || "").trim().toLowerCase();
+  return !w || NAME_PLACEHOLDER_WORDS.has(w);
+};
+
+const isPlaceholderDisplayName = (name) => {
+  const n = (name || "").trim();
+  if (!n) return true;
+  if (/^guest\s+[a-z0-9]{4}$/i.test(n)) return true;
+  if (n.toLowerCase() === "new guest") return true;
+  if (n.toLowerCase() === "vip customer") return true;
+  return false;
+};
+
+// "Has a real name" is judged fresh from the actual name fields every
+// time, never from a historical flag - a name that arrived through ANY
+// path (customer self-entry, an invitee filling in a shared tab's name,
+// or an admin typing it directly into accounting.html/edit-tab.html)
+// counts the same way, and a placeholder never does, no matter which of
+// those wrote it. This is what lets a real customer whose name only ever
+// arrived through an admin rename (never through their own profile form)
+// stop showing as an unnamed "VIP Customer" forever.
+const hasRealName = (profile) => {
+  if (!profile) return false;
+  const first = (profile.firstName || "").trim();
+  const last = (profile.lastName || "").trim();
+  if (
+    first.length >= MIN_FIRST_NAME_LENGTH && last.length >= MIN_LAST_NAME_LENGTH
+    && !isPlaceholderNamePart(first) && !isPlaceholderNamePart(last)
+  ) {
+    return true;
+  }
+  // Legacy fallback for profiles that predate firstName/lastName being
+  // split out of displayName - still a real name as long as it isn't one
+  // of this app's own placeholder labels, and still backed by real contact
+  // info (the same bar the self-service Open-a-Tab flow has always set).
+  const displayName = (profile.displayName || "").trim();
+  return !!(displayName && !isPlaceholderDisplayName(displayName) && clean(profile.email) && clean(profile.phone));
+};
+
+// "First-token/rest-of-string" is a rough split, but it's the same rule a
+// person filling in "First name" / "Last name" fields already produces for
+// any name typed as one string - good enough for backfilling the fields an
+// admin's plain-text rename never had a way to set before.
+const splitDisplayName = (name) => {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: "", lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+};
+
+// Per-day rollup for daily-sales.html: revenue/units sold (from
+// transactions, grouped by createdDate) plus payments collected (from
+// payments, same grouping, broken down by source). Same ITEM_UNDER_REVIEW
+// exclusion as accounting() - a live dispute isn't a confirmed sale until
+// an admin resolves it. Callers pass already status-filtered transactions/
+// payments (void excluded), matching every other rollup in this file.
+function dailySales(transactions, payments, snacks) {
+  const snackNames = new Map((snacks || []).map((s) => [s.id, s.name || s.id]));
+  const days = new Map();
+  const ensureDay = (date) => {
+    if (!days.has(date)) {
+      days.set(date, { revenue: 0, units: 0, transactions: 0, bySnack: new Map(), paymentsCollected: 0, byPaymentSource: {} });
+    }
+    return days.get(date);
+  };
+
+  for (const t of transactions) {
+    if (deriveWorkflowStatus(t) === STATUS.ITEM_UNDER_REVIEW) continue;
+    const date = t.createdDate || dateFromRecord(t, "createdAt");
+    if (!date) continue;
+    const day = ensureDay(date);
+    const total = Number(t.total || 0);
+    const units = Number(t.quantity || 0);
+    day.revenue += total;
+    day.units += units;
+    day.transactions += 1;
+    const key = t.snackId || "other";
+    const name = t.snackId ? (snackNames.get(t.snackId) || t.snackName || "Unknown snack") : (t.snackName || "Other");
+    const row = day.bySnack.get(key) || { name, revenue: 0, units: 0 };
+    row.revenue += total;
+    row.units += units;
+    day.bySnack.set(key, row);
+  }
+
+  for (const p of payments) {
+    const date = p.createdDate || dateFromRecord(p, "createdAt");
+    if (!date) continue;
+    const day = ensureDay(date);
+    const amount = Number(p.amount || 0);
+    day.paymentsCollected += amount;
+    const source = p.source || "admin";
+    day.byPaymentSource[source] = (day.byPaymentSource[source] || 0) + amount;
+  }
+
+  const out = {};
+  for (const [date, day] of days.entries()) {
+    out[date] = {
+      revenue: day.revenue,
+      units: day.units,
+      transactions: day.transactions,
+      paymentsCollected: day.paymentsCollected,
+      byPaymentSource: day.byPaymentSource,
+      bySnack: Object.fromEntries(day.bySnack),
+    };
+  }
+  return out;
 }
 
 // Product decision: an admin-driven payment (a recorded payment, or a
@@ -204,6 +332,10 @@ const toEntry = (t) => {
   return {
     id: t.transactionId || t.id,
     date: t.createdDate || null,
+    // Full timestamp alongside the plain date - index.html's cashback
+    // notification rows need actual time-of-day, which createdDate (just
+    // "YYYY-MM-DD") can't give them.
+    createdAt: t.createdAt && typeof t.createdAt.toDate === "function" ? t.createdAt.toDate().toISOString() : null,
     snackId: t.snackId || null,
     label: t.snackName || t.label || null,
     count: Number(t.quantity || t.count || 1),
@@ -270,6 +402,7 @@ module.exports = {
   maxDate,
   accountKey,
   accounting,
+  dailySales,
   paymentAllocationPlan,
   withBundledSnackArtwork,
   compareSnackOrder,
@@ -283,4 +416,10 @@ module.exports = {
   isBillable,
   computeBalance,
   clean,
+  MIN_FIRST_NAME_LENGTH,
+  MIN_LAST_NAME_LENGTH,
+  isPlaceholderNamePart,
+  isPlaceholderDisplayName,
+  hasRealName,
+  splitDisplayName,
 };

@@ -28,6 +28,7 @@ const paypalTabRoutes = require("./src/routes/paypalTab");
 const { trackRequest } = require("./src/lib/stats");
 const { refreshDailyRate } = require("./src/lib/paypalRate");
 const { todayISO } = require("./src/lib/shared");
+const { runInviteCleanup } = require("./src/lib/inviteCleanup");
 
 const app = express();
 
@@ -103,5 +104,18 @@ exports.refreshPaypalRate = onSchedule(
   { schedule: "5 0 * * *", timeZone: "America/Jamaica", region: "us-central1" },
   async () => {
     await refreshDailyRate(todayISO());
+  },
+);
+
+// Sweeps still-unnamed, unanswered VIP invites (see src/lib/inviteCleanup.js)
+// hourly - a tab given out via Generate Invite that nobody accepted and
+// nobody bought anything on, a full day later, gets its invite deactivated
+// and the tab marked expired (never deleted). accounting.html's own
+// "Pending invites" section shows candidates before this ever runs, and
+// has a manual "Expire now" for the same logic on demand.
+exports.expireStaleInvites = onSchedule(
+  { schedule: "every 60 minutes", timeZone: "America/Jamaica", region: "us-central1" },
+  async () => {
+    await runInviteCleanup();
   },
 );

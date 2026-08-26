@@ -98,6 +98,7 @@ assert.deepEqual(toEntry({
 }), {
   id: "paid-needs-customer-approval",
   date: "2026-07-21",
+  createdAt: null,
   snackId: null,
   label: null,
   count: 1,

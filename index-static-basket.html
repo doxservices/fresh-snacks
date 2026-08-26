@@ -12,7 +12,7 @@
        scroll back up. See the differences noted around #basket-panel and
        #snack-shop below. Not linked from any nav; reach it directly by
        URL. -->
-  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
+  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -763,7 +763,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-store.js?v=20260825-invite-name-fix"></script>
   <!-- Live PayPal app's client-id (must match functions/src/lib/
        paypalClientLive.js's server-side credentials, or checkout breaks) -
        components=buttons so the amount can be set per checkout
@@ -1301,12 +1301,27 @@
       const owed = (data.entries || []).filter((e) => CASHBACK_STILL_OWED.has(e.workflowStatus) && e.date);
       const byDate = new Map();
       for (const entry of owed) {
-        byDate.set(entry.date, (byDate.get(entry.date) || 0) + Number(entry.value || 0));
+        const bucket = byDate.get(entry.date) || { amount: 0, createdAt: null };
+        bucket.amount += Number(entry.value || 0);
+        // Earliest charge in the group, not latest - matches the stage
+        // countdown's own framing (how long THIS balance instance has
+        // been open), so the two never point at different moments.
+        if (entry.createdAt && (!bucket.createdAt || entry.createdAt < bucket.createdAt)) bucket.createdAt = entry.createdAt;
+        byDate.set(entry.date, bucket);
       }
       return [...byDate.entries()]
-        .map(([date, amount]) => ({ date, amount, daysSince: cashbackDaysSince(date) }))
+        .map(([date, bucket]) => ({ date, amount: bucket.amount, createdAt: bucket.createdAt, daysSince: cashbackDaysSince(date) }))
         .filter((instance) => instance.daysSince != null)
         .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    function formatCashbackInstanceDateTime(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      const datePart = d.toLocaleString("en", { day: "numeric", month: "short" });
+      const timePart = d.toLocaleString("en", { hour: "numeric", minute: "2-digit" });
+      return `${datePart}, ${timePart}`;
     }
 
     // The customer-facing notification bell - same bell/panel design as
@@ -1394,6 +1409,7 @@
             <div class="notif-item-body">
               <div class="notif-item-title">${esc(FS.money(instance.amount, cur))}</div>
               <div class="cashback-instance-stages">${stagesHtml}</div>
+              ${instance.createdAt ? `<div class="notif-item-subtitle">${esc(formatCashbackInstanceDateTime(instance.createdAt))}</div>` : ""}
             </div>
             <button type="button" class="notif-dismiss" data-notif-dismiss aria-label="Dismiss">&times;</button>
           </div>
@@ -2130,7 +2146,12 @@
         }
         return;
       }
-      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
+      // window.scrollY === 0 short-circuits straight to "not scrolled
+      // past" - see index.html's own updateBasketFloatState for the full
+      // explanation (a zero-height #basket-dock-home, from a visitor's
+      // hidden #basket-panel, can transiently satisfy bottom <= 0 before
+      // the page's real layout settles, with no actual scroll involved).
+      const scrolledPast = window.scrollY > 0 && basketDockHome.getBoundingClientRect().bottom <= 0;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
         setFloatTrayOpen(false);
@@ -2163,7 +2184,23 @@
     // "already scrolled past", and float immediately at the top of the
     // page with nothing to correct it until the next scroll/resize.
     new IntersectionObserver(updateBasketFloatState).observe(basketDockHome);
+    // See index.html's own setup for the full explanation - the
+    // IntersectionObserver alone misses two real cases: a layout shift
+    // that never re-crosses an intersection threshold (ResizeObserver
+    // catches it), and scrolling back up past a dock taller than the
+    // viewport, which can do the same (a direct scroll listener catches
+    // that one - it doesn't depend on threshold crossings at all).
+    new ResizeObserver(updateBasketFloatState).observe(document.body);
     window.addEventListener("resize", updateBasketFloatState);
+    let floatScrollCheckQueued = false;
+    window.addEventListener("scroll", () => {
+      if (floatScrollCheckQueued) return;
+      floatScrollCheckQueued = true;
+      requestAnimationFrame(() => {
+        floatScrollCheckQueued = false;
+        updateBasketFloatState();
+      });
+    }, { passive: true });
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
@@ -2904,7 +2941,7 @@
     $id("us-invite-login").onclick = async () => {
       const button = $id("us-invite-login");
       button.disabled = true;
-      button.textContent = "Logging inâ€¦";
+      button.textContent = "Logging in…";
       try {
         await FS.loginWithInvite();
         location.reload();

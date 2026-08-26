@@ -878,9 +878,18 @@ a.stat-box:hover, a.stat-box:focus-visible {
   background: linear-gradient(180deg, #fff, #f7faf7);
   cursor: pointer;
 }
-.pay-option:hover { border-color: var(--green); background: var(--green-soft); }
+/* The bare `button:not(:disabled):hover` rule up top already wins the
+   background/border here (a same class-count tie breaks on its extra
+   element-selector point) and fills solid --green with white text - so
+   the button itself already goes solid green on hover regardless of
+   anything set here. What was missing is that this button's own inner
+   text has its own explicit (dark green) color, which - being set
+   directly on those elements, not inherited - doesn't pick up that
+   white automatically, leaving near-invisible dark-on-dark text. */
 .pay-option strong { font-size: 15px; color: var(--green-dark); }
 .pay-option-note { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.pay-option:not(.is-disabled):hover strong,
+.pay-option:not(.is-disabled):hover .pay-option-note { color: #fff; }
 .pay-option-text { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
 .pay-option-icon-shell {
   width: 40px;
@@ -2959,6 +2968,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   width: min(680px, 100%);
 }
 
+/* Promo-landing offer popup (e.g. the Hydrate QR campaign) - a pure image
+   banner, no chrome besides the close button, edge-to-edge in the modal
+   card. See PROMO_OFFER_IMAGES in index.html's boot script. */
+.promo-offer-modal { width: min(560px, 100%); padding: 0; }
+.promo-offer-modal .modal-close { background: rgba(255, 255, 255, 0.88); }
+.promo-offer-image { display: block; width: 100%; height: auto; }
+
 .invitee-name-modal {
   width: min(420px, 100%);
 }
@@ -3687,6 +3703,21 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .admin-table input {
   padding: 6px 8px;
   font-size: 13px;
+}
+
+/* accounting.html's name cell - separate First/Last inputs (matching the
+   customer-facing name-capture form's own fields) rather than one free-text
+   box, so what an admin types here is always a specific person's real name,
+   not a placeholder like "VIP Customer" typed into a generic Name field. */
+.name-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+}
+
+.name-fields input {
+  width: 100%;
 }
 
 .permission-presets {
@@ -5130,10 +5161,17 @@ tr.healthy-account td {
   place-items: center;
 }
 
+/* position:fixed, not absolute - several of this dropdown's containers
+   (accounting.html's #accounting-list, transactions.html's #txn-groups,
+   edit-tab.html's #transaction-list/#adjustment-list) scroll horizontally,
+   which clips an absolutely-positioned dropdown opening below the LAST
+   row in the list (nowhere left inside the container to render into).
+   Fixed positioning escapes any ancestor's overflow entirely; its top/
+   left are computed and set by each page's own positionRowMenuDropdown()
+   when it opens, rather than the `top: calc(100% + 4px); right: 0` an
+   absolutely-positioned version could rely on. */
 .row-menu-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
+  position: fixed;
   min-width: 170px;
   background: var(--white);
   border: 1px solid var(--line);
@@ -5469,6 +5507,12 @@ body:has(#snack-shop-static) .bins-layout {
    paint as .visible and skipping the transition. */
 .basket-float-shell {
   color: var(--green);
+  /* Hidden outright by default, not just via opacity - whatever the JS
+     scroll/layout logic gets wrong on a given load, an un-displayed
+     element can't flash on screen or intercept a tap. .visible flips
+     this to display:block first; opacity/transform only animate once
+     .is-floating-in lands a frame later (see updateBasketFloatState). */
+  display: none;
   left: 50%;
   opacity: 0;
   pointer-events: none;
@@ -5483,6 +5527,7 @@ body:has(#snack-shop-static) .bins-layout {
 }
 
 .basket-float-shell.visible {
+  display: block;
   pointer-events: auto;
 }
 
@@ -7949,6 +7994,262 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   color: var(--muted);
   font-size: 11.5px;
   line-height: 1.3;
+}
+
+/* Daily sales report (daily-sales.html) - same hand-drawn, no-library
+   approach as stats.html's chart, reusing .stats-cards/.stats-card for the
+   KPI row. One filter row (.range-picker) scopes every card below it. */
+.range-picker {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.range-btn.is-active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.sales-chart-wrap {
+  position: relative;
+}
+
+/* Fixed-width columns, same reasoning as .stats-chart: a steady column
+   width reads consistently whether the range is 7 bars or 90, and the
+   container scrolls horizontally instead of squeezing bars unusably thin. */
+.sales-bars {
+  align-items: flex-end;
+  display: flex;
+  gap: 4px;
+  height: 200px;
+  margin-top: 16px;
+  overflow-x: auto;
+  padding: 0 4px 6px;
+  scrollbar-color: var(--green) transparent;
+  scrollbar-width: thin;
+}
+
+.sales-bar-col {
+  align-items: center;
+  display: flex;
+  flex: 0 0 20px;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+  outline: none;
+}
+
+.sales-bar {
+  background: rgba(24, 79, 42, 0.06);
+  border-radius: 4px 4px 0 0;
+  height: 152px;
+  position: relative;
+  width: 100%;
+}
+
+.sales-bar-fill {
+  background: var(--green);
+  border-radius: 4px 4px 0 0;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  transition: background-color 120ms ease;
+}
+
+.sales-bar-col:hover .sales-bar-fill,
+.sales-bar-col:focus-visible .sales-bar-fill {
+  background: var(--green-dark);
+}
+
+.sales-bar-col:focus-visible .sales-bar {
+  box-shadow: 0 0 0 2px var(--green-dark);
+}
+
+.sales-bar-label {
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Shared hover/focus tooltip for the chart's bars - one floating card,
+   repositioned per bar rather than a native title attribute, so it can
+   show more than one line and respond to keyboard focus too. */
+.sales-tooltip {
+  background: var(--green-dark);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  color: #fff;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  pointer-events: none;
+  position: fixed;
+  width: max-content;
+  max-width: 220px;
+  z-index: 60;
+}
+
+.sales-tooltip.show {
+  display: flex;
+}
+
+.sales-tooltip-date {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.sales-tooltip-value {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sales-tooltip-meta {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.sales-table-wrap {
+  margin-top: 14px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* Top snacks - horizontal bars, single hue (this is a magnitude ranking,
+   not a set of distinct identities), value labeled after the bar rather
+   than inside it so it never needs to be measured against the fill width. */
+.snack-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.snack-bar-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(90px, 230px) 1fr auto;
+}
+
+.snack-bar-name {
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snack-bar-track {
+  background: rgba(24, 79, 42, 0.06);
+  border-radius: 999px;
+  display: block;
+  height: 16px;
+  overflow: hidden;
+}
+
+.snack-bar-fill {
+  background: var(--green);
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+}
+
+.snack-bar-value {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Payment sources - genuinely distinct categories (identity, not
+   magnitude), so this is the one categorical chart on the page: a single
+   segmented bar (part-to-whole) plus a legend, capped at three validated
+   hues (brand green, blue, violet) with anything past that folded into a
+   neutral "Other" - see the dataviz palette check run for this page. */
+.payment-source-bar {
+  border-radius: 999px;
+  display: flex;
+  gap: 2px;
+  height: 26px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.payment-source-segment {
+  height: 100%;
+  min-width: 3px;
+}
+
+.payment-source-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.payment-source-legend-item {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.payment-source-dot {
+  border-radius: 50%;
+  flex: none;
+  height: 10px;
+  width: 10px;
+}
+
+.payment-source-legend-label {
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.payment-source-legend-value {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Pending invites (accounting.html) - a short list of not-yet-answered
+   invites, kept visually and physically separate from the main accounting
+   table below it (see accounting()'s own filter in shared.js, which
+   excludes these from that table entirely while they're pending/expired). */
+.pending-invite-row {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.pending-invite-row:last-child {
+  border-bottom: none;
+}
+
+.pending-invite-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pending-invite-status {
+  color: var(--muted);
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pending-invite-status.is-expired {
+  color: #8a2f2f;
 }
 
 /* Docs page (docs.html) - sticky sidebar + a column of reference cards,

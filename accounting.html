@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
+  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -24,6 +24,7 @@
           <a class="btn" href="catalog.html">Catalog</a>
           <a class="btn" href="transactions.html">Transactions</a>
           <a class="btn" href="stats.html">Stats</a>
+          <a class="btn" href="daily-sales.html">Daily Sales</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
           <a class="btn" href="docs.html">Docs</a>
           <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
@@ -55,6 +56,18 @@
     </section>
 
     <section id="accounting-app" class="hidden">
+      <section class="card section-card hidden" id="pending-invites-card">
+        <h2>Pending invites</h2>
+        <p class="muted-small" style="margin-bottom:10px;">
+          Tabs still on the "VIP Customer" placeholder name, with nobody having
+          accepted the invite or bought anything yet. An invite nobody answers
+          within 24 hours of being generated is automatically deactivated and
+          the tab is marked expired (never deleted) - these are kept separate
+          from the main list below since they aren't real customers yet.
+        </p>
+        <div id="pending-invites-list"></div>
+      </section>
+
       <section class="card section-card">
         <div class="section-head">
           <h2>User accounting</h2>
@@ -161,9 +174,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-store.js?v=20260825-invite-name-fix"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-admin.js?v=20260825c-first-last-name"></script>
   <script src="js/admin-notifications.js?v=20260819k-status-aware-actions"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script>
@@ -607,12 +620,99 @@
       });
     }
 
+    // Mirrors functions/src/lib/inviteCleanup.js's isCleanupCandidate (kept
+    // in sync by hand, same convention as cashback-demo.js) purely for this
+    // display, so the countdown shown here always agrees with what the
+    // hourly sweep will actually do. Reuses FS.hasRealName - the same
+    // real-name check the customer-facing app and the server both use -
+    // rather than a fourth hand-copy of that logic.
+    const CLEANUP_GRACE_MS = 24 * 3600 * 1000;
+    function computePendingInvites() {
+      const now = Date.now();
+      const activityUserIds = new Set([
+        ...SNAPSHOT.transactions.map((t) => t.userId).filter(Boolean),
+        ...SNAPSHOT.payments.map((p) => p.userId).filter(Boolean),
+      ]);
+      return SNAPSHOT.users
+        .filter((u) => u.vipStatus === "vip" && !FS.hasRealName(u))
+        .map((u) => {
+          const userId = u.userId || u.uid;
+          const answered = (u.linkedUids || []).length > 0;
+          const hasActivity = activityUserIds.has(userId);
+          const createdMs = FS.admin.msFromTimestamp(u.createdAt);
+          const graceMs = createdMs != null ? Math.max(0, CLEANUP_GRACE_MS - (now - createdMs)) : null;
+          return { user: u, userId, answered, hasActivity, graceMs, expired: u.status === "expired" };
+        })
+        .filter((row) => row.expired || (!row.answered && !row.hasActivity))
+        .sort((a, b) => (a.graceMs ?? -1) - (b.graceMs ?? -1));
+    }
+
+    function formatGraceCountdown(ms) {
+      if (ms == null) return "Awaiting first activity";
+      if (ms <= 0) return "Ready to expire";
+      const totalMinutes = Math.ceil(ms / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return hours > 0 ? `Expires in ${hours}h ${minutes}m` : `Expires in ${minutes}m`;
+    }
+
+    function renderPendingInvites() {
+      const rows = computePendingInvites();
+      const card = $("pending-invites-card");
+      card.classList.toggle("hidden", rows.length === 0);
+      if (!rows.length) return;
+      $("pending-invites-list").innerHTML = rows.map((row) => {
+        const u = row.user;
+        const invited = FS.admin.dateFromRecord(u, "createdAt");
+        const statusLabel = row.expired ? "Expired" : formatGraceCountdown(row.graceMs);
+        return `<div class="pending-invite-row">
+          <div class="pending-invite-body">
+            <strong>${esc(u.displayName || "VIP Customer")}</strong>
+            <span class="muted-small">${invited ? `Invited ${esc(invited)}` : "Invite date unknown"}</span>
+          </div>
+          <span class="pending-invite-status${row.expired ? " is-expired" : ""}">${esc(statusLabel)}</span>
+          <a class="btn" href="edit-tab.html?user=${encodeURIComponent(row.userId)}">Edit tab</a>
+          <button type="button" data-act="${row.expired ? "reactivate-invite" : "expire-invite-now"}" data-user="${esc(row.userId)}">
+            ${row.expired ? "Reactivate" : "Expire now"}
+          </button>
+        </div>`;
+      }).join("");
+    }
+
+    $("pending-invites-list").addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-act]");
+      if (!btn) return;
+      const userId = btn.dataset.user;
+      const act = btn.dataset.act;
+      btn.disabled = true;
+      try {
+        if (act === "expire-invite-now") {
+          const ok = await AdminModals.confirm(
+            "Expire this invite?",
+            "This deactivates the invite link and marks the tab expired. It stays recoverable from here with Reactivate - nothing is deleted."
+          );
+          if (!ok) return;
+          await FS.admin.expireInviteNow(userId);
+        } else if (act === "reactivate-invite") {
+          await FS.admin.reactivateInvite(userId);
+        }
+        await refresh();
+      } catch (e) {
+        await AdminModals.alert("Could not update this invite", e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     function renderAccounting() {
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>User / Device</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th class="num">Avg / active day</th><th class="num">Active days</th><th>Last activity</th><th></th></tr></thead>
+        <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th class="num">Avg / active day</th><th class="num">Active days</th><th>Last activity</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${r.balance === 0 ? ' class="healthy-account"' : ""}>
-          <td><input data-f="displayName" value="${esc(r.displayName)}" /></td>
+          <td class="name-fields">
+            <input data-f="firstName" placeholder="First name" value="${esc(r.firstName || "")}" />
+            <input data-f="lastName" placeholder="Last name" value="${esc(r.lastName || "")}" />
+          </td>
           <td><select data-f="vipStatus">
             ${["anonymous", "feedback", "named", "vip", "legacy"].map((v) => `<option value="${v}"${r.vipStatus === v ? " selected" : ""}>${v}</option>`).join("")}
           </select></td>
@@ -647,6 +747,7 @@
       $("login-panel").classList.add("hidden");
       $("accounting-app").classList.remove("hidden");
       $("admin-sign-out").classList.remove("hidden");
+      renderPendingInvites();
       renderAccounting();
     }
 
@@ -711,20 +812,36 @@
       return !n || /^guest\s+[a-z0-9]{4}$/i.test(n) || n.toLowerCase() === "new guest";
     }
 
+    function rowFullName(row) {
+      const first = row.querySelector('[data-f="firstName"]').value.trim();
+      const last = row.querySelector('[data-f="lastName"]').value.trim();
+      return [first, last].filter(Boolean).join(" ");
+    }
+
     const accountingSaveTimers = new Map();
     async function saveAccountingRow(row, { refreshAfter = false } = {}) {
       const userId = row.dataset.user;
       clearTimeout(accountingSaveTimers.get(userId));
       accountingSaveTimers.delete(userId);
-      const displayName = row.querySelector('[data-f="displayName"]').value.trim();
+      const firstName = row.querySelector('[data-f="firstName"]').value.trim();
+      const lastName = row.querySelector('[data-f="lastName"]').value.trim();
       const vipStatus = row.querySelector('[data-f="vipStatus"]').value;
-      await FS.admin.renameUser(userId, displayName, vipStatus);
+      // The server may correct vipStatus/firstName/lastName (e.g. a real
+      // name always wins over a stale "vip" left in this dropdown) -
+      // reflect what it actually saved, not what was submitted, so the row
+      // never shows a status or name the account doesn't really have.
+      const result = await FS.admin.renameUser(userId, { firstName, lastName, vipStatus });
       const record = SNAPSHOT.accounting.find((item) => item.userId === userId);
       if (record) {
-        record.displayName = displayName;
-        record.vipStatus = vipStatus;
+        record.displayName = result.displayName ?? record.displayName;
+        record.firstName = result.firstName ?? firstName;
+        record.lastName = result.lastName ?? lastName;
+        record.vipStatus = result.vipStatus ?? vipStatus;
       }
-      status("acct-status", `Saved all changes for ${displayName || "this customer"}.`, true);
+      if (result.vipStatus && result.vipStatus !== vipStatus) {
+        row.querySelector('[data-f="vipStatus"]').value = result.vipStatus;
+      }
+      status("acct-status", `Saved all changes for ${result.displayName || "this customer"}.`, true);
       if (refreshAfter) await refresh();
     }
     function scheduleAccountingSave(row) {
@@ -740,22 +857,82 @@
       const sel = ev.target.closest('select[data-f="vipStatus"]');
       if (!sel) return;
       const row = sel.closest("tr");
-      const nameInput = row.querySelector('[data-f="displayName"]');
-      if (sel.value === "vip" && isDefaultGuestName(nameInput.value)) nameInput.value = "VIP Customer";
+      const firstInput = row.querySelector('[data-f="firstName"]');
+      const lastInput = row.querySelector('[data-f="lastName"]');
+      if (sel.value === "vip" && isDefaultGuestName(`${firstInput.value} ${lastInput.value}`)) {
+        firstInput.value = "VIP";
+        lastInput.value = "Customer";
+      }
       scheduleAccountingSave(row);
     });
     document.body.addEventListener("input", (ev) => {
-      const input = ev.target.closest('input[data-f="displayName"]');
+      const input = ev.target.closest('input[data-f="firstName"], input[data-f="lastName"]');
       if (input) scheduleAccountingSave(input.closest("tr"));
     });
 
+    // .row-menu-dropdown is position:fixed (not absolute) specifically so
+    // it can never be clipped by #accounting-list's own horizontal-scroll
+    // container - an absolutely-positioned dropdown opening below the
+    // LAST row has nowhere left inside that container to render into and
+    // gets clipped. BUT this app's own .card wrapper carries a
+    // backdrop-filter (the frosted-glass look, styles.css's `header,
+    // .brand-card, .card, ... { backdrop-filter: blur(7px) }`), and per
+    // the CSS spec a backdrop-filter/filter/transform/perspective/
+    // will-change/contain on an ancestor makes THAT ancestor the
+    // containing block for position:fixed - not the viewport. So "fixed"
+    // here is only actually fixed to the viewport if nothing in between
+    // happens to have one of those properties, which this app's cards
+    // always do. fixedContainingBlockOf walks up to find whichever
+    // ancestor actually governs it (or null, meaning the viewport really
+    // is the containing block) and positions relative to THAT, rather
+    // than assuming position:fixed always means "relative to the screen."
+    function fixedContainingBlockOf(el) {
+      let node = el.parentElement;
+      while (node && node !== document.body) {
+        const cs = getComputedStyle(node);
+        if (
+          cs.transform !== "none" || cs.perspective !== "none"
+          || (cs.filter && cs.filter !== "none")
+          || (cs.backdropFilter && cs.backdropFilter !== "none")
+          || (cs.willChange && /transform|perspective|filter/.test(cs.willChange))
+          || (cs.contain && /paint|layout|strict|content/.test(cs.contain))
+        ) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+    function positionRowMenuDropdown(menu) {
+      const toggle = menu.querySelector("[data-menu-toggle]");
+      const dropdown = menu.querySelector(".row-menu-dropdown");
+      const margin = 4;
+      const rect = toggle.getBoundingClientRect();
+      const width = dropdown.offsetWidth || 170;
+      const height = dropdown.scrollHeight;
+      let top = rect.bottom + margin;
+      if (top + height > window.innerHeight - margin) top = rect.top - height - margin;
+      let left = rect.right - width;
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      const containingBlock = fixedContainingBlockOf(dropdown);
+      if (containingBlock) {
+        const cbRect = containingBlock.getBoundingClientRect();
+        top -= cbRect.top;
+        left -= cbRect.left;
+      }
+      dropdown.style.top = `${top}px`;
+      dropdown.style.left = `${left}px`;
+    }
     document.body.addEventListener("click", (ev) => {
       const toggle = ev.target.closest("[data-menu-toggle]");
       if (toggle) {
         const menu = toggle.closest(".row-menu");
         const wasOpen = menu.classList.contains("open");
         document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
-        if (!wasOpen) menu.classList.add("open");
+        if (!wasOpen) {
+          menu.classList.add("open");
+          positionRowMenuDropdown(menu);
+        }
         ev.stopPropagation();
         return;
       }
@@ -766,6 +943,13 @@
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
     });
+    // Fixed-position dropdowns don't move with a scrolling ancestor the
+    // way absolute ones did - close instead of leaving one floating in the
+    // wrong spot. Capture phase so this fires for scrolling ANY inner
+    // scroll container, not just the window itself (scroll doesn't bubble).
+    window.addEventListener("scroll", () => {
+      document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+    }, true);
 
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");
@@ -786,16 +970,21 @@
         } else if (act === "user-invite") {
           btn.disabled = true;
           try {
-            const nameInput = row.querySelector('[data-f="displayName"]');
+            const firstInput = row.querySelector('[data-f="firstName"]');
+            const lastInput = row.querySelector('[data-f="lastName"]');
             // A brand-new tab (still on its auto-generated "Guest XXXX" name)
             // is being handed off to a real person the moment an invite goes
             // out - promote it to "VIP Customer" now instead of leaving it
-            // looking like an anonymous walk-in guest.
-            let name = nameInput.value.trim();
+            // looking like an anonymous walk-in guest. This is a deliberate
+            // placeholder, not a real name (see isPlaceholderNamePart in
+            // ../functions/src/lib/shared.js) - it never counts as
+            // identifying anyone.
+            let name = `${firstInput.value} ${lastInput.value}`.trim();
             if (isDefaultGuestName(name)) {
               name = "VIP Customer";
-              await FS.admin.renameUser(row.dataset.user, name, "vip");
-              nameInput.value = name;
+              await FS.admin.renameUser(row.dataset.user, { displayName: name, vipStatus: "vip" });
+              firstInput.value = "VIP";
+              lastInput.value = "Customer";
               row.querySelector('[data-f="vipStatus"]').value = "vip";
             }
             const { code, active } = await FS.admin.createLinkInvite(row.dataset.user);
@@ -814,14 +1003,14 @@
         } else if (act === "user-devices") {
           btn.disabled = true;
           try {
-            await openDevicesModal(row.dataset.user, row.querySelector('[data-f="displayName"]').value.trim() || "Guest");
+            await openDevicesModal(row.dataset.user, rowFullName(row) || "Guest");
           } catch (e) {
             await AdminModals.alert("Could not load devices", e.message);
           } finally {
             btn.disabled = false;
           }
         } else if (act === "user-delete") {
-          const name = row.querySelector('[data-f="displayName"]').value.trim() || row.dataset.user;
+          const name = rowFullName(row) || row.dataset.user;
           const balance = row.children[5].textContent;
           const ok = await AdminModals.confirm(
             `Delete all data for "${name}"?`,

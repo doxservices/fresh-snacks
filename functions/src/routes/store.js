@@ -8,7 +8,8 @@ const { requireAuth, optionalAuth, resolveEffectiveUid, asyncRoute } = require("
 const { canAccessTab, isLinkedMember } = require("../lib/authz");
 const {
   uid: genId, todayISO, withBundledSnackArtwork, compareSnackOrder,
-  bundledSnackArtwork, clean, randomCode,
+  bundledSnackArtwork, clean, randomCode, hasRealName,
+  MIN_FIRST_NAME_LENGTH, MIN_LAST_NAME_LENGTH,
 } = require("../lib/shared");
 const { STATUS, ROLE, ACTION, EVENT_TYPE, availableActions, assertTransition, deriveWorkflowStatus, deriveCreatedByRole } = require("../lib/transactionStatus");
 const { buildTransactionEvent } = require("../lib/transactionEvents");
@@ -25,13 +26,18 @@ const APP_NAME = "Fresh Snacks";
 const CURRENCY = "J$";
 const ANON_PREFIX = "Guest";
 
+// A device acting as its own identity must have a REAL first+last name on
+// file before it can self-log a purchase - createdByAdmin used to be an
+// automatic pass here (an admin having set up the tab in person was
+// treated as "already vetted"), but that let a tab sit indefinitely on the
+// Generate Invite placeholder ("VIP Customer") while still accumulating
+// real activity under a name nobody ever actually entered. nameSet stays
+// as a pure legacy carry-forward - it was already the strict bar
+// (name+email+phone) before this changed, so nothing that already passed
+// it can regress.
 function profileComplete(profile) {
   if (!profile) return false;
-  const displayName = clean(profile.displayName)
-    || clean(`${profile.firstName || ""} ${profile.lastName || ""}`);
-  return profile.nameSet === true
-    || !!profile.createdByAdmin
-    || !!(displayName && clean(profile.email) && clean(profile.phone));
+  return profile.nameSet === true || hasRealName(profile);
 }
 
 async function profileHasRecordedActivity(userId) {
@@ -98,14 +104,6 @@ router.get("/profile", optionalAuth, asyncRoute(async (req, res) => {
   const hasTab = await profileHasActiveTab(effectiveUid, profile);
   res.json({ userId: effectiveUid, vipStatus: "anonymous", ...(profile || {}), hasTab, accessMode });
 }));
-
-// First name needs a real minimum so a stray initial or keyboard-mash
-// can't pass as a name. Last name deliberately allows a single initial
-// (MIN_LAST_NAME_LENGTH stays at 1, and no UI copy anywhere mentions this) -
-// only kept as its own named constant for symmetry with first name, not
-// because it's expected to ever actually reject anything.
-const MIN_FIRST_NAME_LENGTH = 3;
-const MIN_LAST_NAME_LENGTH = 1;
 
 router.patch("/profile", requireAuth, asyncRoute(async (req, res) => {
   const effectiveUid = await resolveEffectiveUid(req);
@@ -283,6 +281,7 @@ router.get("/data", optionalAuth, asyncRoute(async (req, res) => {
       userId: effectiveUid,
       promoCode: req.query.promo,
       qrId: req.query.qr,
+      browserToken: req.query.browserToken,
       landingPage: "index.html",
       userAgentBrief: String(req.headers["user-agent"] || "").slice(0, 160),
     });
@@ -377,18 +376,20 @@ router.post("/transactions", requireAuth, asyncRoute(async (req, res) => {
   const userRef = db().collection("users").doc(effectiveUid);
   const userSnap = await userRef.get();
 
-  // A device acting as its own (not a linked/effective) identity must have
-  // actually opened a tab - name, email, and phone all on file - before it
-  // can self-log a purchase. This is the real enforcement; index.html's
-  // visitor-only gallery is just the UX for it. A device linked onto an
-  // already-complete target profile is unaffected, and so is any profile an
-  // admin already set up in person (createdByAdmin) - that's already a
-  // vetted, accountable tab, not an anonymous one hiding behind this gate.
-  if (effectiveUid === req.uid) {
-    const self = userSnap.exists ? userSnap.data() : null;
-    if (!(await profileHasActiveTab(effectiveUid, self))) {
-      throw Object.assign(new Error("Open a tab to start adding snacks."), { status: 403 });
-    }
+  // The tab being purchased against must have actually been opened - a
+  // real first+last name on file, not just an admin having created it in
+  // person - OR already have real recorded activity, before ANY device
+  // can self-log a purchase against it: acting as its own bare identity,
+  // or a fully linked/session member of someone else's tab. This is the
+  // real enforcement; index.html's visitor-only gallery is just the UX for
+  // it. The activity fallback is what keeps this from being a catch-22 for
+  // an already-active customer's tab that predates this rule (and for one
+  // still on its first purchase, the name-capture form is a separate,
+  // always-open endpoint - see PATCH /profile - so there's a real path
+  // through, not a dead end).
+  const targetProfile = userSnap.exists ? userSnap.data() : null;
+  if (!(await profileHasActiveTab(effectiveUid, targetProfile))) {
+    throw Object.assign(new Error("Open a tab to start adding snacks."), { status: 403 });
   }
 
   const deviceId = `fs_dev-${req.uid}`;

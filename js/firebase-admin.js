@@ -116,6 +116,20 @@ FS.admin.dateFromRecord = (record, field) => {
   return "";
 };
 
+// Same Timestamp-shape handling as dateFromRecord, but the full instant
+// (ms since epoch) rather than just the day - for age/countdown math
+// (see accounting.html's Pending invites section) where a whole day of
+// slop would defeat the point.
+FS.admin.msFromTimestamp = (value) => {
+  if (value && typeof value._seconds === "number") return value._seconds * 1000;
+  if (value && typeof value.toDate === "function") return value.toDate().getTime();
+  if (typeof value === "string" || typeof value === "number") {
+    const ms = new Date(value).getTime();
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
+};
+
 FS.admin.maxDate = (a, b) => (String(a || "") > String(b || "") ? a : b);
 
 FS.admin.createLinkInvite = async (userId) =>
@@ -126,6 +140,12 @@ FS.admin.setLinkInviteActive = async (userId, active) =>
 
 FS.admin.getLinkedDevicesInfo = async (userId) =>
   FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/linked-devices`);
+
+FS.admin.expireInviteNow = async (userId) =>
+  FS._apiFetch(`/admin/invites/${encodeURIComponent(userId)}/expire-now`, { method: "POST" });
+
+FS.admin.reactivateInvite = async (userId) =>
+  FS._apiFetch(`/admin/invites/${encodeURIComponent(userId)}/reactivate`, { method: "POST" });
 
 FS.admin.unlinkUserDevice = async (userId, deviceUid) => {
   await FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}/linked-devices/${encodeURIComponent(deviceUid)}`, { method: "DELETE" });
@@ -259,6 +279,8 @@ FS.admin.addInventory = async ({ snackId, quantity, note }) => {
 };
 
 FS.admin.getInventorySnapshot = async () => FS._apiFetch("/admin/inventory-snapshot");
+
+FS.admin.getDailySales = async () => FS._apiFetch("/admin/daily-sales");
 
 FS.admin.saveSnack = async (snack) => {
   const id = snack.id || String(snack.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -420,9 +442,12 @@ FS.admin.deleteSnack = async (id) => {
   await FS._apiFetch(`/admin/snacks/${encodeURIComponent(id)}`, { method: "DELETE" });
 };
 
-FS.admin.renameUser = async (userId, displayName, vipStatus) => {
-  await FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}`, { method: "PATCH", body: { displayName, vipStatus } });
-};
+// fields: { firstName, lastName, vipStatus } for a real person, or just
+// { displayName, vipStatus } for the Generate Invite placeholder (the one
+// case that deliberately isn't a real name yet) - see the server route for
+// how it decides which one it's looking at.
+FS.admin.renameUser = async (userId, fields) =>
+  FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}`, { method: "PATCH", body: fields });
 
 FS.admin.getUserProfile = async (userId) => FS._apiFetch(`/admin/users/${encodeURIComponent(userId)}`);
 

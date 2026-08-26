@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
+  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -23,6 +23,7 @@
           <a class="btn" href="accounting.html">User accounting</a>
           <a class="btn" href="admin.html">Admin dashboard</a>
           <a class="btn" href="stats.html">Stats</a>
+          <a class="btn" href="daily-sales.html">Daily Sales</a>
           <a class="btn" href="sitemap.html">Sitemap</a>
           <a class="btn" href="docs.html">Docs</a>
           <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
@@ -90,8 +91,12 @@
         <h2>Profile</h2>
         <div class="form-grid">
           <div class="field">
-            <label for="profile-name">Display name</label>
-            <input id="profile-name" type="text" />
+            <label for="profile-first">First name</label>
+            <input id="profile-first" type="text" />
+          </div>
+          <div class="field">
+            <label for="profile-last">Last name</label>
+            <input id="profile-last" type="text" />
           </div>
           <div class="field">
             <label for="profile-vip">VIP status</label>
@@ -276,9 +281,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/qrcode.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-store.js?v=20260825-invite-name-fix"></script>
   <script src="js/date-inputs.js?v=20260727-date-inputs"></script>
-  <script src="js/firebase-admin.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-admin.js?v=20260825c-first-last-name"></script>
   <script src="js/admin-notifications.js?v=20260819k-status-aware-actions"></script>
   <script src="js/admin-modals.js?v=20260810-artwork-zoom"></script>
   <script>
@@ -641,11 +646,13 @@
         // A brand-new tab (still on its auto-generated "Guest XXXX" name)
         // is being handed off to a real person the moment an invite goes
         // out - promote it to "VIP Customer" now instead of leaving it
-        // looking like an anonymous walk-in guest.
-        let name = $("profile-name").value.trim();
+        // looking like an anonymous walk-in guest. This is a deliberate
+        // placeholder, not a real name - it never counts as identifying
+        // anyone (see isPlaceholderNamePart in ../functions/src/lib/shared.js).
+        let name = `${$("profile-first").value} ${$("profile-last").value}`.trim();
         if (isDefaultGuestName(name)) {
           name = "VIP Customer";
-          await FS.admin.renameUser(TARGET_USER_ID, name, "vip");
+          await FS.admin.renameUser(TARGET_USER_ID, { displayName: name, vipStatus: "vip" });
           await refresh();
         }
         const { code, active } = await FS.admin.createLinkInvite(TARGET_USER_ID);
@@ -666,7 +673,7 @@
       const btn = $("tab-devices");
       btn.disabled = true;
       try {
-        await openDevicesModal(TARGET_USER_ID, $("profile-name").value.trim() || "Guest");
+        await openDevicesModal(TARGET_USER_ID, `${$("profile-first").value} ${$("profile-last").value}`.trim() || "Guest");
       } catch (e) {
         await AdminModals.alert("Could not load devices", e.message);
       } finally {
@@ -1068,7 +1075,8 @@
       $("dash-snacks").textContent = FS.money(snackTotal, cur);
       $("dash-paid").textContent = FS.money(paidTotal, cur);
       $("dash-devices").textContent = `${(SNAPSHOT.profile.linkedUids || []).length}/3`;
-      $("profile-name").value = SNAPSHOT.profile.displayName || "";
+      $("profile-first").value = SNAPSHOT.profile.firstName || "";
+      $("profile-last").value = SNAPSHOT.profile.lastName || "";
       $("profile-vip").value = SNAPSHOT.profile.vipStatus || "anonymous";
       $("payment-ledger-link").href = `transactions.html?user=${encodeURIComponent(TARGET_USER_ID)}`;
 
@@ -1127,11 +1135,19 @@
       profileSaveInFlight = true;
       clearTimeout(profileSaveTimer);
       try {
-        const displayName = $("profile-name").value.trim();
+        const firstName = $("profile-first").value.trim();
+        const lastName = $("profile-last").value.trim();
         const vipStatus = $("profile-vip").value;
-        await FS.admin.renameUser(TARGET_USER_ID, displayName, vipStatus);
-        SNAPSHOT.profile.displayName = displayName;
-        SNAPSHOT.profile.vipStatus = vipStatus;
+        // The server may correct vipStatus/first/last (a real name always
+        // wins over a stale "vip" left in this dropdown) - reflect what it
+        // actually saved, not what was submitted.
+        const result = await FS.admin.renameUser(TARGET_USER_ID, { firstName, lastName, vipStatus });
+        SNAPSHOT.profile.displayName = result.displayName ?? SNAPSHOT.profile.displayName;
+        SNAPSHOT.profile.firstName = result.firstName ?? firstName;
+        SNAPSHOT.profile.lastName = result.lastName ?? lastName;
+        SNAPSHOT.profile.vipStatus = result.vipStatus ?? vipStatus;
+        if (result.vipStatus && result.vipStatus !== vipStatus) $("profile-vip").value = result.vipStatus;
+        $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
         status("profile-status", "All profile changes saved.", true);
       } catch (e) {
         status("profile-status", e.message, false);
@@ -1144,7 +1160,8 @@
       status("profile-status", "Saving changes…", true);
       profileSaveTimer = setTimeout(saveVisibleProfileFields, 3000);
     }
-    $("profile-name").addEventListener("input", scheduleProfileSave);
+    $("profile-first").addEventListener("input", scheduleProfileSave);
+    $("profile-last").addEventListener("input", scheduleProfileSave);
     $("profile-vip").addEventListener("change", scheduleProfileSave);
 
     // "Guest XXXX" (FS.randomCode's format) or blank counts as never having
@@ -1157,8 +1174,9 @@
     }
 
     $("profile-vip").addEventListener("change", () => {
-      if ($("profile-vip").value === "vip" && isDefaultGuestName($("profile-name").value)) {
-        $("profile-name").value = "VIP Customer";
+      if ($("profile-vip").value === "vip" && isDefaultGuestName(`${$("profile-first").value} ${$("profile-last").value}`)) {
+        $("profile-first").value = "VIP";
+        $("profile-last").value = "Customer";
       }
     });
 
@@ -1224,13 +1242,69 @@
       }
     };
 
+    // .row-menu-dropdown is position:fixed (not absolute) specifically so
+    // it can never be clipped by #transaction-list/#adjustment-list's own
+    // horizontal-scroll containers - an absolutely-positioned dropdown
+    // opening below the LAST row has nowhere left inside that container
+    // to render into and gets clipped. BUT this app's own .card wrapper
+    // carries a backdrop-filter (the frosted-glass look, styles.css's
+    // `header, .brand-card, .card, ... { backdrop-filter: blur(7px) }`),
+    // and per the CSS spec a backdrop-filter/filter/transform/perspective/
+    // will-change/contain on an ancestor makes THAT ancestor the
+    // containing block for position:fixed - not the viewport. So "fixed"
+    // here is only actually fixed to the viewport if nothing in between
+    // happens to have one of those properties, which this app's cards
+    // always do. fixedContainingBlockOf walks up to find whichever
+    // ancestor actually governs it (or null, meaning the viewport really
+    // is the containing block) and positions relative to THAT, rather
+    // than assuming position:fixed always means "relative to the screen."
+    function fixedContainingBlockOf(el) {
+      let node = el.parentElement;
+      while (node && node !== document.body) {
+        const cs = getComputedStyle(node);
+        if (
+          cs.transform !== "none" || cs.perspective !== "none"
+          || (cs.filter && cs.filter !== "none")
+          || (cs.backdropFilter && cs.backdropFilter !== "none")
+          || (cs.willChange && /transform|perspective|filter/.test(cs.willChange))
+          || (cs.contain && /paint|layout|strict|content/.test(cs.contain))
+        ) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+    function positionRowMenuDropdown(menu) {
+      const toggle = menu.querySelector("[data-menu-toggle]");
+      const dropdown = menu.querySelector(".row-menu-dropdown");
+      const margin = 4;
+      const rect = toggle.getBoundingClientRect();
+      const width = dropdown.offsetWidth || 170;
+      const height = dropdown.scrollHeight;
+      let top = rect.bottom + margin;
+      if (top + height > window.innerHeight - margin) top = rect.top - height - margin;
+      let left = rect.right - width;
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      const containingBlock = fixedContainingBlockOf(dropdown);
+      if (containingBlock) {
+        const cbRect = containingBlock.getBoundingClientRect();
+        top -= cbRect.top;
+        left -= cbRect.left;
+      }
+      dropdown.style.top = `${top}px`;
+      dropdown.style.left = `${left}px`;
+    }
     document.body.addEventListener("click", (ev) => {
       const toggle = ev.target.closest("[data-menu-toggle]");
       if (toggle) {
         const menu = toggle.closest(".row-menu");
         const wasOpen = menu.classList.contains("open");
         document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
-        if (!wasOpen) menu.classList.add("open");
+        if (!wasOpen) {
+          menu.classList.add("open");
+          positionRowMenuDropdown(menu);
+        }
         ev.stopPropagation();
         return;
       }
@@ -1241,6 +1315,13 @@
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
     });
+    // Fixed-position dropdowns don't move with a scrolling ancestor the
+    // way absolute ones did - close instead of leaving one floating in the
+    // wrong spot. Capture phase so this fires for scrolling ANY inner
+    // scroll container, not just the window itself (scroll doesn't bubble).
+    window.addEventListener("scroll", () => {
+      document.querySelectorAll(".row-menu.open").forEach((m) => m.classList.remove("open"));
+    }, true);
 
     document.body.addEventListener("click", async (ev) => {
       const btn = ev.target.closest("button[data-act]");

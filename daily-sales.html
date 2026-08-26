@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fresh Snacks - Daily Sales</title>
+  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="header-row">
+        <div class="header-lead">
+          <a href="index.html" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
+          <div>
+            <h1>Daily Sales</h1>
+            <p>Revenue, top snacks, and how customers paid - by day.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a class="btn" href="admin.html">Dashboard</a>
+          <a class="btn" href="inventory.html">Baskets</a>
+          <a class="btn" href="catalog.html">Catalog</a>
+          <a class="btn" href="accounting.html">Accounting</a>
+          <a class="btn" href="transactions.html">Transactions</a>
+          <a class="btn" href="stats.html">Stats</a>
+          <a class="btn" href="daily-sales.html" aria-current="page">Daily Sales</a>
+          <a class="btn" href="sitemap.html">Sitemap</a>
+          <a class="btn" href="docs.html">Docs</a>
+          <a class="btn hidden" id="nav-admin-users" href="admin-users.html">Admin Users</a>
+          <button id="admin-sign-out" class="hidden">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="auth-loading" id="auth-loading"><span class="spinner" aria-hidden="true"></span>Checking your session...</div>
+
+    <section class="card section-card hidden" id="login-panel">
+      <h2>Admin login</h2>
+      <p style="margin-bottom:10px;">Sign in with an authorized Fresh Snacks administrator account.</p>
+      <div class="form-grid">
+        <button class="primary" id="google-login">Continue with Google</button>
+        <button id="microsoft-login">Continue with Microsoft</button>
+        <div class="field">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="admin-password">Password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" />
+        </div>
+        <button id="email-login">Email login</button>
+      </div>
+      <div class="status" id="login-status"></div>
+    </section>
+
+    <section id="sales-app" class="hidden">
+      <section class="card section-card">
+        <h2>Date range</h2>
+        <p class="muted-small">Every card below reflects this range.</p>
+        <div class="range-picker" role="group" aria-label="Date range">
+          <button type="button" class="range-btn btn" data-range="1">Today</button>
+          <button type="button" class="range-btn btn" data-range="7">Last 7 days</button>
+          <button type="button" class="range-btn btn is-active" data-range="30">Last 30 days</button>
+          <button type="button" class="range-btn btn" data-range="90">Last 90 days</button>
+          <button type="button" class="range-btn btn" data-range="mtd">Month to date</button>
+          <button type="button" class="range-btn btn" data-range="all">All time</button>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <div class="stats-cards">
+          <div class="stats-card">
+            <span class="stats-card-label">Revenue</span>
+            <span class="stats-card-value" id="kpi-revenue">-</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">Snacks sold</span>
+            <span class="stats-card-value" id="kpi-units">-</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">Transactions</span>
+            <span class="stats-card-value" id="kpi-transactions">-</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-card-label">Average revenue / day</span>
+            <span class="stats-card-value" id="kpi-avg-day">-</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Revenue by day</h2>
+        <p class="muted-small">Hover or focus a bar for that day's exact numbers.</p>
+        <div class="sales-chart-wrap">
+          <div class="sales-bars" id="sales-bars"></div>
+          <div class="sales-tooltip" id="sales-tooltip" role="status" aria-live="polite"></div>
+        </div>
+        <p class="muted-small hidden" id="sales-chart-empty">No sales recorded in this range yet.</p>
+        <button type="button" class="btn" id="sales-table-toggle" style="margin-top:12px;">View as table</button>
+        <div class="sales-table-wrap hidden" id="sales-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Date</th><th>Revenue</th><th>Snacks sold</th><th>Transactions</th></tr></thead>
+            <tbody id="sales-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card section-card">
+        <h2>Top snacks</h2>
+        <p class="muted-small">Ranked by revenue within the selected range.</p>
+        <div class="snack-bars" id="snack-bars"></div>
+      </section>
+
+      <section class="card section-card">
+        <h2>How customers paid</h2>
+        <p class="muted-small">Payments collected in this range (a different number from revenue above - a customer can buy today and pay later, or pay down an older balance today).</p>
+        <div class="payment-source-bar" id="payment-source-bar"></div>
+        <div class="payment-source-legend" id="payment-source-legend"></div>
+        <p class="muted-small hidden" id="payment-source-empty">No payments recorded in this range yet.</p>
+      </section>
+    </section>
+
+    <footer>Access is restricted to authorized Fresh Snacks administrators.</footer>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-store.js?v=20260825-invite-name-fix"></script>
+  <script src="js/firebase-admin.js?v=20260825c-first-last-name"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function status(id, msg, ok) {
+      const el = $(id);
+      el.textContent = msg;
+      el.className = "status " + (ok ? "ok" : "err");
+      if (ok) setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 5000);
+    }
+
+    // Local-date arithmetic throughout (no UTC conversion) - createdDate
+    // strings are already the business's own local day, same convention
+    // FS.parseDate/FS.fmtDay use elsewhere in the app.
+    function todayISO() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    function addDays(iso, delta) {
+      const [y, m, d] = iso.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      date.setDate(date.getDate() + delta);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+    function datesBetween(startIso, endIso) {
+      const out = [];
+      let cur = startIso;
+      let guard = 0;
+      while (cur <= endIso && guard < 3660) {
+        out.push(cur);
+        cur = addDays(cur, 1);
+        guard++;
+      }
+      return out;
+    }
+    function formatFullDate(iso) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
+
+    let salesData = { days: {} };
+    let currentRange = "30";
+
+    function dateRangeForCurrentSelection() {
+      const today = todayISO();
+      if (currentRange === "mtd") {
+        const [y, m] = today.split("-");
+        return datesBetween(`${y}-${m}-01`, today);
+      }
+      if (currentRange === "all") {
+        const keys = Object.keys(salesData.days || {});
+        if (!keys.length) return [today];
+        return datesBetween([...keys].sort()[0], today);
+      }
+      const n = Number(currentRange);
+      return datesBetween(addDays(today, -(n - 1)), today);
+    }
+
+    function computeSeries() {
+      const dates = dateRangeForCurrentSelection();
+      return dates.map((date) => {
+        const entry = salesData.days?.[date];
+        return {
+          date,
+          revenue: entry?.revenue || 0,
+          units: entry?.units || 0,
+          transactions: entry?.transactions || 0,
+          paymentsCollected: entry?.paymentsCollected || 0,
+          byPaymentSource: entry?.byPaymentSource || {},
+          bySnack: entry?.bySnack || {},
+        };
+      });
+    }
+
+    function renderKpis(series) {
+      const totalRevenue = series.reduce((t, s) => t + s.revenue, 0);
+      const totalUnits = series.reduce((t, s) => t + s.units, 0);
+      const totalTxns = series.reduce((t, s) => t + s.transactions, 0);
+      const activeDays = series.length || 1;
+      $("kpi-revenue").textContent = FS.money(totalRevenue);
+      $("kpi-units").textContent = totalUnits.toLocaleString("en-US");
+      $("kpi-transactions").textContent = totalTxns.toLocaleString("en-US");
+      $("kpi-avg-day").textContent = FS.money(Math.round(totalRevenue / activeDays));
+    }
+
+    function hideTooltip() { $("sales-tooltip").classList.remove("show"); }
+
+    function positionTooltipAt(x, y) {
+      const tip = $("sales-tooltip");
+      const ttRect = tip.getBoundingClientRect();
+      let left = x - ttRect.width / 2;
+      left = Math.max(8, Math.min(left, window.innerWidth - ttRect.width - 8));
+      let top = y - ttRect.height - 10;
+      if (top < 8) top = y + 18;
+      tip.style.left = `${left}px`;
+      tip.style.top = `${top}px`;
+    }
+
+    function showTooltip(col) {
+      const date = col.dataset.date;
+      const revenue = Number(col.dataset.revenue);
+      const units = Number(col.dataset.units);
+      const txns = Number(col.dataset.transactions);
+      const tip = $("sales-tooltip");
+      tip.innerHTML = "";
+      const dateEl = document.createElement("div");
+      dateEl.className = "sales-tooltip-date";
+      dateEl.textContent = formatFullDate(date);
+      const valueEl = document.createElement("div");
+      valueEl.className = "sales-tooltip-value";
+      valueEl.textContent = FS.money(revenue);
+      const metaEl = document.createElement("div");
+      metaEl.className = "sales-tooltip-meta";
+      metaEl.textContent = `${units} snack${units === 1 ? "" : "s"} sold · ${txns} transaction${txns === 1 ? "" : "s"}`;
+      tip.append(dateEl, valueEl, metaEl);
+      tip.classList.add("show");
+      const rect = col.getBoundingClientRect();
+      positionTooltipAt(rect.left + rect.width / 2, rect.top);
+    }
+
+    function renderChart(series) {
+      $("sales-chart-empty").classList.toggle("hidden", series.some((s) => s.revenue > 0));
+      const max = Math.max(1, ...series.map((s) => s.revenue));
+      const labelEvery = series.length <= 14 ? 1 : series.length <= 31 ? 3 : series.length <= 60 ? 7 : 14;
+      const wrap = $("sales-bars");
+      wrap.innerHTML = "";
+      series.forEach((s, i) => {
+        const pct = max ? (s.revenue / max) * 100 : 0;
+        const showLabel = i === series.length - 1 || i % labelEvery === 0;
+        const col = document.createElement("div");
+        col.className = "sales-bar-col";
+        col.tabIndex = 0;
+        col.dataset.date = s.date;
+        col.dataset.revenue = s.revenue;
+        col.dataset.units = s.units;
+        col.dataset.transactions = s.transactions;
+        const bar = document.createElement("div");
+        bar.className = "sales-bar";
+        const fill = document.createElement("span");
+        fill.className = "sales-bar-fill";
+        fill.style.height = `${pct}%`;
+        bar.appendChild(fill);
+        const label = document.createElement("span");
+        label.className = "sales-bar-label";
+        label.textContent = showLabel ? s.date.slice(5).replace("-", "/") : "";
+        col.append(bar, label);
+        col.addEventListener("pointerenter", () => showTooltip(col));
+        col.addEventListener("focus", () => showTooltip(col));
+        col.addEventListener("pointerleave", hideTooltip);
+        col.addEventListener("blur", hideTooltip);
+        wrap.appendChild(col);
+      });
+    }
+
+    function renderTable(series) {
+      const tbody = $("sales-table-body");
+      tbody.innerHTML = "";
+      for (const s of [...series].reverse()) {
+        const tr = document.createElement("tr");
+        [formatFullDate(s.date), FS.money(s.revenue), String(s.units), String(s.transactions)].forEach((text) => {
+          const td = document.createElement("td");
+          td.textContent = text;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderTopSnacks(series) {
+      const totals = new Map();
+      for (const day of series) {
+        for (const [id, row] of Object.entries(day.bySnack)) {
+          const cur = totals.get(id) || { name: row.name, revenue: 0, units: 0 };
+          cur.revenue += row.revenue;
+          cur.units += row.units;
+          totals.set(id, cur);
+        }
+      }
+      const sorted = [...totals.values()].sort((a, b) => b.revenue - a.revenue);
+      const top = sorted.slice(0, 8);
+      const rest = sorted.slice(8);
+      const restRevenue = rest.reduce((t, r) => t + r.revenue, 0);
+      const rows = restRevenue > 0
+        ? [...top, { name: "Other", revenue: restRevenue, units: rest.reduce((t, r) => t + r.units, 0) }]
+        : top;
+      const list = $("snack-bars");
+      list.innerHTML = "";
+      if (!rows.length) {
+        const empty = document.createElement("p");
+        empty.className = "muted-small";
+        empty.textContent = "No sales in this range yet.";
+        list.appendChild(empty);
+        return;
+      }
+      const max = Math.max(1, ...rows.map((r) => r.revenue));
+      for (const row of rows) {
+        const el = document.createElement("div");
+        el.className = "snack-bar-row";
+        const nameEl = document.createElement("span");
+        nameEl.className = "snack-bar-name";
+        nameEl.textContent = row.name;
+        nameEl.title = row.name;
+        const trackEl = document.createElement("span");
+        trackEl.className = "snack-bar-track";
+        const fillEl = document.createElement("span");
+        fillEl.className = "snack-bar-fill";
+        fillEl.style.width = `${(row.revenue / max) * 100}%`;
+        trackEl.appendChild(fillEl);
+        const valueEl = document.createElement("span");
+        valueEl.className = "snack-bar-value";
+        valueEl.textContent = `${FS.money(row.revenue)} · ${row.units} sold`;
+        el.append(nameEl, trackEl, valueEl);
+        list.appendChild(el);
+      }
+    }
+
+    // Fixed 4-color set (this app has exactly 4 known payment sources, not
+    // an open-ended list, so all four are validated categorical hues rather
+    // than folding the 4th into a neutral "Other" - see the dataviz
+    // all-pairs palette check run for this page: green/blue/violet/magenta
+    // clears CVD separation and the normal-vision floor; magenta sits below
+    // 3:1 contrast on white, so its relief is the always-visible legend
+    // label + value text beside it, never the swatch alone).
+    const PAYMENT_SOURCE_META = {
+      admin: { label: "Recorded by admin", color: "var(--green)" },
+      paypal: { label: "PayPal", color: "#2a78d6" },
+      cashback: { label: "Cash back credit", color: "#4a3aa7" },
+      "customer-reported": { label: "Reported by customer", color: "#e87ba4" },
+    };
+    function metaForSource(source) {
+      return PAYMENT_SOURCE_META[source] || { label: source, color: "var(--muted)" };
+    }
+
+    function renderPaymentSources(series) {
+      const totals = new Map();
+      for (const day of series) {
+        for (const [source, amount] of Object.entries(day.byPaymentSource)) {
+          totals.set(source, (totals.get(source) || 0) + amount);
+        }
+      }
+      const total = [...totals.values()].reduce((t, v) => t + v, 0);
+      const bar = $("payment-source-bar");
+      const legend = $("payment-source-legend");
+      bar.innerHTML = "";
+      legend.innerHTML = "";
+      $("payment-source-empty").classList.toggle("hidden", total > 0);
+      bar.classList.toggle("hidden", total === 0);
+      legend.classList.toggle("hidden", total === 0);
+      if (!total) return;
+      const entries = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [source, amount] of entries) {
+        const meta = metaForSource(source);
+        const seg = document.createElement("span");
+        seg.className = "payment-source-segment";
+        seg.style.width = `${(amount / total) * 100}%`;
+        seg.style.background = meta.color;
+        seg.title = `${meta.label}: ${FS.money(amount)}`;
+        bar.appendChild(seg);
+
+        const item = document.createElement("div");
+        item.className = "payment-source-legend-item";
+        const dot = document.createElement("span");
+        dot.className = "payment-source-dot";
+        dot.style.background = meta.color;
+        const label = document.createElement("span");
+        label.className = "payment-source-legend-label";
+        label.textContent = meta.label;
+        const value = document.createElement("span");
+        value.className = "payment-source-legend-value";
+        value.textContent = FS.money(amount);
+        item.append(dot, label, value);
+        legend.appendChild(item);
+      }
+    }
+
+    function renderAll() {
+      const series = computeSeries();
+      renderKpis(series);
+      renderChart(series);
+      renderTable(series);
+      renderTopSnacks(series);
+      renderPaymentSources(series);
+    }
+
+    document.querySelectorAll(".range-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        currentRange = btn.dataset.range;
+        renderAll();
+      });
+    });
+
+    $("sales-table-toggle").addEventListener("click", () => {
+      const isHidden = $("sales-table-wrap").classList.toggle("hidden");
+      $("sales-table-toggle").textContent = isHidden ? "View as table" : "Hide table";
+    });
+
+    async function refresh() {
+      salesData = await FS.admin.getDailySales();
+      $("login-panel").classList.add("hidden");
+      $("sales-app").classList.remove("hidden");
+      $("admin-sign-out").classList.remove("hidden");
+      renderAll();
+    }
+
+    $("google-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithGoogle(); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("microsoft-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithMicrosoft(); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("email-login").onclick = async () => {
+      try { status("login-status", "Signing in...", true); await FS.admin.signInWithEmail($("admin-email").value, $("admin-password").value); await refresh(); }
+      catch (e) { status("login-status", e.message, false); }
+    };
+    $("admin-sign-out").onclick = async () => {
+      await FS.admin.signOut();
+      $("sales-app").classList.add("hidden");
+      $("admin-sign-out").classList.add("hidden");
+      $("login-panel").classList.remove("hidden");
+    };
+
+    FS.initFirebase()
+      .then(() => FS.admin.currentAdmin())
+      .then((admin) => {
+        $("auth-loading").classList.add("hidden");
+        if (!admin) {
+          $("login-panel").classList.remove("hidden");
+          return;
+        }
+        $("nav-admin-users").classList.toggle("hidden", admin.permissions?.manageAdmins === false);
+        return refresh();
+      })
+      .catch((e) => {
+        $("auth-loading").classList.add("hidden");
+        $("login-panel").classList.remove("hidden");
+        if (String(e.message).includes("Firebase is not configured")) {
+          FS.showFirebaseSetupPrompt("login-panel", e.message);
+        } else {
+          status("login-status", e.message, false);
+        }
+      });
+  </script>
+</body>
+</html>

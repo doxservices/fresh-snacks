@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260819m-docs-page" />
+  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -675,6 +675,13 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="promo-offer-backdrop">
+    <div class="modal promo-offer-modal" role="dialog" aria-modal="true" aria-label="Current promotion">
+      <button type="button" class="modal-close" id="promo-offer-close" aria-label="Close">&times;</button>
+      <img id="promo-offer-image" class="promo-offer-image" src="" alt="" />
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="name-capture-backdrop">
     <div class="modal name-capture-modal" role="dialog" aria-modal="true" aria-labelledby="ncm-title">
       <button type="button" class="modal-close" id="ncm-close" aria-label="Close">&times;</button>
@@ -745,7 +752,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/firebase-store.js?v=20260819l-promo-qr"></script>
+  <script src="js/firebase-store.js?v=20260825-invite-name-fix"></script>
   <!-- Live PayPal app's client-id (must match functions/src/lib/
        paypalClientLive.js's server-side credentials, or checkout breaks) -
        components=buttons so the amount can be set per checkout
@@ -808,20 +815,57 @@
     // visit came in from a promo and should be offered the name-capture
     // modal unprompted, same as following a device-link invite does.
     let PROMO_LANDING_ACTIVE = false;
+    let PROMO_LANDING_CODE = null;
     let promoModalOffered = false;
     let PROMO_SEND_CODE = null;
     let PROMO_SEND_QR = null;
+
+    // Per-campaign offer artwork shown as a popup the instant a matching
+    // promo landing loads - keyed by promo code, so a future campaign only
+    // needs a new entry + an uploaded image, not new modal plumbing.
+    const PROMO_OFFER_IMAGES = {
+      hydrate: { src: "assets/hydrate-promo.webp", alt: "Fresh Snacks Hydrate promotion: buy J$300 or more and get a bottled water free, while stocks last." },
+    };
+
+    function showPromoOfferModal(code) {
+      const offer = PROMO_OFFER_IMAGES[code];
+      if (!offer) return;
+      $id("promo-offer-image").src = offer.src;
+      $id("promo-offer-image").alt = offer.alt;
+      $id("promo-offer-backdrop").classList.add("show");
+    }
+    function closePromoOfferModal() {
+      $id("promo-offer-backdrop").classList.remove("show");
+      // Chains into the name-capture offer right after, rather than the
+      // two ever fighting to show at once - maybeOpenNameCaptureModal
+      // itself no-ops if there's nothing left to ask for.
+      const me = LAST_DATA?.myProfile;
+      if (me) maybeOpenNameCaptureModal(me, !FS.profileComplete(me));
+    }
+    $id("promo-offer-close").onclick = closePromoOfferModal;
+    $id("promo-offer-backdrop").addEventListener("click", (ev) => {
+      if (ev.target === $id("promo-offer-backdrop")) closePromoOfferModal();
+    });
+    $id("promo-offer-backdrop").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closePromoOfferModal();
+    });
+
     (function capturePromoLanding() {
       const params = new URLSearchParams(location.search);
       const promo = params.get("promo");
       if (!promo) return;
       PROMO_LANDING_ACTIVE = true;
+      PROMO_LANDING_CODE = promo;
       PROMO_SEND_CODE = promo;
       PROMO_SEND_QR = params.get("qr");
       const url = new URL(location.href);
       url.searchParams.delete("promo");
       url.searchParams.delete("qr");
       history.replaceState(null, "", url);
+      // Shown immediately, independent of the tab-data fetch below - a
+      // pure image popup needs nothing from the server, so there's no
+      // reason to make the visitor wait for it.
+      showPromoOfferModal(promo);
     })();
 
     // FS.loadData()'s own "profile" field is actually app-wide settings
@@ -1128,8 +1172,35 @@
       renderCashbackDayBar();
     }, 60 * 1000);
 
+    // Same durable signal profilePresentation() uses for its "Admin test
+    // view" label (see the comment there) - the localStorage flag survives
+    // reloads/nav, unlike the ?profile=admin-test URL param which only
+    // lasts the one navigation admin.html sends you on.
+    function isPortaledAsAdmin() {
+      return new URLSearchParams(location.search).get("profile") === "admin-test"
+        || localStorage.getItem(FS.appConfig.storageKeys.adminTestSession) === "1";
+    }
+
     function renderCashbackCard(data, isVisitor) {
       const offer = data.cashback;
+      // An admin portaled into an account for evaluation still gets the
+      // bonus-window bar (drained or not) even when this account has no
+      // live qualifying offer right now - a real customer never sees this;
+      // it's purely so an admin can check the window's current state
+      // without needing a real qualifying balance on hand.
+      if (isPortaledAsAdmin() && !offer) {
+        $id("cashback-card").classList.remove("hidden");
+        // Same one-column layout the real "window's over" state uses -
+        // there's no earning chips or balance/button to show here either.
+        $id("cashback-card").classList.add("window-over");
+        $id("cashback-instances").classList.add("hidden");
+        $id("cashback-card").querySelector(".payment-zone")?.classList.add("hidden");
+        $id("cashback-badge").textContent = "Admin preview";
+        $id("cashback-card-title").textContent = "Today's bonus window (admin preview)";
+        $id("cashback-card-body").textContent = "This account has no live cash back offer right now. The bar below still reflects today's real 7am-3pm window.";
+        renderCashbackDayBar();
+        return;
+      }
       $id("cashback-card").classList.toggle("hidden", isVisitor || !offer);
       if (isVisitor || !offer) return;
       const cur = data.profile.currency;
@@ -1311,12 +1382,27 @@
       const owed = (data.entries || []).filter((e) => CASHBACK_STILL_OWED.has(e.workflowStatus) && e.date);
       const byDate = new Map();
       for (const entry of owed) {
-        byDate.set(entry.date, (byDate.get(entry.date) || 0) + Number(entry.value || 0));
+        const bucket = byDate.get(entry.date) || { amount: 0, createdAt: null };
+        bucket.amount += Number(entry.value || 0);
+        // Earliest charge in the group, not latest - matches the stage
+        // countdown's own framing (how long THIS balance instance has
+        // been open), so the two never point at different moments.
+        if (entry.createdAt && (!bucket.createdAt || entry.createdAt < bucket.createdAt)) bucket.createdAt = entry.createdAt;
+        byDate.set(entry.date, bucket);
       }
       return [...byDate.entries()]
-        .map(([date, amount]) => ({ date, amount, daysSince: cashbackDaysSince(date) }))
+        .map(([date, bucket]) => ({ date, amount: bucket.amount, createdAt: bucket.createdAt, daysSince: cashbackDaysSince(date) }))
         .filter((instance) => instance.daysSince != null)
         .sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    function formatCashbackInstanceDateTime(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      const datePart = d.toLocaleString("en", { day: "numeric", month: "short" });
+      const timePart = d.toLocaleString("en", { hour: "numeric", minute: "2-digit" });
+      return `${datePart}, ${timePart}`;
     }
 
     // The customer-facing notification bell - same bell/panel design as
@@ -1404,6 +1490,7 @@
             <div class="notif-item-body">
               <div class="notif-item-title">${esc(FS.money(instance.amount, cur))}</div>
               <div class="cashback-instance-stages">${stagesHtml}</div>
+              ${instance.createdAt ? `<div class="notif-item-subtitle">${esc(formatCashbackInstanceDateTime(instance.createdAt))}</div>` : ""}
             </div>
             <button type="button" class="notif-dismiss" data-notif-dismiss aria-label="Dismiss">&times;</button>
           </div>
@@ -1573,6 +1660,23 @@
           ${trackerTable(data, g, cur, purchaseDayCount)}
         </details>`;
       }).join("");
+
+      // Forces a fresh, synchronous re-check of the floating mini-cart's
+      // scrolled-past-the-real-basket state right after this render's DOM
+      // changes have landed (getBoundingClientRect() below flushes layout,
+      // so this is never stale) - not relying solely on the
+      // IntersectionObserver in updateBasketFloatState's own setup to
+      // notice. That observer only re-fires on an intersection THRESHOLD
+      // CROSSING; #basket-dock-home going from "collapsed near the top,
+      // pre-render" straight to "its real height, off-screen below" (e.g.
+      // a visitor, whose #basket-panel - the dock's only content - never
+      // un-hides at all, or any session where the rest of the page's
+      // content pushes the dock down in one layout jump) never actually
+      // passes back through "intersecting" in between, so the observer
+      // can go the entire session without ever re-firing - leaving the
+      // float stuck visible from whatever its very first, possibly
+      // premature measurement happened to be.
+      if (typeof updateBasketFloatState === "function") updateBasketFloatState();
     }
 
     const picked = new Map();
@@ -2115,8 +2219,21 @@
     // above the viewport top) - the earlier mid-screen trigger meant the
     // floating tab and the still-visible docked cart were briefly on
     // screen together, which read as a duplicate.
+    //
+    // window.scrollY === 0 short-circuits straight to "not scrolled past,"
+    // full stop, regardless of what the geometry check below says - it is
+    // definitionally impossible to have scrolled past anything while the
+    // page hasn't scrolled at all. This matters because #basket-dock-home
+    // can report bottom <= 0 for a reason that has nothing to do with
+    // scrolling: render()'s `$id("basket-panel").classList.toggle("hidden",
+    // !hasOwnTab)` collapses it to zero height for a visitor (no active
+    // tab), and while the rest of the page is still settling (catalog
+    // images loading, which can take a second or more) that zero-height
+    // point can transiently sit at/above the viewport top before its real,
+    // further-down resting position is established - satisfying the
+    // "scrolled past" check without an actual scroll ever happening.
     function updateBasketFloatState() {
-      const scrolledPast = basketDockHome.getBoundingClientRect().bottom <= 0;
+      const scrolledPast = window.scrollY > 0 && basketDockHome.getBoundingClientRect().bottom <= 0;
       if (scrolledPast && !basketFloating) {
         basketFloating = true;
         setFloatTrayOpen(false);
@@ -2149,7 +2266,44 @@
     // "already scrolled past", and float immediately at the top of the
     // page with nothing to correct it until the next scroll/resize.
     new IntersectionObserver(updateBasketFloatState).observe(basketDockHome);
+    // IntersectionObserver alone still has a gap: it only re-fires on an
+    // intersection THRESHOLD CROSSING. render()'s own
+    // `$id("basket-panel").classList.toggle("hidden", !hasOwnTab)` can
+    // collapse #basket-dock-home to zero height at a moment its flow
+    // position hasn't caught up with the rest of the page yet (catalog
+    // images still loading push it further down over the next second or
+    // so) - a zero-height element sitting wherever it happens to land can
+    // read as "already scrolled past" (bottom <= 0) without ever actually
+    // being visually scrolled past, and if it never passes back through
+    // "intersecting" on the way to its real resting position, the observer
+    // never gets a crossing to re-fire on, and the wrong state sticks for
+    // the rest of the visit. A ResizeObserver on the page body re-checks on
+    // every layout-height change instead (images finishing, fonts
+    // swapping, any render() pass) - a coarser signal, but one that fires
+    // on the exact kind of shift the intersection observer can miss.
+    new ResizeObserver(updateBasketFloatState).observe(document.body);
     window.addEventListener("resize", updateBasketFloatState);
+    // Same threshold-crossing gap bites genuine scrolling too, not just the
+    // layout-settling race above: scroll far down (float shows, correctly),
+    // then scroll back up to the top - #basket-dock-home goes from "not
+    // intersecting because scrolled past, above the viewport" straight to
+    // "not intersecting because back at rest, below the viewport" without
+    // ever passing back through "intersecting" if the dock is taller than
+    // the viewport, so the observer never re-fires and the float stays
+    // stuck showing at the very top of the page. A direct scroll listener
+    // doesn't have that gap - it fires on every scroll regardless of
+    // intersection state. rAF-coalesced since scroll fires far more often
+    // than once per frame and the check inside forces a synchronous
+    // layout read.
+    let floatScrollCheckQueued = false;
+    window.addEventListener("scroll", () => {
+      if (floatScrollCheckQueued) return;
+      floatScrollCheckQueued = true;
+      requestAnimationFrame(() => {
+        floatScrollCheckQueued = false;
+        updateBasketFloatState();
+      });
+    }, { passive: true });
 
     document.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
@@ -2890,7 +3044,7 @@
     $id("us-invite-login").onclick = async () => {
       const button = $id("us-invite-login");
       button.disabled = true;
-      button.textContent = "Logging inâ€¦";
+      button.textContent = "Logging in…";
       try {
         await FS.loginWithInvite();
         location.reload();
@@ -3049,6 +3203,11 @@
       // should stick closed rather than nag the visitor for the rest of
       // this visit.
       if (!PROMO_LANDING_ACTIVE || !needsName || promoModalOffered) return;
+      // The offer image (see showPromoOfferModal) takes priority when both
+      // would otherwise fire close together on a fresh promo landing -
+      // don't stack a second modal on top of it; closePromoOfferModal
+      // re-runs this same check once it's dismissed, so this just waits.
+      if ($id("promo-offer-backdrop").classList.contains("show")) return;
       promoModalOffered = true;
       if ($id("name-capture-backdrop").classList.contains("show")) return;
       openNameCaptureModal(me);
