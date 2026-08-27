@@ -3095,10 +3095,9 @@
     };
 
     // --- Name-capture / device-link modal ---------------------------------
-    // Shown for any user with no name yet (see `anonymous` above), and also
-    // whenever this browser holds a pending, not-yet-accepted invite code
-    // (`linkCode`). Linking now only ever happens on an explicit button
-    // click - there is no more silent auto-accept on page load.
+    // Shown for any user with no name yet (see `anonymous` above). A
+    // pending invite code (`linkCode`) no longer opens this modal at all -
+    // see autoAcceptPendingLink() below, which links immediately instead.
 
     let ncmReturnFocus = null;
 
@@ -3208,6 +3207,19 @@
     let autoAcceptInFlight = false;
     async function autoAcceptPendingLink() {
       if (autoAcceptInFlight) return;
+      // A non-anonymous session here is an admin's own Google/Microsoft/
+      // email login - this app's real customers are always anonymous
+      // auth, never a real provider, so that's the actual admin check
+      // (see requireAdmin/FS.admin.currentAdmin, the same signal server-
+      // side and in the admin pages). An admin's browser landing on a
+      // `?link=` URL - testing it, portaled into an account for preview,
+      // or just having it forwarded to them - must never auto-link,
+      // because that would add the ADMIN'S OWN identity as a linked
+      // device on a real customer's tab (like Stephen M's), consuming one
+      // of their 3 real device slots for something that isn't a device of
+      // theirs at all. Left alone (not cleared) so a real customer using
+      // this same code on their own separate browser is unaffected.
+      if (FS.currentUser && FS.currentUser.isAnonymous === false) return;
       autoAcceptInFlight = true;
       try {
         try {
