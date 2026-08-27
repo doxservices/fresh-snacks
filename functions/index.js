@@ -42,6 +42,15 @@ const ALLOWED_ORIGINS = [
   "https://doxservices.github.io",
   "https://freshsnacksja.com",
   "https://www.freshsnacksja.com",
+  // Firebase Hosting's own default domains for this same site - some
+  // networks/security appliances block freshsnacksja.com outright for
+  // being a newly-registered domain (see GitHub Pages above, the other
+  // deliberate fallback front door), and these two are the other side of
+  // that same resilience: identical content and backend, reachable even
+  // when the custom domain itself is the thing being blocked. This matters
+  // most for payment, where there's no acceptable "just try again later."
+  "https://fresh-snacks-ee79f.web.app",
+  "https://fresh-snacks-ee79f.firebaseapp.com",
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
   /^http:\/\/localhost(:\d+)?$/,
   // A page opened directly as a local file (no server) sends the literal
