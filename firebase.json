@@ -30,7 +30,24 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      // `public` is the whole repo root (simplest layout for a static
+      // site with no build step) - so everything that isn't a page the
+      // browser actually loads must be explicitly blocked here, or it
+      // gets served as a plain file straight off the live domain. This
+      // list was added after finding functions/**, scripts/**, and the
+      // *.md docs were all directly fetchable from freshsnacksja.com.
+      "functions/**",
+      "scripts/**",
+      "*.md",
+      "package.json",
+      "package-lock.json",
+      "firestore.rules",
+      "firestore.indexes.json",
+      "storage.rules",
+      "firebase-seed.json",
+      "data.json",
+      "fresh-snacks-poster-html/**"
     ],
     "headers": [
       {
