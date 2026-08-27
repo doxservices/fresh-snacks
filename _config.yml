@@ -1,0 +1,20 @@
+# GitHub Pages build config. This app has no Jekyll templating - the only
+# thing this file is for is the `exclude` list below, which stops server
+# source, admin scripts, and internal docs from being served as plain
+# files off doxservices.github.io (mirrors firebase.json's hosting.ignore,
+# added for the same reason on the Firebase Hosting side).
+exclude:
+  - functions/
+  - scripts/
+  - "*.md"
+  - package.json
+  - package-lock.json
+  - firestore.rules
+  - firestore.indexes.json
+  - storage.rules
+  - firebase-seed.json
+  - data.json
+  - fresh-snacks-poster-html/
+  - .chat-archive/
+  - .firebaserc
+  - .firebaserc.example
