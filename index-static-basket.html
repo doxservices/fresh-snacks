@@ -3092,21 +3092,54 @@
       ncmReturnFocus = null;
     }
 
-    // Only auto-opens for an in-progress device-link invite (an explicit
-    // action the visitor already took by following that link) - a plain
-    // incomplete/anonymous visitor is never force-interrupted with this
-    // modal on a calm page load. They get an explicit "Open a tab" button
-    // on the visitor gallery instead (see the isVisitor branch in render()).
+    // A followed invite link (linkCode) auto-links immediately, no click
+    // required - possessing the specific, unguessable link is the
+    // authorization. The old combined "enter your name and link" modal
+    // gated linking behind a manual click specifically so the two landed
+    // together in one action for a still-unnamed tab; that reasoning
+    // doesn't apply once the shared tab already has a real name, and even
+    // when it doesn't, startTabFlow()'s own render cycle (via
+    // renderUserSettings -> maybeOpenInviteeNameModal) still prompts for
+    // one right after - nothing is skipped by not gating it behind a
+    // click first.
+    let autoAcceptInFlight = false;
+    async function autoAcceptPendingLink() {
+      if (autoAcceptInFlight) return;
+      autoAcceptInFlight = true;
+      try {
+        try {
+          await FS.acceptLinkInvite();
+        } catch (e) {
+          if (e.code !== "device-limit") throw e;
+          // The tab's 3 permanent device slots are all in use - fall back
+          // to the same temporary session-login a manual "Log in
+          // temporarily" click used to require.
+          await FS.loginWithInvite();
+        }
+        linkCode = null;
+        startTabFlow();
+      } catch (e) {
+        // A stale/deactivated link, or nothing recoverable - fail quietly.
+        // This runs on a calm page load with no user action to report
+        // back to; the visitor just lands as themselves instead.
+      } finally {
+        autoAcceptInFlight = false;
+      }
+    }
+
+    // A plain incomplete/anonymous visitor arriving with no pending link
+    // is never force-interrupted with this modal on a calm page load -
+    // they get an explicit "Open a tab" button on the visitor gallery
+    // instead (see the isVisitor branch in render()).
     function maybeOpenNameCaptureModal(me, needsName) {
       // Re-read the pending code instead of trusting the page-load snapshot:
       // acceptLinkInvite() clears it. This prevents startTabFlow() from
       // reopening the modal immediately after a successful link.
       linkCode = FS.getLinkCode();
-      // A followed invite must always be actionable, including on a browser
-      // that already has a complete profile of its own.
-      if (!linkCode) return;
-      if ($id("name-capture-backdrop").classList.contains("show")) return;
-      openNameCaptureModal(me);
+      if (linkCode) {
+        autoAcceptPendingLink();
+        return;
+      }
     }
 
     function openInviteeNameModal(me) {
