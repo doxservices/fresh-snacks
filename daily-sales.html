@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Daily Sales</title>
-  <link rel="stylesheet" href="styles.css?v=20260828-paypal-two-tone" />
+  <link rel="stylesheet" href="styles.css?v=20260828b-daily-sales-linechart" />
 </head>
 <body>
   <main class="page">
@@ -91,9 +91,9 @@
 
       <section class="card section-card">
         <h2>Revenue by day</h2>
-        <p class="muted-small">Hover or focus a bar for that day's exact numbers.</p>
+        <p class="muted-small">Every day in the range gets a point on the line, even J$0 days. Hover or focus any point for that day's exact numbers.</p>
         <div class="sales-chart-wrap">
-          <div class="sales-bars" id="sales-bars"></div>
+          <svg class="sales-chart-svg" id="sales-chart-svg" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Revenue by day"></svg>
           <div class="sales-tooltip" id="sales-tooltip" role="status" aria-live="polite"></div>
         </div>
         <p class="muted-small hidden" id="sales-chart-empty">No sales recorded in this range yet.</p>
@@ -249,38 +249,115 @@
       positionTooltipAt(rect.left + rect.width / 2, rect.top);
     }
 
+// Round a positive max up to a "nice" axis ceiling (1/2/5/10 * a power of
+    // ten) so gridlines land on readable numbers instead of whatever the
+    // day's actual peak happened to be.
+    function niceAxisMax(max) {
+      if (max <= 0) return 100;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(max)));
+      const normalized = max / magnitude;
+      const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+      return step * magnitude;
+    }
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    function svgEl(tag, attrs) {
+      const el = document.createElementNS(SVG_NS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+      return el;
+    }
+
+    // A proper line/area chart, not a bar-per-day strip: every day in the
+    // range gets a plotted point (even a J$0 day sits right on the
+    // baseline, visibly present rather than an invisible zero-height bar),
+    // the whole range always fits the card's width with no horizontal
+    // scrolling, and gridlines/axis labels give a real sense of scale
+    // instead of requiring a hover on every bar to know what you're
+    // looking at.
     function renderChart(series) {
-      $("sales-chart-empty").classList.toggle("hidden", series.some((s) => s.revenue > 0));
-      const max = Math.max(1, ...series.map((s) => s.revenue));
-      const labelEvery = series.length <= 14 ? 1 : series.length <= 31 ? 3 : series.length <= 60 ? 7 : 14;
-      const wrap = $("sales-bars");
-      wrap.innerHTML = "";
+      const hasSales = series.some((s) => s.revenue > 0);
+      $("sales-chart-empty").classList.toggle("hidden", hasSales);
+      const svg = $("sales-chart-svg");
+      svg.innerHTML = "";
+      if (!series.length) return;
+
+      const W = 1000, H = 320;
+      const padLeft = 58, padRight = 14, padTop = 14, padBottom = 40;
+      const plotW = W - padLeft - padRight;
+      const plotH = H - padTop - padBottom;
+      const axisMax = niceAxisMax(Math.max(1, ...series.map((s) => s.revenue)));
+      const xAt = (i) => series.length === 1 ? padLeft + plotW / 2 : padLeft + (i / (series.length - 1)) * plotW;
+      const yAt = (v) => padTop + plotH - (Math.min(v, axisMax) / axisMax) * plotH;
+
+      // Gridlines + Y-axis value labels, 5 evenly spaced levels including 0.
+      const gridGroup = svgEl("g", { class: "sales-chart-grid" });
+      for (let i = 0; i <= 4; i++) {
+        const value = (axisMax / 4) * i;
+        const y = yAt(value);
+        gridGroup.appendChild(svgEl("line", {
+          class: "sales-chart-gridline", x1: padLeft, x2: W - padRight, y1: y, y2: y,
+        }));
+        const label = svgEl("text", { class: "sales-chart-ylabel", x: padLeft - 8, y: y + 3, "text-anchor": "end" });
+        label.textContent = FS.money(Math.round(value));
+        gridGroup.appendChild(label);
+      }
+      svg.appendChild(gridGroup);
+
+      // Area fill + line, one continuous path across every day - a gap-free
+      // line is what actually communicates "every one of these days has a
+      // real value here", including the J$0 ones sitting on the baseline.
+      const points = series.map((s, i) => [xAt(i), yAt(s.revenue)]);
+      const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ");
+      const areaPath = `${linePath} L${points[points.length - 1][0].toFixed(2)} ${yAt(0).toFixed(2)} L${points[0][0].toFixed(2)} ${yAt(0).toFixed(2)} Z`;
+      svg.appendChild(svgEl("path", { class: "sales-chart-area", d: areaPath }));
+      svg.appendChild(svgEl("path", { class: "sales-chart-line", d: linePath }));
+
+      // X-axis: a light tick for every single day (so the eye can count the
+      // full range even where there's no room for text), a text label only
+      // every Nth day, and always the first/last day labeled so the range
+      // itself is never ambiguous.
+      const labelEvery = series.length <= 10 ? 1 : series.length <= 31 ? 5 : series.length <= 60 ? 10 : 20;
+      const axisGroup = svgEl("g", { class: "sales-chart-xaxis" });
       series.forEach((s, i) => {
-        const pct = max ? (s.revenue / max) * 100 : 0;
-        const showLabel = i === series.length - 1 || i % labelEvery === 0;
-        const col = document.createElement("div");
-        col.className = "sales-bar-col";
-        col.tabIndex = 0;
-        col.dataset.date = s.date;
-        col.dataset.revenue = s.revenue;
-        col.dataset.units = s.units;
-        col.dataset.transactions = s.transactions;
-        const bar = document.createElement("div");
-        bar.className = "sales-bar";
-        const fill = document.createElement("span");
-        fill.className = "sales-bar-fill";
-        fill.style.height = `${pct}%`;
-        bar.appendChild(fill);
-        const label = document.createElement("span");
-        label.className = "sales-bar-label";
-        label.textContent = showLabel ? s.date.slice(5).replace("-", "/") : "";
-        col.append(bar, label);
-        col.addEventListener("pointerenter", () => showTooltip(col));
-        col.addEventListener("focus", () => showTooltip(col));
-        col.addEventListener("pointerleave", hideTooltip);
-        col.addEventListener("blur", hideTooltip);
-        wrap.appendChild(col);
+        const x = xAt(i);
+        axisGroup.appendChild(svgEl("line", {
+          class: "sales-chart-tick", x1: x, x2: x, y1: H - padBottom, y2: H - padBottom + 5,
+        }));
+        const showLabel = i === 0 || i === series.length - 1 || i % labelEvery === 0;
+        if (showLabel) {
+          const label = svgEl("text", {
+            class: "sales-chart-xlabel", x, y: H - padBottom + 20,
+            "text-anchor": i === 0 ? "start" : i === series.length - 1 ? "end" : "middle",
+          });
+          label.textContent = s.date.slice(5).replace("-", "/");
+          axisGroup.appendChild(label);
+        }
       });
+      svg.appendChild(axisGroup);
+
+      // Points + invisible per-day hit targets, both interactive - the hit
+      // target is a full-height strip (not just the small dot) so hover/
+      // focus/tap works comfortably even when 90+ days are packed tight.
+      const pointsGroup = svgEl("g", { class: "sales-chart-points" });
+      const hitGroup = svgEl("g", { class: "sales-chart-hits" });
+      const hitWidth = Math.max(4, plotW / series.length);
+      series.forEach((s, i) => {
+        const [x, y] = points[i];
+        const dot = svgEl("circle", { class: "sales-chart-point" + (s.revenue > 0 ? "" : " is-zero"), cx: x, cy: y, r: 3.5 });
+        pointsGroup.appendChild(dot);
+
+        const hit = svgEl("rect", {
+          class: "sales-chart-hit", x: x - hitWidth / 2, y: padTop, width: hitWidth, height: plotH,
+          tabindex: "0", "data-date": s.date, "data-revenue": s.revenue, "data-units": s.units, "data-transactions": s.transactions,
+        });
+        hit.addEventListener("pointerenter", () => { showTooltip(hit); dot.classList.add("is-active"); });
+        hit.addEventListener("focus", () => { showTooltip(hit); dot.classList.add("is-active"); });
+        hit.addEventListener("pointerleave", () => { hideTooltip(); dot.classList.remove("is-active"); });
+        hit.addEventListener("blur", () => { hideTooltip(); dot.classList.remove("is-active"); });
+        hitGroup.appendChild(hit);
+      });
+      svg.appendChild(pointsGroup);
+      svg.appendChild(hitGroup);
     }
 
     function renderTable(series) {

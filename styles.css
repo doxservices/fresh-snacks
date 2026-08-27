@@ -8053,64 +8053,49 @@ body:has(.basket-float-shell.visible) .cashback-notifications-bell {
   position: relative;
 }
 
-/* Fixed-width columns, same reasoning as .stats-chart: a steady column
-   width reads consistently whether the range is 7 bars or 90, and the
-   container scrolls horizontally instead of squeezing bars unusably thin. */
-.sales-bars {
-  align-items: flex-end;
-  display: flex;
-  gap: 4px;
-  height: 200px;
-  margin-top: 16px;
-  overflow-x: auto;
-  padding: 0 4px 6px;
-  scrollbar-color: var(--green) transparent;
-  scrollbar-width: thin;
-}
-
-.sales-bar-col {
-  align-items: center;
-  display: flex;
-  flex: 0 0 20px;
-  flex-direction: column;
-  gap: 6px;
-  height: 100%;
-  justify-content: flex-end;
-  outline: none;
-}
-
-.sales-bar {
-  background: rgba(24, 79, 42, 0.06);
-  border-radius: 4px 4px 0 0;
-  height: 152px;
-  position: relative;
+/* A real line/area chart, not a strip of fixed-width bars - always fills
+   the card's width (no horizontal scrolling, no range where bars get
+   unusably thin or need scrolling to reach), so every day in the range is
+   simultaneously visible at a consistent scale. */
+.sales-chart-svg {
+  display: block;
+  height: 280px;
+  margin-top: 12px;
   width: 100%;
 }
 
-.sales-bar-fill {
-  background: var(--green);
-  border-radius: 4px 4px 0 0;
-  bottom: 0;
-  left: 0;
-  position: absolute;
-  right: 0;
-  transition: background-color 120ms ease;
+.sales-chart-gridline { stroke: var(--line); stroke-width: 1; }
+.sales-chart-ylabel { fill: var(--muted); font-size: 11px; }
+
+.sales-chart-area { fill: rgba(47, 122, 68, 0.14); stroke: none; }
+.sales-chart-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
 }
 
-.sales-bar-col:hover .sales-bar-fill,
-.sales-bar-col:focus-visible .sales-bar-fill {
-  background: var(--green-dark);
-}
+/* One light tick per day (even where there's no room for a text label) so
+   the eye can still count the full range at a glance - this is the direct
+   fix for a chart that used to visually read as missing most of its days
+   once a range's labels got sparse. */
+.sales-chart-tick { stroke: var(--line); stroke-width: 1; }
+.sales-chart-xlabel { fill: var(--muted); font-size: 11px; }
 
-.sales-bar-col:focus-visible .sales-bar {
-  box-shadow: 0 0 0 2px var(--green-dark);
+/* A dot on every day, including J$0 ones sitting right on the baseline -
+   deliberately visible rather than an invisible zero-height bar, which is
+   what used to make zero-revenue days look like gaps in the chart. */
+.sales-chart-point {
+  fill: #fff;
+  stroke: var(--green);
+  stroke-width: 2;
+  transition: r 120ms ease, fill 120ms ease, stroke 120ms ease;
 }
+.sales-chart-point.is-zero { fill: var(--line); stroke: var(--muted); }
+.sales-chart-point.is-active { fill: var(--green-dark); r: 5.5; stroke: var(--green-dark); }
 
-.sales-bar-label {
-  color: var(--muted);
-  font-size: 10px;
-  white-space: nowrap;
-}
+.sales-chart-hit { cursor: pointer; fill: transparent; outline: none; }
 
 /* Shared hover/focus tooltip for the chart's bars - one floating card,
    repositioned per bar rather than a native title attribute, so it can
