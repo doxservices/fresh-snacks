@@ -1314,9 +1314,11 @@ a.stat-box:hover, a.stat-box:focus-visible {
 }
 .payment-heading { align-items: flex-start; }
 .payment-heading p { margin: 5px 0 0; color: #65706b; font-size: 13px; line-height: 1.5; }
-/* Official-style PayPal button: gold #FFC439 with the real PayPal
+/* Official-style PayPal button: gold #FFC439 with the real two-tone PayPal
    wordmark centered, matching how PayPal's own SDK renders its smart
-   button (their brand guidelines: gold fill, no added text, logo only). */
+   button (their brand guidelines: gold fill, "Pay"/"Pal" in their own two
+   brand blues, no added text, logo only - not a flat black wordmark, which
+   isn't how PayPal's own gold button actually looks). */
 .paypal-branded-button {
   display: inline-flex;
   align-items: center;
@@ -1329,13 +1331,17 @@ a.stat-box:hover, a.stat-box:focus-visible {
   border: 0;
   border-radius: 20px;
   background: #ffc439;
-  /* The wordmark is currentColor now (see index.html) - black at rest,
-     matching PayPal's own default styling on their brand-gold background. */
-  color: #000;
   cursor: pointer;
   transition: filter .15s ease;
 }
 .paypal-branded-button:hover { filter: brightness(.95); }
+/* The wordmark's two paths carry their own fixed brand-blue fills now
+   (see index.html), not currentColor - so hovering this button (which
+   turns solid green with white text, same as every other button on the
+   page - see the button:not(:disabled):hover rule up top) needs its own
+   explicit override to turn the logo white too, or it would stay blue
+   on green instead of matching the rest of the hover state. */
+.paypal-branded-button:hover svg path { fill: #fff; }
 .paypal-branded-button svg { height: 22px; width: auto; display: block; }
 .shield { justify-self: center; width: min(90px, 100%); opacity: .82; mix-blend-mode: multiply; }
 
