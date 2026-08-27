@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260828f-accounting-row-white-fill" />
+  <link rel="stylesheet" href="styles.css?v=20260828g-accounting-row-highlight-settings" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -710,11 +710,21 @@
     // those two are individual-customer stats, not something worth
     // comparing account-to-account in one row. Still computed server-side
     // for whenever a per-customer stats view wants them.
+    // Same defaults as admin.html's UI settings checkboxes (see refresh()
+    // there): resolved highlighting on by default (the original always-on
+    // look before this was configurable), unresolved off by default (a new
+    // capability, opt-in rather than sprung on existing installs).
+    function accountingRowClass(r) {
+      if (r.balance === 0) return (SNAPSHOT.settings.highlightResolvedRows ?? true) ? "healthy-account" : "";
+      if (r.balance > 0) return (SNAPSHOT.settings.highlightUnresolvedRows ?? false) ? "unresolved-account" : "";
+      return "";
+    }
+
     function renderAccounting() {
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
         <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
-        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${r.balance === 0 ? ' class="healthy-account"' : ""}>
+        <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${accountingRowClass(r) ? ` class="${accountingRowClass(r)}"` : ""}>
           <td class="name-fields">
             <input data-f="firstName" placeholder="First name" value="${esc(r.firstName || "")}" />
             <input data-f="lastName" placeholder="Last name" value="${esc(r.lastName || "")}" />

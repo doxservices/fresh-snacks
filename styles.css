@@ -1956,27 +1956,51 @@ details[open] > summary .month-note {
 
 /* The flat report style above (transparent td, hairline bottom border, no
    radius) reads fine for an ordinary row, but a solid-fill highlight with
-   the same flat/square treatment just looked like a rough color smear -
-   hard corners butting straight into the next row's hairline with no
-   border of its own to separate them. A green outline + white interior
-   (matching the name inputs/VIP select's own white fill, extended across
-   every cell instead of stopping at those two fields) reads as a
-   deliberate badge with real breathing room, rather than a solid tint
-   fighting the white form controls sitting on top of it. */
-#accounting-list .admin-table tr.healthy-account td {
-  background: rgba(255, 255, 255, 0.92);
-  border-top: 1px solid rgba(24, 79, 42, 0.16);
-  border-bottom: 1px solid rgba(24, 79, 42, 0.16);
+   that same flat/square treatment looked like a rough color smear - hard
+   corners butting straight into the next row's hairline with no border of
+   its own. Both status highlights (resolved/green, unresolved/red - both
+   toggleable from admin.html's UI settings) get a real border + the
+   row-pill radius the base .admin-table uses everywhere else, so each
+   reads as a deliberate badge. The name inputs/VIP select go
+   semi-transparent here instead of their usual solid white, so the row's
+   tint shows through them too - one consistent colored surface per row,
+   not a color fill fighting its own white form controls. */
+#accounting-list .admin-table tr.healthy-account td,
+#accounting-list .admin-table tr.unresolved-account td {
+  border-top: 1px solid;
+  border-bottom: 1px solid;
 }
 
-#accounting-list .admin-table tr.healthy-account td:first-child {
-  border-left: 1px solid rgba(24, 79, 42, 0.16);
+#accounting-list .admin-table tr.healthy-account td:first-child,
+#accounting-list .admin-table tr.unresolved-account td:first-child {
+  border-left: 1px solid;
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-#accounting-list .admin-table tr.healthy-account td:last-child {
-  border-right: 1px solid rgba(24, 79, 42, 0.16);
+#accounting-list .admin-table tr.healthy-account td:last-child,
+#accounting-list .admin-table tr.unresolved-account td:last-child {
+  border-right: 1px solid;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+#accounting-list .admin-table tr.healthy-account td {
+  background: var(--green-light);
+  border-color: rgba(24, 79, 42, 0.18);
+}
+
+#accounting-list .admin-table tr.healthy-account input,
+#accounting-list .admin-table tr.healthy-account select {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+#accounting-list .admin-table tr.unresolved-account td {
+  background: rgba(250, 240, 239, 0.9);
+  border-color: rgba(138, 47, 47, 0.18);
+}
+
+#accounting-list .admin-table tr.unresolved-account input,
+#accounting-list .admin-table tr.unresolved-account select {
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .bottom-summary {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260828f-accounting-row-white-fill" />
+  <link rel="stylesheet" href="styles.css?v=20260828g-accounting-row-highlight-settings" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -177,11 +177,18 @@
             <label for="catalog-price-step">Catalog price field step (J$)</label>
             <input id="catalog-price-step" type="number" min="1" max="1000" step="1" />
           </div>
+          <div class="field">
+            <label><input id="ui-highlight-resolved" type="checkbox" /> Highlight resolved rows (green) in Accounting</label>
+          </div>
+          <div class="field">
+            <label><input id="ui-highlight-unresolved" type="checkbox" /> Highlight unresolved rows (red) in Accounting</label>
+          </div>
           <button class="primary" id="ui-settings-save">Save</button>
         </div>
         <p class="muted-small">
           Toast scroll time: how long a long snack name takes to scroll fully into view inside the "Added to basket" toast before it slides off screen (0.3-5 seconds, customer-facing).
           Catalog price field step: how much the Catalog page's Price field moves per click of its up/down arrows or an arrow key press (whole J$, 1-1000, admin-tool only - customers never see this).
+          Row highlighting: on the Accounting page, a paid-off account (J$0 balance) can be tinted green and/or an account that still owes money can be tinted red - both admin-tool only, and both can be on at once.
         </p>
         <div class="status" id="ui-settings-status"></div>
       </section>
@@ -399,6 +406,11 @@
       populateTestProfileSelect();
       $("ui-toast-ticker-seconds").value = SNAPSHOT.settings.toastTickerSeconds ?? 1;
       $("catalog-price-step").value = SNAPSHOT.settings.priceStepJmd ?? 10;
+      // Resolved defaults on (the original always-on look, before this was
+      // ever configurable); unresolved defaults off (a new capability, not
+      // something existing installs suddenly get without opting in).
+      $("ui-highlight-resolved").checked = SNAPSHOT.settings.highlightResolvedRows ?? true;
+      $("ui-highlight-unresolved").checked = SNAPSHOT.settings.highlightUnresolvedRows ?? false;
     }
 
     $("google-login").onclick = async () => {
@@ -506,7 +518,11 @@
           status("ui-settings-status", "Catalog price field step must be a whole number between 1 and 1000.", false);
           return;
         }
-        await FS.admin.updateSettings({ toastTickerSeconds: seconds, priceStepJmd: step });
+        await FS.admin.updateSettings({
+          toastTickerSeconds: seconds, priceStepJmd: step,
+          highlightResolvedRows: $("ui-highlight-resolved").checked,
+          highlightUnresolvedRows: $("ui-highlight-unresolved").checked,
+        });
         await refresh();
         status("ui-settings-status", "Saved.", true);
       } catch (e) {

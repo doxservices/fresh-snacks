@@ -145,7 +145,7 @@ router.delete("/notification-dismissals/:uid", requirePermission(PERMISSION.MANA
 // same settings/app doc getSettingsData() (store.js) reads with defaults,
 // so new levers can be added here later without a new route each time.
 router.patch("/settings", asyncRoute(async (req, res) => {
-  const { toastTickerSeconds, priceStepJmd } = req.body;
+  const { toastTickerSeconds, priceStepJmd, highlightResolvedRows, highlightUnresolvedRows } = req.body;
   const payload = { updatedBy: req.uid, updatedAt: FieldValue.serverTimestamp() };
   if (toastTickerSeconds !== undefined) {
     const seconds = Number(toastTickerSeconds);
@@ -165,6 +165,11 @@ router.patch("/settings", asyncRoute(async (req, res) => {
     }
     payload.priceStepJmd = step;
   }
+  // accounting.html row highlighting - resolved (balance === 0, green) and
+  // unresolved (balance > 0, red) are independent toggles, both admin-tool
+  // only. No validation beyond boolean-coercion needed for a plain on/off.
+  if (highlightResolvedRows !== undefined) payload.highlightResolvedRows = !!highlightResolvedRows;
+  if (highlightUnresolvedRows !== undefined) payload.highlightUnresolvedRows = !!highlightUnresolvedRows;
   await db().collection("settings").doc("app").set(payload, { merge: true });
   res.json({ ok: true });
 }));
