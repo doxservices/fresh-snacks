@@ -96,6 +96,14 @@
         </div>
         <div class="status" id="profile-status" aria-live="polite"></div>
       </section>
+      <section class="card section-card">
+        <div>
+          <h2>Payment flow check</h2>
+          <p class="muted-small">Runs a real check from this computer, on this network, right now - whether the payment server and PayPal are actually reachable, not just whether the page loaded. Useful if a customer reports payment trouble and you want to know if it's their network or something broader.</p>
+        </div>
+        <button type="button" class="primary" id="payment-check-run">Test payment flow on this network</button>
+        <div id="payment-check-results" aria-live="polite"></div>
+      </section>
       <section class="brand-card">
         <div class="brand-grid">
           <div>
@@ -224,6 +232,82 @@
     // so testing always reflects that account's actual live data instead
     // of a snapshot that silently drifts out of sync with it over time.
     const PREFERRED_TEST_PROFILE_ID = "cust-d9zytpnw";
+
+    // Loads PayPal's own checkout script and resolves true/false on
+    // load/error, or false if neither fires within the timeout - some
+    // network-level blocks (a silent DNS drop) never fire a script error
+    // event at all, so a stall has to count as a fail too or the check
+    // would hang forever waiting for an event that's never coming.
+    // (No cache-busting query param here on purpose - PayPal's loader
+    // strictly rejects any param it doesn't recognize with a 400.)
+    function checkPaypalReachable(timeoutMs = 8000) {
+      return new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = "https://www.paypal.com/sdk/js?client-id=AbUfyOs_HCKQuvW5o1S5MdZ-EZy5eoUFY-j06jPcTVzJhSdVyVb_4N9t9ZCf43HVDfzE2GD6yKdLHz8G&components=buttons&currency=USD";
+        const timer = setTimeout(() => finish(false), timeoutMs);
+        function finish(ok) {
+          clearTimeout(timer);
+          script.remove();
+          resolve(ok);
+        }
+        script.onload = () => finish(true);
+        script.onerror = () => finish(false);
+        document.head.appendChild(script);
+      });
+    }
+
+    // Everything here runs from the admin's own browser, on whatever
+    // network/computer they're actually on right now - that's the whole
+    // point, it's the only way to answer "does this actually work for me
+    // right now" rather than "does it work from wherever the server is."
+    // Uses the same designated test account as "Test customer profile"
+    // above (an explicit effectiveUid override, trusted server-side for a
+    // verified admin - see middleware.js's resolveEffectiveUid) so this
+    // reflects a real account's real balance without needing to portal
+    // into it first. Read-only: quoteForUser() never writes anything.
+    async function runPaymentFlowCheck(trigger) {
+      const originalLabel = trigger.textContent;
+      trigger.textContent = "Testing...";
+      trigger.disabled = true;
+      const resultsEl = $("payment-check-results");
+      resultsEl.innerHTML = "";
+      let allOk = true;
+      const addLine = (ok, text) => {
+        allOk = allOk && ok;
+        const line = document.createElement("div");
+        line.className = "status " + (ok ? "ok" : "err");
+        line.textContent = (ok ? "✓ " : "✗ ") + text;
+        resultsEl.appendChild(line);
+      };
+
+      addLine(true, `Checking from this page: ${location.origin}`);
+
+      try {
+        const quote = await FS._apiFetch("/paypal/tab/quote", { query: { effectiveUid: PREFERRED_TEST_PROFILE_ID } });
+        addLine(true, `Payment server reachable - got a real quote back (J$${Math.round(quote.balanceJmd).toLocaleString("en-US")} balance).`);
+      } catch (e) {
+        if (typeof e.status === "number") {
+          // Reached the server fine and got a normal app response (e.g.
+          // "tab already clear" or "balance too small") - that IS success
+          // for this check; only a fetch() that never got a response at
+          // all (no e.status) means the network actually blocked it.
+          addLine(true, `Payment server reachable and responding correctly (${e.message})`);
+        } else {
+          addLine(false, "Payment server NOT reachable on this network. If you're on freshsnacksja.com, try https://fresh-snacks-ee79f.web.app instead - same site, different address, in case this network is blocking the first one.");
+        }
+      }
+
+      const paypalOk = await checkPaypalReachable();
+      addLine(paypalOk, paypalOk
+        ? "PayPal reachable - their checkout script loaded fine."
+        : "PayPal's own site (paypal.com) is not reachable on this network. This is outside Fresh Snacks - it means this network itself is blocking PayPal, which no domain switch here can fix.");
+
+      trigger.textContent = allOk ? "All checks passed - test again" : "Some checks failed - test again";
+      trigger.disabled = false;
+    }
+
+    $("payment-check-run").onclick = (event) => runPaymentFlowCheck(event.currentTarget);
+
     function populateTestProfileSelect() {
       // Excludes the old "admin-test-profile" clone left over from before
       // this account picker existed - it's a stale one-time snapshot now,
