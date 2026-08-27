@@ -14,3 +14,7 @@ fresh_snacks_tab_v5.html
 fresh-snacks-reference.png
 fresh-snacks-kiosk/
 old/
+
+# Claude Code session transcripts - full chat history, tool output, and a
+# copy of memory files can end up in here; never belongs in a public repo.
+.chat-archive/

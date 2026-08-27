@@ -4,6 +4,12 @@ import puppeteer from "puppeteer-core";
 
 const scratch = process.env.SCRATCH_DIR || ".";
 const base = "https://doxservices.github.io/fresh-snacks";
+// A real share code and its expected balance, not hardcoded here on purpose
+// - this repo is public, and a code is all it takes to view that tab (see
+// firestore.rules: codes/{code} allow get, no list). Pass your own via env:
+//   TEST_CODE=XXXXXXXX TEST_BALANCE=2,050 npm run firebase:full-check
+const testCode = process.env.TEST_CODE;
+const testBalance = process.env.TEST_BALANCE;
 const results = [];
 const check = (name, ok, detail = "") => {
   results.push(ok);
@@ -30,13 +36,20 @@ try {
   }
 
   // --- index via path code link (exercises the 404 router)
-  await page.goto(`${base}/25E4BYJH`, { waitUntil: "networkidle2", timeout: 60000 });
-  check("404 router rewrote path to tab view", page.url().includes("?code=25E4BYJH"), page.url());
-  await page.waitForFunction(
-    () => document.getElementById("stat-balance")?.textContent.includes("2,050"),
-    { timeout: 30000 },
-  );
-  check("claimed tab balance", true, "J$2,050");
+  if (testCode) {
+    await page.goto(`${base}/${testCode}`, { waitUntil: "networkidle2", timeout: 60000 });
+    check("404 router rewrote path to tab view", page.url().includes(`?code=${testCode}`), page.url());
+    if (testBalance) {
+      await page.waitForFunction(
+        (bal) => document.getElementById("stat-balance")?.textContent.includes(bal),
+        { timeout: 30000 },
+        testBalance,
+      );
+      check("claimed tab balance", true, `J$${testBalance}`);
+    }
+  } else {
+    console.log("SKIP  code-link checks — set TEST_CODE (and optionally TEST_BALANCE) to run them");
+  }
 
   // --- left nav drawer
   await page.click("#nav-toggle");
