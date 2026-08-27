@@ -139,8 +139,8 @@ Worth a one-line rationale so a future reader doesn't mistake it for drift.
 
 Earlier work this project identified exactly four real, active accounts with
 genuine transaction/payment history that remain anonymous or incomplete
-under the `nameSet`/`createdByAdmin` standard (VIP Customer / `cust-d9zytpnw`,
-Kamoya, Tezzita Davis, Guest RD16). The ask was a distinct "Flagged" section
+under the `nameSet`/`createdByAdmin` standard (see accounting.html's own
+incomplete-profile rows for the current list). The ask was a distinct "Flagged" section
 on `accounting.html`, below the main accounts table, surfacing exactly this
 set — accounts with real money moving through them but no verified identity.
 That still hasn't been built.

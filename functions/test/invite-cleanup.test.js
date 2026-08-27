@@ -22,7 +22,7 @@ assert.equal(isCleanupCandidate(staleInvite, { answered: true, hasActivity: fals
 assert.equal(isCleanupCandidate(staleInvite, { answered: false, hasActivity: true, now: NOW }), false);
 
 // A real name means it's not a placeholder invite at all - never a candidate.
-const namedTab = { vipStatus: "named", firstName: "Tezzita", lastName: "Davis", createdAt: hoursAgo(200) };
+const namedTab = { vipStatus: "named", firstName: "Jordan", lastName: "Blake", createdAt: hoursAgo(200) };
 assert.equal(isCleanupCandidate(namedTab, { answered: false, hasActivity: false, now: NOW }), false);
 
 // Not a "vip" placeholder tab at all (an ordinary anonymous guest, or a

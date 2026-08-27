@@ -1317,7 +1317,7 @@
 
 ## Fix: early-payment discount was applying retroactively to pre-existing balances (2026-07-29)
 
-- Kamoya's account was showing a 10% offer, and checking the math
+- A customer's account was showing a 10% offer, and checking the math
   (`discountForDate` run against the real clock) confirmed it was
   technically "correct" per the day-difference rule alone - their oldest
   unpaid purchase just happened to be exactly 2 days old. But that
@@ -1468,9 +1468,9 @@
   in the backend actually ever sets - dead code, left as-is). That param
   only survives the one navigation admin.html's "Open test profile" sends
   you on; reloading, or clicking any other nav link, drops it, and the
-  label then fell through to "Guest Profile" - reported for Xavier
-  Hemmings' account, but really any admin test-profile session more than
-  one click deep.
+  label then fell through to "Guest Profile" - reported for the owner's
+  designated test account, but really any admin test-profile session more
+  than one click deep.
 - `FS.admin.portalIntoAccount()` (`js/firebase-admin.js`) now also sets a
   durable `adminTestSession` localStorage flag (new key in
   `js/firebase-config.js`'s `storageKeys`), and `profilePresentation()`
@@ -1894,8 +1894,8 @@
   (`FS.admin.createLinkInvite` + auto-accepting it via `FS.loginWithInvite`)
   to portal into the chosen account. That mechanism is capped at 3 linked
   devices per account by design (for real multi-device family tab
-  sharing) - an actively-used real account like Xavier Hemmings' can
-  already have those slots full, so the auto-accept could fail. Worse, the
+  sharing) - an actively-used real account like the owner's designated test
+  account can already have those slots full, so the auto-accept could fail. Worse, the
   failure was caught and silently swallowed, so the page still loaded fine
   - just as this browser's own unlinked (nameless) identity, with nothing
   explaining why it wasn't showing the expected account.
@@ -1920,13 +1920,13 @@
   customer's transactions/payments/adjustments into a separate
   `admin-test-profile` doc **once**, the first time it was ever opened, then
   reused that same doc forever - `sourceUserId` was only read on that first
-  call. Xavier Hemmings' real account (`cust-d9zytpnw`, the hardcoded
-  source) kept changing after that; the clone didn't, so the two silently
-  decoupled over time even though they looked identical at first.
+  call. The owner's designated real test account (`cust-d9zytpnw`, the
+  hardcoded source) kept changing after that; the clone didn't, so the two
+  silently decoupled over time even though they looked identical at first.
 - Fix: removed the whole clone-a-copy mechanism. Admin.html's "Test customer
   profile" card is now an account picker - a dropdown of every real
-  customer account (defaulting to Xavier Hemmings' account specifically,
-  matched by known id or by display name) plus a "+ Create a new account"
+  customer account (defaulting to the owner's designated test account
+  specifically, matched by known id or by display name) plus a "+ Create a new account"
   option with a name field that only appears when it's selected. Opening it
   now portals into whichever account is chosen via the exact same real
   link-invite mechanism as any multi-device tab share

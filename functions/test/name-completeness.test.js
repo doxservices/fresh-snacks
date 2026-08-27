@@ -3,7 +3,7 @@ const { hasRealName, isPlaceholderDisplayName, splitDisplayName, accounting } = 
 
 // A real first+last name, regardless of how it got there (self-entry, an
 // invitee, or an admin typing it into accounting.html) counts.
-assert.equal(hasRealName({ firstName: "Tezzita", lastName: "Davis" }), true);
+assert.equal(hasRealName({ firstName: "Jordan", lastName: "Blake" }), true);
 assert.equal(hasRealName({ firstName: "Jo", lastName: "Lee" }), false); // "Jo" is under the 3-char minimum
 assert.equal(hasRealName({ firstName: "Anna" }), false); // no last name at all
 
@@ -26,9 +26,9 @@ assert.equal(isPlaceholderDisplayName("VIP Customer"), true);
 assert.equal(isPlaceholderDisplayName("Guest AB12"), true);
 assert.equal(isPlaceholderDisplayName("New Guest"), true);
 assert.equal(isPlaceholderDisplayName(""), true);
-assert.equal(isPlaceholderDisplayName("Tezzita Davis"), false);
+assert.equal(isPlaceholderDisplayName("Jordan Blake"), false);
 
-assert.deepEqual(splitDisplayName("Tezzita Davis"), { firstName: "Tezzita", lastName: "Davis" });
+assert.deepEqual(splitDisplayName("Jordan Blake"), { firstName: "Jordan", lastName: "Blake" });
 assert.deepEqual(splitDisplayName("Mary Jane Watson"), { firstName: "Mary", lastName: "Jane Watson" });
 assert.deepEqual(splitDisplayName(""), { firstName: "", lastName: "" });
 
@@ -50,7 +50,7 @@ const rowsWithActivity = accounting(
 assert.equal(rowsWithActivity.length, 1);
 assert.equal(rowsWithActivity[0].snackTotal, 100);
 
-const namedNoActivity = { userId: "u3", uid: "u3", displayName: "Tezzita Davis", vipStatus: "named", createdByAdmin: "admin1" };
+const namedNoActivity = { userId: "u3", uid: "u3", displayName: "Jordan Blake", vipStatus: "named", createdByAdmin: "admin1" };
 assert.equal(accounting([namedNoActivity], [], [], [], []).length, 1);
 
 console.log("name-completeness regression checks passed");

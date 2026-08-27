@@ -218,11 +218,11 @@
       }).join("");
     }
 
-    // Xavier Hemmings' real account is the one this test tool has always
-    // meant to portal into - preselected here (by known id, falling back to
-    // a name match) rather than hardcoding a clone of it, so testing always
-    // reflects that account's actual live data instead of a snapshot that
-    // silently drifts out of sync with it over time.
+    // The owner's designated real test account is the one this test tool
+    // has always meant to portal into - preselected here (by known id,
+    // falling back to a name match) rather than hardcoding a clone of it,
+    // so testing always reflects that account's actual live data instead
+    // of a snapshot that silently drifts out of sync with it over time.
     const PREFERRED_TEST_PROFILE_ID = "cust-d9zytpnw";
     function populateTestProfileSelect() {
       // Excludes the old "admin-test-profile" clone left over from before
