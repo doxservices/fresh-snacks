@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260825f-row-menu-fixed-pos" />
+  <link rel="stylesheet" href="styles.css?v=20260827-balance-pay-btn" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260716-nav-qr-modal" defer></script>
 </head>
@@ -69,6 +69,13 @@
               <div class="stat-label" id="stat-balance-label">Current balance</div>
               <div class="stat-value" id="stat-balance">–</div>
             </div>
+            <!-- The only other route to "Pay in person"/PayPal (the
+                 cashback card's "Pay in full now") disappears entirely
+                 whenever there's no live cashback offer right now - which
+                 is most of the time a real balance sits between purchases.
+                 This is the always-available way to reach the same
+                 payment-choice modal, regardless of cashback status. -->
+            <button type="button" class="balance-pay-btn hidden" id="balance-pay-btn">Pay</button>
           </div>
         </div>
       </div>
@@ -110,7 +117,14 @@
          renderExpiredCashbackCard()). Purely informational: doesn't affect
          what a payment actually earns. -->
     <section class="offer-card expired-card hidden" id="cashback-expired-card" aria-label="Expired cashback bonuses">
-      <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">&times;</button>
+      <!-- An actual glyph (&times;) here visibly sits off-center within the
+           circle - measured live, this font's "x" ink is shifted up and
+           left of the box the browser centers, not a CSS centering bug.
+           A hand-drawn SVG X has no such font-metric asymmetry to correct
+           for. -->
+      <button type="button" class="card-close" id="cashback-expired-close" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
       <span class="accent" aria-hidden="true"></span>
       <div class="expired-head">
         <div class="heading-row">
@@ -1550,6 +1564,7 @@
       renderCashbackNotifications(data, isVisitor);
       renderPaypalPayCard(t, isVisitor, cur);
       maybeCelebratePaypalPayment(data, isVisitor);
+      $id("balance-pay-btn").classList.toggle("hidden", isVisitor || t.balance <= 0);
 
       // Favorite Snack + Snack Log are meaningless noise for a guest who
       // hasn't actually logged anything yet (a fresh device or an invitee
@@ -2605,6 +2620,7 @@
       payOptionsReturnFocus = null;
     }
     $id("cashback-pay-now").onclick = () => openPayOptionsModal();
+    $id("balance-pay-btn").onclick = () => openPayOptionsModal();
     $id("pay-options-close").onclick = () => closePayOptionsModal();
     $id("pay-options-backdrop").addEventListener("click", (ev) => {
       if (ev.target === $id("pay-options-backdrop")) closePayOptionsModal();
