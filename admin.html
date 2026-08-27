@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Admin</title>
-  <link rel="stylesheet" href="styles.css?v=20260828b-daily-sales-linechart" />
+  <link rel="stylesheet" href="styles.css?v=20260828c-dashboard-credits-card" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -115,10 +115,10 @@
               <div class="stat-label">Open balance</div>
               <div class="stat-value warm" id="dash-balance">-</div>
             </a>
-            <a class="stat-box" href="catalog.html" title="Open the catalog">
-              <div class="stat-label">Snack value</div>
-              <div class="stat-value green" id="dash-snacks">-</div>
-            </a>
+            <div class="stat-box">
+              <div class="stat-label">Credits</div>
+              <div class="stat-value credit-balance" id="dash-credits">-</div>
+            </div>
             <div class="stat-box">
               <div class="stat-label">Paid</div>
               <div class="stat-value blue" id="dash-paid">-</div>
@@ -326,12 +326,20 @@
 
     function renderDashboard() {
       const cur = SNAPSHOT.settings.currency;
-      const snackTotal = SNAPSHOT.accounting.reduce((n, r) => n + r.snackTotal, 0);
       const paidTotal = SNAPSHOT.accounting.reduce((n, r) => n + r.paidTotal, 0);
-      const adjustmentTotal = SNAPSHOT.accounting.reduce((n, r) => n + r.adjustmentTotal, 0);
-      $("dash-snacks").textContent = FS.money(snackTotal, cur);
+      // Open balance and Credits are summed per-account, not netted at the
+      // aggregate level - a customer in credit (r.balance < 0) is real money
+      // this business owes back, not a discount on what everyone else owes.
+      // Netting them together (the old snackTotal+adjustmentTotal-paidTotal
+      // formula) understated "Open balance" by however much credit was
+      // outstanding, which is real - what a transactions.html?filter=
+      // open-balance click actually shows (r.balance > 0 per row) already
+      // worked this way; the dashboard total just hadn't matched it.
+      const openBalanceTotal = SNAPSHOT.accounting.reduce((n, r) => n + Math.max(0, r.balance), 0);
+      const creditTotal = SNAPSHOT.accounting.reduce((n, r) => n + Math.max(0, -r.balance), 0);
+      $("dash-credits").textContent = FS.money(creditTotal, cur);
       $("dash-paid").textContent = FS.money(paidTotal, cur);
-      $("dash-balance").textContent = FS.money(snackTotal + adjustmentTotal - paidTotal, cur);
+      $("dash-balance").textContent = FS.money(openBalanceTotal, cur);
       $("dash-users").textContent = SNAPSHOT.accounting.length;
       $("admin-subtitle").textContent = `${SNAPSHOT.transactions.length} transactions, ${SNAPSHOT.payments.length} payments`;
     }
