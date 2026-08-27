@@ -889,7 +889,8 @@ a.stat-box:hover, a.stat-box:focus-visible {
 .pay-option strong { font-size: 15px; color: var(--green-dark); }
 .pay-option-note { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
 .pay-option:not(.is-disabled):hover strong,
-.pay-option:not(.is-disabled):hover .pay-option-note { color: #fff; }
+.pay-option:not(.is-disabled):hover .pay-option-note,
+.pay-option:not(.is-disabled):hover .pay-option-brand-mark { color: #fff; }
 .pay-option-text { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
 .pay-option-icon-shell {
   width: 40px;
@@ -903,7 +904,9 @@ a.stat-box:hover, a.stat-box:focus-visible {
   box-shadow: 0 3px 9px rgba(46, 75, 58, 0.10);
 }
 .pay-option-icon-shell img { width: 19px; }
-.pay-option-brand-mark { height: 22px; width: auto; flex-shrink: 0; }
+/* currentColor now (see index.html) - black at rest, matching PayPal's
+   own default styling, white on hover via the rule above. */
+.pay-option-brand-mark { height: 22px; width: auto; flex-shrink: 0; color: #000; }
 
 .pay-option.is-disabled {
   cursor: not-allowed;
@@ -1326,11 +1329,14 @@ a.stat-box:hover, a.stat-box:focus-visible {
   border: 0;
   border-radius: 20px;
   background: #ffc439;
+  /* The wordmark is currentColor now (see index.html) - black at rest,
+     matching PayPal's own default styling on their brand-gold background. */
+  color: #000;
   cursor: pointer;
   transition: filter .15s ease;
 }
 .paypal-branded-button:hover { filter: brightness(.95); }
-.paypal-branded-button img { height: 22px; display: block; }
+.paypal-branded-button svg { height: 22px; width: auto; display: block; }
 .shield { justify-self: center; width: min(90px, 100%); opacity: .82; mix-blend-mode: multiply; }
 
 @media (max-width: 640px) {
