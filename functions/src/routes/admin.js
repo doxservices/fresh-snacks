@@ -1459,9 +1459,21 @@ router.post("/users", asyncRoute(async (req, res) => {
   const userId = genId("cust");
   const name = (req.body.displayName || "").trim();
   const finalName = name || `Guest ${randomCode(4)}`;
+  // A real name typed here (as opposed to the auto-generated "Guest ABCD"
+  // fallback) needs firstName/lastName split out and nameSet marked true,
+  // or it silently fails hasRealName()/profileComplete() forever - the
+  // admin clearly gave this tab a real identity, but nothing downstream
+  // (invitee-name nagging, the "flagged accounts" concept, etc.) would
+  // ever recognize it as complete. nameSet is set unconditionally here
+  // (not just when the split has both parts) because a real customer who
+  // only goes by one name is still a real, deliberately-given name, not an
+  // incomplete one - see PATCH /users/:userId's hasRealName gate for the
+  // two-part case this doesn't need to duplicate.
+  const { firstName, lastName } = name ? splitDisplayName(name) : { firstName: "", lastName: "" };
   await db().collection("users").doc(userId).set({
     userId, uid: userId, displayName: finalName,
     vipStatus: name ? "named" : "anonymous",
+    ...(name ? { firstName, lastName, nameSet: true } : {}),
     linkedUids: [],
     createdByAdmin: req.uid,
     createdAt: FieldValue.serverTimestamp(),
