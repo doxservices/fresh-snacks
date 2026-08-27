@@ -1958,11 +1958,13 @@ details[open] > summary .month-note {
    radius) reads fine for an ordinary row, but a solid-fill highlight with
    the same flat/square treatment just looked like a rough color smear -
    hard corners butting straight into the next row's hairline with no
-   border of its own to separate them. Giving the highlight its own real
-   border + the row-pill radius the base .admin-table uses everywhere else
-   turns it into a deliberate badge instead. */
+   border of its own to separate them. A green outline + white interior
+   (matching the name inputs/VIP select's own white fill, extended across
+   every cell instead of stopping at those two fields) reads as a
+   deliberate badge with real breathing room, rather than a solid tint
+   fighting the white form controls sitting on top of it. */
 #accounting-list .admin-table tr.healthy-account td {
-  background: var(--green-light);
+  background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid rgba(24, 79, 42, 0.16);
   border-bottom: 1px solid rgba(24, 79, 42, 0.16);
 }
