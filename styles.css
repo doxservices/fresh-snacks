@@ -1954,8 +1954,27 @@ details[open] > summary .month-note {
   background: rgba(250, 240, 239, 0.9);
 }
 
+/* The flat report style above (transparent td, hairline bottom border, no
+   radius) reads fine for an ordinary row, but a solid-fill highlight with
+   the same flat/square treatment just looked like a rough color smear -
+   hard corners butting straight into the next row's hairline with no
+   border of its own to separate them. Giving the highlight its own real
+   border + the row-pill radius the base .admin-table uses everywhere else
+   turns it into a deliberate badge instead. */
 #accounting-list .admin-table tr.healthy-account td {
   background: var(--green-light);
+  border-top: 1px solid rgba(24, 79, 42, 0.16);
+  border-bottom: 1px solid rgba(24, 79, 42, 0.16);
+}
+
+#accounting-list .admin-table tr.healthy-account td:first-child {
+  border-left: 1px solid rgba(24, 79, 42, 0.16);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+#accounting-list .admin-table tr.healthy-account td:last-child {
+  border-right: 1px solid rgba(24, 79, 42, 0.16);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .bottom-summary {
