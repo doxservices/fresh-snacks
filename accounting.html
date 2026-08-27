@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Accounting</title>
-  <link rel="stylesheet" href="styles.css?v=20260828c-dashboard-credits-card" />
+  <link rel="stylesheet" href="styles.css?v=20260828d-accounting-name-fields-flat" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -704,10 +704,16 @@
       }
     });
 
+    // r.averagePurchasePerDay/r.activityDays (see accounting() in
+    // ../functions/src/lib/shared.js) are deliberately not columns here -
+    // this table is already wide across every real account at once, and
+    // those two are individual-customer stats, not something worth
+    // comparing account-to-account in one row. Still computed server-side
+    // for whenever a per-customer stats view wants them.
     function renderAccounting() {
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th class="num">Avg / active day</th><th class="num">Active days</th><th>Last activity</th><th></th></tr></thead>
+        <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${r.balance === 0 ? ' class="healthy-account"' : ""}>
           <td class="name-fields">
             <input data-f="firstName" placeholder="First name" value="${esc(r.firstName || "")}" />
@@ -720,8 +726,6 @@
           <td class="num">${FS.money(r.paidTotal, cur)}</td>
           <td class="num">${FS.money(r.adjustmentTotal, cur)}</td>
           <td class="num ${r.balance < 0 ? "credit-balance" : ""}">${r.balance < 0 ? `Credit ${FS.money(Math.abs(r.balance), cur)}` : FS.money(r.balance, cur)}</td>
-          <td class="num">${FS.money(r.averagePurchasePerDay, cur)}</td>
-          <td class="num">${r.activityDays}</td>
           <td class="nowrap">${esc(r.lastActivity || "-")}</td>
           <td class="nowrap">
             <div class="row-menu">

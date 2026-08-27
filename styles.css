@@ -3747,13 +3747,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
    not a placeholder like "VIP Customer" typed into a generic Name field. */
 .name-fields {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 4px;
   min-width: 130px;
 }
 
 .name-fields input {
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Side by side is too cramped on a phone-width screen, so only there do
+   First/Last stack top to bottom instead. */
+@media (max-width: 640px) {
+  .name-fields {
+    flex-direction: column;
+  }
+  .name-fields input {
+    width: 100%;
+  }
 }
 
 .permission-presets {
