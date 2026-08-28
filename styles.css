@@ -3994,6 +3994,26 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   box-sizing: border-box;
 }
 
+/* table-layout:fixed's percentage columns just proportionally shrink on a
+   narrow screen instead of reflowing - Price/Stock/Calories collapse to
+   an unreadable sliver and Status's own dropdown can visually collide
+   with the Saved-label/action icons next to it. Same fix already used
+   for accounting.html/transactions.html's wide tables: let the columns
+   keep their real, readable widths and scroll horizontally instead of
+   squeezing everything below usable width. #catalog-list also holds the
+   Gallery view's card grid, which never needs to scroll on its own, so
+   this is harmless there. */
+@media (max-width: 720px) {
+  #catalog-list {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #catalog-list .catalog-table {
+    min-width: 800px;
+  }
+}
+
 /* Shown while an admin page checks whether the browser already has a
    signed-in session, so the login form never flashes on screen first for
    an admin who's already authenticated - see FS.admin.gateAuth. */
