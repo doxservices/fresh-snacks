@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260828l-sales-tooltip-fixed-position" />
+  <link rel="stylesheet" href="styles.css?v=20260828m-adjustments-in-transactions" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -224,7 +224,7 @@
 
       const groups = new Map();
       const ensureGroup = (key) => {
-        if (!groups.has(key)) groups.set(key, { transactions: [], payments: [], voided: [] });
+        if (!groups.has(key)) groups.set(key, { transactions: [], payments: [], adjustments: [], voided: [] });
         return groups.get(key);
       };
       for (const t of SNAPSHOT.transactions) {
@@ -232,6 +232,10 @@
         ensureGroup(key).transactions.push(t);
       }
       for (const p of SNAPSHOT.payments) ensureGroup(p.userId || p.uid || p.deviceId || "unassigned").payments.push(p);
+      // Adjustments moved here from accounting.html's own table - still
+      // fully usable (Add adjustment on admin.html), just shown as ledger
+      // entries alongside purchases/payments instead of a dedicated column.
+      for (const a of SNAPSHOT.adjustments || []) ensureGroup(a.userId || a.uid || "unassigned").adjustments.push(a);
       // Voided transactions are excluded from this page's totals/balance math
       // (accounting() never sees them) but the highest-elevation admin still
       // needs to see - and optionally permanently delete - what got voided.
@@ -283,6 +287,7 @@
             const name = info?.displayName || userId;
             const txns = group.transactions;
             const payments = group.payments;
+            const adjustments = group.adjustments;
             const voided = group.voided;
             const { snackTotal, paidTotal, balance } = group;
             const flagged = txns.some(needsAttention);
@@ -290,6 +295,7 @@
             const ledger = [
               ...txns.map((record) => ({ kind: "purchase", date: record.createdDate || "", record })),
               ...payments.map((record) => ({ kind: "payment", date: record.createdDate || "", record })),
+              ...adjustments.map((record) => ({ kind: "adjustment", date: record.createdDate || "", record })),
             ].sort((a, b) => (needsAttention(b.kind === "purchase" ? b.record : {}) - needsAttention(a.kind === "purchase" ? a.record : {}))
               || String(b.date).localeCompare(String(a.date)));
             const rows = ledger.map(({ kind, record }) => kind === "payment"
@@ -300,6 +306,15 @@
                 <td class="num-money payment-value"><span class="mv">−${FS.money(record.amount || 0, cur)}</span></td>
                 <td><span class="ledger-status paid">Recorded</span></td>
                 <td class="ledger-actions">${renderPaymentActions()}</td>
+              </tr>`
+              : kind === "adjustment"
+              ? `<tr class="adjustment-row" data-adjustment-id="${esc(record.adjustmentId || record.id)}">
+                <td>${esc(record.createdDate || "-")}</td>
+                <td><span class="ledger-type adjustment">Adjustment</span>${record.reason ? ` <span class="muted-small">${esc(record.reason)}</span>` : ""}</td>
+                <td class="num">—</td>
+                <td class="num-money"><span class="mv">${Number(record.amount || 0) < 0 ? "−" : "+"}${FS.money(Math.abs(record.amount || 0), cur)}</span></td>
+                <td><span class="ledger-status neutral">Recorded</span></td>
+                <td class="ledger-actions"></td>
               </tr>`
               : `<tr data-id="${esc(record.transactionId || record.id)}"${needsAttention(record) ? ' class="disputed"' : ""}>
                 <td>${esc(record.createdDate || "-")}</td>

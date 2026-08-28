@@ -5000,6 +5000,15 @@ tr.healthy-account td {
   background: #eaf6ed;
 }
 
+/* Distinct from Purchase (neutral grey) and Payment (green) - adjustments
+   moved here from their own accounting.html column, so they need to read
+   as their own kind of ledger entry at a glance, not blend into either. */
+.ledger-type.adjustment {
+  border-color: #cfc6ea;
+  color: #4a3aa7;
+  background: #f1eefa;
+}
+
 .ledger-status.neutral {
   color: #66736a;
   background: #eef2ef;
