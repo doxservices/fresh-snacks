@@ -4009,9 +4009,20 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+  /* Fixed px per column here (not the desktop percentages) specifically
+     to give Name half its desktop-proportional width on mobile - Price/
+     Stock/Status/Calories/Actions keep the same pixel width they'd get
+     at the 800px reference size, only Name (256px there) drops to 128px,
+     and the table's own min-width shrinks by exactly that difference. */
   #catalog-list .catalog-table {
-    min-width: 800px;
+    min-width: 672px;
   }
+  #catalog-list .cc-name { width: 128px; }
+  #catalog-list .cc-price { width: 104px; }
+  #catalog-list .cc-stock { width: 96px; }
+  #catalog-list .cc-active { width: 104px; }
+  #catalog-list .cc-calories { width: 72px; }
+  #catalog-list .cc-actions { width: 168px; }
 }
 
 /* Shown while an admin page checks whether the browser already has a
