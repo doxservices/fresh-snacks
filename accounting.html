@@ -723,7 +723,7 @@
     function renderAccounting() {
       const cur = SNAPSHOT.settings.currency;
       $("accounting-list").innerHTML = `<table class="admin-table">
-        <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Snacks</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
+        <thead><tr><th>First / Last name</th><th>VIP</th><th class="num">Spend</th><th class="num">Paid</th><th class="num">Adjustments</th><th class="num">Balance</th><th>Last activity</th><th></th></tr></thead>
         <tbody>${SNAPSHOT.accounting.map((r) => `<tr data-user="${esc(r.userId)}"${accountingRowClass(r) ? ` class="${accountingRowClass(r)}"` : ""}>
           <td>
             <div class="name-fields">
