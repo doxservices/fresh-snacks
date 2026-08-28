@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Daily Sales</title>
-  <link rel="stylesheet" href="styles.css?v=20260828k-catalog-mobile-name-half" />
+  <link rel="stylesheet" href="styles.css?v=20260828l-sales-tooltip-fixed-position" />
 </head>
 <body>
   <main class="page">
@@ -216,6 +216,30 @@
 
     function hideTooltip() { $("sales-tooltip").classList.remove("show"); }
 
+    // .sales-tooltip is position:fixed, but it sits inside a .card - and
+    // .card has its own backdrop-filter (see styles.css), which per spec
+    // makes it the actual containing block for any position:fixed
+    // descendant instead of the viewport. positionTooltipAt's x/y come
+    // from getBoundingClientRect() (viewport-relative), so without this
+    // offset the tooltip lands wherever the card happens to be instead of
+    // over the hovered point - same bug/fix as the row-menu dropdowns on
+    // accounting.html/transactions.html/edit-tab.html.
+    function fixedContainingBlockOf(el) {
+      let node = el.parentElement;
+      while (node && node !== document.body) {
+        const cs = getComputedStyle(node);
+        if (
+          cs.transform !== "none" || cs.perspective !== "none"
+          || (cs.filter && cs.filter !== "none")
+          || (cs.backdropFilter && cs.backdropFilter !== "none")
+          || (cs.willChange && /transform|perspective|filter/.test(cs.willChange))
+          || (cs.contain && /paint|layout|strict|content/.test(cs.contain))
+        ) { return node; }
+        node = node.parentElement;
+      }
+      return null;
+    }
+
     function positionTooltipAt(x, y) {
       const tip = $("sales-tooltip");
       const ttRect = tip.getBoundingClientRect();
@@ -223,6 +247,12 @@
       left = Math.max(8, Math.min(left, window.innerWidth - ttRect.width - 8));
       let top = y - ttRect.height - 10;
       if (top < 8) top = y + 18;
+      const containingBlock = fixedContainingBlockOf(tip);
+      if (containingBlock) {
+        const cbRect = containingBlock.getBoundingClientRect();
+        left -= cbRect.left;
+        top -= cbRect.top;
+      }
       tip.style.left = `${left}px`;
       tip.style.top = `${top}px`;
     }
