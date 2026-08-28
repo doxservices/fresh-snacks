@@ -1927,62 +1927,53 @@ details[open] > summary .month-note {
   border-radius: 0;
 }
 
-/* User accounting carries the same flat-report table treatment, per
-   request - it isn't wrapped in <details> (one continuous table, no
-   per-customer collapsing), so only the table-level rules apply; the
-   details/summary rules above are irrelevant here. */
-#accounting-list .admin-table {
-  border-spacing: 0;
-}
-
-#accounting-list .admin-table td {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid rgba(24, 79, 42, 0.08);
-  border-radius: 0;
-}
-
-/* Both flat overrides above are ID-scoped, so they beat tr.disputed/
-   tr.healthy-account's plain background rules regardless of source
-   order (an id always outranks a class, however the two selectors are
-   arranged) - caught live: transactions.html's disputed-row red tint was
-   silently rendering as fully transparent. Restored here at matching
-   specificity so the semantic "this needs attention" / "this account is
-   settled" row tints survive the flat table style instead of being
-   erased by it. */
+/* Both flat overrides above are ID-scoped, so they beat tr.disputed's
+   plain background rule regardless of source order (an id always
+   outranks a class, however the two selectors are arranged) - caught
+   live: transactions.html's disputed-row red tint was silently rendering
+   as fully transparent. Restored here at matching specificity so the
+   "this needs attention" row tint survives the flat table style instead
+   of being erased by it. */
 #txn-groups .admin-table tr.disputed td {
   background: rgba(250, 240, 239, 0.9);
 }
 
-/* The flat report style above (transparent td, hairline bottom border, no
-   radius) reads fine for an ordinary row, but a solid-fill highlight with
-   that same flat/square treatment looked like a rough color smear - hard
-   corners butting straight into the next row's hairline with no border of
-   its own. Both status highlights (resolved/green, unresolved/red - both
-   toggleable from admin.html's UI settings) get a real border + the
-   row-pill radius the base .admin-table uses everywhere else, so each
-   reads as a deliberate badge. The name inputs/VIP select go
-   semi-transparent here instead of their usual solid white, so the row's
-   tint shows through them too - one consistent colored surface per row,
-   not a color fill fighting its own white form controls. */
-#accounting-list .admin-table tr.healthy-account td,
-#accounting-list .admin-table tr.unresolved-account td {
-  border-top: 1px solid;
-  border-bottom: 1px solid;
+/* User accounting used to carry the same flat-report treatment as
+   #txn-groups above (zero row spacing, hairline-only borders) - fine when
+   every row looked the same, but once rows could be individually
+   highlighted (resolved/green, unresolved/red - see admin.html's UI
+   settings), a highlighted row's own border+radius sitting right against
+   a spacing-less flat neighbor produced inconsistent gaps between
+   different row pairs, and a flat row's bottom-hairline-only border
+   would've read as a half-open box once real spacing existed at all.
+   Simplest fix: every row here - highlighted or not - shares one full
+   bordered, rounded-corner treatment with real spacing between rows, so
+   the gap is identical everywhere and only the FILL color (plus the
+   healthy/unresolved classes below) ever changes. */
+#accounting-list .admin-table {
+  border-spacing: 0 6px;
 }
 
-#accounting-list .admin-table tr.healthy-account td:first-child,
-#accounting-list .admin-table tr.unresolved-account td:first-child {
-  border-left: 1px solid;
+#accounting-list .admin-table td {
+  background: rgba(255, 255, 255, 0.84);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+#accounting-list .admin-table td:first-child {
+  border-left: 1px solid var(--line);
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
-#accounting-list .admin-table tr.healthy-account td:last-child,
-#accounting-list .admin-table tr.unresolved-account td:last-child {
-  border-right: 1px solid;
+#accounting-list .admin-table td:last-child {
+  border-right: 1px solid var(--line);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+/* The name inputs/VIP select go semi-transparent on a highlighted row
+   instead of their usual solid white, so the row's tint shows through
+   them too - one consistent colored surface per row, not a color fill
+   fighting its own white form controls. */
 #accounting-list .admin-table tr.healthy-account td {
   background: var(--green-light);
   border-color: rgba(24, 79, 42, 0.18);
