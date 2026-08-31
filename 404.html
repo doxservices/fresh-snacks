@@ -4,18 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks</title>
-  <link rel="stylesheet" href="/fresh-snacks/styles.css" />
+  <link rel="stylesheet" href="styles.css" />
   <script>
-    /* GitHub Pages serves this page for any unknown path. Treat a single
-     * path segment that looks like a share code (e.g. /fresh-snacks/AB3XQ7ZK)
-     * as a tab link and route it to the tab view. */
+    /* Both GitHub Pages (serves this from /fresh-snacks/{code}) and
+     * Firebase Hosting - freshsnacksja.com, fresh-snacks-ee79f.web.app -
+     * (serves this from /{code} directly) fall back to this exact file for
+     * any unknown path, so this can't assume which base path it's under.
+     * Every reference here is deliberately relative (no leading slash) -
+     * resolved against whatever fake path the browser is still showing,
+     * "styles.css"/"./" naturally land on the real file/page on either
+     * host without knowing which one it is. A hardcoded "/fresh-snacks/"
+     * prefix here previously 404'd every asset and silently skipped the
+     * redirect below on freshsnacksja.com/.web.app - confirmed live.
+     *
+     * Treat a single path segment that looks like a share code (e.g.
+     * .../AB3XQ7ZK) as a tab link and route it to the tab view. */
     (function () {
-      var base = "/fresh-snacks/";
-      var seg = location.pathname.indexOf(base) === 0
-        ? location.pathname.slice(base.length).replace(/\/+$/, "")
-        : "";
+      var seg = location.pathname.replace(/\/+$/, "").split("/").pop() || "";
       if (/^[A-Za-z0-9]{6,12}$/.test(seg)) {
-        location.replace(base + "?code=" + seg.toUpperCase());
+        location.replace("./?code=" + seg.toUpperCase());
       }
     })();
   </script>
@@ -25,7 +32,7 @@
     <header>
       <div class="header-row">
         <div class="header-lead">
-          <a href="/fresh-snacks/" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="/fresh-snacks/banner-logo.png" alt="Fresh Snacks" /></a>
+          <a href="./" class="brand-logo-link" aria-label="Fresh Snacks home"><img class="brand-logo" src="banner-logo.png" alt="Fresh Snacks" /></a>
           <div>
             <h1>Fresh Snacks</h1>
             <p>That link doesn't match a page or tab code.</p>
@@ -34,7 +41,7 @@
       </div>
     </header>
     <section class="card section-card">
-      <p><a href="/fresh-snacks/">Go to the snack tab</a></p>
+      <p><a href="./">Go to the snack tab</a></p>
     </section>
   </main>
 </body>
