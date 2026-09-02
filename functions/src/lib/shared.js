@@ -40,6 +40,7 @@ function accounting(users, devices, transactions, payments, adjustments) {
         snackTotal: 0,
         datedSnackTotal: 0,
         paidTotal: 0,
+        cashbackTotal: 0,
         adjustmentTotal: 0,
         balance: 0,
         lastActivity: "",
@@ -86,7 +87,17 @@ function accounting(users, devices, transactions, payments, adjustments) {
   }
   for (const p of payments) {
     const row = ensure(accountKey(p));
-    row.paidTotal += Number(p.amount || 0);
+    const amount = Number(p.amount || 0);
+    // A cashback payout (see cashback.js's creditBalance doc comment) is a
+    // reward the business is GIVING the customer, not money that came IN -
+    // real payments (cash/PayPal/admin-recorded/customer-reported) and
+    // cashback need to stay two separate figures, or "Paid" everywhere
+    // (admin.html's dashboard, this row's own Paid column, transactions.html's
+    // per-customer summary) silently overstates actual cash collected by
+    // however much cashback has been granted. balance still subtracts
+    // both - this only changes what "paid" means on its own, not the math.
+    if (p.source === "cashback") row.cashbackTotal += amount;
+    else row.paidTotal += amount;
     row.lastActivity = maxDate(row.lastActivity, p.createdDate || dateFromRecord(p, "createdAt"));
   }
   for (const a of adjustments) {
@@ -96,11 +107,11 @@ function accounting(users, devices, transactions, payments, adjustments) {
   }
   return [...rows.values()].map((row) => ({
     ...row,
-    balance: row.snackTotal + row.adjustmentTotal - row.paidTotal,
+    balance: row.snackTotal + row.adjustmentTotal - row.paidTotal - row.cashbackTotal,
     activityDays: row.snackActivityDates.length,
     averagePurchasePerDay: row.snackActivityDates.length ? Math.round(row.datedSnackTotal / row.snackActivityDates.length) : 0,
   })).filter((row) => {
-    const hasActivity = row.snackTotal !== 0 || row.paidTotal !== 0 || row.adjustmentTotal !== 0;
+    const hasActivity = row.snackTotal !== 0 || row.paidTotal !== 0 || row.cashbackTotal !== 0 || row.adjustmentTotal !== 0;
     if (hasActivity) return true;
     // A tab still sitting on the Generate Invite placeholder ("VIP
     // Customer"/vipStatus "vip") with zero activity is a pending invite,
@@ -215,8 +226,11 @@ function dailySales(transactions, payments, snacks) {
     if (!date) continue;
     const day = ensureDay(date);
     const amount = Number(p.amount || 0);
-    day.paymentsCollected += amount;
     const source = p.source || "admin";
+    // Same split as accounting()'s paidTotal/cashbackTotal - a cashback
+    // payout isn't money collected, so it stays out of paymentsCollected
+    // (byPaymentSource already shows it as its own bucket either way).
+    if (source !== "cashback") day.paymentsCollected += amount;
     day.byPaymentSource[source] = (day.byPaymentSource[source] || 0) + amount;
   }
 

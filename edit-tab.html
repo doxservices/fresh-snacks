@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Edit Tab</title>
-  <link rel="stylesheet" href="styles.css?v=20260828m-adjustments-in-transactions" />
+  <link rel="stylesheet" href="styles.css?v=20260902-separate-cashback-from-paid" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -1064,9 +1064,14 @@
     function render() {
       const cur = SNAPSHOT.settings.currency;
       const snackTotal = SNAPSHOT.transactions.filter((t) => t.workflowStatus !== "ITEM_UNDER_REVIEW").reduce((n, t) => n + Number(t.total || 0), 0);
-      const paidTotal = SNAPSHOT.payments.reduce((n, p) => n + Number(p.amount || 0), 0);
+      // A cashback payout is a reward the business granted, not money
+      // collected - kept out of paidTotal (same split as accounting()
+      // server-side) so "Paid" here means real payments only; still
+      // subtracted from balance below since it genuinely settles what's owed.
+      const paidTotal = SNAPSHOT.payments.filter((p) => p.source !== "cashback").reduce((n, p) => n + Number(p.amount || 0), 0);
+      const cashbackTotal = SNAPSHOT.payments.filter((p) => p.source === "cashback").reduce((n, p) => n + Number(p.amount || 0), 0);
       const adjustmentTotal = SNAPSHOT.adjustments.reduce((n, a) => n + Number(a.amount || 0), 0);
-      const balance = snackTotal + adjustmentTotal - paidTotal;
+      const balance = snackTotal + adjustmentTotal - paidTotal - cashbackTotal;
 
       $("profile-title").textContent = SNAPSHOT.profile.displayName || "Guest";
       $("profile-subtitle").textContent = `Tab id: ${SNAPSHOT.profile.id}`;

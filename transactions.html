@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fresh Snacks - Transactions</title>
-  <link rel="stylesheet" href="styles.css?v=20260828m-adjustments-in-transactions" />
+  <link rel="stylesheet" href="styles.css?v=20260902-separate-cashback-from-paid" />
   <script src="js/qrcode.js?v=20260716-nav-qr-export" defer></script>
   <script src="js/nav-qr.js?v=20260717-explicit-admin-qr" defer></script>
 </head>
@@ -250,8 +250,15 @@
       for (const [userId, group] of groups) {
         const info = byUser.get(userId);
         group.snackTotal = group.transactions.filter((t) => t.workflowStatus !== "ITEM_UNDER_REVIEW").reduce((n, t) => n + Number(t.total || 0), 0);
-        group.paidTotal = info?.paidTotal ?? group.payments.reduce((n, p) => n + Number(p.amount || 0), 0);
-        group.balance = group.snackTotal + Number(info?.adjustmentTotal || 0) - group.paidTotal;
+        // A cashback payout is a reward the business granted, not money
+        // collected - kept out of paidTotal (same split as accounting()
+        // server-side) so "Payments" here means real payments only, while
+        // still counted in the balance below since it genuinely settles
+        // what's owed. Falls back to a local sum only for an "unassigned"
+        // group with no matching accounting row.
+        group.paidTotal = info?.paidTotal ?? group.payments.filter((p) => p.source !== "cashback").reduce((n, p) => n + Number(p.amount || 0), 0);
+        group.cashbackTotal = info?.cashbackTotal ?? group.payments.filter((p) => p.source === "cashback").reduce((n, p) => n + Number(p.amount || 0), 0);
+        group.balance = group.snackTotal + Number(info?.adjustmentTotal || 0) - group.paidTotal - group.cashbackTotal;
       }
 
       const requestedUser = new URLSearchParams(location.search).get("user");

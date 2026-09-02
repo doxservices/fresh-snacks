@@ -34,7 +34,9 @@ assert.deepEqual(days["2026-08-20"].byPaymentSource, { admin: 150, paypal: 100 }
 
 assert.equal(days["2026-08-21"].revenue, 100);
 assert.equal(days["2026-08-21"].units, 1);
-assert.equal(days["2026-08-21"].paymentsCollected, 50);
+// p3 is a cashback payout, not money collected - paymentsCollected excludes
+// it (byPaymentSource still shows it, same as before).
+assert.equal(days["2026-08-21"].paymentsCollected, 0);
 assert.deepEqual(days["2026-08-21"].byPaymentSource, { cashback: 50 });
 
 // The disputed transaction contributed nothing to either day's totals.
